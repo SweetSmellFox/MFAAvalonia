@@ -1777,28 +1777,22 @@ public class MaaProcessor
         {
             return;
         }
-        // string debugFolderPath = Path.Combine(AppContext.BaseDirectory, "debug");
-        // if (!Directory.Exists(debugFolderPath))
-        // {
-        //     Directory.CreateDirectory(debugFolderPath);
-        // }
-        //
-        // string logFilePath = Path.Combine(debugFolderPath, "maa.log");
-        // string timeStamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
-        // string formattedLogMessage =
-        //     $"[{timeStamp}][INF][Px14600][Tx16498][MaaProcessor.cs][L56][MFA::AppendVersionLog] ";
-        // var logMessage = $"MFAAvalonia Version: [mfa.version={Instances.VersionUpdateSettingsUserControlModel.MfaVersion}] "
-        //     + $"Interface Version: [data.version=v{resourceVersion.Replace("v", "")}] ";
-        // LoggerHelper.Info(logMessage);
-        //
-        // try
-        // {
-        //     File.AppendAllText(logFilePath, formattedLogMessage + logMessage);
-        // }
-        // catch (Exception)
-        // {
-        //     Console.WriteLine("尝试写入失败！");
-        // }
+        
+        // Get framework version
+        string frameworkVersion;
+        try
+        {
+            frameworkVersion = MaaUtility.MaaVersion();
+        }
+        catch (Exception e)
+        {
+            frameworkVersion = "Unknown";
+            LoggerHelper.Error("Failed to get MaaFramework version", e);
+        }
+        
+        // Log all version information
+        LoggerHelper.Info($"Resource version: {resourceVersion}");
+        LoggerHelper.Info($"MaaFramework version: {frameworkVersion}");
     }
 
     #endregion
