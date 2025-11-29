@@ -615,7 +615,7 @@
         <value>Select Pipeline File</value>
     </data>
     <data name="LoadResourcesFailed" xml:space="preserve">
-        <value>Failed to load resources!</value>
+        <value>Failed to load resources! Please delete the entire folder and redownload, or contact the project maintainer.</value>
     </data>
     <data name="LogRecord" xml:space="preserve">
         <value>Log</value>
@@ -663,7 +663,7 @@
         <value>No</value>
     </data>
     <data name="NoEmulatorFound" xml:space="preserve">
-        <value>No emulator found!</value>
+        <value>No emulator found! Please ensure that the emulator's ADB function is enabled, bridge mode is disabled, and try connecting again after restarting MFA and the emulator.</value>
     </data>
     <data name="None" xml:space="preserve">
         <value>None</value>
