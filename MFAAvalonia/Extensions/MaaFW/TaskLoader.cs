@@ -287,30 +287,36 @@ public class TaskLoader(MaaInterface? maaInterface)
     }
 
 
-    private void UpdateExistingItem(DragItemViewModel oldItem, MaaInterface.MaaInterfaceTask newItem, bool updateName = false)
-    {
-        if (oldItem.InterfaceItem == null) return;
-        if (updateName) oldItem.InterfaceItem.Name = newItem.Name;
-        else if (oldItem.InterfaceItem.Name != newItem.Name) return;
-
-        oldItem.InterfaceItem.Entry = newItem.Entry;
-        oldItem.InterfaceItem.Label = newItem.Label;
-        oldItem.InterfaceItem.PipelineOverride = newItem.PipelineOverride;
-        oldItem.InterfaceItem.Description = newItem.Description;
-        oldItem.InterfaceItem.Description = newItem.Description;
-        oldItem.InterfaceItem.Document = newItem.Document;
-        oldItem.InterfaceItem.Repeatable = newItem.Repeatable;
-        oldItem.InterfaceItem.Resource = newItem.Resource;
-        oldItem.InterfaceItem.Icon = newItem.Icon;
-
-        // 更新图标
-        oldItem.InterfaceItem.InitializeIcon();
-        oldItem.ResolvedIcon = oldItem.InterfaceItem.ResolvedIcon;
-        oldItem.HasIcon = oldItem.InterfaceItem.HasIcon;
-
-        UpdateAdvancedOptions(oldItem, newItem);
-        UpdateOptions(oldItem, newItem);
-    }
+        private void UpdateExistingItem(DragItemViewModel oldItem, MaaInterface.MaaInterfaceTask newItem, bool updateName = false)
+        {
+            if (oldItem.InterfaceItem == null) return;
+            if (updateName) oldItem.InterfaceItem.Name = newItem.Name;
+            else if (oldItem.InterfaceItem.Name != newItem.Name) return;
+    
+            oldItem.InterfaceItem.Entry = newItem.Entry;
+            oldItem.InterfaceItem.Label = newItem.Label;
+            oldItem.InterfaceItem.PipelineOverride = newItem.PipelineOverride;
+            oldItem.InterfaceItem.Description = newItem.Description;
+            oldItem.InterfaceItem.Description = newItem.Description;
+            oldItem.InterfaceItem.Document = newItem.Document;
+            oldItem.InterfaceItem.Repeatable = newItem.Repeatable;
+            oldItem.InterfaceItem.Resource = newItem.Resource;
+            oldItem.InterfaceItem.Icon = newItem.Icon;
+    
+            // 更新图标
+            oldItem.InterfaceItem.InitializeIcon();
+            oldItem.ResolvedIcon = oldItem.InterfaceItem.ResolvedIcon;
+            oldItem.HasIcon = oldItem.InterfaceItem.HasIcon;
+    
+            UpdateAdvancedOptions(oldItem, newItem);
+            UpdateOptions(oldItem, newItem);
+            
+            // 更新 IsVisible 属性，确保设置图标的可见性正确
+            oldItem.IsVisible = oldItem.InterfaceItem is { Advanced.Count: > 0 } || oldItem.InterfaceItem is { Option.Count: > 0 }
+                                || oldItem.InterfaceItem.Repeatable == true
+                                || !string.IsNullOrWhiteSpace(oldItem.InterfaceItem.Description)
+                                || oldItem.InterfaceItem.Document is { Count: > 0 };
+        }
 
 
     private void UpdateAdvancedOptions(DragItemViewModel oldItem, MaaInterface.MaaInterfaceTask newItem)
