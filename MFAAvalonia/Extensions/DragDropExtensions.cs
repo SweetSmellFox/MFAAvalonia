@@ -331,6 +331,13 @@ public class DragDropExtensions
         var sourceItem = GetSourceIndex(listBox, position, -1);
         if (sourceItem == -1) return;
 
+        // 检查是否是资源预设配置项，如果是则不允许拖拽
+        if (listBox.ItemsSource is IList items && sourceItem >= 0 && sourceItem < items.Count)
+        {
+            if (items[sourceItem] is Helper.ValueType.DragItemViewModel dragItem && dragItem.IsResourceOptionItem)
+                return;
+        }
+
         // 设置选中项并开始拖拽
         var data = new DataTransfer();
         var item = new DataTransferItem();
@@ -350,6 +357,15 @@ public class DragDropExtensions
 
         if (targetIndex == -1 || sourceIndex == -1) return;
 
+        // 检查拖放操作是否有效
+        if (!IsValidDragDropOperation(items, sourceIndex, targetIndex))
+        {
+            e.DragEffects = DragDropEffects.None;
+            e.Handled = true;
+            ClearAdorner(listBox);
+            return;
+        }
+
         UpdateAdorner(listBox, targetIndex, items.Count);
 
         e.DragEffects = DragDropEffects.Move;
@@ -362,6 +378,13 @@ public class DragDropExtensions
             return;
         var position = e.GetPosition(listBox);
         var targetIndex = GetTargetIndex(listBox, position);
+
+        // 检查是否涉及资源预设配置项
+        if (!IsValidDragDropOperation(items, sourceIndex, targetIndex))
+        {
+            ClearAdorner(listBox);
+            return;
+        }
 
         if (sourceIndex >= 0 && targetIndex >= 0 && sourceIndex != targetIndex)
         {
@@ -376,6 +399,26 @@ public class DragDropExtensions
         }
         ClearAdorner(listBox);
     }
+
+    /// <summary>
+    /// 检查拖放操作是否有效（资源预设配置项不能被移动，也不能移动到资源预设配置项的位置）
+    /// </summary>
+    private static bool IsValidDragDropOperation(IList items, int sourceIndex, int targetIndex)
+    {
+        if (sourceIndex < 0 || targetIndex < 0 || sourceIndex >= items.Count)
+            return false;
+
+        // 检查源项是否是资源预设配置项
+        if (items[sourceIndex] is Helper.ValueType.DragItemViewModel sourceItem && sourceItem.IsResourceOptionItem)
+            return false;
+
+        // 检查第一个项是否是资源预设配置项，如果是，则不允许移动到第一个位置
+        if (targetIndex == 0 && items.Count > 0 && items[0] is Helper.ValueType.DragItemViewModel firstItem && firstItem.IsResourceOptionItem)
+            return false;
+
+        return true;
+    }
+
 
     async private static Task AnimateItemMovement(ListBoxItem item, double startY, double endY, double duration = 400)
     {
