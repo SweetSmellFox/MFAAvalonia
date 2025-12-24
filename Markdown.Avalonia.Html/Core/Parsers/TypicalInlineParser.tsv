@@ -20,3 +20,4 @@ u          | ColorTextBlock.Avalonia.CUnderline | TagUnderline         |
 code       | ColorTextBlock.Avalonia.CCode      | TagCodeSpan          |
 kbd        | ColorTextBlock.Avalonia.CCode      | TagCodeSpan          |
 var        | ColorTextBlock.Avalonia.CCode      | TagCodeSpan          |
+span       | ColorTextBlock.Avalonia.CSpan      |                      |
