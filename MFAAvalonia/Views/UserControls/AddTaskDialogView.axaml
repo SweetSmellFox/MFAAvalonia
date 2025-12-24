@@ -70,7 +70,7 @@
                 Classes="Flat"
                 Command="{Binding AddCommand}"
                 Content="{markup:I18n {x:Static helper:LangKeys.ButtonAdd}}"
-                FontSize="11"
+                FontSize="11" MinHeight="30"
                 Margin="0,0,0,5"
                 VerticalContentAlignment="Center"
                 Width="90" />
@@ -78,7 +78,7 @@
                 Command="{Binding CancelCommand}"
                 Content="{markup:I18n {x:Static helper:LangKeys.ButtonCancel}}"
                 FontSize="11"
-                Height="30"
+                MinHeight="30"
                 Margin="20,0,10,5"
                 VerticalContentAlignment="Center"
                 Width="90"
