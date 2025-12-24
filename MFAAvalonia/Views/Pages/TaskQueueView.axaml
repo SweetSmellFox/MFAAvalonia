@@ -790,8 +790,7 @@
                                   VerticalAlignment="Top"
                                   VerticalContentAlignment="Top"
                                   ex:ScrollViewerExtensions.AutoScroll="True"
-                                  ex:ScrollViewerExtensions.PanningMode="VerticalOnly"
-                                  >
+                                  ex:ScrollViewerExtensions.PanningMode="VerticalOnly">
                         <ItemsControl ItemsSource="{Binding Path=LogItemViewModels}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>

@@ -266,7 +266,7 @@ public partial class RootView : SukiWindow
                         Instances.RootViewModel.LockController = (MaaProcessor.Interface?.Controller?.Count ?? 0) == 1;
 
                         ConfigurationManager.Current.SetValue(ConfigurationKeys.EnableEdit, ConfigurationManager.Current.GetValue(ConfigurationKeys.EnableEdit, false));
-                        DragItemViewModel tempTask = null;
+                        DragItemViewModel? tempTask = null;
                         foreach (var task in Instances.TaskQueueViewModel.TaskItemViewModels)
                         {
                             // 优先选择资源选项项
@@ -275,19 +275,19 @@ public partial class RootView : SukiWindow
                                 tempTask ??= task;
                             }
                             else if (task.InterfaceItem?.Advanced is { Count: > 0 }
-                                || task.InterfaceItem?.Option is { Count: > 0 }
-                                || !string.IsNullOrWhiteSpace(task.InterfaceItem?.Description)
-                                || task.InterfaceItem?.Document != null
-                                || task.InterfaceItem?.Repeatable == true)
+                                     || task.InterfaceItem?.Option is { Count: > 0 }
+                                     || !string.IsNullOrWhiteSpace(task.InterfaceItem?.Description)
+                                     || task.InterfaceItem?.Document != null
+                                     || task.InterfaceItem?.Repeatable == true)
                             {
                                 // 如果还没有找到资源选项项，则选择第一个有配置的普通任务
-                                if (tempTask == null || !tempTask.IsResourceOptionItem)
-                                    tempTask ??= task;
+                                tempTask ??= task;
                             }
-                            task.EnableSetting = true;
+                            // 使用 init=true 参数只初始化面板缓存，不显示面板也不改变 EnableSetting 状态
+                            Instances.TaskQueueView.SetOption(task, true, init: true);
                         }
 
-
+                        // 只对最终选中的任务设置 EnableSetting = true，这会触发面板显示
                         if (tempTask != null)
                             tempTask.EnableSetting = true;
 
