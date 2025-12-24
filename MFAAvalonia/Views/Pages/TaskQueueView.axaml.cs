@@ -275,7 +275,7 @@ public partial class TaskQueueView : UserControl
             // 资源设置项不能被删除
             if (taskItemViewModel.IsResourceOptionItem)
                 return;
-            
+
             int index = vm.TaskItemViewModels.IndexOf(taskItemViewModel);
             vm.TaskItemViewModels.RemoveAt(index);
             Instances.TaskQueueView.SetOption(taskItemViewModel, false);
@@ -414,7 +414,7 @@ public partial class TaskQueueView : UserControl
     {
         if (!init)
             Instances.TaskQueueViewModel.IsCommon = true;
-        
+
         // 资源设置项使用特殊的缓存键
         var cacheKey = dragItem.IsResourceOptionItem
             ? $"ResourceOption_{dragItem.ResourceItem?.Name}_{dragItem.ResourceItem?.GetHashCode()}"
@@ -427,13 +427,13 @@ public partial class TaskQueueView : UserControl
         }
 
         HideAllPanels();
-        
+
         // 处理资源设置项的选项
         if (dragItem.IsResourceOptionItem)
         {
             var hasOptions = dragItem.ResourceItem?.SelectOptions != null && dragItem.ResourceItem.SelectOptions.Count > 0;
             Instances.TaskQueueViewModel.ShowSettings = ShowCache.GetOrAdd(cacheKey, false);
-            
+
             if (hasOptions)
             {
                 var newPanel = CommonPanelCache.GetOrAdd(cacheKey, key =>
@@ -589,423 +589,42 @@ public partial class TaskQueueView : UserControl
     {
         if (dragItem.ResourceItem?.SelectOptions == null)
             return;
-        
+
+        // 收集所有子选项名称（这些选项不应该在顶级显示）
+        var subOptionNames = new HashSet<string>();
         foreach (var selectOption in dragItem.ResourceItem.SelectOptions)
         {
-            if (MaaProcessor.Interface?.Option?.TryGetValue(selectOption.Name ?? string.Empty, out var interfaceOption) != true)
-                continue;
-            
-            Control control;
-            
-            // 根据 option 类型创建不同的控件（使用资源选项专用的创建方法）
-            if (interfaceOption.IsInput)
+            if (MaaProcessor.Interface?.Option?.TryGetValue(selectOption.Name ?? string.Empty, out var interfaceOption) == true)
             {
-                control = CreateResourceInputControl(selectOption, interfaceOption, dragItem);
-            }
-            else if (interfaceOption.IsSwitch && interfaceOption.Cases.ShouldSwitchButton(out var yes, out var no))
-            {
-                control = CreateResourceToggleControl(selectOption, yes, no, interfaceOption, dragItem);
-            }
-            else if (interfaceOption.Cases.ShouldSwitchButton(out var yes1, out var no1))
-            {
-                control = CreateResourceToggleControl(selectOption, yes1, no1, interfaceOption, dragItem);
-            }
-            else
-            {
-                control = CreateResourceComboBoxControl(selectOption, interfaceOption, dragItem);
-            }
-            
-            panel.Children.Add(control);
-        }
-    }
-
-    /// <summary>
-    /// 创建资源选项的输入控件
-    /// </summary>
-    private Control CreateResourceInputControl(
-        MaaInterface.MaaInterfaceSelectOption option,
-        MaaInterface.MaaInterfaceOption interfaceOption,
-        DragItemViewModel dragItem)
-    {
-        var container = new StackPanel()
-        {
-            Margin = interfaceOption.Inputs.Count == 1 ? new Thickness(0, 0, 0, 0) : new Thickness(10, 3, 10, 3)
-        };
-
-        // 确保 Data 字典已初始化
-        option.Data ??= new Dictionary<string, string?>();
-
-        if (interfaceOption.Inputs == null || interfaceOption.Inputs.Count == 0)
-            return container;
-
-        // 初始化图标
-        interfaceOption.InitializeIcon();
-
-        foreach (var input in interfaceOption.Inputs)
-        {
-            if (string.IsNullOrEmpty(input.Name)) continue;
-
-            // 获取当前值或默认值
-            if (!option.Data.TryGetValue(input.Name, out var currentValue) || currentValue == null)
-            {
-                currentValue = input.Default ?? string.Empty;
-                option.Data[input.Name] = currentValue;
-            }
-
-            var displayValue = currentValue == MaaInterface.MaaInterfaceOption.ExplicitNullMarker ? "null" : currentValue;
-            var pipelineType = input.PipelineType?.ToLower() ?? "string";
-
-            if (pipelineType == "bool")
-            {
-                var toggleGrid = CreateResourceBoolInputControl(input, currentValue, option, interfaceOption, dragItem);
-                container.Children.Add(toggleGrid);
-            }
-            else
-            {
-                var grid = new Grid
+                // 收集所有 case 中定义的子选项
+                if (interfaceOption.Cases != null)
                 {
-                    ColumnDefinitions =
+                    foreach (var caseOption in interfaceOption.Cases)
                     {
-                        new ColumnDefinition { Width = new GridLength(5, GridUnitType.Star) },
-                        new ColumnDefinition { Width = new GridLength(6, GridUnitType.Star) }
-                    },
-                    Margin = interfaceOption.Inputs.Count == 1 ? new Thickness(10, 6, 10, 6) : new Thickness(0, 3, 0, 3)
-                };
-
-                var textBox = new TextBox
-                {
-                    MinWidth = 120,
-                    Margin = new Thickness(0, 2, 0, 2),
-                    Text = displayValue
-                };
-                Grid.SetColumn(textBox, 1);
-
-                if (!string.IsNullOrWhiteSpace(input.PatternMsg))
-                    textBox.Bind(TextBox.WatermarkProperty, new ResourceBinding(input.PatternMsg));
-
-                textBox.Bind(IsEnabledProperty, new Binding("Idle") { Source = Instances.RootViewModel });
-
-                var fieldName = input.Name;
-                var verifyPattern = input.Verify;
-
-                textBox.TextChanged += (_, _) =>
-                {
-                    var text = textBox.Text ?? string.Empty;
-
-                    if (pipelineType == "int" && !IsValidIntegerInput(text))
-                    {
-                        textBox.Text = FilterToInteger(text);
-                        if (textBox.CaretIndex > textBox.Text.Length)
-                            textBox.CaretIndex = textBox.Text.Length;
-                        return;
-                    }
-
-                    if (!string.IsNullOrEmpty(verifyPattern))
-                    {
-                        try
+                        if (caseOption.Option != null)
                         {
-                            var regex = new Regex(verifyPattern);
-                            if (!regex.IsMatch(text))
+                            foreach (var subOptionName in caseOption.Option)
                             {
-                                var errorMessage = !string.IsNullOrWhiteSpace(input.PatternMsg)
-                                    ? LanguageHelper.GetLocalizedString(input.PatternMsg)
-                                    : "Invalid input";
-                                DataValidationErrors.SetErrors(textBox, new[] { errorMessage });
-                            }
-                            else
-                            {
-                                DataValidationErrors.ClearErrors(textBox);
+                                subOptionNames.Add(subOptionName);
                             }
                         }
-                        catch { /* 正则出错时忽略 */ }
                     }
-
-                    option.Data[fieldName] = text == "null" ? MaaInterface.MaaInterfaceOption.ExplicitNullMarker : text;
-
-                    if (interfaceOption.PipelineOverride != null)
-                    {
-                        option.PipelineOverride = interfaceOption.GenerateProcessedPipeline(
-                            option.Data.Where(kv => kv.Value != null).ToDictionary(kv => kv.Key, kv => kv.Value!));
-                    }
-
-                    SaveResourceOptionConfiguration();
-                };
-
-                if (interfaceOption.PipelineOverride != null)
-                {
-                    option.PipelineOverride = interfaceOption.GenerateProcessedPipeline(
-                        option.Data.Where(kv => kv.Value != null).ToDictionary(kv => kv.Key, kv => kv.Value!));
                 }
-
-                var textBlock = new TextBlock
-                {
-                    FontSize = 14,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    HorizontalAlignment = HorizontalAlignment.Left,
-                };
-                textBlock.Bind(TextBlock.TextProperty, new ResourceBindingWithFallback(input.DisplayName, input.Name));
-                textBlock.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("SukiLowText"));
-
-                var stackPanel = new StackPanel
-                {
-                    MinWidth = 180,
-                    Orientation = Orientation.Horizontal,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    HorizontalAlignment = HorizontalAlignment.Left,
-                };
-                Grid.SetColumn(stackPanel, 0);
-                stackPanel.Children.Add(textBlock);
-
-                grid.Children.Add(textBox);
-                grid.Children.Add(stackPanel);
-                container.Children.Add(grid);
             }
         }
 
-        return container;
-    }
-
-    /// <summary>
-    /// 创建资源选项的布尔输入控件
-    /// </summary>
-    private Grid CreateResourceBoolInputControl(
-        MaaInterface.MaaInterfaceOptionInput input,
-        string currentValue,
-        MaaInterface.MaaInterfaceSelectOption option,
-        MaaInterface.MaaInterfaceOption interfaceOption,
-        DragItemViewModel dragItem)
-    {
-        var grid = new Grid
+        // 只显示顶级选项（不是子选项的选项）
+        foreach (var selectOption in dragItem.ResourceItem.SelectOptions)
         {
-            ColumnDefinitions =
-            {
-                new ColumnDefinition { Width = GridLength.Auto },
-                new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) },
-                new ColumnDefinition { Width = GridLength.Auto }
-            },
-            Margin = new Thickness(0, 6, 10, 6)
-        };
+            //跳过子选项，它们会在父选项的 UpdateSubOptions 中动态添加
+            if (subOptionNames.Contains(selectOption.Name ?? string.Empty))
+                continue;
 
-        bool isChecked = currentValue.Equals("true", StringComparison.OrdinalIgnoreCase) || currentValue == "1";
-
-        var toggleSwitch = new ToggleSwitch
-        {
-            IsChecked = isChecked,
-            Classes = { "Switch" },
-            MaxHeight = 60,
-            MaxWidth = 100,
-            Margin = new Thickness(0, 2, 0, 2),
-            HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Center
-        };
-
-        toggleSwitch.Bind(IsEnabledProperty, new Binding("Idle") { Source = Instances.RootViewModel });
-        toggleSwitch.Bind(ToolTip.TipProperty, new ResourceBindingWithFallback(input.DisplayName, input.Name));
-
-        var fieldName = input.Name;
-        toggleSwitch.IsCheckedChanged += (_, _) =>
-        {
-            var boolValue = toggleSwitch.IsChecked == true;
-            option.Data[fieldName] = boolValue.ToString().ToLower();
-
-            if (interfaceOption.PipelineOverride != null)
-            {
-                option.PipelineOverride = interfaceOption.GenerateProcessedPipeline(
-                    option.Data.Where(kv => kv.Value != null).ToDictionary(kv => kv.Key, kv => kv.Value!));
-            }
-
-            SaveResourceOptionConfiguration();
-        };
-
-        var textBlock = new TextBlock
-        {
-            FontSize = 14,
-            Margin = new Thickness(10, 0, 5, 0),
-            TextTrimming = TextTrimming.CharacterEllipsis,
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        textBlock.Bind(TextBlock.TextProperty, new ResourceBindingWithFallback(input.DisplayName, input.Name));
-        textBlock.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("SukiLowText"));
-
-        var stackPanel = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            VerticalAlignment = VerticalAlignment.Center,
-            HorizontalAlignment = HorizontalAlignment.Left,
-        };
-        stackPanel.Children.Add(textBlock);
-
-        Grid.SetColumn(stackPanel, 0);
-        Grid.SetColumn(toggleSwitch, 2);
-        grid.Children.Add(stackPanel);
-        grid.Children.Add(toggleSwitch);
-
-        return grid;
-    }
-
-    /// <summary>
-    /// 创建资源选项的开关控件
-    /// </summary>
-    private Grid CreateResourceToggleControl(
-        MaaInterface.MaaInterfaceSelectOption option,
-        int yesValue,
-        int noValue,
-        MaaInterface.MaaInterfaceOption interfaceOption,
-        DragItemViewModel dragItem)
-    {
-        var outerContainer = new StackPanel();
-
-        var button = new ToggleSwitch
-        {
-            IsChecked = option.Index == yesValue,
-            Classes = { "Switch" },
-            MaxHeight = 60,
-            MaxWidth = 100,
-            Margin = new Thickness(0, 4, 0, 4),
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Tag = option.Name,
-            VerticalAlignment = VerticalAlignment.Center
-        };
-
-        button.Bind(IsEnabledProperty, new Binding("Idle") { Source = Instances.RootViewModel });
-
-        button.IsCheckedChanged += (_, _) =>
-        {
-            option.Index = button.IsChecked == true ? yesValue : noValue;
-            SaveResourceOptionConfiguration();
-        };
-
-        interfaceOption.InitializeIcon();
-
-        button.Bind(ToolTip.TipProperty, new ResourceBindingWithFallback(option.DisplayName, option.Name));
-        
-        var textBlock = new TextBlock
-        {
-            FontSize = 14,
-            Margin = new Thickness(10, 0, 5, 0),
-            TextTrimming = TextTrimming.CharacterEllipsis,
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        textBlock.Bind(TextBlock.TextProperty, new ResourceBindingWithFallback(option.DisplayName, option.Name));
-        textBlock.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("SukiLowText"));
-
-        var grid = new Grid
-        {
-            ColumnDefinitions =
-            {
-                new ColumnDefinition { Width = GridLength.Auto },
-                new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) },
-                new ColumnDefinition { Width = GridLength.Auto }
-            },
-            Margin = new Thickness(0, 6, 10, 6)
-        };
-        
-        var stackPanel = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            VerticalAlignment = VerticalAlignment.Center,
-            HorizontalAlignment = HorizontalAlignment.Left,
-        };
-        stackPanel.Children.Add(textBlock);
-
-        Grid.SetColumn(stackPanel, 0);
-        Grid.SetColumn(button, 2);
-        grid.Children.Add(stackPanel);
-        grid.Children.Add(button);
-
-        outerContainer.Children.Add(grid);
-
-        var wrapperGrid = new Grid();
-        wrapperGrid.Children.Add(outerContainer);
-        return wrapperGrid;
-    }
-
-    /// <summary>
-    /// 创建资源选项的下拉框控件
-    /// </summary>
-    private Grid CreateResourceComboBoxControl(
-        MaaInterface.MaaInterfaceSelectOption option,
-        MaaInterface.MaaInterfaceOption interfaceOption,
-        DragItemViewModel dragItem)
-    {
-        var outerContainer = new StackPanel();
-
-        var grid = new Grid
-        {
-            ColumnDefinitions =
-            {
-                new ColumnDefinition { Width = new GridLength(5, GridUnitType.Star) },
-                new ColumnDefinition { Width = new GridLength(6, GridUnitType.Star) }
-            },
-            Margin = new Thickness(10, 3, 10, 3)
-        };
-
-        if (interfaceOption.Cases != null)
-        {
-            foreach (var caseOption in interfaceOption.Cases)
-            {
-                caseOption.InitializeDisplayName();
-            }
+            // 复用 AddOption 方法，它会根据 option 类型创建相应的控件
+            AddOption(panel, selectOption, dragItem);
         }
-
-        var combo = new ComboBox
-        {
-            MinWidth = 120,
-            Classes = { "LimitWidth" },
-            Margin = new Thickness(0, 2, 0, 2),
-            ItemsSource = interfaceOption.Cases,
-            ItemTemplate = new FuncDataTemplate<MaaInterface.MaaInterfaceOptionCase>((caseOption, b) =>
-            {
-                var marqueeText = new MarqueeTextBlock { VerticalContentAlignment = VerticalAlignment.Center };
-                marqueeText.Bind(MarqueeTextBlock.ForegroundProperty, new DynamicResourceExtension("SukiText"));
-                marqueeText.Bind(MarqueeTextBlock.TextProperty, new Binding(nameof(MaaInterface.MaaInterfaceOptionCase.DisplayName)));
-                return marqueeText;
-            }),
-            SelectedIndex = option.Index ?? 0,
-        };
-
-        combo.Bind(IsEnabledProperty, new Binding("Idle") { Source = Instances.RootViewModel });
-
-        combo.SelectionChanged += (_, _) =>
-        {
-            option.Index = combo.SelectedIndex;
-            SaveResourceOptionConfiguration();
-        };
-
-        ComboBoxExtensions.SetDisableNavigationOnLostFocus(combo, true);
-        Grid.SetColumn(combo, 1);
-
-        interfaceOption.InitializeIcon();
-
-        var textBlock = new TextBlock
-        {
-            FontSize = 14,
-            HorizontalAlignment = HorizontalAlignment.Left,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        textBlock.Bind(TextBlock.TextProperty, new ResourceBindingWithFallback(option.DisplayName, option.Name));
-        textBlock.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("SukiLowText"));
-
-        var stackPanel = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            MinWidth = 180,
-            VerticalAlignment = VerticalAlignment.Center,
-            HorizontalAlignment = HorizontalAlignment.Left,
-        };
-        Grid.SetColumn(stackPanel, 0);
-        stackPanel.Children.Add(textBlock);
-
-        grid.Children.Add(combo);
-        grid.Children.Add(stackPanel);
-
-        outerContainer.Children.Add(grid);
-
-        var wrapperGrid = new Grid();
-        wrapperGrid.Children.Add(outerContainer);
-        return wrapperGrid;
     }
-
+    
     private void HideCurrentPanel(string key)
     {
         if (CommonPanelCache.TryGetValue(key, out var oldPanel))
@@ -2462,13 +2081,12 @@ public partial class TaskQueueView : UserControl
         panel.Children.Add(control);
     }
 
-
     private void SaveConfiguration()
     {
         // 保存普通任务项配置
         ConfigurationManager.Current.SetValue(ConfigurationKeys.TaskItems,
             Instances.TaskQueueViewModel.TaskItemViewModels.Where(m => !m.IsResourceOptionItem).Select(m => m.InterfaceItem));
-        
+
         // 保存资源选项配置
         SaveResourceOptionConfiguration();
     }
@@ -2483,7 +2101,7 @@ public partial class TaskQueueView : UserControl
             .ToDictionary(
                 m => m.ResourceItem!.Name ?? string.Empty,
                 m => m.ResourceItem!.SelectOptions!);
-        
+
         ConfigurationManager.Current.SetValue(ConfigurationKeys.ResourceOptionItems, resourceOptionItems);
     }
 

@@ -1225,6 +1225,8 @@ public partial class TaskQueueViewModel : ViewModelBase
 
     /// <summary>
     /// 初始化资源的 SelectOptions
+    /// 只初始化顶级选项，子选项会在运行时由 UpdateSubOptions 动态创建
+    /// 会保留已有的值并从配置中恢复保存的值
     /// </summary>
     private void InitializeResourceSelectOptions(MaaInterface.MaaInterfaceResource resource)
     {
@@ -1234,42 +1236,99 @@ public partial class TaskQueueViewModel : ViewModelBase
             return;
         }
 
-        resource.SelectOptions = resource.Option.Select(optionName =>
+        // 收集所有子选项名称（这些选项不应该在顶级初始化）
+        var subOptionNames = new HashSet<string>();
+        foreach (var optionName in resource.Option)
         {
-            var selectOption = new MaaInterface.MaaInterfaceSelectOption
+            if (MaaProcessor.Interface?.Option?.TryGetValue(optionName, out var interfaceOption) == true)
             {
-                Name = optionName
-            };
-            TaskLoader.SetDefaultOptionValue(MaaProcessor.Interface, selectOption);
-            return selectOption;
-        }).ToList();
-    }
+                if (interfaceOption.Cases != null)
+                {
+                    foreach (var caseOption in interfaceOption.Cases)
+                    {
+                        if (caseOption.Option != null)
+                        {
+                            foreach (var subOptionName in caseOption.Option)
+                            {
+                                subOptionNames.Add(subOptionName);
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
-    /// <summary>
-    /// 从配置中恢复资源选项的已保存值
-    /// </summary>
-    private void RestoreResourceOptionValues(MaaInterface.MaaInterfaceResource resource)
-    {
-        if (resource.SelectOptions == null)
-            return;
-
+        // 获取已保存的配置
         var savedResourceOptions = ConfigurationManager.Current.GetValue(
             ConfigurationKeys.ResourceOptionItems,
             new Dictionary<string, List<MaaInterface.MaaInterfaceSelectOption>>());
 
+        Dictionary<string, MaaInterface.MaaInterfaceSelectOption>? savedDict = null;
         if (savedResourceOptions.TryGetValue(resource.Name ?? string.Empty, out var savedOptions) && savedOptions != null)
         {
-            var savedDict = savedOptions.ToDictionary(o => o.Name ?? string.Empty);
-            foreach (var opt in resource.SelectOptions)
-            {
-                if (savedDict.TryGetValue(opt.Name ?? string.Empty, out var savedOpt))
-                {
-                    opt.Index = savedOpt.Index;
-                    opt.Data = savedOpt.Data;
-                    opt.SubOptions = savedOpt.SubOptions;
-                }
-            }
+            savedDict = savedOptions.ToDictionary(o => o.Name ?? string.Empty);
         }
+
+        // 保留已有的 SelectOptions 值
+        var existingDict = resource.SelectOptions?.ToDictionary(o => o.Name ?? string.Empty)
+            ?? new Dictionary<string, MaaInterface.MaaInterfaceSelectOption>();
+
+        // 只初始化顶级选项（不是子选项的选项）
+        resource.SelectOptions = resource.Option
+            .Where(optionName => !subOptionNames.Contains(optionName))
+            .Select(optionName =>
+            {
+                // 优先使用已有的值（保留运行时的修改）
+                if (existingDict.TryGetValue(optionName, out var existingOpt))
+                {
+                    return existingOpt;
+                }
+
+                // 其次使用配置中保存的值
+                if (savedDict?.TryGetValue(optionName, out var savedOpt) == true)
+                {
+                    // 克隆保存的选项，避免引用问题
+                    var clonedOpt = new MaaInterface.MaaInterfaceSelectOption
+                    {
+                        Name = savedOpt.Name,
+                        Index = savedOpt.Index,
+                        Data = savedOpt.Data != null ? new Dictionary<string, string?>(savedOpt.Data) : null,
+                        SubOptions = savedOpt.SubOptions != null ? CloneSubOptions(savedOpt.SubOptions) : null
+                    };
+                    return clonedOpt;
+                }
+
+                // 最后创建新的并设置默认值
+                var selectOption = new MaaInterface.MaaInterfaceSelectOption
+                {
+                    Name = optionName
+                };
+                TaskLoader.SetDefaultOptionValue(MaaProcessor.Interface, selectOption);
+                return selectOption;
+            }).ToList();
+    }
+
+    /// <summary>
+    /// 克隆子选项列表
+    /// </summary>
+    private List<MaaInterface.MaaInterfaceSelectOption> CloneSubOptions(List<MaaInterface.MaaInterfaceSelectOption> subOptions)
+    {
+        return subOptions.Select(opt => new MaaInterface.MaaInterfaceSelectOption
+        {
+            Name = opt.Name,
+            Index = opt.Index,
+            Data = opt.Data != null ? new Dictionary<string, string?>(opt.Data) : null,
+            SubOptions = opt.SubOptions != null ? CloneSubOptions(opt.SubOptions) : null
+        }).ToList();
+    }
+
+    /// <summary>
+    /// 从配置中恢复资源选项的已保存值（已整合到 InitializeResourceSelectOptions 中，保留此方法以兼容）
+    /// </summary>
+    private void RestoreResourceOptionValues(MaaInterface.MaaInterfaceResource resource)
+    {
+        // 配置恢复逻辑已整合到 InitializeResourceSelectOptions 中
+        // 此方法保留以兼容现有调用，但不再需要执行任何操作
     }
 
     #endregion
