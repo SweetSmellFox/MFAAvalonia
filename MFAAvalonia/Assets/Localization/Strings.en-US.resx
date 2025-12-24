@@ -1406,6 +1406,14 @@
     <data name="FontScaleValue" xml:space="preserve">
         <value>{0}%</value>
     </data>
+    <data name="ResourceAutoSwitched" xml:space="preserve">
+        <value>Resource Auto-Switched</value>
+    </data>
+    <data name="ResourceNotSupportController" xml:space="preserve">
+        <value>Current controller {1} does not support resource {0}, auto-switched to {2}. Please check resource settings.</value>
+    </data>
+
+
     <data name="ResourcePresetConfig" xml:space="preserve">
         <value>Resource Preset Config</value>
     </data>

@@ -1398,6 +1398,13 @@
     <data name="ScheduleMonthlyDaySuffix" xml:space="preserve">
         <value>號</value>
     </data>
+    <data name="ResourceAutoSwitched" xml:space="preserve">
+        <value>資源已自動切換</value>
+    </data>
+    <data name="ResourceNotSupportController" xml:space="preserve">
+        <value>當前控制器 {1} 不支援資源 {0}，已自動切換為 {2}，請檢查資源設定</value>
+    </data>
+
     <data name="ResourcePresetConfig" xml:space="preserve">
         <value>資源預設配置</value>
     </data>

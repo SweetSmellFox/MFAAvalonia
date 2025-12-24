@@ -1413,6 +1413,13 @@
     <data name="FontScaleValue" xml:space="preserve">
         <value>{0}%</value>
     </data>
+    <data name="ResourceAutoSwitched" xml:space="preserve">
+        <value>资源已自动切换</value>
+    </data>
+    <data name="ResourceNotSupportController" xml:space="preserve">
+        <value>当前控制器 {1} 不支持资源 {0}，已自动切换为 {2}，请检查资源设置</value>
+    </data>
+
     <data name="ResourcePresetConfig" xml:space="preserve">
         <value>资源预设配置</value>
     </data>

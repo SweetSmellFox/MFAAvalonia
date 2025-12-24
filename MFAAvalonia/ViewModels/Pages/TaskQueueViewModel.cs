@@ -668,10 +668,23 @@ public partial class TaskQueueViewModel : ViewModelBase
         // 更新资源列表
         CurrentResources = new ObservableCollection<MaaInterface.MaaInterfaceResource>(filteredResources);
 
-        // 如果当前选中的资源不在过滤后的列表中，则选择第一个
+        // 如果当前选中的资源不在过滤后的列表中，则选择第一个并提示用户
         if (CurrentResources.Count > 0 && CurrentResources.All(r => r.Name != CurrentResource))
         {
-            CurrentResource = CurrentResources[0].Name ?? "Default";
+            var oldResource = CurrentResource;
+            var newResource = CurrentResources[0].Name ?? "Default";
+            CurrentResource = newResource;
+
+            // 仅当旧资源非空时才提示（避免首次加载时提示）
+            if (!string.IsNullOrEmpty(oldResource))
+            {
+                var controllerDisplayName = currentControllerName ?? CurrentController.ToResourceKey().ToLocalization();
+                ToastHelper.Warn(
+                    LangKeys.ResourceAutoSwitched.ToLocalization(),
+                    LangKeys.ResourceNotSupportController.ToLocalizationFormatted(
+                        false, oldResource, controllerDisplayName, newResource),
+                    6);
+            }
         }
     }
 
