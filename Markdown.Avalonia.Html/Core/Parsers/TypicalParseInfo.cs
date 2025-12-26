@@ -85,6 +85,25 @@ namespace Markdown.Avalonia.Html.Core.Parsers
             }
         }
 
+        /// <summary>
+        /// 检查 HTML 节点是否有任何样式属性
+        /// </summary>
+        private bool HasAnyStyle(HtmlNode node)
+        {
+            // 检查 style 属性
+            var styleAttr = node.Attributes["style"]?.Value;
+            if (!string.IsNullOrWhiteSpace(styleAttr)) return true;
+
+            // 检查 class 属性
+            var classAttr = node.Attributes["class"]?.Value;
+            if (!string.IsNullOrWhiteSpace(classAttr)) return true;
+
+            // 检查常见的样式属性
+            if (node.Attributes["color"] != null || node.Attributes["bgcolor"] != null || node.Attributes["align"] != null || node.Attributes["valign"] != null) return true;
+
+            return false;
+        }
+
         public bool TryReplace(HtmlNode node, ReplaceManager manager, out IEnumerable<StyledElement> generated)
         {
             // 创建控件实例
@@ -196,6 +215,17 @@ namespace Markdown.Avalonia.Html.Core.Parsers
                 }
                 else if (tag is CSpan span)
                 {
+                    // 对于没有任何样式的简单 <span> 标签，直接返回内容，避免不必要的包装
+                    // 这可以确保与纯文本有相同的渲染行为
+                    if (HtmlTag == "span" && !HasAnyStyle(node))
+                    {
+                        var parseResult = manager.ParseChildrenJagging(node).ToArray();
+                        if (parseResult.TryCast<CInline>(out var inlines))
+                        {
+                            generated = inlines.ToArray();
+                            return true;
+                        }
+                    }
 
                     if (!SetupCSpan(span))
                     {
@@ -328,7 +358,8 @@ namespace Markdown.Avalonia.Html.Core.Parsers
                     ApplyTextDecorationToTextElements(element, isStrikethrough, isUnderline);
                 }
             }
-// 新增：应用字体家族（font-family）
+
+            // 新增：应用字体家族（font-family）
             var fontFamily = DocUtils.GetFontFamily(node);
             if (fontFamily != null)
             {
@@ -338,7 +369,7 @@ namespace Markdown.Avalonia.Html.Core.Parsers
                 }
             }
 
-// 新增：应用背景色（background-color）
+            // 新增：应用背景色（background-color）
             var backgroundColor = DocUtils.GetBackgroundColor(node);
             if (backgroundColor != null)
             {
@@ -347,6 +378,7 @@ namespace Markdown.Avalonia.Html.Core.Parsers
                     ApplyBackgroundColorToTextElements(element, backgroundColor);
                 }
             }
+
             // 应用标签样式
             if (TagNameReference is not null)
             {
@@ -393,6 +425,7 @@ namespace Markdown.Avalonia.Html.Core.Parsers
 
             return true;
         }
+
         private void ApplyFontSizeToTextElements(StyledElement element, double fontSize)
         {
             // 直接设置文本控件的字体大小
@@ -468,6 +501,7 @@ namespace Markdown.Avalonia.Html.Core.Parsers
                 ApplyForegroundToTextElements(borderChild, brush);
             }
         }
+
         /// <summary>
         /// 为文本元素应用字体粗细样式
         /// </summary>
@@ -765,8 +799,7 @@ namespace Markdown.Avalonia.Html.Core.Parsers
             var asm = typeof(TypicalBlockParser).Assembly;
             using var stream = asm.GetManifestResourceStream(resourcePath);
 
-            if (stream is null)
-                throw new ArgumentException($"resource not found: '{resourcePath}'");
+            if (stream is null) throw new ArgumentException($"resource not found: '{resourcePath}'");
 
             using var reader = new StreamReader(stream!);
             while (reader.ReadLine() is string line)

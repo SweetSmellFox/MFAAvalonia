@@ -820,13 +820,18 @@ namespace Markdown.Avalonia
                 lastPosition = htmlEnd + 1;
             }
 
-            // 3. 处理最后一个HTML块之后的Markdown文本
-            if (lastPosition < text.Length)
-            {
-                string remainingMarkdown = text.Substring(lastPosition);
-                var remainingInlines = ParsePureMarkdownPairs(remainingMarkdown, level + 1);
-                result.AddRange(remainingInlines);
-            }
+                        // 3. 处理最后一个HTML块之后的Markdown文本
+                        if (lastPosition < text.Length)
+                        {
+                            string remainingMarkdown = text.Substring(lastPosition);
+                            // 去除前导换行符，避免HTML内联标签后产生不必要的间隔
+                            remainingMarkdown = remainingMarkdown.TrimStart('\n', '\r');
+                            if (!string.IsNullOrEmpty(remainingMarkdown))
+                            {
+                                var remainingInlines = ParsePureMarkdownPairs(remainingMarkdown, level + 1);
+                                result.AddRange(remainingInlines);
+                            }
+                        }
 
             return result;
         }
@@ -1158,7 +1163,7 @@ namespace Markdown.Avalonia
                     {
                         var innerControl = blockElement.Control;
                         innerControl.VerticalAlignment = VerticalAlignment.Top;
-                        innerControl.Margin = new Thickness(0);
+                        innerControl.Margin = new Thickness(0,8,0,0);
 
                         if (innerControl is Panel panel)
                         {

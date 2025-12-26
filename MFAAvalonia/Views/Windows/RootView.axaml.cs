@@ -290,7 +290,10 @@ public partial class RootView : SukiWindow
                         // 只对最终选中的任务设置 EnableSetting = true，这会触发面板显示
                         if (tempTask != null)
                             tempTask.EnableSetting = true;
-
+                        AddMarkdown("<span style=\"color: red;\">国服用户</span>请使用官方循环助手进行每日要务战斗，此处仅领取奖励");
+                        AddMarkdown("<span>国服用户</span>请使用官方循环助手进行每日要务战斗，此处仅领取奖励");
+                        AddMarkdown("国服用户请使用官方循环助手进行每日要务战斗，此处仅领取奖励");
+                        AddLog("国服用户请使用官方循环助手进行每日要务战斗，此处仅领取奖励");
                         if (!string.IsNullOrWhiteSpace(MaaProcessor.Interface?.Message))
                         {
                             ToastHelper.Info(MaaProcessor.Interface.Message);

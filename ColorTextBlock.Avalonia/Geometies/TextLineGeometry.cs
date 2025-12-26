@@ -14,17 +14,17 @@ namespace ColorTextBlock.Avalonia.Geometries
         public TextLine Line { get; private set; }
         public IBrush? LayoutForeground { get; private set; }
 
-        internal TextLineGeometry(
-            CRun owner,
-            SimpleTextSource text,
-            TextLine tline,
-            bool linebreak) :
-            base(owner, tline.WidthIncludingTrailingWhitespace, tline.Height, tline.Baseline, owner.TextVerticalAlignment, linebreak)
-        {
-            Text = text;
-            Line = tline;
-            LayoutForeground = owner.Foreground;
-        }
+                internal TextLineGeometry(
+                    CRun owner,
+                    SimpleTextSource text,
+                    TextLine tline,
+                    bool linebreak) :
+                    base(owner, tline.Width, tline.Height, tline.Baseline, owner.TextVerticalAlignment, linebreak)
+                {
+                    Text = text;
+                    Line = tline;
+                    LayoutForeground = owner.Foreground;
+                }
 
         public override void Render(DrawingContext ctx)
         {
