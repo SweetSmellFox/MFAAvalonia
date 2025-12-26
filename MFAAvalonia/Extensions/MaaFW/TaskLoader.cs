@@ -334,26 +334,51 @@ public class TaskLoader(MaaInterface? maaInterface)
         else oldItem.InterfaceItem!.Advanced = null;
     }
 
-    private void UpdateOptions(DragItemViewModel oldItem, MaaInterface.MaaInterfaceTask newItem)
-    {
-        if (newItem.Option != null)
+        private void UpdateOptions(DragItemViewModel oldItem, MaaInterface.MaaInterfaceTask newItem)
         {
-            var tempDict = oldItem.InterfaceItem?.Option?.ToDictionary(t => t.Name) ?? new Dictionary<string, MaaInterface.MaaInterfaceSelectOption>();
-            var options = JsonConvert.DeserializeObject<List<MaaInterface.MaaInterfaceSelectOption>>(JsonConvert.SerializeObject(newItem.Option));
-            oldItem.InterfaceItem!.Option = options?.Select(opt =>
+            if (newItem.Option != null)
             {
-                if (tempDict.TryGetValue(opt.Name ?? string.Empty, out var existing))
+                var existingDict = oldItem.InterfaceItem?.Option?.ToDictionary(t => t.Name ?? string.Empty)
+                    ?? new Dictionary<string, MaaInterface.MaaInterfaceSelectOption>();
+                
+                var newOptions = new List<MaaInterface.MaaInterfaceSelectOption>();
+                
+                foreach (var newOpt in newItem.Option)
                 {
-                    if ((maaInterface?.Option?.TryGetValue(opt.Name ?? string.Empty, out var io) ?? false) && io.Cases is { Count: > 0 }) opt.Index = Math.Min(existing.Index ?? 0, io.Cases.Count - 1);
-                    if (existing.Data?.Count > 0) opt.Data = existing.Data;
-                    if (existing.SubOptions?.Count > 0) opt.SubOptions = MergeSubOptions(existing.SubOptions);
+                    var optName = newOpt.Name ?? string.Empty;
+                    
+                    if (existingDict.TryGetValue(optName, out var existing))
+                    {
+                        // 保留原有对象，只更新必要的属性（如果interface 定义变了需要调整）
+                        // 这样 UI 控件的事件处理器仍然引用同一个对象，用户的修改能正确反映
+                        if ((maaInterface?.Option?.TryGetValue(optName, out var io) ?? false) && io.Cases is { Count: > 0 })
+                        {
+                            // 只有当 Index 超出范围时才调整
+                            if (existing.Index.HasValue && existing.Index.Value >= io.Cases.Count)
+                            {
+                                existing.Index = io.Cases.Count - 1;
+                            }
+                        }
+                        newOptions.Add(existing);
+                    }
+                    else
+                    {
+                        // 新增的选项，创建新对象并设置默认值
+                        var opt = new MaaInterface.MaaInterfaceSelectOption
+                        {
+                            Name = newOpt.Name,
+                            Index = newOpt.Index,
+                            Data = newOpt.Data != null ? new Dictionary<string, string?>(newOpt.Data) : null
+                        };
+                        SetDefaultOptionValue(maaInterface, opt);
+                        newOptions.Add(opt);
+                    }
                 }
-                else SetDefaultOptionValue(maaInterface, opt);
-                return opt;
-            }).ToList();
+                
+                oldItem.InterfaceItem!.Option = newOptions;
+            }
+            else oldItem.InterfaceItem!.Option = null;
         }
-        else oldItem.InterfaceItem!.Option = null;
-    }
 
     private List<MaaInterface.MaaInterfaceSelectOption> MergeSubOptions(List<MaaInterface.MaaInterfaceSelectOption> existingSubOptions)
     {
