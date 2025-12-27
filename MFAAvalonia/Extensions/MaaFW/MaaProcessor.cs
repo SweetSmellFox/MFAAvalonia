@@ -2294,6 +2294,7 @@ public class MaaProcessor
                 try
                 {
                     var isUpdateRelated = TaskQueue.Any(task => task.IsUpdateRelated);
+                    Instances.TaskQueueViewModel.SetCurrentTaskName(string.Empty);
                     if (!ShouldProcessStop(finished))
                     {
                         ToastHelper.Warn(LangKeys.NoTaskToStop.ToLocalization());

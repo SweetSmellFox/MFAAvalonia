@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Notifications;
+using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Threading;
 using MFAAvalonia.Configuration;
@@ -309,6 +310,8 @@ public partial class RootView : SukiWindow
                     {
                         DispatcherHelper.RunOnMainThread(VersionChecker.CheckMinVersion);
                         AnnouncementViewModel.CheckAnnouncement();
+                        AddLog(" > 测试");
+                        AddMarkdown(" > 测试");
                         if (ConfigurationManager.Current.GetValue(ConfigurationKeys.AutoMinimize, false))
                         {
                             WindowState = WindowState.Minimized;
@@ -614,5 +617,10 @@ public partial class RootView : SukiWindow
         // 更新缓存并立即保存
         UpdateCachedWindowState();
         ExecuteActualSave();
+    }
+    
+    private void ResourceInfo_OnPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+       Instances.RootViewModel.TempResourceUpdateAction?.Invoke();
     }
 }

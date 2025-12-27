@@ -4,4 +4,7 @@
         x:Key="MouseOverRegionBrush"
         Opacity="0.75"
         Color="#303036" />
+    <SolidColorBrush
+        x:Key="WhiteBrush"
+        Color="Black" />
 </ResourceDictionary>
