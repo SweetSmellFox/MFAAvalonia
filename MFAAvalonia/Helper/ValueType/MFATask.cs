@@ -45,7 +45,10 @@ public partial class MFATask : ObservableObject
             {
                 token.ThrowIfCancellationRequested();
                 if (Type == MFATaskType.MAAFW)
+                {
                     RootView.AddLogByKeys(LangKeys.TaskStart, null, true, LanguageHelper.GetLocalizedString(Name));
+                    Instances.TaskQueueViewModel.SetCurrentTaskName(LanguageHelper.GetLocalizedString(Name));
+                }
                 await Action();
             }
             return MFATaskStatus.SUCCEEDED;

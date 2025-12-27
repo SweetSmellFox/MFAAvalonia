@@ -24,6 +24,7 @@
     xmlns:suki="https://github.com/kikipoulet/SukiUI"
     xmlns:windows="clr-namespace:MFAAvalonia.ViewModels.Windows"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    NonClientAreaContentIsHitTestVisible="True"
     xmlns:fluent="clr-namespace:FluentIcons.Avalonia.Fluent.Markup;assembly=FluentIcons.Avalonia.Fluent">
     <suki:SukiWindow.Styles>
         <Style Selector="ToggleButton.SP:checked > PathIcon">
@@ -32,97 +33,98 @@
     </suki:SukiWindow.Styles>
     <suki:SukiWindow.NonClientAreaContent>
         <StackPanel Orientation="Horizontal" Spacing="5">
-            <TextBlock
-                VerticalAlignment="Center"
-                HorizontalAlignment="Left"
-                IsHitTestVisible="False"
-                Text="{Binding WindowUpdateInfo}">
-                <TextBlock.Foreground>
-                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
-                        <GradientStop Color="#FF4285F4" Offset="0.0" />
-                        <GradientStop Color="#FFEA4335" Offset="1.0" />
-                    </LinearGradientBrush>
-                </TextBlock.Foreground>
-                <TextBlock.Styles>
-                    <Style Selector="TextBlock">
-                        <Style.Animations>
-                            <!-- 总时长4秒，无限循环，与WPF的4个1秒动画段对应 -->
-                            <Animation Duration="0:0:2" IterationCount="INFINITE" FillMode="Forward">
-                                <!-- 关键帧1：0%（0秒）→ 主色：蓝色(#FF4285F4)，流动渐变从蓝到红 -->
-                                <KeyFrame Cue="0%">
-                                    <KeyFrame.Setters>
-                                        <Setter Property="Foreground">
-                                            <Setter.Value>
-                                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
-                                                    <GradientStop Color="#FF4285F4" Offset="0.0" />
-                                                    <GradientStop Color="#FFEA4335" Offset="1.0" />
-                                                </LinearGradientBrush>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </KeyFrame.Setters>
-                                </KeyFrame>
+            <Button HorizontalAlignment="Left" VerticalContentAlignment="Center" VerticalAlignment="Center"
+                    Classes="Basic" Cursor="Hand" Command="{Binding TryUpdateCommand}" IsHitTestVisible="True">
+                <TextBlock
+                    VerticalAlignment="Center"
+                    Text="{Binding WindowUpdateInfo}">
+                    <TextBlock.Foreground>
+                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                            <GradientStop Color="#FF4285F4" Offset="0.0" />
+                            <GradientStop Color="#FFEA4335" Offset="1.0" />
+                        </LinearGradientBrush>
+                    </TextBlock.Foreground>
+                    <TextBlock.Styles>
+                        <Style Selector="TextBlock">
+                            <Style.Animations>
+                                <!-- 总时长4秒，无限循环，与WPF的4个1秒动画段对应 -->
+                                <Animation Duration="0:0:2" IterationCount="INFINITE" FillMode="Forward">
+                                    <!-- 关键帧1：0%（0秒）→ 主色：蓝色(#FF4285F4)，流动渐变从蓝到红 -->
+                                    <KeyFrame Cue="0%">
+                                        <KeyFrame.Setters>
+                                            <Setter Property="Foreground">
+                                                <Setter.Value>
+                                                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                                                        <GradientStop Color="#FF4285F4" Offset="0.0" />
+                                                        <GradientStop Color="#FFEA4335" Offset="1.0" />
+                                                    </LinearGradientBrush>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </KeyFrame.Setters>
+                                    </KeyFrame>
 
-                                <!-- 关键帧2：25%（1秒）→ 主色：红色(#FFEA4335)，流动渐变从红到黄 -->
-                                <KeyFrame Cue="25%">
-                                    <KeyFrame.Setters>
-                                        <Setter Property="Foreground">
-                                            <Setter.Value>
-                                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
-                                                    <GradientStop Color="#FFEA4335" Offset="0.0" />
-                                                    <GradientStop Color="#FFFBBC05" Offset="1.0" />
-                                                </LinearGradientBrush>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </KeyFrame.Setters>
-                                </KeyFrame>
+                                    <!-- 关键帧2：25%（1秒）→ 主色：红色(#FFEA4335)，流动渐变从红到黄 -->
+                                    <KeyFrame Cue="25%">
+                                        <KeyFrame.Setters>
+                                            <Setter Property="Foreground">
+                                                <Setter.Value>
+                                                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                                                        <GradientStop Color="#FFEA4335" Offset="0.0" />
+                                                        <GradientStop Color="#FFFBBC05" Offset="1.0" />
+                                                    </LinearGradientBrush>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </KeyFrame.Setters>
+                                    </KeyFrame>
 
-                                <!-- 关键帧3：50%（2秒）→ 主色：黄色(#FFFBBC05)，流动渐变从黄到绿 -->
-                                <KeyFrame Cue="50%">
-                                    <KeyFrame.Setters>
-                                        <Setter Property="Foreground">
-                                            <Setter.Value>
-                                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
-                                                    <GradientStop Color="#FFFBBC05" Offset="0.0" />
-                                                    <GradientStop Color="#FF34A853" Offset="1.0" />
-                                                </LinearGradientBrush>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </KeyFrame.Setters>
-                                </KeyFrame>
+                                    <!-- 关键帧3：50%（2秒）→ 主色：黄色(#FFFBBC05)，流动渐变从黄到绿 -->
+                                    <KeyFrame Cue="50%">
+                                        <KeyFrame.Setters>
+                                            <Setter Property="Foreground">
+                                                <Setter.Value>
+                                                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                                                        <GradientStop Color="#FFFBBC05" Offset="0.0" />
+                                                        <GradientStop Color="#FF34A853" Offset="1.0" />
+                                                    </LinearGradientBrush>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </KeyFrame.Setters>
+                                    </KeyFrame>
 
-                                <!-- 关键帧4：75%（3秒）→ 主色：绿色(#FF34A853)，流动渐变从绿到蓝 -->
-                                <KeyFrame Cue="75%">
-                                    <KeyFrame.Setters>
-                                        <Setter Property="Foreground">
-                                            <Setter.Value>
-                                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
-                                                    <GradientStop Color="#FF34A853" Offset="0.0" />
-                                                    <GradientStop Color="#FF4285F4" Offset="1.0" />
-                                                </LinearGradientBrush>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </KeyFrame.Setters>
-                                </KeyFrame>
-                                <KeyFrame Cue="100%">
-                                    <KeyFrame.Setters>
-                                        <Setter Property="Foreground">
-                                            <Setter.Value>
-                                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
-                                                    <GradientStop Color="#FF4285F4" Offset="0.0" />
-                                                    <GradientStop Color="#FFEA4335" Offset="1.0" />
-                                                </LinearGradientBrush>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </KeyFrame.Setters>
-                                </KeyFrame>
-                            </Animation>
-                        </Style.Animations>
-                    </Style>
-                </TextBlock.Styles>
-            </TextBlock>
+                                    <!-- 关键帧4：75%（3秒）→ 主色：绿色(#FF34A853)，流动渐变从绿到蓝 -->
+                                    <KeyFrame Cue="75%">
+                                        <KeyFrame.Setters>
+                                            <Setter Property="Foreground">
+                                                <Setter.Value>
+                                                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                                                        <GradientStop Color="#FF34A853" Offset="0.0" />
+                                                        <GradientStop Color="#FF4285F4" Offset="1.0" />
+                                                    </LinearGradientBrush>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </KeyFrame.Setters>
+                                    </KeyFrame>
+                                    <KeyFrame Cue="100%">
+                                        <KeyFrame.Setters>
+                                            <Setter Property="Foreground">
+                                                <Setter.Value>
+                                                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                                                        <GradientStop Color="#FF4285F4" Offset="0.0" />
+                                                        <GradientStop Color="#FFEA4335" Offset="1.0" />
+                                                    </LinearGradientBrush>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </KeyFrame.Setters>
+                                    </KeyFrame>
+                                </Animation>
+                            </Style.Animations>
+                        </Style>
+                    </TextBlock.Styles>
+                </TextBlock>
+            </Button>
             <TextBlock VerticalAlignment="Center" IsVisible="{Binding IsDebugMode}"
                        FontSize="13" Text="{markup:I18n {x:Static helper:LangKeys.DebugMode}}"
-                       Foreground="{DynamicResource SukiPrimaryColor}"
+                       Foreground="{DynamicResource SukiPrimaryColor}" IsHitTestVisible="False"
                        FontWeight="Bold">
             </TextBlock>
             <!-- <TextBlock VerticalAlignment="Center" -->
@@ -144,7 +146,7 @@
             <!--         </MultiBinding> -->
             <!--     </TextBlock.Text> -->
             <!-- </TextBlock> -->
-            <TextBlock VerticalAlignment="Center" IsVisible="{Binding IsCustomTitleVisible}"
+            <TextBlock VerticalAlignment="Center" IsVisible="{Binding IsCustomTitleVisible}" IsHitTestVisible="False"
                        FontSize="13" Text="{Binding CustomTitle}"
                        FontWeight="Bold">
 
@@ -165,14 +167,14 @@
                 <!-- </TextBlock.Text> -->
             </TextBlock>
             <TextBlock VerticalAlignment="Center" IsVisible="{calcBinding:Binding '!IsCustomTitleVisible' }"
-                       FontSize="13" Text="{markup:I18n {x:Static helper:LangKeys.AppTitle}}"
+                       FontSize="13" Text="{markup:I18n {x:Static helper:LangKeys.AppTitle}}" IsHitTestVisible="False"
                        FontWeight="Bold" />
 
             <TextBlock VerticalAlignment="Center" Margin="5 0 0 0" IsVisible="{Binding IsResourceNameVisible}"
-                       Foreground="{DynamicResource SukiLowText}"
+                       Foreground="{DynamicResource SukiLowText}" IsHitTestVisible="False"
                        FontSize="13" Text="{Binding ResourceName}" />
             <TextBlock VerticalAlignment="Center" Margin="1 0 0 0" IsVisible="{Binding IsResourceNameVisible}"
-                       Foreground="{DynamicResource SukiLowText}"
+                       Foreground="{DynamicResource SukiLowText}" IsHitTestVisible="False"
                        FontSize="13" Text="{Binding ResourceVersion}" />
         </StackPanel>
     </suki:SukiWindow.NonClientAreaContent>
@@ -248,7 +250,7 @@
                                            Header="{markup:I18n {x:Static helper:LangKeys.ResourceOption}}"
                                            Icon="{fluent:FluentIcon Icon=Apps,
                                                        IconVariant=Regular}"
-                                           IsVisible="True"
+                                           IsVisible="False"
                                            PageContent="{extensions:ServiceProvider ServiceType={x:Type pages:ResourcesView}}" />
 
                 </suki:SukiSideMenu.Items>

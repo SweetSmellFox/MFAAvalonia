@@ -37,10 +37,12 @@ public partial class RootViewModel : ViewModelBase
             // var minor = version.Minor >= 0 ? version.Minor : 0;
             // var patch = version.Build >= 0 ? version.Build : 0;
             // return $"v{SemVersion.Parse($"{major}.{minor}.{patch}")}";
-            return "v2.2.8-beta.1"; // Hardcoded version for now, replace with dynamic versioning later
+            return "v2.2.8-beta.2"; // Hardcoded version for now, replace with dynamic versioning later
         }
     }
 
+    [ObservableProperty] private Action? _tempResourceUpdateAction;
+   
     [ObservableProperty] private string? _windowUpdateInfo = "";
 
     [ObservableProperty] private string? _resourceName;
@@ -55,13 +57,18 @@ public partial class RootViewModel : ViewModelBase
 
     [ObservableProperty] private bool _lockController;
 
-    [ObservableProperty]
-    private bool _isDebugMode = ConfigurationManager.Maa.GetValue(ConfigurationKeys.Recording, false)
+    [ObservableProperty] private bool _isDebugMode = ConfigurationManager.Maa.GetValue(ConfigurationKeys.Recording, false)
         || ConfigurationManager.Maa.GetValue(ConfigurationKeys.SaveDraw, false)
         || ConfigurationManager.Maa.GetValue(ConfigurationKeys.ShowHitDraw, false);
     private bool _shouldTip = true;
     [ObservableProperty] private bool _isUpdating;
-
+    
+    [RelayCommand]
+    private void TryUpdate()
+    {
+        TempResourceUpdateAction?.Invoke();
+    }
+    
     partial void OnLockControllerChanged(bool value)
     {
         if (value)

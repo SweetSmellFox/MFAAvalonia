@@ -216,18 +216,18 @@ public static class MaaExtensions
         return maaContext.Tasker.GetCachedImage(imageBuffer);
     }
 
-        public static IMaaImageBuffer? GetImage(this IMaaContext maaContext)
+    public static IMaaImageBuffer? GetImage(this IMaaContext maaContext)
+    {
+        maaContext.Screencap();
+        var imageBuffer = new MaaImageBuffer();
+        if (!maaContext.GetCachedImage(imageBuffer))
         {
-            maaContext.Screencap();
-            var imageBuffer = new MaaImageBuffer();
-            if (!maaContext.GetCachedImage(imageBuffer))
-            {
-                // 如果获取图像失败，释放 buffer避免内存泄漏
-                imageBuffer.Dispose();
-                return null;
-            }
-            return imageBuffer;
+            // 如果获取图像失败，释放 buffer避免内存泄漏
+            imageBuffer.Dispose();
+            return null;
         }
+        return imageBuffer;
+    }
 
     public static IMaaImageBuffer GetImage(this IMaaContext maaContext, ref IMaaImageBuffer buffer)
     {
