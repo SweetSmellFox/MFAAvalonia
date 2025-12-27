@@ -620,10 +620,95 @@ public partial class TaskQueueView : UserControl
     public void InitializeDeviceSelectorLayout()
     {
         TopToolbar.SizeChanged += (_, _) => UpdateConnectionLayout();
-        ThreeColumnGrid.SizeChanged += (_, _) => UpdateThreeColumnLayout();
+        ThreeColumnGrid.SizeChanged += (_, _) =>
+        {
+            UpdateThreeColumnLayout();
+            // AdjustColumnWidthsForAvailableSpace();
+        };
+
         UpdateConnectionLayout();
         UpdateThreeColumnLayout();
     }
+    private double _lastThreeColumnGridWidth = 0;
+    //
+    // /// <summary>
+    // /// 当窗口大小缩小时，调整列宽度以保持右边距
+    // /// 优先级：先减右侧面板，右侧到最小值后再减左侧面板
+    // /// </summary>
+    // private void AdjustColumnWidthsForAvailableSpace()
+    // {
+    //     var viewModel = Instances.TaskQueueViewModel;
+    //     if (viewModel == null || ThreeColumnGrid == null) return;
+    //
+    //     // 只在横向三列模式下处理
+    //     if (_currentThreeColumnLayoutMode != 0) return;
+    //
+    //     var availableWidth = ThreeColumnGrid.Bounds.Width;
+    //     if (availableWidth <= 0) return;
+    //
+    //     // 只在窗口缩小时才触发
+    //     if (availableWidth >= _lastThreeColumnGridWidth)
+    //     {
+    //         _lastThreeColumnGridWidth = availableWidth;
+    //         return;
+    //     }
+    //
+    //     _lastThreeColumnGridWidth = availableWidth;
+    //
+    //     // 计算固定部分的宽度：左边距15+ 右边距15 + 两个分隔符各15
+    //     const double fixedMargins = 15 + 15 + 15 + 15;
+    //     const double minPanelWidth = 40; // 面板最小宽度
+    //
+    //     // 获取当前列宽
+    //     var col1Width = viewModel.Column1Width.IsAbsolute ? viewModel.Column1Width.Value : (ThreeColumnGrid.ColumnDefinitions.Count > 0 ? ThreeColumnGrid.ColumnDefinitions[0].ActualWidth : 350);
+    //     var col2Width = viewModel.Column2Width.IsAbsolute ? viewModel.Column2Width.Value : (ThreeColumnGrid.ColumnDefinitions.Count > 2 ? ThreeColumnGrid.ColumnDefinitions[2].ActualWidth : 200);
+    //     var col3Width = viewModel.Column3Width.IsAbsolute ? viewModel.Column3Width.Value : (ThreeColumnGrid.ColumnDefinitions.Count > 4 ? ThreeColumnGrid.ColumnDefinitions[4].ActualWidth : 350);
+    //
+    //     // 计算当前总宽度
+    //     var totalUsed = col1Width + col2Width + col3Width + fixedMargins;
+    //     // 如果没有超出可用宽度，不需要调整
+    //     if (totalUsed <= availableWidth) return;
+    //
+    //     var overflow = totalUsed - availableWidth;
+    //     var newCol1Width = col1Width;
+    //     var newCol3Width = col3Width;
+    //     var changed = false;
+    //
+    //     // 第一步：先减右侧面板
+    //     if (overflow > 0 && col3Width > minPanelWidth)
+    //     {
+    //         var canReduce = col3Width - minPanelWidth;
+    //         var reduceAmount = Math.Min(canReduce, overflow);
+    //         newCol3Width = col3Width - reduceAmount;
+    //         overflow -= reduceAmount;
+    //         changed = true;
+    //     }
+    //
+    //     // 第二步：右侧已达最小值，减左侧面板
+    //     if (overflow > 0 && col1Width > minPanelWidth)
+    //     {
+    //         var canReduce = col1Width - minPanelWidth;
+    //         var reduceAmount = Math.Min(canReduce, overflow);
+    //         newCol1Width = col1Width - reduceAmount;
+    //         changed = true;
+    //     }
+    //
+    //     // 应用更改
+    //     if (changed)
+    //     {
+    //         viewModel.SuppressPropertyChangedCallbacks = true;
+    //         if (newCol3Width != col3Width)
+    //         {
+    //             viewModel.Column3Width = new GridLength(newCol3Width, GridUnitType.Pixel);
+    //         }
+    //         if (newCol1Width != col1Width)
+    //         {
+    //             viewModel.Column1Width = new GridLength(newCol1Width, GridUnitType.Pixel);
+    //         }
+    //         viewModel.SuppressPropertyChangedCallbacks = false;
+    //     }
+    // }
+
 
     public void UpdateConnectionLayout(bool forceUpdate = false)
     {

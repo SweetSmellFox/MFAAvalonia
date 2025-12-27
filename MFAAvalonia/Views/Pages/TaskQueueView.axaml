@@ -1127,10 +1127,10 @@
                     </interaction:Interaction.Behaviors>
                 </GridSplitter>
 
-                <Grid Grid.Column="4" RowDefinitions="Auto,*">
+                <Grid Grid.Column="4" RowDefinitions="Auto,*" Margin=" 0 0 5 0">
 
                     <!-- Live View Card -->
-                    <suki:GlassCard Grid.Row="0" IsAnimated="False" Margin="0,0,15,10"
+                    <suki:GlassCard Grid.Row="0" IsAnimated="False" Margin="0,0,0,10"
                                     x:Name="LiveViewCard"
                                     IsVisible="{Binding IsLiveViewVisible, Source={x:Static helper:Instances.TaskQueueViewModel}}">
                         <suki:GroupBox>
@@ -1279,7 +1279,7 @@
                     <!-- 右侧列：日志记录 -->
                     <suki:GlassCard Grid.Row="1"
                                     IsAnimated="False"
-                                    Margin="0,0,15,0"
+                                  
                                     x:Name="LogCard"
                                     PointerPressed="LogCard_PointerPressed"
                                     ClipToBounds="True">
@@ -1345,12 +1345,12 @@
                                     <ItemsControl ItemsSource="{Binding Path=LogItemViewModels}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
-                                                <VirtualizingStackPanel />
+                                                <StackPanel Spacing="8" />
                                             </ItemsPanelTemplate>
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Grid Name="ParentGrid" MinHeight="35">
+                                                <Grid Name="ParentGrid" >
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="Auto" />
                                                         <ColumnDefinition Width="*" />
