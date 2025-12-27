@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+
 namespace MFAAvalonia.Extensions.MaaFW;
 
 public partial class MaaInterface
@@ -522,88 +523,88 @@ public partial class MaaInterface
         }
     }
 
-        public partial class MaaInterfaceTask : ObservableObject
+    public partial class MaaInterfaceTask : ObservableObject
+    {
+        /// <summary>任务唯一标识符，用作任务ID</summary>
+        [JsonProperty("name")] public string? Name;
+
+        /// <summary>任务显示名称，用于在用户界面中展示。支持国际化字符串（以$开头）。如果未设置，则显示 Name 字段的值。</summary>
+        [JsonProperty("label")] public string? Label;
+
+        /// <summary>任务入口，为 pipeline 中 Task 的名称</summary>
+        [JsonProperty("entry")] public string? Entry;
+
+        /// <summary>是否默认选中该任务。Client在初始化时会根据该值决定是否默认勾选该任务。</summary>
+        [JsonProperty("default_check",
+            NullValueHandling = NullValueHandling.Include,
+            DefaultValueHandling = DefaultValueHandling.Include)]
+        public bool? Check = false;
+
+        /// <summary>任务详细描述信息，帮助用户理解任务功能。支持文件路径、URL或直接文本，内容支持Markdown格式。</summary>
+        [JsonProperty("description")] public string? Description;
+
+        /// <summary>任务图标文件路径</summary>
+        [JsonProperty("icon")] public string? Icon;
+
+        /// <summary>
+        /// 可选。指定该任务支持的资源包列表。
+        /// 数组元素应与 resource 配置中的 name 字段对应。
+        /// 若不指定，则表示该任务在所有资源包中都可用。
+        /// 当用户选择了某个资源包时，只有支持该资源包的任务才会显示在用户界面中供选择。
+        /// 这允许为不同资源包提供专门的任务配置，比如活动任务只在特定资源包中可用。
+        /// </summary>
+        [JsonConverter(typeof(GenericSingleOrListConverter<string>))] [JsonProperty("resource")]
+        public List<string>? Resource;
+
+        /// <summary>文档说明（旧版兼容）</summary>
+        [JsonConverter(typeof(GenericSingleOrListConverter<string>))] [JsonProperty("doc")]
+        public List<string>? Document;
+
+        [JsonProperty("repeatable")] public bool? Repeatable;
+        [JsonProperty("repeat_count")] public int? RepeatCount;
+        [JsonProperty("advanced")] public List<MaaInterfaceSelectAdvanced>? Advanced;
+        [JsonProperty("option")] public List<MaaInterfaceSelectOption>? Option;
+
+        [JsonProperty("pipeline_override")] public Dictionary<string, JToken>? PipelineOverride;
+
+        /// <summary>获取显示名称（优先 Label，否则 Name）</summary>
+        [JsonIgnore]
+        public string DisplayName => Label ?? Name ?? string.Empty;
+
+        /// <summary>解析后的图标路径（用于 UI 绑定）</summary>
+        [ObservableProperty] [JsonIgnore] private string? _resolvedIcon;
+
+        /// <summary>是否有图标</summary>
+        [ObservableProperty] [JsonIgnore] private bool _hasIcon;
+
+        /// <summary>
+        /// 初始化图标（解析图标路径）
+        /// </summary>
+        public void InitializeIcon()
         {
-            /// <summary>任务唯一标识符，用作任务ID</summary>
-            [JsonProperty("name")] public string? Name;
-    
-            /// <summary>任务显示名称，用于在用户界面中展示。支持国际化字符串（以$开头）。如果未设置，则显示 Name 字段的值。</summary>
-            [JsonProperty("label")] public string? Label;
-    
-            /// <summary>任务入口，为 pipeline 中 Task 的名称</summary>
-            [JsonProperty("entry")] public string? Entry;
-    
-            /// <summary>是否默认选中该任务。Client在初始化时会根据该值决定是否默认勾选该任务。</summary>
-            [JsonProperty("default_check",
-                NullValueHandling = NullValueHandling.Include,
-                DefaultValueHandling = DefaultValueHandling.Include)]
-            public bool? Check = false;
-    
-            /// <summary>任务详细描述信息，帮助用户理解任务功能。支持文件路径、URL或直接文本，内容支持Markdown格式。</summary>
-            [JsonProperty("description")] public string? Description;
-    
-            /// <summary>任务图标文件路径</summary>
-            [JsonProperty("icon")] public string? Icon;
-    
-            /// <summary>
-            /// 可选。指定该任务支持的资源包列表。
-            /// 数组元素应与 resource 配置中的 name 字段对应。
-            /// 若不指定，则表示该任务在所有资源包中都可用。
-            /// 当用户选择了某个资源包时，只有支持该资源包的任务才会显示在用户界面中供选择。
-            /// 这允许为不同资源包提供专门的任务配置，比如活动任务只在特定资源包中可用。
-            /// </summary>
-            [JsonConverter(typeof(GenericSingleOrListConverter<string>))] [JsonProperty("resource")]
-            public List<string>? Resource;
-    
-            /// <summary>文档说明（旧版兼容）</summary>
-            [JsonConverter(typeof(GenericSingleOrListConverter<string>))] [JsonProperty("doc")]
-            public List<string>? Document;
-    
-            [JsonProperty("repeatable")] public bool? Repeatable;
-            [JsonProperty("repeat_count")] public int? RepeatCount;
-            [JsonProperty("advanced")] public List<MaaInterfaceSelectAdvanced>? Advanced;
-            [JsonProperty("option")] public List<MaaInterfaceSelectOption>? Option;
-    
-            [JsonProperty("pipeline_override")] public Dictionary<string, JToken>? PipelineOverride;
-    
-            /// <summary>获取显示名称（优先 Label，否则 Name）</summary>
-            [JsonIgnore]
-            public string DisplayName => Label ?? Name ?? string.Empty;
-    
-            /// <summary>解析后的图标路径（用于 UI 绑定）</summary>
-            [ObservableProperty] [JsonIgnore] private string? _resolvedIcon;
-    
-            /// <summary>是否有图标</summary>
-            [ObservableProperty] [JsonIgnore] private bool _hasIcon;
-    
-            /// <summary>
-            /// 初始化图标（解析图标路径）
-            /// </summary>
-            public void InitializeIcon()
+            UpdateIcon();
+            LanguageHelper.LanguageChanged += OnLanguageChangedForIcon;
+        }
+
+        private void OnLanguageChangedForIcon(object? sender, LanguageHelper.LanguageEventArgs e)
+        {
+            UpdateIcon();
+        }
+
+        private void UpdateIcon()
+        {
+            if (string.IsNullOrWhiteSpace(Icon))
             {
-                UpdateIcon();
-                LanguageHelper.LanguageChanged += OnLanguageChangedForIcon;
+                ResolvedIcon = null;
+                HasIcon = false;
+                return;
             }
-    
-            private void OnLanguageChangedForIcon(object? sender, LanguageHelper.LanguageEventArgs e)
-            {
-                UpdateIcon();
-            }
-    
-            private void UpdateIcon()
-            {
-                if (string.IsNullOrWhiteSpace(Icon))
-                {
-                    ResolvedIcon = null;
-                    HasIcon = false;
-                    return;
-                }
-    
-                // 解析图标路径（支持国际化和路径占位符）
-                var iconValue = LanguageHelper.GetLocalizedString(Icon);
-                ResolvedIcon = ReplacePlaceholder(iconValue, MaaProcessor.ResourceBase, true);
-                HasIcon = !string.IsNullOrWhiteSpace(ResolvedIcon);
-            }
+
+            // 解析图标路径（支持国际化和路径占位符）
+            var iconValue = LanguageHelper.GetLocalizedString(Icon);
+            ResolvedIcon = ReplacePlaceholder(iconValue, MaaProcessor.ResourceBase, true);
+            HasIcon = !string.IsNullOrWhiteSpace(ResolvedIcon);
+        }
 
         public override string ToString()
         {
@@ -781,7 +782,7 @@ public partial class MaaInterface
         public long? Timeout { get; set; }
     }
 
-    public class MaaResourceController
+    public partial class MaaResourceController : ObservableObject
     {
         [JsonProperty("name")]
         public string? Name { get; set; }
@@ -808,6 +809,67 @@ public partial class MaaInterface
         public MaaResourceControllerAdb? Adb { get; set; }
         [JsonProperty("win32")]
         public MaaResourceControllerWin32? Win32 { get; set; }
+
+        /// <summary>显示名称（用于 UI 绑定）</summary>
+        [ObservableProperty] [JsonIgnore] private string _displayName = string.Empty;
+
+        /// <summary>解析后的图标路径（用于 UI 绑定）</summary>
+        [ObservableProperty] [JsonIgnore] private string? _resolvedIcon;
+
+        /// <summary>是否有图标</summary>
+        [ObservableProperty] [JsonIgnore] private bool _hasIcon;
+
+        /// <summary>控制器类型枚举值</summary>
+        [JsonIgnore]
+        public MaaControllerTypes ControllerType => Type.ToMaaControllerTypes();
+
+        /// <summary>
+        /// 初始化显示名称并注册语言变化监听
+        /// </summary>
+        public void InitializeDisplayName()
+        {
+            UpdateDisplayName();
+            LanguageHelper.LanguageChanged += OnLanguageChanged;
+        }
+
+        private void OnLanguageChanged(object? sender, LanguageHelper.LanguageEventArgs e)
+        {
+            UpdateDisplayName();
+        }
+
+        private void UpdateDisplayName()
+        {
+            // 如果有Label，使用Label的国际化；否则使用Name或默认的控制器类型名称
+            if (!string.IsNullOrWhiteSpace(Label))
+            {
+                DisplayName = LanguageHelper.GetLocalizedDisplayName(Label, Name ?? string.Empty);
+            }
+            else if (!string.IsNullOrWhiteSpace(Name))
+            {
+                DisplayName = Name;
+            }
+            else
+            {
+                // 使用默认的控制器类型名称
+                DisplayName = ControllerType.ToResourceKey().ToLocalization();
+            }
+            UpdateIcon();
+        }
+
+        private void UpdateIcon()
+        {
+            if (string.IsNullOrWhiteSpace(Icon))
+            {
+                ResolvedIcon = null;
+                HasIcon = false;
+                return;
+            }
+
+            // 解析图标路径（支持国际化和路径占位符）
+            var iconValue = LanguageHelper.GetLocalizedString(Icon);
+            ResolvedIcon = ReplacePlaceholder(iconValue, MaaProcessor.ResourceBase, true);
+            HasIcon = !string.IsNullOrWhiteSpace(ResolvedIcon);
+        }
     }
 
 

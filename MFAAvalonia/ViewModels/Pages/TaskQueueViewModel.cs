@@ -29,89 +29,91 @@ namespace MFAAvalonia.ViewModels.Pages;
 
 public partial class TaskQueueViewModel : ViewModelBase
 {
-    private string adbKey = LangKeys.TabADB;
-    private string win32Key = LangKeys.TabWin32;
-    private string adbFallback = "";
-    private string win32Fallback = "";
-    private string? adbIconKey = null;
-    private string? win32IconKey = null;
+    [ObservableProperty] private bool _isCompactMode = false;
+    /// <summary>
+    /// 控制器选项列表
+    /// </summary>
+    [ObservableProperty] private ObservableCollection<MaaInterface.MaaResourceController> _controllerOptions = [];
 
-    private void UpdateControllerName()
+    /// <summary>
+    /// 当前选中的控制器
+    /// </summary>
+    [ObservableProperty] private MaaInterface.MaaResourceController? _selectedController;
+
+    partial void OnSelectedControllerChanged(MaaInterface.MaaResourceController? value)
     {
-        Adb = adbKey == LangKeys.TabADB ? adbKey.ToLocalization() : LanguageHelper.GetLocalizedDisplayName(adbKey, adbFallback);
-        Win32 = win32Key == LangKeys.TabWin32 ? win32Key.ToLocalization() : LanguageHelper.GetLocalizedDisplayName(win32Key, win32Fallback);
-        UpdateControllerIcon();
-    }
-
-    private void UpdateControllerIcon()
-    {
-        // 处理 Adb 图标
-        if (!string.IsNullOrWhiteSpace(adbIconKey))
+        if (value != null && value.ControllerType != CurrentController)
         {
-            var iconValue = LanguageHelper.GetLocalizedString(adbIconKey);
-            AdbIcon = MaaInterface.ReplacePlaceholder(iconValue, MaaProcessor.ResourceBase, true);
-            HasAdbIcon = !string.IsNullOrWhiteSpace(AdbIcon);
-        }
-        else
-        {
-            AdbIcon = null;
-            HasAdbIcon = false;
-        }
-
-        // 处理 Win32 图标
-        if (!string.IsNullOrWhiteSpace(win32IconKey))
-        {
-            var iconValue = LanguageHelper.GetLocalizedString(win32IconKey);
-            Win32Icon = MaaInterface.ReplacePlaceholder(iconValue, MaaProcessor.ResourceBase, true);
-            HasWin32Icon = !string.IsNullOrWhiteSpace(Win32Icon);
-        }
-        else
-        {
-            Win32Icon = null;
-            HasWin32Icon = false;
+            CurrentController = value.ControllerType;
         }
     }
 
-    public void InitializeControllerName()
+    /// <summary>
+    /// 初始化控制器列表
+    /// 从MaaInterface.Controller加载，如果为空则使用默认的Adb和Win32
+    /// </summary>
+    public void InitializeControllerOptions()
     {
         try
         {
-            var adb = MaaProcessor.Interface?.Controller?.Find(c => c.Type != null && c.Type.Equals(MaaControllerTypes.Adb.ToJsonKey(), StringComparison.OrdinalIgnoreCase));
-            var win32 = MaaProcessor.Interface?.Controller?.Find(c => c.Type != null && c.Type.Equals(MaaControllerTypes.Win32.ToJsonKey(), StringComparison.OrdinalIgnoreCase));
-
-            if (adb is { Label: not null } or { Name: not null })
+            var controllers = MaaProcessor.Interface?.Controller;
+            if (controllers != null && controllers.Count > 0)
             {
-                adbKey = adb.Label ?? string.Empty;
-                adbFallback = adb.Name ?? string.Empty;
+                // 从interface配置中加载控制器列表
+                foreach (var controller in controllers)
+                {
+                    controller.InitializeDisplayName();
+                }
+                ControllerOptions = new ObservableCollection<MaaInterface.MaaResourceController>(controllers);
             }
-            if (win32 is { Label: not null } or { Name: not null })
+            else
             {
-                win32Key = win32.Label ?? string.Empty;
-                win32Fallback = win32.Name ?? string.Empty;
+                // 使用默认的Adb和Win32控制器
+                var defaultControllers = CreateDefaultControllers();
+                ControllerOptions = new ObservableCollection<MaaInterface.MaaResourceController>(defaultControllers);
             }
 
-            // 获取图标
-            adbIconKey = adb?.Icon;
-            win32IconKey = win32?.Icon;
-
-            LanguageHelper.LanguageChanged += (_, _) =>
-            {
-                UpdateControllerName();
-            };
-            UpdateControllerName();
+            // 根据当前控制器类型选择对应的控制器
+            SelectedController = ControllerOptions.FirstOrDefault(c => c.ControllerType == CurrentController)
+                ?? ControllerOptions.FirstOrDefault();
         }
         catch (Exception e)
         {
             LoggerHelper.Error(e);
+            // 出错时使用默认控制器
+            var defaultControllers = CreateDefaultControllers();
+            ControllerOptions = new ObservableCollection<MaaInterface.MaaResourceController>(defaultControllers);
+            SelectedController = ControllerOptions.FirstOrDefault();
         }
     }
 
+    /// <summary>
+    /// 创建默认的Adb和Win32控制器
+    /// </summary>
+    private List<MaaInterface.MaaResourceController> CreateDefaultControllers()
+    {
+        var adbController = new MaaInterface.MaaResourceController
+        {
+            Name = "Adb",
+            Type = MaaControllerTypes.Adb.ToJsonKey()
+        };
+        adbController.InitializeDisplayName();
+
+        var win32Controller = new MaaInterface.MaaResourceController
+        {
+            Name = "Win32",
+            Type = MaaControllerTypes.Win32.ToJsonKey()
+        };
+        win32Controller.InitializeDisplayName();
+
+        return [adbController, win32Controller];
+    }
 
     protected override void Initialize()
     {
         try
         {
-            UpdateControllerName();
+            InitializeControllerOptions();
         }
         catch (Exception e)
         {
@@ -125,20 +127,27 @@ public partial class TaskQueueViewModel : ViewModelBase
 
             SuppressPropertyChangedCallbacks = true;
 
-            Column1Width = GridLength.Parse(col1Str);
+            // 保存原始列宽（用于展开时恢复）
+            _savedColumn1Width = GridLength.Parse(col1Str);
+            _savedColumn3Width = GridLength.Parse(col3Str);
+
+            // 如果面板已折叠，设置列宽为折叠宽度，否则使用保存的列宽
+            Column1Width = IsLeftPanelCollapsed ? new GridLength(CollapsedPanelWidth) : _savedColumn1Width;
             Column2Width = GridLength.Parse(col2Str);
-            Column3Width = GridLength.Parse(col3Str);
+            Column3Width = IsRightPanelCollapsed ? new GridLength(CollapsedPanelWidth) : _savedColumn3Width;
 
             SuppressPropertyChangedCallbacks = false;
 
             LoggerHelper.Info("Column width set successfully in the constructor");
         }
+
         catch (Exception ex)
         {
             LoggerHelper.Error($"Failed to set column width in the constructor: {ex.Message}");
             SetDefaultColumnWidths();
         }
     }
+
 
     #region 介绍
 
@@ -567,13 +576,6 @@ public partial class TaskQueueViewModel : ViewModelBase
 
     #region 连接
 
-    [ObservableProperty] private string _adb = string.Empty;
-    [ObservableProperty] private string _win32 = string.Empty;
-    [ObservableProperty] private string? _adbIcon;
-    [ObservableProperty] private string? _win32Icon;
-    [ObservableProperty] private bool _hasAdbIcon;
-    [ObservableProperty] private bool _hasWin32Icon;
-
     [ObservableProperty] private int _shouldShow = 0;
     [ObservableProperty] private ObservableCollection<object> _devices = [];
     [ObservableProperty] private object? _currentDevice;
@@ -581,7 +583,7 @@ public partial class TaskQueueViewModel : ViewModelBase
 
     partial void OnShouldShowChanged(int value)
     {
-        DispatcherHelper.PostOnMainThread(() => Instances.TaskQueueView.UpdateConnectionLayout(true));
+        // DispatcherHelper.PostOnMainThread(() => Instances.TaskQueueView.UpdateConnectionLayout(true));
     }
 
     partial void OnCurrentDeviceChanged(object? value)
@@ -1332,6 +1334,85 @@ public partial class TaskQueueViewModel : ViewModelBase
     }
 
     #endregion
+    #region 面板折叠
+
+    // 折叠时的最小宽度
+    private const double CollapsedPanelWidth = 50;
+
+    // 左侧面板折叠状态
+    [ObservableProperty] private bool _isLeftPanelCollapsed =
+        ConfigurationManager.Current.GetValue(ConfigurationKeys.TaskQueueLeftPanelCollapsed, false);
+
+    // 右侧面板折叠状态
+    [ObservableProperty] private bool _isRightPanelCollapsed =
+        ConfigurationManager.Current.GetValue(ConfigurationKeys.TaskQueueRightPanelCollapsed, false);
+
+    // 保存折叠前的列宽，用于恢复
+    private GridLength _savedColumn1Width;
+    private GridLength _savedColumn3Width;
+
+    partial void OnIsLeftPanelCollapsedChanged(bool value)
+    {
+        if (SuppressPropertyChangedCallbacks) return;
+        ConfigurationManager.Current.SetValue(ConfigurationKeys.TaskQueueLeftPanelCollapsed, value);
+    }
+
+    partial void OnIsRightPanelCollapsedChanged(bool value)
+    {
+        if (SuppressPropertyChangedCallbacks) return;
+        ConfigurationManager.Current.SetValue(ConfigurationKeys.TaskQueueRightPanelCollapsed, value);
+    }
+
+    [RelayCommand]
+    public void ToggleLeftPanel()
+    {
+        if (IsLeftPanelCollapsed)
+        {
+            // 展开左侧面板，恢复保存的宽度
+            if (_savedColumn1Width.Value > CollapsedPanelWidth)
+            {
+                Column1Width = _savedColumn1Width;
+            }
+            else
+            {
+                Column1Width = GridLength.Parse(DefaultColumn1Width);
+            }
+        }
+        else
+        {
+            // 折叠左侧面板，保存当前宽度并设置为折叠宽度
+            _savedColumn1Width = Column1Width;
+            Column1Width = new GridLength(CollapsedPanelWidth);
+        }
+        IsLeftPanelCollapsed = !IsLeftPanelCollapsed;
+    }
+
+    [RelayCommand]
+    private void ToggleRightPanel()
+    {
+        if (IsRightPanelCollapsed)
+        {
+            // 展开右侧面板，恢复保存的宽度
+            if (_savedColumn3Width.Value > CollapsedPanelWidth)
+            {
+                Column3Width = _savedColumn3Width;
+            }
+            else
+            {
+                Column3Width = GridLength.Parse(DefaultColumn3Width);
+            }
+        }
+        else
+        {
+            // 折叠右侧面板，保存当前宽度并设置为折叠宽度
+            _savedColumn3Width = Column3Width;
+            Column3Width = new GridLength(CollapsedPanelWidth);
+        }
+        IsRightPanelCollapsed = !IsRightPanelCollapsed;
+    }
+
+    #endregion
+
     #region 缩放
 
 // 三列宽度配置
