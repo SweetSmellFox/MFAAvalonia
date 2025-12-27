@@ -1,0 +1,49 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:extensions="clr-namespace:MFAAvalonia.Extensions"
+             xmlns:helper="clr-namespace:MFAAvalonia.Helper"
+             xmlns:markup="https://codewf.com"
+             xmlns:settings="clr-namespace:MFAAvalonia.Views.UserControls.Settings"
+             xmlns:suki="https://github.com/kikipoulet/SukiUI"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="MFAAvalonia.Views.UserControls.Settings.AdvancedSettings">
+    <Grid RowDefinitions="*, Auto">
+        <ScrollViewer Grid.Row="0">
+            <StackPanel Margin="20" Spacing="12">
+                <TextBlock Text="高级选项" FontSize="24" FontWeight="Bold" Margin="0,0,0,10"/>
+                
+                <!-- 切换配置 -->
+                <Expander Header="{markup:I18n {x:Static helper:LangKeys.SwitchConfiguration}}">
+                    <settings:ConfigurationMgrUserControl />
+                </Expander>
+                
+                <!-- 定时设置 -->
+                <Expander Header="{markup:I18n {x:Static helper:LangKeys.ScheduleSettings}}">
+                    <settings:TimerSettingsUserControl />
+                </Expander>
+                
+                <!-- 性能设置 -->
+                <Expander Header="{markup:I18n {x:Static helper:LangKeys.PerformanceSettings}}">
+                    <settings:PerformanceUserControl />
+                </Expander>
+                
+                <!-- 运行设置 -->
+                <Expander Header="{markup:I18n {x:Static helper:LangKeys.RunningSettings}}">
+                    <settings:GameSettingsUserControl />
+                </Expander>
+                
+                <!-- 热键设置 -->
+                <Expander Header="{markup:I18n {x:Static helper:LangKeys.HotKeySettings}}">
+                    <settings:HotKeySettingsUserControl />
+                </Expander>
+            </StackPanel>
+        </ScrollViewer>
+        <Button Grid.Row="1" 
+                Content="返回" 
+                Click="OnBackClick" 
+                HorizontalAlignment="Left" 
+                Margin="0,0,0,0"/>
+    </Grid>
+</UserControl>

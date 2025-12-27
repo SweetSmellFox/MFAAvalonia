@@ -14,6 +14,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Avalonia.Interactivity;
 
 namespace SukiUI.Controls;
 
@@ -303,4 +304,5 @@ public partial class SettingsLayout : ItemsControl, ISukiStackPageTitleProvider
 
         await Task.WhenAll(animationTask, abortTask);
     }
+    
 }

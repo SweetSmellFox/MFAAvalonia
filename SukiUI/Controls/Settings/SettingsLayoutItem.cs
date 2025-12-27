@@ -1,6 +1,7 @@
 ﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Metadata;
+using Avalonia.Interactivity;
 
 namespace SukiUI.Controls;
 
@@ -34,4 +35,6 @@ public class SettingsLayoutItem : ContentControl
     }
 
     private Control? _content;
+
+
 }
