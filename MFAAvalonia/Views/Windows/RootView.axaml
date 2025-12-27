@@ -248,7 +248,7 @@
                                            Header="{markup:I18n {x:Static helper:LangKeys.ResourceOption}}"
                                            Icon="{fluent:FluentIcon Icon=Apps,
                                                        IconVariant=Regular}"
-                                           IsVisible="False"
+                                           IsVisible="True"
                                            PageContent="{extensions:ServiceProvider ServiceType={x:Type pages:ResourcesView}}" />
 
                 </suki:SukiSideMenu.Items>

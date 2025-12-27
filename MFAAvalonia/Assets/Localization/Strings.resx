@@ -876,7 +876,7 @@
         <value>软件版本</value>
     </data>
     <data name="StartTask" xml:space="preserve">
-        <value>开始任务</value>
+        <value>▶️ 开始任务</value>
     </data>
     <data name="StartupParameter" xml:space="preserve">
         <value>附加命令</value>
@@ -903,7 +903,7 @@
         <value>停止任务失败</value>
     </data>
     <data name="StopTask" xml:space="preserve">
-        <value>停止任务</value>
+        <value>■ 停止任务</value>
     </data>
     <data name="SwitchConfiguration" xml:space="preserve">
         <value>切换配置</value>
