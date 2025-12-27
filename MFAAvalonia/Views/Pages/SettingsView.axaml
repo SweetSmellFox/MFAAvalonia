@@ -33,14 +33,14 @@
             <suki:SettingsLayout Name="SettingsLayout" ScrollAnimationSpeed="3" MinWidthWhetherStackSummaryShow="850" StackSummaryWidth="250">
                 <suki:SettingsLayout.Items>
                     <suki:SettingsLayoutItem
+                        Content="{extensions:ServiceProvider ServiceType={x:Type settings:GuiSettingsUserControl}}"
+                        Header="{markup:I18n {x:Static helper:LangKeys.UiSettings}}" />
+                    <suki:SettingsLayoutItem
                         Content="{extensions:ServiceProvider ServiceType={x:Type settings:ConnectSettingsUserControl}}"
                         Header="{markup:I18n {x:Static helper:LangKeys.ConnectionSettings}}" />
                     <suki:SettingsLayoutItem
                         Content="{extensions:ServiceProvider ServiceType={x:Type settings:StartSettingsUserControl}}"
                         Header="{markup:I18n {x:Static helper:LangKeys.StartupSettings}}" />
-                    <suki:SettingsLayoutItem
-                        Content="{extensions:ServiceProvider ServiceType={x:Type settings:GuiSettingsUserControl}}"
-                        Header="{markup:I18n {x:Static helper:LangKeys.UiSettings}}" />
                     <suki:SettingsLayoutItem
                         Content="{extensions:ServiceProvider ServiceType={x:Type settings:ExternalNotificationSettingsUserControl}}"
                         Header="{markup:I18n {x:Static helper:LangKeys.ExternalNotificationSettings}}" />
