@@ -230,7 +230,18 @@ public class SukiWindow : Window, IDisposable
         get => GetValue(NonClientAreaContentProperty);
         set => SetValue(NonClientAreaContentProperty, value);
     }
+    
+    public static readonly StyledProperty<bool> NonClientAreaContentIsHitTestVisibleProperty = AvaloniaProperty.Register<SukiWindow, bool>(nameof(NonClientAreaContentIsHitTestVisible), false);
 
+    /// <summary>
+    /// Customize the title bar.
+    /// </summary>
+    public bool NonClientAreaContentIsHitTestVisible
+    {
+        get => GetValue(NonClientAreaContentIsHitTestVisibleProperty);
+        set => SetValue(NonClientAreaContentIsHitTestVisibleProperty, value);
+    }
+    
     public static readonly StyledProperty<Control?> LogoContentProperty =
         AvaloniaProperty.Register<SukiWindow, Control?>(nameof(LogoContent));
 

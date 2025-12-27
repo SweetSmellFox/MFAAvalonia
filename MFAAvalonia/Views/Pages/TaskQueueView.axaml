@@ -44,14 +44,112 @@
         </ContextMenu>
         <markup:IfConditionConverter x:Key="StatusConditionConverter">
             <markup:IfConditionConverter.True>
-                <TextBlock Text="{markup:I18n {x:Static helper:LangKeys.StopTask}}" />
+                <WrapPanel>
+                    <Path Data="{StaticResource StopGeometry}"
+                          Fill="{DynamicResource WhiteBrush}"
+                          Width="12" Height="12"
+                          Stretch="Uniform"
+                          VerticalAlignment="Center"
+                          HorizontalAlignment="Center" />
+                    <TextBlock Margin="5 0 0 0" Text="{markup:I18n {x:Static helper:LangKeys.StopTask}}" />
+                </WrapPanel>
             </markup:IfConditionConverter.True>
             <markup:IfConditionConverter.False>
-                <TextBlock Text="{markup:I18n {x:Static helper:LangKeys.StartTask}}" />
+                <WrapPanel>
+                    <Path Data="{StaticResource PlayGeometry}"
+                          Fill="{DynamicResource WhiteBrush}"
+                          Width="12" Height="12"
+                          Stretch="Uniform"
+                          VerticalAlignment="Center"
+                          HorizontalAlignment="Center" />
+                    <TextBlock Margin="5 0 0 0" Text="{markup:I18n {x:Static helper:LangKeys.StartTask}}" />
+                </WrapPanel>
+
             </markup:IfConditionConverter.False>
         </markup:IfConditionConverter>
     </UserControl.Resources>
     <UserControl.Styles>
+        <!-- 中心绿点脉冲动画 -->
+        <Style Selector="Ellipse#LiveStatusDot">
+            <Style.Animations>
+                <Animation Duration="0:0:1.5" IterationCount="INFINITE" Easing="CubicEaseInOut">
+                    <KeyFrame Cue="0%">
+                        <Setter Property="ScaleTransform.ScaleX" Value="1" />
+                        <Setter Property="ScaleTransform.ScaleY" Value="1" />
+                        <Setter Property="Opacity" Value="1" />
+                    </KeyFrame>
+                    <KeyFrame Cue="50%">
+                        <Setter Property="ScaleTransform.ScaleX" Value="1.2" />
+                        <Setter Property="ScaleTransform.ScaleY" Value="1.2" />
+                        <Setter Property="Opacity" Value="0.8" />
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                        <Setter Property="ScaleTransform.ScaleX" Value="1" />
+                        <Setter Property="ScaleTransform.ScaleY" Value="1" />
+                        <Setter Property="Opacity" Value="1" />
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+
+        <!-- 外圈扩散动画 1 -->
+        <Style Selector="Ellipse#PulseRing1">
+            <Style.Animations>
+                <Animation Duration="0:0:1.5" IterationCount="INFINITE" Easing="CubicEaseOut">
+                    <KeyFrame Cue="0%">
+                        <Setter Property="ScaleTransform.ScaleX" Value="1" />
+                        <Setter Property="ScaleTransform.ScaleY" Value="1" />
+                        <Setter Property="Opacity" Value="0.6" />
+                        <Setter Property="StrokeThickness" Value="2" />
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                        <Setter Property="ScaleTransform.ScaleX" Value="2.5" />
+                        <Setter Property="ScaleTransform.ScaleY" Value="2.5" />
+                        <Setter Property="Opacity" Value="0" />
+                        <Setter Property="StrokeThickness" Value="0.5" />
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+
+        <!-- 外圈扩散动画 2 (延迟 0.75s) -->
+        <Style Selector="Ellipse#PulseRing2">
+            <Style.Animations>
+                <Animation Duration="0:0:1.5" IterationCount="INFINITE" Easing="CubicEaseOut" Delay="0:0:0.75">
+                    <KeyFrame Cue="0%">
+                        <Setter Property="ScaleTransform.ScaleX" Value="1" />
+                        <Setter Property="ScaleTransform.ScaleY" Value="1" />
+                        <Setter Property="Opacity" Value="0.6" />
+                        <Setter Property="StrokeThickness" Value="2" />
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                        <Setter Property="ScaleTransform.ScaleX" Value="2.5" />
+                        <Setter Property="ScaleTransform.ScaleY" Value="2.5" />
+                        <Setter Property="Opacity" Value="0" />
+                        <Setter Property="StrokeThickness" Value="0.5" />
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+
+        <!-- Live View 折叠按钮旋转动画 -->
+        <Style Selector="avalonia1|FluentIcon#LiveViewToggleIcon">
+            <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="(RotateTransform.Angle)" Duration="0:0:0.25" Easing="CubicEaseInOut" />
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <!-- 展开状态：图标旋转 180 度（箭头朝上） -->
+        <Style Selector="suki|GlassCard#LiveViewCard[Tag=Expanded] avalonia1|FluentIcon#LiveViewToggleIcon">
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <RotateTransform Angle="180" />
+                </Setter.Value>
+            </Setter>
+        </Style>
 
         <Style Selector="Button.PanelToggleButton">
             <Setter Property="RenderTransformOrigin" Value="50%,50%" />
@@ -290,11 +388,36 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
+                <!-- 在 TopToolbar Grid 中添加新列，放在资源选择之前 -->
+                <Grid x:Name="ConfigSelectorPanel" Grid.Column="0" VerticalAlignment="Center" ColumnDefinitions="Auto,*">
+                    <TextBlock FontSize="12" Grid.Column="0"
+                               FontWeight="Bold" Foreground="{DynamicResource SukiLowText}"
+                               Text="{markup:I18n {x:Static helper:LangKeys.CurrentConfig}}"
+                               VerticalAlignment="Center" />
+                    <ComboBox Margin="8 0 0 0" Grid.Column="1"
+                              ex:ComboBoxExtensions.DisableNavigationOnLostFocus="True"
+                              IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
+                              ItemsSource="{Binding ConfigurationList}"
+                              SelectedValue="{Binding CurrentConfiguration}"
+                              SelectedValueBinding="{Binding Name}"
+                              MinWidth="120">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+
+                </Grid>
+                <!-- ~1~ 添加分隔符 @1@ -->
+                <Border x:Name="Spliter1" Grid.Column="1" Width="1" Height="30" Background="{DynamicResource SukiControlBorderBrush}" Margin="20,0" />
 
                 <!-- 左侧：资源选择 -->
-                <Grid Grid.Column="0" VerticalAlignment="Center" ColumnDefinitions="Auto,*">
+                <Grid x:Name="ResourceSelectorPanel" Grid.Column="2" VerticalAlignment="Center" ColumnDefinitions="Auto,*">
                     <TextBlock FontSize="12" Grid.Column="0"
                                FontWeight="Bold" Foreground="{DynamicResource SukiLowText}"
                                Text="{markup:I18n {x:Static helper:LangKeys.ResourceOption}}"
@@ -342,10 +465,10 @@
                 </Grid>
 
                 <!-- 中间：分隔符 -->
-                <Border Grid.Column="1" Width="1" Height="30" Background="{DynamicResource SukiControlBorderBrush}"
+                <Border Grid.Column="3" Width="1" Height="30" Background="{DynamicResource SukiControlBorderBrush}" x:Name="Spliter2"
                         Margin="20,0" />
                 <!-- 控制器类型选择 -->
-                <Grid Grid.Column="2" VerticalAlignment="Center" ColumnDefinitions="Auto,*">
+                <Grid x:Name="ControllerSelectorPanel" Grid.Column="4" VerticalAlignment="Center" ColumnDefinitions="Auto,*">
                     <TextBlock Grid.Column="0" FontSize="12"
                                FontWeight="Bold" Foreground="{DynamicResource SukiLowText}"
                                Text="{markup:I18n {x:Static helper:LangKeys.ControllerType}}"
@@ -387,7 +510,7 @@
                     </ComboBox>
                 </Grid>
                 <!-- 右侧：连接设置 -->
-                <Grid x:Name="DeviceSelectorPanel" Grid.Column="3" HorizontalAlignment="Stretch"
+                <Grid x:Name="DeviceSelectorPanel" Grid.Column="5" HorizontalAlignment="Stretch"
                       MinWidth="200">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
@@ -1004,158 +1127,313 @@
                     </interaction:Interaction.Behaviors>
                 </GridSplitter>
 
+                <Grid Grid.Column="4" RowDefinitions="Auto,*" Margin=" 0 0 5 0">
 
-                <!-- 右侧列：日志记录 -->
-                <suki:GlassCard IsAnimated="False" Grid.Column="4" Margin="0,5,15,25" x:Name="LogCard"
-                                PointerPressed="LogCard_PointerPressed"
-                                ClipToBounds="True">
-                    <Grid>
-                        <!-- 展开时显示的内容 -->
-                        <suki:GroupBox x:Name="RightPanelContent"
-                                       IsVisible="{Binding !IsRightPanelCollapsed, Source={x:Static helper:Instances.TaskQueueViewModel}}"
-                                       RenderTransformOrigin="1,0.5">
-                            <suki:GroupBox.RenderTransform>
-                                <TranslateTransform X="0" />
-                            </suki:GroupBox.RenderTransform>
+                    <!-- Live View Card -->
+                    <suki:GlassCard Grid.Row="0" IsAnimated="False" Margin="0,0,0,10"
+                                    x:Name="LiveViewCard"
+                                    IsVisible="{Binding IsLiveViewVisible, Source={x:Static helper:Instances.TaskQueueViewModel}}">
+                        <suki:GroupBox>
                             <suki:GroupBox.Header>
                                 <Grid>
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
-                                        <TextBlock FontSize="11"
-                                                   FontWeight="Bold" Foreground="{DynamicResource SukiLowText}"
-                                                   Margin="2,0,0,0"
-                                                   Text="{markup:I18n {x:Static helper:LangKeys.LogRecord}}"
-                                                   VerticalAlignment="Center" />
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Spacing="8">
+                                        <TextBlock FontSize="11" FontWeight="Bold"
+                                                   Foreground="{DynamicResource SukiLowText}"
+                                                   Text="{markup:I18n {x:Static helper:LangKeys.LiveView}}" />
                                     </StackPanel>
-                                    <StackPanel Orientation="Horizontal"
-                                                ClipToBounds="False"
-                                                HorizontalAlignment="Right">
-                                        <Button Classes="Basic Round"
-                                                Command="{Binding ExportCommand}"
-                                                IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
-                                                Padding="0" Margin="3,-3,3,0"
-                                                ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.ExportLog}}"
-                                                VerticalAlignment="Center">
-                                            <avalonia1:FluentIcon Height="20" Icon="FolderArrowRight" IconSize="Size16"
-                                                                  VerticalAlignment="Center" IconVariant="Regular" />
+                                    <!-- 折叠按钮 -->
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                                        <!-- 折叠按钮 - 使用 ChevronDown + 旋转动画 -->
+                                        <Button Classes="Basic PanelToggleButton"
+                                                HorizontalAlignment="Right"
+                                                Command="{Binding ToggleLiveViewExpandedCommand, Source={x:Static helper:Instances.TaskQueueViewModel}}"
+                                                Padding="2" Width="20" Height="20" CornerRadius="4">
+                                            <avalonia1:FluentIcon Icon="ChevronDown" IconSize="Size16"
+                                                                  x:Name="LiveViewToggleIcon"
+                                                                  RenderTransformOrigin="50%,50%">
+                                                <avalonia1:FluentIcon.RenderTransform>
+                                                    <RotateTransform>
+                                                        <RotateTransform.Angle>
+                                                            <Binding Path="IsLiveViewExpanded"
+                                                                     Source="{x:Static helper:Instances.TaskQueueViewModel}"
+                                                                     Converter="{x:Static converters:BoolToDoubleConverter.Rotate180}" />
+                                                        </RotateTransform.Angle>
+                                                    </RotateTransform>
+                                                </avalonia1:FluentIcon.RenderTransform>
+                                            </avalonia1:FluentIcon>
                                         </Button>
 
-                                        <Button Classes="Basic Round SyncButton"
-                                                Command="{Binding ClearCommand}"
-                                                IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
-                                                Margin="3,0,3,0"
-                                                Padding="0"
-                                                ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.ButtonClear}}"
-                                                VerticalAlignment="Center">
-                                            <fluent:FluentIcon
-                                                Icon="ArrowSync"
-                                                IconSize="Size16"
-                                                IconVariant="Regular" />
-                                        </Button>
-                                        <Button Classes="Basic PanelToggleButton"
-                                                Command="{Binding ToggleRightPanelCommand, Source={x:Static helper:Instances.TaskQueueViewModel}}"
-                                                Padding="0 2 8 2"
-                                                Width="20" Height="20"
-                                                CornerRadius="4">
-                                            <avalonia1:FluentIcon Icon="ChevronRight" IconSize="Size16" />
-                                        </Button>
+
                                     </StackPanel>
                                 </Grid>
                             </suki:GroupBox.Header>
-                            <ScrollViewer BorderBrush="LightGray"
-                                          BorderThickness="1"
-                                          ClipToBounds="False"
-                                          Margin="15,8,10,5" VerticalAlignment="Top" VerticalContentAlignment="Top"
-                                          ex:ScrollViewerExtensions.AutoScroll="True"
-                                          ex:ScrollViewerExtensions.PanningMode="VerticalOnly">
-                                <ItemsControl ItemsSource="{Binding Path=LogItemViewModels}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <VirtualizingStackPanel />
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Grid Name="ParentGrid" MinHeight="35">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto" />
-                                                    <ColumnDefinition Width="*" />
-                                                </Grid.ColumnDefinitions>
-                                                <Grid.Resources>
-                                                    <suki:IfConditionConverter x:Key="IfConditionConverter">
-                                                        <suki:IfConditionConverter.False>
-                                                            <DataTemplate DataType="other:LogItemViewModel">
-                                                                <TextBlock FontSize="12" FontWeight="{Binding Weight}"
-                                                                           Foreground="{Binding Color}"
-                                                                           Background="{Binding BackgroundColor}"
-                                                                           HorizontalAlignment="Stretch"
-                                                                           IsVisible="{Binding !UseMarkdown}"
-                                                                           Margin="0,4.8,0,0"
-                                                                           TextWrapping="WrapWithOverflow"
-                                                                           Text="{Binding Content}"
-                                                                           VerticalAlignment="Stretch">
-                                                                </TextBlock>
-                                                            </DataTemplate>
-                                                        </suki:IfConditionConverter.False>
-                                                        <suki:IfConditionConverter.True>
-                                                            <DataTemplate DataType="other:LogItemViewModel">
-                                                                <mdxaml:MarkdownScrollViewer
-                                                                    IsVisible="{Binding UseMarkdown}"
-                                                                    Markdown="{Binding Content}"
-                                                                    Margin="0,0">
-                                                                    <mdxaml:MarkdownScrollViewer.Engine>
-                                                                        <ex:MarkdownExtension />
-                                                                    </mdxaml:MarkdownScrollViewer.Engine>
-                                                                    <mdxaml:MarkdownScrollViewer.Styles>
-                                                                        <StyleInclude
-                                                                            Source="avares://MFAAvalonia/Assets/Style/MdXamlDocStyle.axaml" />
-                                                                    </mdxaml:MarkdownScrollViewer.Styles>
-                                                                    <mdxaml:MarkdownScrollViewer.Plugins>
-                                                                        <StaticResource ResourceKey="MdXamlPlugin" />
-                                                                    </mdxaml:MarkdownScrollViewer.Plugins>
-                                                                </mdxaml:MarkdownScrollViewer>
-                                                            </DataTemplate>
-                                                        </suki:IfConditionConverter.True>
-                                                    </suki:IfConditionConverter>
-                                                </Grid.Resources>
-                                                <TextBlock FontSize="12"
-                                                           Name="FirstCol"
-                                                           Foreground="{DynamicResource SukiDisabledText}"
-                                                           Grid.Column="0"
-                                                           HorizontalAlignment="Left"
-                                                           IsVisible="{Binding ShowTime}"
-                                                           Margin="0,5,2,0" MinWidth="55"
-                                                           Text="{Binding Time}" TextWrapping="Wrap"
-                                                           VerticalAlignment="Top" />
-                                                <ContentControl Grid.Column="1" Content="{Binding}"
-                                                                HorizontalAlignment="Stretch" VerticalAlignment="Top"
-                                                                ContentTemplate="{Binding UseMarkdown,Converter={StaticResource IfConditionConverter}}">
-                                                    <ContentControl.MaxWidth>
-                                                        <MultiBinding Converter="{converters:MaxWidthConverter}">
-                                                            <Binding ElementName="ParentGrid" Path="Bounds.Width" />
-                                                            <Binding ElementName="FirstCol" Path="Bounds.Width" />
-                                                        </MultiBinding>
-                                                    </ContentControl.MaxWidth>
-                                                </ContentControl>
+                            <!-- 覆盖层：状态指示器和任务名 -->
+                            <!-- 图像内容区域 - 使用 Grid 实现覆盖层 -->
+                            <Grid
+                                IsVisible="{Binding IsLiveViewExpanded, Source={x:Static helper:Instances.TaskQueueViewModel}}"
+                                Margin="0,8,0,0" HorizontalAlignment="Center">
+                                <!-- 底层：圆角图像 - 添加 HorizontalAlignment 和 VerticalAlignment -->
+                                <Border CornerRadius="12" ClipToBounds="True"
+                                        Background="Transparent"
+                                        BorderBrush="{DynamicResource SukiControlBorderBrush}"
+                                        BorderThickness="0"
+                                        MaxHeight="250"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Top">
+                                    <Border CornerRadius="12" ClipToBounds="True">
+                                        <Image
+                                            Source="{Binding LiveViewImage, Source={x:Static helper:Instances.TaskQueueViewModel}}"
+                                            Stretch="Uniform"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center" />
+                                    </Border>
+                                </Border>
+
+
+                                <!-- 覆盖层：状态指示器和任务名 -->
+                                <Grid Margin="8" VerticalAlignment="Top" IsHitTestVisible="False">
+                                    <!-- 左上角：运行状态指示器 -->
+                                    <!-- 左上角：运行状态指示器 -->
+                                    <Grid HorizontalAlignment="Left" VerticalAlignment="Top"
+                                          IsVisible="{Binding IsRunning, Source={x:Static helper:Instances.RootViewModel}}">
+                                        <!-- 背景层 - 半透明 -->
+                                        <Border Background="{DynamicResource SukiCardBackground}"
+                                                BorderBrush="{DynamicResource SukiControlBorderBrush}"
+                                                BorderThickness="1" CornerRadius="12"
+                                                Opacity="0.66" />
+                                        <!-- 内容层 - 完全不透明 -->
+                                        <StackPanel Orientation="Horizontal" Spacing="6" Margin="8,4">
+                                            <Grid Width="16" Height="16" VerticalAlignment="Center">
+   <!-- 外圈扩散光晕 1 -->
+                                                <Ellipse x:Name="PulseRing1"
+                                                         Width="8" Height="8"
+                                                         Fill="Transparent"
+                                                         Stroke="{DynamicResource SukiSuccessColor}"
+                                                         StrokeThickness="2"
+                                                         Opacity="0"
+                                                         HorizontalAlignment="Center"
+                                                         VerticalAlignment="Center"
+                                                         RenderTransformOrigin="50%,50%">
+                                                    <Ellipse.RenderTransform>
+                                                        <ScaleTransform ScaleX="1" ScaleY="1" />
+                                                    </Ellipse.RenderTransform>
+                                                </Ellipse>
+
+                                                <!-- 外圈扩散光晕 2 (延迟) -->
+                                                <Ellipse x:Name="PulseRing2"
+                                                         Width="8" Height="8"
+                                                         Fill="Transparent"
+                                                         Stroke="{DynamicResource SukiSuccessColor}"
+                                                         StrokeThickness="2"
+                                                         Opacity="0"
+                                                         HorizontalAlignment="Center"
+                                                         VerticalAlignment="Center"
+                                                         RenderTransformOrigin="50%,50%">
+                                                    <Ellipse.RenderTransform>
+                                                        <ScaleTransform ScaleX="1" ScaleY="1" />
+                                                    </Ellipse.RenderTransform>
+                                                </Ellipse>
+
+                                                <!-- 中心绿点 -->
+                                                <Ellipse x:Name="LiveStatusDot"
+                                                         Width="8" Height="8"
+                                                         Fill="{DynamicResource SukiSuccessColor}"
+                                                         HorizontalAlignment="Center"
+                                                         VerticalAlignment="Center"
+                                                         RenderTransformOrigin="50%,50%">
+                                                    <Ellipse.RenderTransform>
+                                                        <ScaleTransform ScaleX="1" ScaleY="1" />
+                                                    </Ellipse.RenderTransform>
+                                                </Ellipse>
                                             </Grid>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </ScrollViewer>
-                        </suki:GroupBox><!-- 折叠时显示的展开按钮 -->
-                        <Button Classes="Basic ExpandButton" x:Name="RightExpandButton"
-                                Command="{Binding ToggleRightPanelCommand, Source={x:Static helper:Instances.TaskQueueViewModel}}"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                Padding="4"
-                                Width="30" Height="60"
-                                CornerRadius="4"
-                                Opacity="0"
-                                IsVisible="{Binding IsRightPanelCollapsed, Source={x:Static helper:Instances.TaskQueueViewModel}}"
-                                ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.LogRecord}}">
-                            <avalonia1:FluentIcon Icon="ChevronLeft" IconSize="Size20" />
-                        </Button>
-                    </Grid>
-                </suki:GlassCard>
+                                            <TextBlock Text="{markup:I18n {x:Static helper:LangKeys.Running}}"
+                                                       FontSize="11"
+                                                       Foreground="{DynamicResource SukiSuccessColor}"
+                                                       VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <!-- 右上角：当前任务名 -->
+                                    <Grid HorizontalAlignment="Right" VerticalAlignment="Top"
+                                          IsVisible="{Binding CurrentTaskName, Source={x:Static helper:Instances.TaskQueueViewModel}, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                        <!-- 背景层 - 半透明 -->
+                                        <Border Background="{DynamicResource SukiCardBackground}"
+                                                BorderBrush="{DynamicResource SukiControlBorderBrush}"
+                                                BorderThickness="1" CornerRadius="12"
+                                                Opacity="0.66" />
+                                        <!-- 内容层 - 完全不透明 -->
+                                        <StackPanel Orientation="Horizontal" Margin="8,4">
+                                            <TextBlock Text="{markup:I18n {x:Static helper:LangKeys.Task}}"
+                                                       FontSize="11" Foreground="{DynamicResource SukiText}" />
+                                            <TextBlock Text=": " FontSize="11" Foreground="{DynamicResource SukiText}" />
+                                            <TextBlock
+                                                Text="{Binding CurrentTaskName, Source={x:Static helper:Instances.TaskQueueViewModel}}"
+                                                FontSize="11" Foreground="{DynamicResource SukiText}" />
+                                        </StackPanel>
+                                    </Grid>
+
+                                </Grid>
+                            </Grid>
+                        </suki:GroupBox>
+                    </suki:GlassCard>
+                    <!-- 右侧列：日志记录 -->
+                    <suki:GlassCard Grid.Row="1"
+                                    IsAnimated="False"
+                                  
+                                    x:Name="LogCard"
+                                    PointerPressed="LogCard_PointerPressed"
+                                    ClipToBounds="True">
+                        <Grid>
+                            <!-- 展开时显示的内容 -->
+                            <suki:GroupBox x:Name="RightPanelContent"
+                                           IsVisible="{Binding !IsRightPanelCollapsed, Source={x:Static helper:Instances.TaskQueueViewModel}}"
+                                           RenderTransformOrigin="1,0.5">
+                                <suki:GroupBox.RenderTransform>
+                                    <TranslateTransform X="0" />
+                                </suki:GroupBox.RenderTransform>
+                                <suki:GroupBox.Header>
+                                    <Grid>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                                            <TextBlock FontSize="11"
+                                                       FontWeight="Bold" Foreground="{DynamicResource SukiLowText}"
+                                                       Margin="2,0,0,0"
+                                                       Text="{markup:I18n {x:Static helper:LangKeys.LogRecord}}"
+                                                       VerticalAlignment="Center" />
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal"
+                                                    ClipToBounds="False"
+                                                    HorizontalAlignment="Right">
+                                            <Button Classes="Basic Round"
+                                                    Command="{Binding ExportCommand}"
+                                                    IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
+                                                    Padding="0" Margin="3,-3,3,0"
+                                                    ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.ExportLog}}"
+                                                    VerticalAlignment="Center">
+                                                <avalonia1:FluentIcon Height="20" Icon="FolderArrowRight"
+                                                                      IconSize="Size16"
+                                                                      VerticalAlignment="Center" IconVariant="Regular" />
+                                            </Button>
+
+                                            <Button Classes="Basic Round SyncButton"
+                                                    Command="{Binding ClearCommand}"
+                                                    IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
+                                                    Margin="3,0,3,0"
+                                                    Padding="0"
+                                                    ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.ButtonClear}}"
+                                                    VerticalAlignment="Center">
+                                                <fluent:FluentIcon
+                                                    Icon="ArrowSync"
+                                                    IconSize="Size16"
+                                                    IconVariant="Regular" />
+                                            </Button>
+                                            <Button Classes="Basic PanelToggleButton"
+                                                    Command="{Binding ToggleRightPanelCommand, Source={x:Static helper:Instances.TaskQueueViewModel}}"
+                                                    Padding="0 2 8 2"
+                                                    Width="20" Height="20"
+                                                    CornerRadius="4">
+                                                <avalonia1:FluentIcon Icon="ChevronRight" IconSize="Size16" />
+                                            </Button>
+                                        </StackPanel>
+                                    </Grid>
+                                </suki:GroupBox.Header>
+                                <ScrollViewer BorderBrush="LightGray"
+                                              BorderThickness="1"
+                                              ClipToBounds="False"
+                                              Margin="15,8,10,5" VerticalAlignment="Top" VerticalContentAlignment="Top"
+                                              ex:ScrollViewerExtensions.AutoScroll="True"
+                                              ex:ScrollViewerExtensions.PanningMode="VerticalOnly">
+                                    <ItemsControl ItemsSource="{Binding Path=LogItemViewModels}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Spacing="8" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Name="ParentGrid" >
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <Grid.Resources>
+                                                        <suki:IfConditionConverter x:Key="IfConditionConverter">
+                                                            <suki:IfConditionConverter.False>
+                                                                <DataTemplate DataType="other:LogItemViewModel">
+                                                                    <TextBlock FontSize="12"
+                                                                               FontWeight="{Binding Weight}"
+                                                                               Foreground="{Binding Color}"
+                                                                               Background="{Binding BackgroundColor}"
+                                                                               HorizontalAlignment="Stretch"
+                                                                               IsVisible="{Binding !UseMarkdown}"
+                                                                               Margin="0,4.8,0,0"
+                                                                               TextWrapping="WrapWithOverflow"
+                                                                               Text="{Binding Content}"
+                                                                               VerticalAlignment="Stretch">
+                                                                    </TextBlock>
+                                                                </DataTemplate>
+                                                            </suki:IfConditionConverter.False>
+                                                            <suki:IfConditionConverter.True>
+                                                                <DataTemplate DataType="other:LogItemViewModel">
+                                                                    <mdxaml:MarkdownScrollViewer
+                                                                        IsVisible="{Binding UseMarkdown}"
+                                                                        Markdown="{Binding Content}"
+                                                                        Margin="0,4.8,0,0">
+                                                                        <mdxaml:MarkdownScrollViewer.Engine>
+                                                                            <ex:MarkdownExtension />
+                                                                        </mdxaml:MarkdownScrollViewer.Engine>
+                                                                        <mdxaml:MarkdownScrollViewer.Styles>
+                                                                            <StyleInclude
+                                                                                Source="avares://MFAAvalonia/Assets/Style/MdXamlDocStyle.axaml" />
+                                                                        </mdxaml:MarkdownScrollViewer.Styles>
+                                                                        <mdxaml:MarkdownScrollViewer.Plugins>
+                                                                            <StaticResource ResourceKey="MdXamlPlugin" />
+                                                                        </mdxaml:MarkdownScrollViewer.Plugins>
+                                                                    </mdxaml:MarkdownScrollViewer>
+                                                                </DataTemplate>
+                                                            </suki:IfConditionConverter.True>
+                                                        </suki:IfConditionConverter>
+                                                    </Grid.Resources>
+                                                    <TextBlock FontSize="12"
+                                                               Name="FirstCol"
+                                                               Foreground="{DynamicResource SukiDisabledText}"
+                                                               Grid.Column="0"
+                                                               HorizontalAlignment="Left"
+                                                               IsVisible="{Binding ShowTime}"
+                                                               Margin="0,5,2,0" MinWidth="55"
+                                                               Text="{Binding Time}" TextWrapping="Wrap"
+                                                               VerticalAlignment="Top" />
+                                                    <ContentControl Grid.Column="1" Content="{Binding}"
+                                                                    HorizontalAlignment="Stretch"
+                                                                    VerticalAlignment="Top"
+                                                                    ContentTemplate="{Binding UseMarkdown,Converter={StaticResource IfConditionConverter}}">
+                                                        <ContentControl.MaxWidth>
+                                                            <MultiBinding Converter="{converters:MaxWidthConverter}">
+                                                                <Binding ElementName="ParentGrid" Path="Bounds.Width" />
+                                                                <Binding ElementName="FirstCol" Path="Bounds.Width" />
+                                                            </MultiBinding>
+                                                        </ContentControl.MaxWidth>
+                                                    </ContentControl>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </suki:GroupBox><!-- 折叠时显示的展开按钮 -->
+                            <Button Classes="Basic ExpandButton" x:Name="RightExpandButton"
+                                    Command="{Binding ToggleRightPanelCommand, Source={x:Static helper:Instances.TaskQueueViewModel}}"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Padding="4"
+                                    Width="30" Height="60"
+                                    CornerRadius="4"
+                                    Opacity="0"
+                                    IsVisible="{Binding IsRightPanelCollapsed, Source={x:Static helper:Instances.TaskQueueViewModel}}"
+                                    ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.LogRecord}}">
+                                <avalonia1:FluentIcon Icon="ChevronLeft" IconSize="Size20" />
+                            </Button>
+                        </Grid>
+                    </suki:GlassCard>
+                </Grid>
             </Grid>
         </ScrollViewer>
         <!-- 第二行：三栏布局 -->

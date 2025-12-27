@@ -121,7 +121,7 @@
                                                                Text="{TemplateBinding Title}" />
                                                     <ContentPresenter HorizontalAlignment="Left"
                                                                       Content="{TemplateBinding NonClientAreaContent}"
-                                                                      IsHitTestVisible="False" />
+                                                                      IsHitTestVisible="{TemplateBinding NonClientAreaContentIsHitTestVisible}" />
                                                 </StackPanel>
                                             </DockPanel>
                                         </Panel>
