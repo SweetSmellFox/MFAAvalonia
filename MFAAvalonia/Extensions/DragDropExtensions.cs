@@ -208,30 +208,30 @@ public class DragDropExtensions
 
     private static void EnableDragDrop(ListBox listBox)
     {
-        if (listBox.Parent is not AdornerLayer adornerLayer)
-        {
-            adornerLayer = new AdornerLayer();
-            if (listBox.Parent is Panel panel)
-            {
-                panel.Children.Remove(listBox);
-                panel.Children.Add(adornerLayer);
-
-            }
-            else if (listBox.Parent is ContentControl control)
-            {
-                control.Content = null;
-                control.Content = adornerLayer;
-            }
-            else if (listBox.Parent is Border border)
-            {
-                border.Child = null;
-                border.Child = adornerLayer;
-            }
-
-            AdornerLayer.SetAdornedElement(adornerLayer, listBox);
-
-        }
-        adornerLayer.Children.Add(listBox);
+        // if (listBox.Parent is not AdornerLayer adornerLayer)
+        // {
+        //     adornerLayer = new AdornerLayer();
+        //     if (listBox.Parent is Panel panel)
+        //     {
+        //         panel.Children.Remove(listBox);
+        //         panel.Children.Add(adornerLayer);
+        //
+        //     }
+        //     else if (listBox.Parent is ContentControl control)
+        //     {
+        //         control.Content = null;
+        //         control.Content = adornerLayer;
+        //     }
+        //     else if (listBox.Parent is Border border)
+        //     {
+        //         border.Child = null;
+        //         border.Child = adornerLayer;
+        //     }
+        //
+        //     AdornerLayer.SetAdornedElement(adornerLayer, listBox);
+        //
+        // }
+        // adornerLayer.Children.Add(listBox);
         listBox.AddHandler(ListBox.PointerExitedEvent, OnPointerExited);
         listBox.AddHandler(ListBox.PointerReleasedEvent, OnPointerReleased);
         listBox.AddHandler(ListBox.PointerMovedEvent, OnPointerMoved);
@@ -750,23 +750,39 @@ public class DragDropExtensions
 // 获取ListBox的实际可见宽度
     private static double GetListBoxEffectiveWidth(ListBox listBox)
     {
-        // 尝试获取滚动视图
+        // 首先尝试获取第一个可见的ListBoxItem 的宽度
+        var firstVisibleItem = listBox.GetVisualDescendants()
+            .OfType<ListBoxItem>()
+            .FirstOrDefault(item => item.IsVisible && item.Bounds.Width > 0);
+
+        if (firstVisibleItem != null)
+        {
+            return firstVisibleItem.Bounds.Width;
+        }
+
+        // 尝试获取滚动视图的视口宽度
         var scrollViewer = listBox.GetVisualDescendants()
             .OfType<ScrollViewer>()
             .FirstOrDefault();
 
         if (scrollViewer != null)
         {
+            // 使用视口宽度
+            if (scrollViewer.Viewport.Width > 0)
+            {
+                return scrollViewer.Viewport.Width;
+            }
+            
             // 尝试获取内容宽度
             var content = scrollViewer.Content as Visual;
-            if (content != null)
+            if (content != null && content.Bounds.Width > 0)
             {
-                return Math.Min(listBox.Bounds.Width, content.Bounds.Width);
+                return content.Bounds.Width;
             }
         }
 
-        // 退回到ListBox的宽度，减去边距
-        return listBox.Bounds.Width - 20; // 减去一些边距以获得更好的视觉效果
+        // 退回到ListBox的宽度
+        return listBox.Bounds.Width > 0 ? listBox.Bounds.Width : 200; // 默认宽度200
     }
 
     private static Point GetAbsolutePosition(Control item, Visual relativeTo)

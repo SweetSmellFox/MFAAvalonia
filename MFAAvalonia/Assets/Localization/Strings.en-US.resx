@@ -868,7 +868,7 @@
         <value>Software Version</value>
     </data>
     <data name="StartTask" xml:space="preserve">
-        <value>Start Task</value>
+        <value>▶️ Start Task</value>
     </data>
     <data name="StartupParameter" xml:space="preserve">
         <value>Startup Parameter</value>
@@ -895,7 +895,7 @@
         <value>Failed to stop the task</value>
     </data>
     <data name="StopTask" xml:space="preserve">
-        <value>Stop Task</value>
+        <value>■ Stop Task</value>
     </data>
     <data name="SwitchConfiguration" xml:space="preserve">
         <value>Switch Configuration</value>

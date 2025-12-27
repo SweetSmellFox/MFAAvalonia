@@ -222,6 +222,20 @@ public static class VersionChecker
                                 ToastHelper.Warn(LangKeys.Warning.ToLocalization(), LangKeys.CurrentOtherUpdatingTask.ToLocalization());
                         }, true).Queue();
                 });
+                Instances.RootViewModel.TempResourceUpdateAction = () =>
+                    DispatcherHelper.PostOnMainThread(() =>
+                    {
+                        Instances.ToastManager.CreateToast().WithTitle(LangKeys.UpdateResource.ToLocalization())
+                            .WithContent(LangKeys.ResourceOption.ToLocalization() + LangKeys.NewVersionAvailableLatestVersion.ToLocalization() + latestVersion).Dismiss().After(TimeSpan.FromSeconds(6))
+                            .WithActionButton(LangKeys.Later.ToLocalization(), _ => { }, true, SukiButtonStyles.Basic)
+                            .WithActionButton(LangKeys.Update.ToLocalization(), _ =>
+                            {
+                                if (!Instances.RootViewModel.IsUpdating)
+                                    UpdateResourceAsync();
+                                else
+                                    ToastHelper.Warn(LangKeys.Warning.ToLocalization(), LangKeys.CurrentOtherUpdatingTask.ToLocalization());
+                            }, true).Queue();
+                    });
                 DispatcherHelper.RunOnMainThread(ChangelogViewModel.CheckReleaseNote);
             }
             else
