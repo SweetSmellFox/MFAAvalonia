@@ -52,6 +52,42 @@
         </markup:IfConditionConverter>
     </UserControl.Resources>
     <UserControl.Styles>
+
+        <Style Selector="Button.PanelToggleButton">
+            <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+            <Setter Property="Opacity" Value="0.7" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.2" />
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" Easing="CubicEaseOut" />
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.PanelToggleButton:pointerover">
+            <Setter Property="Opacity" Value="1" />
+            <Setter Property="RenderTransform">
+                <ScaleTransform ScaleX="1.1" ScaleY="1.1" />
+            </Setter>
+        </Style>
+
+        <!-- 折叠时的展开按钮出现动画 -->
+        <Style Selector="Button.ExpandButton">
+            <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut" />
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.3" Easing="BackEaseOut" />
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.ExpandButton:pointerover">
+            <Setter Property="RenderTransform">
+                <ScaleTransform ScaleX="1.15" ScaleY="1.15" />
+            </Setter>
+        </Style>
+
         <!-- PlayStopButton 悬停动画 -->
         <Style Selector="Button.PlayStopButton">
             <Setter Property="RenderTransformOrigin" Value="50%,50%" />
@@ -248,7 +284,7 @@
     <Grid ClipToBounds="False" Margin="0,0,0,0" RowDefinitions="Auto,*" x:Name="MainGrid">
 
         <!-- 第一行：顶部工具栏（资源选择 + 连接设置） -->
-        <suki:GlassCard Grid.Row="0" Margin="15,15,15,5" Padding="12,8">
+        <suki:GlassCard Grid.Row="0" Margin="15,15,15,5" Padding="12,8" IsAnimated="False">
             <Grid x:Name="TopToolbar">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
@@ -445,7 +481,9 @@
 
 
                 <!-- 左侧列：任务设置 -->
-                <suki:GlassCard Grid.Column="0" Margin="15,5,0,25" x:Name="SettingCard">
+                <suki:GlassCard IsAnimated="False" Grid.Column="0" Margin="15,5,0,25" x:Name="SettingCard"
+                                PointerPressed="SettingCard_PointerPressed"
+                                ClipToBounds="True">
                     <suki:GlassCard.Resources>
                         <suki:IfConditionConverter x:Key="IfConditionConverter">
                             <suki:IfConditionConverter.True>
@@ -458,12 +496,16 @@
                     </suki:GlassCard.Resources>
                     <Grid>
                         <!-- 展开时显示的内容 -->
-                        <suki:GroupBox
-                            SeparatorMargin="{Binding ShowSettings,Converter={StaticResource IfConditionConverter}}"
-                            IsVisible="{Binding !IsLeftPanelCollapsed, Source={x:Static helper:Instances.TaskQueueViewModel}}">
+                        <suki:GroupBox x:Name="LeftPanelContent"
+                                       SeparatorMargin="{Binding ShowSettings,Converter={StaticResource IfConditionConverter}}"
+                                       IsVisible="{Binding !IsLeftPanelCollapsed, Source={x:Static helper:Instances.TaskQueueViewModel}}"
+                                       RenderTransformOrigin="0,0.5">
+                            <suki:GroupBox.RenderTransform>
+                                <TranslateTransform X="0" />
+                            </suki:GroupBox.RenderTransform>
                             <suki:GroupBox.Header>
                                 <DockPanel>
-                                    <Button Classes="Basic" DockPanel.Dock="Left"
+                                    <Button Classes="Basic PanelToggleButton" DockPanel.Dock="Left"
                                             Command="{Binding ToggleLeftPanelCommand, Source={x:Static helper:Instances.TaskQueueViewModel}}"
                                             Padding="2" Margin="0,-5,8,0"
                                             Width="20" Height="20" CornerRadius="4">
@@ -504,13 +546,13 @@
                             </ScrollViewer>
                         </suki:GroupBox>
                         <!-- 折叠时显示的展开按钮 -->
-                        <Button Classes="Basic"
+                        <Button Classes="Basic ExpandButton" x:Name="LeftExpandButton"
                                 Command="{Binding ToggleLeftPanelCommand, Source={x:Static helper:Instances.TaskQueueViewModel}}"
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 Padding="4"
                                 Width="30" Height="60"
-                                CornerRadius="4"
+                                CornerRadius="4" Opacity="0"
                                 IsVisible="{Binding IsLeftPanelCollapsed, Source={x:Static helper:Instances.TaskQueueViewModel}}"
                                 ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.TaskSettings}}">
                             <avalonia1:FluentIcon Icon="ChevronRight" IconSize="Size20" />
@@ -562,7 +604,7 @@
 
 
                     <!-- 执行队列（原任务列表） -->
-                    <suki:GlassCard Grid.Row="0" Margin="0,5,0,25" x:Name="TaskListCard">
+                    <suki:GlassCard IsAnimated="False" Grid.Row="0" Margin="0,5,0,25" x:Name="TaskListCard">
                         <suki:GroupBox>
                             <suki:GroupBox.Header>
                                 <Grid>
@@ -747,7 +789,7 @@
 
 
                     <!-- IntroductionCard（任务描述） -->
-                    <suki:GlassCard Grid.Row="1" Margin="0,-15,0,25" x:Name="IntroductionCard">
+                    <suki:GlassCard IsAnimated="False" Grid.Row="1" Margin="0,-15,0,25" x:Name="IntroductionCard">
                         <suki:GroupBox>
                             <suki:GroupBox.Header>
                                 <TextBlock FontSize="11"
@@ -964,11 +1006,17 @@
 
 
                 <!-- 右侧列：日志记录 -->
-                <suki:GlassCard Grid.Column="4" Margin="0,5,15,25">
+                <suki:GlassCard IsAnimated="False" Grid.Column="4" Margin="0,5,15,25" x:Name="LogCard"
+                                PointerPressed="LogCard_PointerPressed"
+                                ClipToBounds="True">
                     <Grid>
                         <!-- 展开时显示的内容 -->
-                        <suki:GroupBox
-                            IsVisible="{Binding !IsRightPanelCollapsed, Source={x:Static helper:Instances.TaskQueueViewModel}}">
+                        <suki:GroupBox x:Name="RightPanelContent"
+                                       IsVisible="{Binding !IsRightPanelCollapsed, Source={x:Static helper:Instances.TaskQueueViewModel}}"
+                                       RenderTransformOrigin="1,0.5">
+                            <suki:GroupBox.RenderTransform>
+                                <TranslateTransform X="0" />
+                            </suki:GroupBox.RenderTransform>
                             <suki:GroupBox.Header>
                                 <Grid>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
@@ -1003,7 +1051,7 @@
                                                 IconSize="Size16"
                                                 IconVariant="Regular" />
                                         </Button>
-                                        <Button Classes="Basic"
+                                        <Button Classes="Basic PanelToggleButton"
                                                 Command="{Binding ToggleRightPanelCommand, Source={x:Static helper:Instances.TaskQueueViewModel}}"
                                                 Padding="0 2 8 2"
                                                 Width="20" Height="20"
@@ -1094,13 +1142,14 @@
                                 </ItemsControl>
                             </ScrollViewer>
                         </suki:GroupBox><!-- 折叠时显示的展开按钮 -->
-                        <Button Classes="Basic"
+                        <Button Classes="Basic ExpandButton" x:Name="RightExpandButton"
                                 Command="{Binding ToggleRightPanelCommand, Source={x:Static helper:Instances.TaskQueueViewModel}}"
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 Padding="4"
                                 Width="30" Height="60"
                                 CornerRadius="4"
+                                Opacity="0"
                                 IsVisible="{Binding IsRightPanelCollapsed, Source={x:Static helper:Instances.TaskQueueViewModel}}"
                                 ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.LogRecord}}">
                             <avalonia1:FluentIcon Icon="ChevronLeft" IconSize="Size20" />
@@ -1110,6 +1159,101 @@
             </Grid>
         </ScrollViewer>
         <!-- 第二行：三栏布局 -->
+        <!-- 竖屏模式下的任务设置 Popup -->
+        <Popup x:Name="TaskSettingsPopup"
+               IsLightDismissEnabled="True"
+               Placement="Center"
+               PlacementTarget="{Binding #MainGrid}"
+               IsOpen="{Binding IsSettingsPopupOpen, Source={x:Static helper:Instances.TaskQueueViewModel}, Mode=TwoWay}">
+            <Border CornerRadius="15"
+                    MaxWidth="450"
+                    MaxHeight="600"
+                    MinWidth="300"
+                    Margin="20" Background="{DynamicResource GlassBorderBrush}"
+                    BoxShadow="0 8 32 0 #40000000">
+                <suki:GlassCard IsAnimated="False" Padding="20">
+                    <suki:GlassCard.Resources>
+                        <suki:IfConditionConverter x:Key="PopupIfConditionConverter">
+                            <suki:IfConditionConverter.True>
+                                <Thickness>0,1,0,10</Thickness>
+                            </suki:IfConditionConverter.True>
+                            <suki:IfConditionConverter.False>
+                                <Thickness>0,10,0,10</Thickness>
+                            </suki:IfConditionConverter.False>
+                        </suki:IfConditionConverter>
+                    </suki:GlassCard.Resources>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <Grid RowDefinitions="Auto,Auto">
+                            <suki:GroupBox Grid.Row="0" IsVisible="{Binding HasPopupSettings}"
+                                           SeparatorMargin="{Binding ShowSettings, Converter={StaticResource PopupIfConditionConverter}}">
+                                <suki:GroupBox.Header>
+                                    <DockPanel>
+                                        <Button Classes="Basic PanelToggleButton" DockPanel.Dock="Right"
+                                                Command="{Binding CloseSettingsPopupCommand, Source={x:Static helper:Instances.TaskQueueViewModel}}"
+                                                Padding="2" Margin="0,-5,0,0"
+                                                Width="24" Height="24" CornerRadius="4"
+                                                ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.ButtonClose}}">
+                                            <avalonia1:FluentIcon Icon="Dismiss" IconSize="Size16" />
+                                        </Button>
+                                        <TextBlock DockPanel.Dock="Left"
+                                                   FontSize="13"
+                                                   FontWeight="Bold" Foreground="{DynamicResource SukiText}"
+                                                   HorizontalAlignment="Left"
+                                                   Margin="2,0,0,0"
+                                                   Text="{markup:I18n {x:Static helper:LangKeys.TaskSettings}}"
+                                                   VerticalAlignment="Center" />
+                                        <StackPanel Margin="10,0,10,5" Orientation="Horizontal"
+                                                    HorizontalAlignment="Right"
+                                                    DockPanel.Dock="Right"
+                                                    IsVisible="{Binding ShowSettings}" Spacing="8">
+                                            <RadioButton FontSize="11" FontWeight="Bold"
+                                                         Classes="Inner" IsChecked="{Binding IsCommon}"
+                                                         GroupName="PopupSettingA">
+                                                <TextBlock
+                                                    Text="{markup:I18n {x:Static helper:LangKeys.CommonSetting}}" />
+                                            </RadioButton>
+                                            <RadioButton FontSize="11" FontWeight="Bold" Classes="Inner"
+                                                         GroupName="PopupSettingA"
+                                                         IsChecked="{calcBinding:Binding '!IsCommon'}">
+                                                <TextBlock
+                                                    Text="{markup:I18n {x:Static helper:LangKeys.AdvancedSetting}}" />
+                                            </RadioButton>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </suki:GroupBox.Header>
 
+                                <Grid>
+                                    <StackPanel IsVisible="{calcBinding:Binding 'IsCommon'}"
+                                                x:Name="PopupCommonOptionSettings" Orientation="Vertical" />
+                                    <StackPanel IsVisible="{calcBinding:Binding '!IsCommon'}"
+                                                x:Name="PopupAdvancedOptionSettings" Orientation="Vertical" />
+                                </Grid>
+                            </suki:GroupBox>
+                            <suki:GroupBox Grid.Row="1" Margin="0 10 0 0" IsVisible="{Binding HasPopupIntroduction}">
+                                <suki:GroupBox.Header>
+                                    <TextBlock FontSize="13" FontWeight="Bold"
+                                               Text="{markup:I18n {x:Static helper:LangKeys.TaskDescription}}" />
+                                </suki:GroupBox.Header>
+                                <ScrollViewer>
+                                    <mdxaml:MarkdownScrollViewer x:Name="PopupIntroduction"
+                                                                 Markdown="{Binding PopupIntroductionContent}">
+                                        <mdxaml:MarkdownScrollViewer.Engine>
+                                            <ex:MarkdownExtension />
+                                        </mdxaml:MarkdownScrollViewer.Engine>
+                                        <mdxaml:MarkdownScrollViewer.Styles>
+                                            <StyleInclude
+                                                Source="avares://MFAAvalonia/Assets/Style/MdXamlDocStyle.axaml" />
+                                        </mdxaml:MarkdownScrollViewer.Styles>
+                                        <mdxaml:MarkdownScrollViewer.Plugins>
+                                            <StaticResource ResourceKey="MdXamlPlugin" />
+                                        </mdxaml:MarkdownScrollViewer.Plugins>
+                                    </mdxaml:MarkdownScrollViewer>
+                                </ScrollViewer>
+                            </suki:GroupBox>
+                        </Grid>
+                    </ScrollViewer>
+                </suki:GlassCard>
+            </Border>
+        </Popup>
     </Grid>
 </UserControl>

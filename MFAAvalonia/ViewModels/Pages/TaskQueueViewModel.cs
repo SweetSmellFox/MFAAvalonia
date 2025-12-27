@@ -30,6 +30,25 @@ namespace MFAAvalonia.ViewModels.Pages;
 public partial class TaskQueueViewModel : ViewModelBase
 {
     [ObservableProperty] private bool _isCompactMode = false;
+    
+    // 竖屏模式下的设置弹窗状态
+    [ObservableProperty] private bool _isSettingsPopupOpen = false;
+    
+    [RelayCommand]
+    private void CloseSettingsPopup()
+    {
+        IsSettingsPopupOpen = false;
+    }
+    /// <summary>
+    /// 在竖屏模式下打开设置弹窗
+    /// </summary>
+    public void OpenSettingsPopup()
+    {
+        if (IsCompactMode)
+        {
+            IsSettingsPopupOpen = true;
+        }
+    }
     /// <summary>
     /// 控制器选项列表
     /// </summary>
@@ -136,12 +155,24 @@ public partial class TaskQueueViewModel : ViewModelBase
             Column2Width = GridLength.Parse(col2Str);
             Column3Width = IsRightPanelCollapsed ? new GridLength(CollapsedPanelWidth) : _savedColumn3Width;
 
-            SuppressPropertyChangedCallbacks = false;
-
-            LoggerHelper.Info("Column width set successfully in the constructor");
-        }
-
-        catch (Exception ex)
+                        SuppressPropertyChangedCallbacks = false;
+            
+                        // 初始化时检测是否需要自动折叠（宽度 <= 50 时自动折叠）
+                        if (Column1Width.Value <= CollapsedPanelWidth && !IsLeftPanelCollapsed)
+                        {
+                            _savedColumn1Width = GridLength.Parse(DefaultColumn1Width);
+                            IsLeftPanelCollapsed = true;
+                        }
+                        if (Column3Width.Value <= CollapsedPanelWidth && !IsRightPanelCollapsed)
+                        {
+                            _savedColumn3Width = GridLength.Parse(DefaultColumn3Width);
+                            IsRightPanelCollapsed = true;
+                        }
+            
+                        LoggerHelper.Info("Column width set successfully in the constructor");
+                    }
+            
+                    catch (Exception ex)
         {
             LoggerHelper.Error($"Failed to set column width in the constructor: {ex.Message}");
             SetDefaultColumnWidths();
@@ -1134,6 +1165,7 @@ public partial class TaskQueueViewModel : ViewModelBase
     }
 
     #endregion
+    
     #region 资源
 
     [ObservableProperty] private ObservableCollection<MaaInterface.MaaInterfaceResource> _currentResources = [];
@@ -1334,6 +1366,7 @@ public partial class TaskQueueViewModel : ViewModelBase
     }
 
     #endregion
+    
     #region 面板折叠
 
     // 折叠时的最小宽度
@@ -1363,53 +1396,75 @@ public partial class TaskQueueViewModel : ViewModelBase
         ConfigurationManager.Current.SetValue(ConfigurationKeys.TaskQueueRightPanelCollapsed, value);
     }
 
-    [RelayCommand]
-    public void ToggleLeftPanel()
-    {
-        if (IsLeftPanelCollapsed)
+        [RelayCommand]
+        public void ToggleLeftPanel()
         {
-            // 展开左侧面板，恢复保存的宽度
-            if (_savedColumn1Width.Value > CollapsedPanelWidth)
+            if (!IsLeftPanelCollapsed)
             {
-                Column1Width = _savedColumn1Width;
+                // 折叠前保存当前宽度
+                _savedColumn1Width = Column1Width;
             }
-            else
-            {
-                Column1Width = GridLength.Parse(DefaultColumn1Width);
-            }
+            // 只切换状态，列宽变化由 View 的动画控制
+            IsLeftPanelCollapsed = !IsLeftPanelCollapsed;
         }
-        else
+    
+        [RelayCommand]
+        public void ToggleRightPanel()
         {
-            // 折叠左侧面板，保存当前宽度并设置为折叠宽度
-            _savedColumn1Width = Column1Width;
-            Column1Width = new GridLength(CollapsedPanelWidth);
+            if (!IsRightPanelCollapsed)
+            {
+                // 折叠前保存当前宽度
+                _savedColumn3Width = Column3Width;
+            }
+            // 只切换状态，列宽变化由 View 的动画控制
+            IsRightPanelCollapsed = !IsRightPanelCollapsed;
         }
-        IsLeftPanelCollapsed = !IsLeftPanelCollapsed;
-    }
+        
+        /// <summary>
+        /// 设置左侧面板列宽（由 View 动画调用）
+        /// </summary>
+        public void SetLeftPanelWidth(GridLength width)
+        {
+            SuppressPropertyChangedCallbacks = true;
+            Column1Width = width;
+            SuppressPropertyChangedCallbacks = false;
+        }
+        
+        /// <summary>
+        /// 设置右侧面板列宽（由 View 动画调用）
+        /// </summary>
+        public void SetRightPanelWidth(GridLength width)
+        {
+            SuppressPropertyChangedCallbacks = true;
+            Column3Width = width;
+            SuppressPropertyChangedCallbacks = false;
+        }
+        
+// 展开时的最小宽度（当保存的宽度太小时使用）
+        private const double MinExpandedPanelWidth = 250;
 
-    [RelayCommand]
-    private void ToggleRightPanel()
-    {
-        if (IsRightPanelCollapsed)
+        public GridLength GetSavedLeftPanelWidth()
         {
-            // 展开右侧面板，恢复保存的宽度
-            if (_savedColumn3Width.Value > CollapsedPanelWidth)
-            {
-                Column3Width = _savedColumn3Width;
-            }
-            else
-            {
-                Column3Width = GridLength.Parse(DefaultColumn3Width);
-            }
+            return _savedColumn1Width.Value > CollapsedPanelWidth
+                ? _savedColumn1Width
+                : new GridLength(MinExpandedPanelWidth);  // 改为 150
         }
-        else
+
+        public GridLength GetSavedRightPanelWidth()
         {
-            // 折叠右侧面板，保存当前宽度并设置为折叠宽度
-            _savedColumn3Width = Column3Width;
-            Column3Width = new GridLength(CollapsedPanelWidth);
+            return _savedColumn3Width.Value > CollapsedPanelWidth
+                ? _savedColumn3Width
+                : new GridLength(MinExpandedPanelWidth);  // 改为 150
         }
-        IsRightPanelCollapsed = !IsRightPanelCollapsed;
-    }
+
+        /// <summary>
+        /// 获取折叠时的面板宽度
+        /// </summary>
+        public static double GetCollapsedPanelWidth() => CollapsedPanelWidth;
+    
+        [ObservableProperty] private bool _hasPopupIntroduction = false;
+        [ObservableProperty] private bool _hasPopupSettings = false;
+        [ObservableProperty] private string _popupIntroductionContent = string.Empty;
 
     #endregion
 

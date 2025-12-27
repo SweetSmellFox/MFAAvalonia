@@ -1,4 +1,6 @@
 ﻿using Avalonia;
+using Avalonia.Animation;
+using Avalonia.Animation.Easings;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
@@ -8,6 +10,7 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
+using Avalonia.Styling;
 using MFAAvalonia.Configuration;
 using MFAAvalonia.Extensions;
 using MFAAvalonia.Extensions.MaaFW;
@@ -19,8 +22,10 @@ using SukiUI;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using FontWeight = Avalonia.Media.FontWeight;
 using HorizontalAlignment = Avalonia.Layout.HorizontalAlignment;
 using VerticalAlignment = Avalonia.Layout.VerticalAlignment;
@@ -33,12 +38,577 @@ namespace MFAAvalonia.Views.Pages;
 
 public partial class TaskQueueView : UserControl
 {
+    // 动画持续时间
+    private static readonly TimeSpan AnimationDuration = TimeSpan.FromMilliseconds(250);
+
+    // 用于跟踪动画状态
+    private bool _isLeftPanelAnimating = false;
+    private bool _isRightPanelAnimating = false;
+
     public TaskQueueView()
     {
         DataContext = Instances.TaskQueueViewModel;
         InitializeComponent();
         MaaProcessor.Instance.InitializeData();
         InitializeDeviceSelectorLayout();
+        InitializePanelAnimations();
+    }
+
+    /// <summary>
+    /// 初始化面板动画，订阅 ViewModel 的属性变化
+    /// </summary>
+    private void InitializePanelAnimations()
+    {
+        var viewModel = Instances.TaskQueueViewModel;
+        if (viewModel == null) return;
+
+        // 订阅属性变化事件
+        viewModel.PropertyChanged += ViewModel_PropertyChanged;
+
+        // 初始化展开按钮的透明度（根据当前状态）
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (LeftExpandButton != null)
+            {
+                LeftExpandButton.Opacity = viewModel.IsLeftPanelCollapsed ? 1 : 0;
+            }
+            if (RightExpandButton != null)
+            {
+                RightExpandButton.Opacity = viewModel.IsRightPanelCollapsed ? 1 : 0;
+            }
+        }, DispatcherPriority.Loaded);
+    }
+
+    private async void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(TaskQueueViewModel.IsLeftPanelCollapsed))
+        {
+            await AnimateLeftPanelAsync(Instances.TaskQueueViewModel.IsLeftPanelCollapsed);
+        }
+        else if (e.PropertyName == nameof(TaskQueueViewModel.IsRightPanelCollapsed))
+        {
+            await AnimateRightPanelAsync(Instances.TaskQueueViewModel.IsRightPanelCollapsed);
+        }
+    }
+
+    /// <summary>
+    /// 左侧面板折叠/展开动画
+    /// </summary>
+    private async Task AnimateLeftPanelAsync(bool isCollapsing)
+    {
+        if (_isLeftPanelAnimating) return;
+        _isLeftPanelAnimating = true;
+
+        try
+        {
+            var viewModel = Instances.TaskQueueViewModel;
+            var panelContent = LeftPanelContent;
+            var expandButton = LeftExpandButton;
+            var transform = LeftPanelContent?.RenderTransform as TranslateTransform;
+
+            if (panelContent == null || expandButton == null || transform == null || viewModel == null) return;
+
+            var panelWidth = SettingCard?.Bounds.Width ?? 300;
+            var collapsedWidth = TaskQueueViewModel.GetCollapsedPanelWidth();
+
+            if (isCollapsing)
+            {
+                // 折叠动画：面板内容向左滑出，同时列宽逐渐变小
+                panelContent.IsVisible = true;
+
+                // 获取当前列宽和目标列宽
+                var startWidth = viewModel.Column1Width.Value;
+                var endWidth = collapsedWidth;
+
+                // 启动列宽动画
+                _ = AnimateColumnWidthAsync(startWidth, endWidth, true, true);
+
+                // 面板内容滑出动画
+                var slideOutAnimation = new Animation
+                {
+                    Duration = AnimationDuration,
+                    Easing = new CubicEaseIn(),
+                    FillMode = FillMode.Forward,
+                    Children =
+                    {
+                        new KeyFrame
+                        {
+                            Cue = new Cue(0),
+                            Setters =
+                            {
+                                new Setter(TranslateTransform.XProperty, 0.0)
+                            }
+                        },
+                        new KeyFrame
+                        {
+                            Cue = new Cue(1),
+                            Setters =
+                            {
+                                new Setter(TranslateTransform.XProperty, -panelWidth)
+                            }
+                        }
+                    }
+                };
+
+                // 面板内容淡出
+                var fadeOutAnimation = new Animation
+                {
+                    Duration = AnimationDuration,
+                    Easing = new CubicEaseIn(),
+                    FillMode = FillMode.Forward,
+                    Children =
+                    {
+                        new KeyFrame
+                        {
+                            Cue = new Cue(0),
+                            Setters =
+                            {
+                                new Setter(OpacityProperty, 1.0)
+                            }
+                        },
+                        new KeyFrame
+                        {
+                            Cue = new Cue(1),
+                            Setters =
+                            {
+                                new Setter(OpacityProperty, 0.0)
+                            }
+                        }
+                    }
+                };
+
+                await Task.WhenAll(
+                    slideOutAnimation.RunAsync(LeftPanelContent),
+                    fadeOutAnimation.RunAsync(panelContent)
+                );
+
+                // 动画完成后隐藏面板内容，显示展开按钮
+                panelContent.IsVisible = false;
+                transform.X = 0; // 重置位置
+                panelContent.Opacity = 1; // 重置透明度
+
+                // 确保列宽设置为折叠宽度
+                viewModel.SetLeftPanelWidth(new GridLength(collapsedWidth));
+
+                // 展开按钮淡入动画
+                expandButton.IsVisible = true;
+                var buttonFadeIn = new Animation
+                {
+                    Duration = TimeSpan.FromMilliseconds(150),
+                    Easing = new CubicEaseOut(),
+                    FillMode = FillMode.Forward,
+                    Children =
+                    {
+                        new KeyFrame
+                        {
+                            Cue = new Cue(0),
+                            Setters =
+                            {
+                                new Setter(OpacityProperty, 0.0)
+                            }
+                        },
+                        new KeyFrame
+                        {
+                            Cue = new Cue(1),
+                            Setters =
+                            {
+                                new Setter(OpacityProperty, 1.0)
+                            }
+                        }
+                    }
+                };
+                await buttonFadeIn.RunAsync(expandButton);
+            }
+            else
+            {
+                // 展开动画：面板内容从左滑入，同时列宽逐渐变大
+
+                // 先隐藏展开按钮
+                var buttonFadeOut = new Animation
+                {
+                    Duration = TimeSpan.FromMilliseconds(100),
+                    Easing = new CubicEaseIn(),
+                    FillMode = FillMode.Forward,
+                    Children =
+                    {
+                        new KeyFrame
+                        {
+                            Cue = new Cue(0),
+                            Setters =
+                            {
+                                new Setter(OpacityProperty, 1.0)
+                            }
+                        },
+                        new KeyFrame
+                        {
+                            Cue = new Cue(1),
+                            Setters =
+                            {
+                                new Setter(OpacityProperty, 0.0)
+                            }
+                        }
+                    }
+                };
+                await buttonFadeOut.RunAsync(expandButton);
+                expandButton.IsVisible = false;
+
+                // 获取目标列宽
+                var targetWidth = viewModel.GetSavedLeftPanelWidth();
+                var startWidth = collapsedWidth;
+                var endWidth = targetWidth.Value;
+
+                // 准备面板内容滑入
+                transform.X = -panelWidth;
+                panelContent.Opacity = 0;
+                panelContent.IsVisible = true;
+
+                // 启动列宽动画
+                _ = AnimateColumnWidthAsync(startWidth, endWidth, true, false);
+
+                // 面板内容滑入动画
+                var slideInAnimation = new Animation
+                {
+                    Duration = AnimationDuration,
+                    Easing = new CubicEaseOut(),
+                    FillMode = FillMode.Forward,
+                    Children =
+                    {
+                        new KeyFrame
+                        {
+                            Cue = new Cue(0),
+                            Setters =
+                            {
+                                new Setter(TranslateTransform.XProperty, -panelWidth)
+                            }
+                        },
+                        new KeyFrame
+                        {
+                            Cue = new Cue(1),
+                            Setters =
+                            {
+                                new Setter(TranslateTransform.XProperty, 0.0)
+                            }
+                        }
+                    }
+                };
+
+                // 面板内容淡入
+                var fadeInAnimation = new Animation
+                {
+                    Duration = AnimationDuration,
+                    Easing = new CubicEaseOut(),
+                    FillMode = FillMode.Forward,
+                    Children =
+                    {
+                        new KeyFrame
+                        {
+                            Cue = new Cue(0),
+                            Setters =
+                            {
+                                new Setter(OpacityProperty, 0.0)
+                            }
+                        },
+                        new KeyFrame
+                        {
+                            Cue = new Cue(1),
+                            Setters =
+                            {
+                                new Setter(OpacityProperty, 1.0)
+                            }
+                        }
+                    }
+                };
+
+                await Task.WhenAll(
+                    slideInAnimation.RunAsync(LeftPanelContent),
+                    fadeInAnimation.RunAsync(panelContent)
+                );
+
+                // 确保最终状态正确
+                transform.X = 0;
+                panelContent.Opacity = 1;
+                viewModel.SetLeftPanelWidth(targetWidth);
+            }
+        }
+        finally
+        {
+            _isLeftPanelAnimating = false;
+        }
+    }
+
+    /// <summary>
+    /// 列宽动画辅助方法
+    /// </summary>
+    private async Task AnimateColumnWidthAsync(double startWidth, double endWidth, bool isLeftPanel, bool isCollapsing)
+    {
+        var viewModel = Instances.TaskQueueViewModel;
+        if (viewModel == null) return;
+
+        var animationSteps = 15;
+        var stepDuration = AnimationDuration.TotalMilliseconds / animationSteps;
+
+        for (int i = 1; i <= animationSteps; i++)
+        {
+            var progress = (double)i / animationSteps;
+            // 根据折叠/展开使用不同的缓动函数
+            var easedProgress = isCollapsing
+                ? progress * progress // CubicEaseIn
+                : 1 - Math.Pow(1 - progress, 3); // CubicEaseOut
+            var newWidth = startWidth + (endWidth - startWidth) * easedProgress;
+
+            if (isLeftPanel)
+                viewModel.SetLeftPanelWidth(new GridLength(newWidth));
+            else
+                viewModel.SetRightPanelWidth(new GridLength(newWidth));
+
+            await Task.Delay(TimeSpan.FromMilliseconds(stepDuration));
+        }
+    }
+
+
+    /// <summary>
+    /// 右侧面板折叠/展开动画
+    /// </summary>
+    private async Task AnimateRightPanelAsync(bool isCollapsing)
+    {
+        if (_isRightPanelAnimating) return;
+        _isRightPanelAnimating = true;
+
+        try
+        {
+            var viewModel = Instances.TaskQueueViewModel;
+            var panelContent = RightPanelContent;
+            var expandButton = RightExpandButton;
+            var transform = RightPanelContent?.RenderTransform as TranslateTransform;
+
+            if (panelContent == null || expandButton == null || transform == null || viewModel == null) return;
+
+            var panelWidth = LogCard?.Bounds.Width ?? 300;
+            var collapsedWidth = TaskQueueViewModel.GetCollapsedPanelWidth();
+
+            if (isCollapsing)
+            {
+                // 折叠动画：面板内容向右滑出，同时列宽逐渐变小
+                panelContent.IsVisible = true;
+
+                // 获取当前列宽和目标列宽
+                var startWidth = viewModel.Column3Width.Value;
+                var endWidth = collapsedWidth;
+
+                // 启动列宽动画
+                _ = AnimateColumnWidthAsync(startWidth, endWidth, false, true);
+
+                // 面板内容滑出动画
+                var slideOutAnimation = new Animation
+                {
+                    Duration = AnimationDuration,
+                    Easing = new CubicEaseIn(),
+                    FillMode = FillMode.Forward,
+                    Children =
+                    {
+                        new KeyFrame
+                        {
+                            Cue = new Cue(0),
+                            Setters =
+                            {
+                                new Setter(TranslateTransform.XProperty, 0.0)
+                            }
+                        },
+                        new KeyFrame
+                        {
+                            Cue = new Cue(1),
+                            Setters =
+                            {
+                                new Setter(TranslateTransform.XProperty, panelWidth)
+                            }
+                        }
+                    }
+                };
+
+                // 面板内容淡出
+                var fadeOutAnimation = new Animation
+                {
+                    Duration = AnimationDuration,
+                    Easing = new CubicEaseIn(),
+                    FillMode = FillMode.Forward,
+                    Children =
+                    {
+                        new KeyFrame
+                        {
+                            Cue = new Cue(0),
+                            Setters =
+                            {
+                                new Setter(OpacityProperty, 1.0)
+                            }
+                        },
+                        new KeyFrame
+                        {
+                            Cue = new Cue(1),
+                            Setters =
+                            {
+                                new Setter(OpacityProperty, 0.0)
+                            }
+                        }
+                    }
+                };
+
+                await Task.WhenAll(
+                    slideOutAnimation.RunAsync(RightPanelContent),
+                    fadeOutAnimation.RunAsync(panelContent)
+                );
+
+                // 动画完成后隐藏面板内容，显示展开按钮
+                panelContent.IsVisible = false;
+                transform.X = 0; // 重置位置
+                panelContent.Opacity = 1; // 重置透明度
+
+                // 确保列宽设置为折叠宽度
+                viewModel.SetRightPanelWidth(new GridLength(collapsedWidth));
+
+                // 展开按钮淡入动画
+                expandButton.IsVisible = true;
+                var buttonFadeIn = new Animation
+                {
+                    Duration = TimeSpan.FromMilliseconds(150),
+                    Easing = new CubicEaseOut(),
+                    FillMode = FillMode.Forward,
+                    Children =
+                    {
+                        new KeyFrame
+                        {
+                            Cue = new Cue(0),
+                            Setters =
+                            {
+                                new Setter(OpacityProperty, 0.0)
+                            }
+                        },
+                        new KeyFrame
+                        {
+                            Cue = new Cue(1),
+                            Setters =
+                            {
+                                new Setter(OpacityProperty, 1.0)
+                            }
+                        }
+                    }
+                };
+                await buttonFadeIn.RunAsync(expandButton);
+            }
+            else
+            {
+                // 展开动画：面板内容从右滑入，同时列宽逐渐变大
+
+                // 先隐藏展开按钮
+                var buttonFadeOut = new Animation
+                {
+                    Duration = TimeSpan.FromMilliseconds(100),
+                    Easing = new CubicEaseIn(),
+                    FillMode = FillMode.Forward,
+                    Children =
+                    {
+                        new KeyFrame
+                        {
+                            Cue = new Cue(0),
+                            Setters =
+                            {
+                                new Setter(OpacityProperty, 1.0)
+                            }
+                        },
+                        new KeyFrame
+                        {
+                            Cue = new Cue(1),
+                            Setters =
+                            {
+                                new Setter(OpacityProperty, 0.0)
+                            }
+                        }
+                    }
+                };
+                await buttonFadeOut.RunAsync(expandButton);
+                expandButton.IsVisible = false;
+
+                // 获取目标列宽
+                var targetWidth = viewModel.GetSavedRightPanelWidth();
+                var startWidth = collapsedWidth;
+                var endWidth = targetWidth.Value;
+
+                // 准备面板内容滑入
+                transform.X = panelWidth;
+                panelContent.Opacity = 0;
+                panelContent.IsVisible = true;
+
+                // 启动列宽动画
+                _ = AnimateColumnWidthAsync(startWidth, endWidth, false, false);
+
+                // 面板内容滑入动画
+                var slideInAnimation = new Animation
+                {
+                    Duration = AnimationDuration,
+                    Easing = new CubicEaseOut(),
+                    FillMode = FillMode.Forward,
+                    Children =
+                    {
+                        new KeyFrame
+                        {
+                            Cue = new Cue(0),
+                            Setters =
+                            {
+                                new Setter(TranslateTransform.XProperty, panelWidth)
+                            }
+                        },
+                        new KeyFrame
+                        {
+                            Cue = new Cue(1),
+                            Setters =
+                            {
+                                new Setter(TranslateTransform.XProperty, 0.0)
+                            }
+                        }
+                    }
+                };
+
+                // 面板内容淡入
+                var fadeInAnimation = new Animation
+                {
+                    Duration = AnimationDuration,
+                    Easing = new CubicEaseOut(),
+                    FillMode = FillMode.Forward,
+                    Children =
+                    {
+                        new KeyFrame
+                        {
+                            Cue = new Cue(0),
+                            Setters =
+                            {
+                                new Setter(OpacityProperty, 0.0)
+                            }
+                        },
+                        new KeyFrame
+                        {
+                            Cue = new Cue(1),
+                            Setters =
+                            {
+                                new Setter(OpacityProperty, 1.0)
+                            }
+                        }
+                    }
+                };
+
+                await Task.WhenAll(
+                    slideInAnimation.RunAsync(RightPanelContent),
+                    fadeInAnimation.RunAsync(panelContent)
+                );
+
+                // 确保最终状态正确
+                transform.X = 0;
+                panelContent.Opacity = 1;
+                viewModel.SetRightPanelWidth(targetWidth);
+            }
+        }
+        finally
+        {
+            _isRightPanelAnimating = false;
+        }
     }
 
 
@@ -197,6 +767,7 @@ public partial class TaskQueueView : UserControl
 
                 splitter1.IsVisible = true;
                 splitter2.IsVisible = true;
+                settingCard.IsVisible = true;
                 Instances.TaskQueueViewModel.IsCompactMode = false;
 
                 settingCard.Margin = new Thickness(15, 5, 0, 25);
@@ -235,7 +806,32 @@ public partial class TaskQueueView : UserControl
 
                 splitter1.IsVisible = false;
                 splitter2.IsVisible = false;
+                settingCard.IsVisible = false;
                 Instances.TaskQueueViewModel.IsCompactMode = true;
+                // 检查是否有任务正在显示设置，如果有则打开 Popup
+                var selectedTask = Instances.TaskQueueViewModel.TaskItemViewModels.FirstOrDefault(t => t.EnableSetting);
+                if (selectedTask != null)
+                {
+                    // 检查任务是否有可显示的选项或介绍
+                    bool hasOptions = selectedTask.InterfaceItem?.Option?.Count > 0
+                        || selectedTask.InterfaceItem?.Advanced?.Count > 0
+                        || (selectedTask.IsResourceOptionItem && selectedTask.ResourceItem?.SelectOptions?.Count > 0);
+    
+                    // 获取介绍内容
+                    var cacheKey = selectedTask.IsResourceOptionItem
+                        ? $"ResourceOption_{selectedTask.ResourceItem?.Name}_{selectedTask.ResourceItem?.GetHashCode()}"
+                        : $"{selectedTask.Name}_{selectedTask.InterfaceItem?.Entry}_{selectedTask.InterfaceItem?.GetHashCode()}";
+                    var hasIntroduction = IntroductionsCache.TryGetValue(cacheKey, out var intro) && !string.IsNullOrWhiteSpace(intro);
+    
+                    // 只要有选项或介绍就打开 popup
+                    if (hasOptions || hasIntroduction)
+                    {
+                        SetOptionToPopup(selectedTask);
+                        Instances.TaskQueueViewModel.IsSettingsPopupOpen = true;
+                    }
+                }
+
+
                 Instances.TaskQueueViewModel.IsLeftPanelCollapsed = false;
                 Instances.TaskQueueViewModel.IsRightPanelCollapsed = false;
 
@@ -312,7 +908,7 @@ public partial class TaskQueueView : UserControl
                 // 获取当前Grid的实际列宽
                 var actualCol1Width = ThreeColumnGrid.ColumnDefinitions[0].ActualWidth;
                 // var actualCol2Width = ThreeColumnGrid.ColumnDefinitions[2].ActualWidth;
-                // var actualCol3Width = ThreeColumnGrid.ColumnDefinitions[4].ActualWidth;
+                var actualCol3Width = ThreeColumnGrid.ColumnDefinitions[4].ActualWidth;
 
                 // 获取当前列定义中的Width属性
                 var col1Width = ThreeColumnGrid.ColumnDefinitions[0].Width;
@@ -346,6 +942,16 @@ public partial class TaskQueueView : UserControl
 
                     // 手动保存配置
                     viewModel.SaveColumnWidths();
+                    // 检测是否需要自动折叠（宽度 <= 50 时自动折叠）
+                    var collapsedWidth = TaskQueueViewModel.GetCollapsedPanelWidth();
+                    if (!viewModel.IsLeftPanelCollapsed && actualCol1Width <= collapsedWidth)
+                    {
+                        viewModel.ToggleLeftPanel();
+                    }
+                    if (!viewModel.IsRightPanelCollapsed && actualCol3Width <= collapsedWidth)
+                    {
+                        viewModel.ToggleRightPanel();
+                    }
                 }
                 else
                 {
@@ -515,6 +1121,14 @@ public partial class TaskQueueView : UserControl
         if (!init)
             Instances.TaskQueueViewModel.IsCommon = true;
 
+        // 竖屏模式下，打开 Popup 而不是在左侧面板显示
+        if (Instances.TaskQueueViewModel.IsCompactMode && value && !init)
+        {
+            // 先生成设置面板内容到 Popup 中
+            SetOptionToPopup(dragItem);
+            Instances.TaskQueueViewModel.OpenSettingsPopup();
+            return;
+        }
         // 资源设置项使用特殊的缓存键
         var cacheKey = dragItem.IsResourceOptionItem
             ? $"ResourceOption_{dragItem.ResourceItem?.Name}_{dragItem.ResourceItem?.GetHashCode()}"
@@ -609,8 +1223,8 @@ public partial class TaskQueueView : UserControl
             }
 
             var hasIntroduction = !string.IsNullOrWhiteSpace(newIntroduction);
-            if (!Instances.TaskQueueViewModel.IsLeftPanelCollapsed && !hasSettings)
-                Instances.TaskQueueViewModel.ToggleLeftPanel();
+            // if (!Instances.TaskQueueViewModel.IsLeftPanelCollapsed && !hasSettings)
+            //     Instances.TaskQueueViewModel.ToggleLeftPanel();
             // 根据介绍内容决定布局模式
             if (!hasIntroduction)
             {
@@ -628,6 +1242,65 @@ public partial class TaskQueueView : UserControl
             //     SetNormalMode(hasIntroduction);
             // }
         }
+    }
+
+
+    /// <summary>
+    /// 将设置选项内容添加到 Popup 中（竖屏模式使用）
+    /// </summary>
+    private void SetOptionToPopup(DragItemViewModel dragItem)
+    {
+        // 清空 Popup 中的内容
+        PopupCommonOptionSettings.Children.Clear();
+        PopupAdvancedOptionSettings.Children.Clear();
+
+        var cacheKey = dragItem.IsResourceOptionItem
+            ? $"ResourceOption_{dragItem.ResourceItem?.Name}_{dragItem.ResourceItem?.GetHashCode()}"
+            : $"{dragItem.Name}_{dragItem.InterfaceItem?.Entry}_{dragItem.InterfaceItem?.GetHashCode()}";
+
+        var juggle = dragItem.InterfaceItem is { Advanced: { Count: > 0 }, Option: { Count: > 0 } };
+        Instances.TaskQueueViewModel.ShowSettings = juggle;
+
+        // 处理资源设置项的选项
+        if (dragItem.IsResourceOptionItem)
+        {
+            var hasOptions = dragItem.ResourceItem?.SelectOptions != null && dragItem.ResourceItem.SelectOptions.Count > 0;
+            if (hasOptions)
+            {
+                GenerateResourceOptionPanelContent(PopupCommonOptionSettings, dragItem);
+            }
+        }
+        else
+        {
+            if (juggle)
+            {
+                GeneratePanelContent(PopupCommonOptionSettings, dragItem);
+            }
+            else
+            {
+                GenerateCommonPanelContent(PopupCommonOptionSettings, dragItem);
+                GenerateAdvancedPanelContent(PopupAdvancedOptionSettings, dragItem);
+            }
+        }
+
+        var introduction = IntroductionsCache.GetOrAdd(cacheKey, key =>
+        {
+            if (dragItem.IsResourceOptionItem)
+            {
+                return ConvertCustomMarkup(dragItem.ResourceItem?.Description ?? string.Empty);
+            }
+            var input = GetTooltipText(dragItem.InterfaceItem?.Description, dragItem.InterfaceItem?.Document);
+            return ConvertCustomMarkup(input ?? string.Empty);
+        });
+
+        Instances.TaskQueueViewModel.HasPopupIntroduction = !string.IsNullOrWhiteSpace(introduction);
+        Instances.TaskQueueViewModel.PopupIntroductionContent = introduction;
+        
+        // 检查是否有设置选项
+        bool hasSettings = PopupCommonOptionSettings.Children.Count > 0 
+            || PopupAdvancedOptionSettings.Children.Count > 0;
+        Instances.TaskQueueViewModel.HasPopupSettings = hasSettings;
+
     }
 
 
@@ -2540,6 +3213,32 @@ public partial class TaskQueueView : UserControl
 //
 // // 使用 MatchEvaluator 的独立方法
 //
+
+    /// <summary>
+    /// 左侧 SettingCard 点击事件处理 - 折叠状态下点击整个卡片展开
+    /// </summary>
+    private void SettingCard_PointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        var viewModel = Instances.TaskQueueViewModel;
+        if (viewModel?.IsLeftPanelCollapsed == true)
+        {
+            viewModel.ToggleLeftPanel();
+            e.Handled = true; // 防止事件继续传播
+        }
+    }
+
+    /// <summary>
+    /// 右侧 LogCard 点击事件处理 - 折叠状态下点击整个卡片展开
+    /// </summary>
+    private void LogCard_PointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        var viewModel = Instances.TaskQueueViewModel;
+        if (viewModel?.IsRightPanelCollapsed == true)
+        {
+            viewModel.ToggleRightPanel();
+            e.Handled = true; // 防止事件继续传播
+        }
+    }
 
     #endregion
 }
