@@ -290,13 +290,22 @@ public class MaaProcessor
         using var buffer = GetImage(MaaTasker?.Controller);
         return buffer?.ToBitmap();
     }
+    
+    public Bitmap? GetLiveView(bool test = true)
+    {
+        if (test)
+            TryConnectAsync(CancellationToken.None);
+        using var buffer = GetImage(MaaTasker?.Controller, MaaTasker?.IsRunning != true);
+        return buffer?.ToBitmap();
+    }
 
     /// <summary>
     /// 获取截图的MaaImageBuffer。调用者必须负责释放返回的 buffer。
     /// </summary>
     /// <param name="maaController">控制器实例</param>
+    /// <param name="screencap">是否主动截图</param>
     /// <returns>包含截图的 MaaImageBuffer，如果失败则返回 null</returns>
-    public MaaImageBuffer? GetImage(IMaaController? maaController)
+    public MaaImageBuffer? GetImage(IMaaController? maaController, bool screencap = true)
     {
         if (maaController == null)
             return null;
@@ -304,13 +313,15 @@ public class MaaProcessor
         var buffer = new MaaImageBuffer();
         try
         {
-            var status = maaController.Screencap().Wait();
-            if (status != MaaJobStatus.Succeeded)
+            if (screencap)
             {
-                buffer.Dispose();
-                return null;
+                var status = maaController.Screencap().Wait();
+                if (status != MaaJobStatus.Succeeded)
+                {
+                    buffer.Dispose();
+                    return null;
+                }
             }
-
             if (!maaController.GetCachedImage(buffer))
             {
                 buffer.Dispose();

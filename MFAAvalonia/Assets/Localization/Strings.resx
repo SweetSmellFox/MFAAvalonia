@@ -1435,5 +1435,8 @@
     <data name="CurrentTask" xml:space="preserve">
         <value>任务: {0}</value>
     </data>
+    <data name="LiveViewRefreshInterval" xml:space="preserve">
+        <value>实时视图刷新间隔 (秒)</value>
+    </data>
 </root>
 

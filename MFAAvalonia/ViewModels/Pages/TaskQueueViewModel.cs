@@ -1726,33 +1726,61 @@ public partial class TaskQueueViewModel : ViewModelBase
 
     #endregion
 
-    #region 实时画面
-
-
-    [ObservableProperty] private Bitmap? _liveViewImage;
-    [ObservableProperty] private bool _isLiveViewExpanded = true;
-    [ObservableProperty] private string _currentTaskName = "";
-
-    /// <summary>
-    /// Live View 是否可见（已连接且有图像）
-    /// </summary>
-    public bool IsLiveViewVisible => IsConnected && LiveViewImage != null;
-
-    partial void OnIsConnectedChanged(bool value)
-    {
-        OnPropertyChanged(nameof(IsLiveViewVisible));
-    }
-
-    partial void OnLiveViewImageChanged(Bitmap? value)
-    {
-        OnPropertyChanged(nameof(IsLiveViewVisible));
-    }
-
-    [RelayCommand]
-    private void ToggleLiveViewExpanded()
-    {
-        IsLiveViewExpanded = !IsLiveViewExpanded;
-    }
+        #region 实时画面
+    
+        /// <summary>
+        /// Live View 刷新间隔变化事件
+        /// </summary>
+        public event Action<double>? LiveViewRefreshIntervalChanged;
+    
+        /// <summary>
+        /// Live View 刷新间隔（秒），范围 0.1-10，默认 1
+        /// </summary>
+        [ObservableProperty] private double _liveViewRefreshInterval =
+            ConfigurationManager.Current.GetValue(ConfigurationKeys.LiveViewRefreshInterval, 0.5);
+    
+        partial void OnLiveViewRefreshIntervalChanged(double value)
+        {
+            // 限制范围在 0.1 到 10 秒之间
+            if (value < 0.1){
+                _liveViewRefreshInterval = 0.1;
+                OnPropertyChanged(nameof(LiveViewRefreshInterval));
+                return;
+            }
+            if (value > 10)
+            {
+                _liveViewRefreshInterval = 10;
+                OnPropertyChanged(nameof(LiveViewRefreshInterval));
+                return;
+            }
+    
+            ConfigurationManager.Current.SetValue(ConfigurationKeys.LiveViewRefreshInterval, value);LiveViewRefreshIntervalChanged?.Invoke(value);
+        }
+    
+        [ObservableProperty] private Bitmap? _liveViewImage;
+        [ObservableProperty] private bool _isLiveViewExpanded = true;
+        [ObservableProperty] private string _currentTaskName = "";
+    
+        /// <summary>
+        /// Live View 是否可见（已连接且有图像）
+        /// </summary>
+        public bool IsLiveViewVisible => IsConnected && LiveViewImage != null;
+    
+        partial void OnIsConnectedChanged(bool value)
+        {
+            OnPropertyChanged(nameof(IsLiveViewVisible));
+        }
+    
+        partial void OnLiveViewImageChanged(Bitmap? value)
+        {
+            OnPropertyChanged(nameof(IsLiveViewVisible));
+        }
+    
+        [RelayCommand]
+        private void ToggleLiveViewExpanded()
+        {
+            IsLiveViewExpanded = !IsLiveViewExpanded;
+        }
 
     /// <summary>
     /// 更新当前任务名称
@@ -1767,6 +1795,8 @@ public partial class TaskQueueViewModel : ViewModelBase
     /// </summary>
     public void UpdateLiveViewImage(Bitmap? image)
     {
+        if (LiveViewImage != null && LiveViewImage != image)
+            LiveViewImage.Dispose();
         DispatcherHelper.PostOnMainThread(() => LiveViewImage = image);
     }
 

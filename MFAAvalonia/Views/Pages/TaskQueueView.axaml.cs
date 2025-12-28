@@ -629,7 +629,8 @@ public partial class TaskQueueView : UserControl
         UpdateConnectionLayout();
         UpdateThreeColumnLayout();
     }
-    private double _lastThreeColumnGridWidth = 0;
+
+    // private double _lastThreeColumnGridWidth = 0;
     //
     // /// <summary>
     // /// 当窗口大小缩小时，调整列宽度以保持右边距
@@ -3401,11 +3402,23 @@ public partial class TaskQueueView : UserControl
 
     private void InitializeLiveViewTimer()
     {
+        var interval = Instances.TaskQueueViewModel.LiveViewRefreshInterval;
         _liveViewTimer = new DispatcherTimer
         {
-            Interval = TimeSpan.FromSeconds(1)
+            Interval = TimeSpan.FromSeconds(interval)
         };
         _liveViewTimer.Tick += OnLiveViewTimerTick;
+
+        // 订阅间隔变化事件
+        Instances.TaskQueueViewModel.LiveViewRefreshIntervalChanged += OnLiveViewRefreshIntervalChanged;
+    }
+
+    private void OnLiveViewRefreshIntervalChanged(double newInterval)
+    {
+        if (_liveViewTimer != null)
+        {
+            _liveViewTimer.Interval = TimeSpan.FromSeconds(newInterval);
+        }
     }
 
     private void OnLiveViewTimerTick(object? sender, EventArgs e)
@@ -3414,8 +3427,8 @@ public partial class TaskQueueView : UserControl
         {
             try
             {
-                var bitmap = MaaProcessor.Instance.GetBitmapImage(false);
-                Instances.TaskQueueViewModel.LiveViewImage = bitmap;
+                var bitmap = MaaProcessor.Instance.GetLiveView(false);
+                Instances.TaskQueueViewModel.UpdateLiveViewImage(bitmap);
             }
             catch
             {
@@ -3424,22 +3437,24 @@ public partial class TaskQueueView : UserControl
         }
         else
         {
-            Instances.TaskQueueViewModel.LiveViewImage = null;
+            Instances.TaskQueueViewModel.UpdateLiveViewImage(null);
         }
     }
 
-// 在 UserControl 加载时启动定时器
+    // 在 UserControl 加载时启动定时器
     private void OnLoaded(object? sender, RoutedEventArgs e)
     {
         InitializeLiveViewTimer();
         _liveViewTimer?.Start();
     }
 
-// 在 UserControl 卸载时停止定时器
+    // 在 UserControl 卸载时停止定时器
     private void OnUnloaded(object? sender, RoutedEventArgs e)
     {
         _liveViewTimer?.Stop();
         _liveViewTimer = null;
+        // 取消订阅事件
+        Instances.TaskQueueViewModel.LiveViewRefreshIntervalChanged -= OnLiveViewRefreshIntervalChanged;
     }
 
     #endregion

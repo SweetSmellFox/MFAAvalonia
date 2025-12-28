@@ -1420,4 +1420,7 @@
     <data name="LiveView" xml:space="preserve">
         <value>實時畫面</value>
     </data>
+    <data name="LiveViewRefreshInterval" xml:space="preserve">
+        <value>即時視圖刷新間隔 (秒)</value>
+    </data>
 </root>

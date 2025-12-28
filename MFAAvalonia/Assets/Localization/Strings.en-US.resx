@@ -1429,5 +1429,8 @@
     <data name="CurrentTask" xml:space="preserve">
         <value>Task: {0}</value>
     </data>
+    <data name="LiveViewRefreshInterval" xml:space="preserve">
+        <value>Live View Refresh Interval (s)</value>
+    </data>
 </root>
 

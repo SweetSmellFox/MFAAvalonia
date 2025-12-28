@@ -477,7 +477,8 @@ public static class LangKeys
 	public static readonly string ResourceNotSupportController = "ResourceNotSupportController";
 	public static readonly string ResourcePresetConfig = "ResourcePresetConfig";
 	public static readonly string UseFingerprintMatching = "UseFingerprintMatching";
-	public static readonly string LiveView = "LiveView";
-	public static readonly string Running = "Running";
-	public static readonly string CurrentTask = "CurrentTask";
-}
+		public static readonly string LiveView = "LiveView";
+		public static readonly string LiveViewRefreshInterval = "LiveViewRefreshInterval";
+		public static readonly string Running = "Running";
+		public static readonly string CurrentTask = "CurrentTask";
+	}
