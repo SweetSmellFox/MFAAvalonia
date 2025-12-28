@@ -46,7 +46,7 @@
             <markup:IfConditionConverter.True>
                 <WrapPanel>
                     <Path Data="{StaticResource StopGeometry}"
-                          Fill="{DynamicResource WhiteBrush}"
+                          Fill="White"
                           Width="12" Height="12"
                           Stretch="Uniform"
                           VerticalAlignment="Center"
@@ -57,7 +57,7 @@
             <markup:IfConditionConverter.False>
                 <WrapPanel>
                     <Path Data="{StaticResource PlayGeometry}"
-                          Fill="{DynamicResource WhiteBrush}"
+                          Fill="White"
                           Width="12" Height="12"
                           Stretch="Uniform"
                           VerticalAlignment="Center"
