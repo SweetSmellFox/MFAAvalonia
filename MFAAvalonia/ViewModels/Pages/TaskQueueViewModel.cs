@@ -1,5 +1,8 @@
-﻿using Avalonia.Controls;
+﻿using Avalonia.Collections;
+using Avalonia.Controls;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MaaFramework.Binding;
@@ -33,6 +36,12 @@ public partial class TaskQueueViewModel : ViewModelBase
     
     // 竖屏模式下的设置弹窗状态
     [ObservableProperty] private bool _isSettingsPopupOpen = false;
+
+    partial void OnIsCompactModeChanged(bool value)
+    {
+        if (!value && IsSettingsPopupOpen)
+            IsSettingsPopupOpen = false;
+    }
     
     [RelayCommand]
     private void CloseSettingsPopup()
@@ -1132,7 +1141,7 @@ public partial class TaskQueueViewModel : ViewModelBase
             if (matchedDevice != null)
             {
                 // 使用新搜索到的设备信息（AdbSerial等可能已更新）
-                DispatcherHelper.PostOnMainThread(() =>
+                DispatcherHelper.RunOnMainThread(() =>
                 {
                     Devices = new ObservableCollection<object>(currentDevices);
                     CurrentDevice = matchedDevice;
@@ -1155,7 +1164,7 @@ public partial class TaskQueueViewModel : ViewModelBase
         {
             // 不使用指纹匹配，直接使用保存的设备信息
             LoggerHelper.Info("Reading saved ADB device from configuration, fingerprint matching disabled.");
-            DispatcherHelper.PostOnMainThread(() =>
+            DispatcherHelper.RunOnMainThread(() =>
             {
                 Devices = [savedDevice];
                 CurrentDevice = savedDevice;
@@ -1716,4 +1725,76 @@ public partial class TaskQueueViewModel : ViewModelBase
     }
 
     #endregion
+
+    #region 实时画面
+
+
+    [ObservableProperty] private Bitmap? _liveViewImage;
+    [ObservableProperty] private bool _isLiveViewExpanded = true;
+    [ObservableProperty] private string _currentTaskName = "";
+
+    /// <summary>
+    /// Live View 是否可见（已连接且有图像）
+    /// </summary>
+    public bool IsLiveViewVisible => IsConnected && LiveViewImage != null;
+
+    partial void OnIsConnectedChanged(bool value)
+    {
+        OnPropertyChanged(nameof(IsLiveViewVisible));
+    }
+
+    partial void OnLiveViewImageChanged(Bitmap? value)
+    {
+        OnPropertyChanged(nameof(IsLiveViewVisible));
+    }
+
+    [RelayCommand]
+    private void ToggleLiveViewExpanded()
+    {
+        IsLiveViewExpanded = !IsLiveViewExpanded;
+    }
+
+    /// <summary>
+    /// 更新当前任务名称
+    /// </summary>
+    public void SetCurrentTaskName(string taskName)
+    {
+        DispatcherHelper.PostOnMainThread(() => CurrentTaskName = taskName);
+    }
+
+    /// <summary>
+    /// 更新 Live View 图像
+    /// </summary>
+    public void UpdateLiveViewImage(Bitmap? image)
+    {
+        DispatcherHelper.PostOnMainThread(() => LiveViewImage = image);
+    }
+
+    #endregion
+    
+    #region 配置切换
+
+    /// <summary>
+    /// 配置列表（直接引用 ConfigurationManager.Configs，与设置页面共享同一数据源）
+    /// </summary>
+    public IAvaloniaReadOnlyList<MFAConfiguration> ConfigurationList => ConfigurationManager.Configs;
+
+    /// <summary>
+    /// 当前配置名称
+    /// </summary>
+    public string? CurrentConfiguration
+    {
+        get => ConfigurationManager.GetCurrentConfiguration();
+        set
+        {
+            if (value != null && value != ConfigurationManager.GetCurrentConfiguration())
+            {
+                ConfigurationManager.SetDefaultConfig(value);
+                Instances.RestartApplication();
+            }
+        }
+    }
+
+    #endregion
+
 }

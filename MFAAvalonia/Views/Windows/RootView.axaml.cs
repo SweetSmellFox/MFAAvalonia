@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Notifications;
+using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Threading;
 using MFAAvalonia.Configuration;
@@ -614,5 +615,10 @@ public partial class RootView : SukiWindow
         // 更新缓存并立即保存
         UpdateCachedWindowState();
         ExecuteActualSave();
+    }
+    
+    private void ResourceInfo_OnPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+       Instances.RootViewModel.TempResourceUpdateAction?.Invoke();
     }
 }

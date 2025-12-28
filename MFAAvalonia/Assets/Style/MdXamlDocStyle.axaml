@@ -43,7 +43,7 @@
     <!-- ==================== 基础文本样式 ==================== -->
     <Style Selector=".Markdown_Avalonia_MarkdownViewer ctxt|CTextBlock">
         <Setter Property="FontSize" Value="12" />
-        <Setter Property="Margin" Value="0,5" />
+        <Setter Property="Margin" Value="0,0" />
         <Setter Property="Foreground" Value="{DynamicResource SukiText}" />
     </Style>
     <Style Selector=".Markdown_Avalonia_MarkdownViewer TextBlock">
@@ -165,11 +165,12 @@
 
     <!-- ==================== 列表样式 ==================== -->
     <Style Selector=".Markdown_Avalonia_MarkdownViewer Grid.List">
-        <Setter Property="Margin" Value="12,0,0,0" />
+        <Setter Property="Margin" Value="0,0,0,0" />
     </Style>
     <Style Selector=".Markdown_Avalonia_MarkdownViewer ctxt|CTextBlock.ListMarker">
-        <Setter Property="Margin" Value="0,5,5,5" />
+        <Setter Property="Margin" Value="0,0,5,0" />
     </Style>
+
 
     <!-- ==================== 表格样式 ==================== -->
     <Style Selector=".Markdown_Avalonia_MarkdownViewer Border.Table">
@@ -215,9 +216,9 @@
         <Setter Property="CornerRadius" Value="0,6,6,0" />
     </Style>
     <Style Selector=".Markdown_Avalonia_MarkdownViewer StackPanel.Blockquote">
-        <Setter Property="Margin" Value="10,1,10,5" />
+        <Setter Property="Margin" Value="5,0,5,0" />
     </Style>
-
+    
     <!-- ==================== 超链接样式 ==================== -->
     <Style Selector=".Markdown_Avalonia_MarkdownViewer ctxt|CHyperlink">
         <Setter Property="IsUnderline" Value="True" />
@@ -232,7 +233,7 @@
     <!-- ==================== 段落样式 ==================== -->
     <Style Selector=".Markdown_Avalonia_MarkdownViewer ctxt|CTextBlock.Paragraph">
         <Setter Property="Foreground" Value="{DynamicResource SukiText}" />
-        <Setter Property="Margin" Value="0,7,0,0" />
+        <Setter Property="Margin" Value="0,0,0,0" />
     </Style>
 
     <!-- ==================== GitHub-style Alert Blocks ==================== -->

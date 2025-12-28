@@ -868,7 +868,7 @@
         <value>軟體版本</value>
     </data>
     <data name="StartTask" xml:space="preserve">
-        <value>▶️ 開始任務</value>
+        <value>開始任務</value>
     </data>
     <data name="StartupParameter" xml:space="preserve">
         <value>啟動參數</value>
@@ -895,7 +895,7 @@
         <value>停止任務失敗</value>
     </data>
     <data name="StopTask" xml:space="preserve">
-        <value>■ 停止任務</value>
+        <value>停止任務</value>
     </data>
     <data name="SwitchConfiguration" xml:space="preserve">
         <value>切換配置</value>
@@ -1410,5 +1410,14 @@
     </data>
     <data name="UseFingerprintMatching" xml:space="preserve">
         <value>使用指紋匹配裝置</value>
+    </data>
+    <data name="Running" xml:space="preserve">
+        <value>執行中</value>
+    </data>
+    <data name="CurrentTask" xml:space="preserve">
+        <value>任務: {0}</value>
+    </data>
+    <data name="LiveView" xml:space="preserve">
+        <value>實時畫面</value>
     </data>
 </root>
