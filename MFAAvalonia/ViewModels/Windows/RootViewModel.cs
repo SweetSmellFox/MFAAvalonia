@@ -62,6 +62,8 @@ public partial class RootViewModel : ViewModelBase
     private bool _shouldTip = true;
     [ObservableProperty] private bool _isUpdating;
 
+    [ObservableProperty] private Action? _tempResourceUpdateAction;
+
     partial void OnLockControllerChanged(bool value)
     {
         if (value)

@@ -250,6 +250,12 @@
                                                        IconVariant=Regular}"
                                            IsVisible="True"
                                            PageContent="{extensions:ServiceProvider ServiceType={x:Type pages:ResourcesView}}" />
+                    <suki:SukiSideMenuItem IsContentMovable="False"
+                                           Header="收藏"
+                                           Icon="{fluent:FluentIcon Icon=Apps,
+                                                       IconVariant=Regular}"
+                                           IsVisible="True"
+                                           PageContent="{extensions:ServiceProvider ServiceType={x:Type pages:CardCollection}}" />
 
                 </suki:SukiSideMenu.Items>
 

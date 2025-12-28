@@ -16,6 +16,7 @@ public partial class SettingsView : UserControl
         InitializeComponent();
     }
 
+    /** 点击"高级选项"按钮*/
     private void OnAdvancedOptionsClick(object? sender, RoutedEventArgs e)
     {
         var settingsLayout = this.FindControl<SettingsLayout>("SettingsLayout");
@@ -29,6 +30,12 @@ public partial class SettingsView : UserControl
         
         var settingsStackPage = this.FindControl<SukiStackPage>("Settings");
         settingsStackPage!.Content = new AdvancedSettings(ShowMainSettings);
+
+        var button = new Button
+        {
+            Margin = new Thickness(10),
+        };
+
     }
     
     private void ShowMainSettings()

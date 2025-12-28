@@ -1,0 +1,35 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Name="Root"
+             x:Class="MFAAvalonia.Views.UserControls.Card.CardSample">
+    <!-- Set the dimensions of the card here -->
+    <Design.Width>200</Design.Width>
+    <Design.Height>300</Design.Height>
+
+    <!-- Root container for the card -->
+    <Grid Width="{Binding CardWith, ElementName=Root}" Height="{Binding CardHeight , ElementName=Root}">
+        <!-- 卡牌样式 -->
+        <Border BorderBrush="Gray"
+                BorderThickness="8"
+                CornerRadius="10"
+                ClipToBounds="True">
+            <Image x:Name="Image"
+                   Source="{Binding mImage, ElementName=Root}"
+                   Stretch="UniformToFill" />
+        </Border>
+
+        <TextBlock Text="abcde"
+                   Name="mtest"
+                   FontSize="30"
+                   VerticalAlignment="Center"
+                   HorizontalAlignment="Center"
+                   Opacity="0"
+                   Background="White" />
+        <!-- 触控面板-->
+        <Rectangle Name="DetectedWidget" Fill="Orchid" Opacity="0" />
+    </Grid>
+
+</UserControl>

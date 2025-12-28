@@ -13,6 +13,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <Folder Include="Assets\CardImg\" />
         <Folder Include="Assets\Sound\"/>
         <Folder Include="Img\"/>
         <Folder Include="Models\"/>

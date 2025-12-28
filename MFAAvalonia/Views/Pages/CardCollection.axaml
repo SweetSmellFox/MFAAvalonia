@@ -1,0 +1,57 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="1600" d:DesignHeight="850"
+             xmlns:local="using:MFAAvalonia.Views.UserControls.Card"
+             xmlns:vm="clr-namespace:MFAAvalonia.ViewModels.Pages"
+             xmlns:i="using:Avalonia.Xaml.Interactivity"
+             x:DataType="vm:CardCollectionViewModel"
+             x:Name="PageRoot"
+             x:Class="MFAAvalonia.Views.Pages.CardCollection">
+        <!-- -->
+    <Grid>
+        <TextBlock  Width="500" Height="500" ZIndex="2" Text="" FontSize="50"/>
+        <ScrollViewer>
+            <!-- 绑定显示源 -->
+            <ItemsControl ItemsSource="{Binding PlayerCards}" 
+                          Background="Transparent"
+                          PointerReleased="ClickBlankSpace">
+                <!-- 卡牌布局 -->
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <!-- 卡牌样式 -->
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:CardViewModel">
+                        <!-- 这里的 DataContext 自动变成了单个 CardViewModel -->
+                        <local:CardSample 
+                            mImage="{Binding CardImage}" Margin="5">
+                            
+                        </local:CardSample>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+        
+        <!-- 细节栏 -->
+        <Grid HorizontalAlignment="Right"
+              Margin="0, 20, 0, 20"
+              IsVisible="{Binding IsOpenDetail}"
+              >
+            <!--IsVisible="{Binding IsOpenDetail}"  -->
+            <local:CardSample 
+                CardWith="500"
+                CardHeight="750"
+                mImage="{Binding SelectImage}" 
+                IsDragbility="False"
+                Margin="5"/>
+        </Grid>
+    </Grid>
+
+    
+    
+    
+</UserControl>
