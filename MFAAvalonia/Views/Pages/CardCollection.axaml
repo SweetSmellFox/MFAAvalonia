@@ -12,7 +12,7 @@
         <!-- -->
     <Grid>
         <TextBlock  Width="500" Height="500" ZIndex="2" Text="" FontSize="50"/>
-        <ScrollViewer>
+        <ScrollViewer x:Name="CardScrollViewer">
             <!-- 绑定显示源 -->
             <ItemsControl ItemsSource="{Binding PlayerCards}" 
                           Background="Transparent"
@@ -37,7 +37,7 @@
         </ScrollViewer>
         
         <!-- 细节栏 -->
-        <Grid HorizontalAlignment="Right"
+        <Grid HorizontalAlignment="{Binding Hori}"
               Margin="0, 20, 0, 20"
               IsVisible="{Binding IsOpenDetail}"
               >
@@ -46,9 +46,13 @@
                 CardWith="500"
                 CardHeight="750"
                 mImage="{Binding SelectImage}" 
+                IsHitTestVisible="False"
                 IsDragbility="False"
                 Margin="5"/>
         </Grid>
+        <Button Height="50" Width="50" Background="Red"
+                VerticalAlignment="Bottom" HorizontalAlignment="Center"
+                Click="Button_OnClick"></Button>
     </Grid>
 
     

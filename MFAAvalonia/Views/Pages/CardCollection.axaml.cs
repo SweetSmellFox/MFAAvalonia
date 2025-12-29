@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -20,12 +20,41 @@ public partial class CardCollection : UserControl
     
     #region  dragcard
     
-    private CardSample   DraggingCard;
+    private CardSample DraggingCard;
     private bool IsDragging = false;
+    private bool IsDragStarted = false;  // 是否真正开始拖拽（超过阈值）
     private Point DragStartPoint;
     private TranslateTransform transform;
     private double _initx;
     private double _inity;
+    private int cur_index;
+    private int hov_index;
+    private const int undefine = -1;
+    private const double DragThreshold = 5;  // 拖拽阈值（像素）
+
+    /// <summary>
+    /// 根据鼠标点击坐标相对于ScrollViewer的位置，返回区域标识
+    /// 右边30%返回1，左边30%返回-1，中间返回0
+    /// </summary>
+    private int GetClickRegion(PointerEventArgs e)
+    {
+        var scrollViewer = CardScrollViewer;
+        if (scrollViewer == null) return 0;
+        
+        var pos = e.GetPosition(scrollViewer);
+        double width = scrollViewer.Bounds.Width;
+        if (width <= 0) return 0;
+        
+        double ratio = pos.X / width;
+        if (ratio >= 0.7) return 1;   // 右边30%
+        if (ratio <= 0.3) return -1;  // 左边30%
+        return 0;                      // 中间40%
+    }
+
+    private void logg(double num)
+    {
+        Console.WriteLine(num);
+    }
 
     private void BindEvent()
     {
@@ -50,61 +79,112 @@ public partial class CardCollection : UserControl
 
     private void OnPointerPressed(object sender, PointerPressedEventArgs e)
     {
-        e.Handled = true;
         if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
         {
+            logg(1);
             DraggingCard = (e.Source as Visual)?.FindAncestorOfType<CardSample>();
             transform = new TranslateTransform();
+            logg(2);
+            if(DraggingCard == null) return;  // 点击空白处，不阻止事件传播
+            e.Handled = true;  // 点击卡片时才阻止事件传播
             DraggingCard.RenderTransform = transform;
-            if(DraggingCard == null) return;
+            logg(3);
             IsDragging = true;
+            var Zparent = DraggingCard.Parent as Control;
+            logg(4);
+            if (Zparent == null) return;
+            Zparent.ZIndex += 1;
             var parent = Parent as Control;
             if (parent == null) return;
-            parent.ZIndex += 1;
-            DragStartPoint = e.GetPosition(parent as Visual);
-            _initx = transform.X;
-            _inity = transform.Y;
+            DragStartPoint = e.GetPosition(parent);
+            var currentPoint = e.GetPosition(this.Parent as Visual);
+            _initx = currentPoint.X - DragStartPoint.X;
+            _inity = currentPoint.Y - DragStartPoint.Y;
             e.Pointer.Capture(this);
             var vm = (DraggingCard.DataContext) as CardViewModel;
-            mgr.SetSelectedCard(vm.CardImage);
+            cur_index = vm.Index;  // 记录当前拖拽卡片的索引
+            int clickRegion = GetClickRegion(e);  // 右30%=1, 左30%=-1, 中间=0
+            mgr.SetSelectedCard(vm.CardImage, clickRegion);
+            logg(5);
         }
     }
 
     private void OnPointerMoved(object sender, PointerEventArgs e)
     {
-        Console.WriteLine("0");
-        e.Handled = true;
-        Console.WriteLine("1");
         if (IsDragging)
         {
-        Console.WriteLine("2");
             var currentPoint = e.GetPosition(this.Parent as Visual);
+            
+            // 检查是否超过拖拽阈值
+            if (!IsDragStarted)
+            {
+                var delta = currentPoint - DragStartPoint;
+                if (Math.Abs(delta.X) < DragThreshold && Math.Abs(delta.Y) < DragThreshold)
+                    return;  // 未超过阈值，不处理
+                IsDragStarted = true;  // 超过阈值，开始真正拖拽
+            }
+            
+            e.Handled = true;  // 只在拖拽时阻止事件传播
             transform.X = currentPoint.X - DragStartPoint.X + this._initx;
             transform.Y = currentPoint.Y - DragStartPoint.Y  + this._inity;
-			//DraggingCard.IsValid = false;
-            //var HitVisual = InputHitTest(CurrentPoint);
-            //var newTargetCard = (HitVisual as Visual)?.FindAncestorOfType<<CardSample>();
-            //if (newTargetCard != null && new TargetCard != DraggingCard)
-            //{
-            //    console.WriteLine("Find It In Move")
-            //}   
-			//DraggingCard.IsValid = true;
+            logg(6);
+            DraggingCard.IsHitTestVisible = false;
+            var hitVisual = this.InputHitTest(currentPoint) as Visual;
+            var newTargetCard = hitVisual?.FindAncestorOfType<CardSample>();
+            if (newTargetCard != null && newTargetCard != DraggingCard)
+            {
+                var vm = (newTargetCard.DataContext) as CardViewModel;  // 获取目标卡片的索引
+                hov_index = vm.Index;
+                Console.WriteLine("Find It In Move, INDEX = " + hov_index);
+            }   
+            DraggingCard.IsHitTestVisible = true;
         }
     }
         
     private void OnPointerReleased(object sender, PointerEventArgs e)
     {
-        e.Handled = true;
-        if (IsDragging)
+        if (IsDragging && IsDragStarted)
         {
+            e.Handled = true;  // 只在拖拽时阻止事件传播
+            logg(7);
             this.IsDragging = false;
+            this.IsDragStarted = false;
             e.Pointer.Capture(null);
             this.DragStartPoint = e.GetPosition(this.Parent as Visual);
             this.DragStartPoint = new Point(0, 0);
-            transform.X = _initx;
-            transform.Y = _inity;
-            var parent = Parent as Control;
-            if(parent != null) parent.ZIndex -= 1;
+            transform.X = 0;
+            transform.Y = 0;
+            logg(8);
+            var Zparent = DraggingCard.Parent as Control;
+            logg(9);
+            if(Zparent != null) Zparent.ZIndex -= 1;
+            Console.WriteLine("cur_index = " + cur_index);
+            Console.WriteLine("hov_index = " + hov_index);
+            if (cur_index != undefine && hov_index != undefine)
+            {
+                logg(9.1);
+                mgr.SwapCard(cur_index, hov_index);
+            }
+            cur_index = undefine;
+            hov_index = undefine;
+            logg(10);
+            
+        } 
+        else if (IsDragging)  // 点击但未拖拽，重置状态
+        {
+            this.IsDragging = false;
+            this.IsDragStarted = false;
+            transform.X = 0;
+            transform.Y = 0;
+            e.Pointer.Capture(null);
+            var Zparent = DraggingCard?.Parent as Control;
+            if(Zparent != null) Zparent.ZIndex -= 1;
+            cur_index = undefine;
+            hov_index = undefine;
+        }
+        else if (e.GetCurrentPoint(this).Properties.IsRightButtonPressed)
+        {
+            mgr.SetIsOpenDetail(false);
         }
     }
     #endregion
@@ -116,6 +196,7 @@ public partial class CardCollection : UserControl
 
     public void ClickBlankSpace(object sender, PointerReleasedEventArgs e)
     {
+        logg(11);
         mgr.SetIsOpenDetail(false);
     }
     
@@ -130,5 +211,9 @@ public partial class CardCollection : UserControl
         OnStart();
         BindEvent();
     }
-    
+
+    private void Button_OnClick(object? sender, RoutedEventArgs e)
+    {
+        CCMgr.Instance.addCard_test();
+    }
 }

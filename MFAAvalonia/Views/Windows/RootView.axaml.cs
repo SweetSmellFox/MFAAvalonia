@@ -9,6 +9,7 @@ using MFAAvalonia.Extensions;
 using MFAAvalonia.Extensions.MaaFW;
 using MFAAvalonia.Helper;
 using MFAAvalonia.Helper.ValueType;
+using MFAAvalonia.ViewModels.Pages;
 using MFAAvalonia.ViewModels.Windows;
 using SukiUI.Controls;
 using SukiUI.Dialogs;
@@ -129,6 +130,10 @@ public partial class RootView : SukiWindow
             // 确保窗口大小和位置被立即保存（绕过防抖机制）
 
             DispatcherHelper.PostOnMainThread(SaveWindowSizeAndPositionImmediately);
+            
+            // 保存卡片收藏数据
+            CCMgr.Instance.BeforeClosed();
+            
             if (!noLog)
                 LoggerHelper.Info("MFA Closed!");
 

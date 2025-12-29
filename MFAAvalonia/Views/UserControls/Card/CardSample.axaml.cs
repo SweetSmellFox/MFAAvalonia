@@ -91,7 +91,7 @@ public partial class CardSample : UserControl
             var parent = Parent as Control;
             if(parent != null) parent.ZIndex += 1;
             e.Pointer.Capture(this); 
-            MgrIns.SetSelectedCard(mImage);
+            //MgrIns.SetSelectedCard(mImage);
             MgrIns.ClearEnterIndex();
             MgrIns.SetCurIndex(Index);
         }
@@ -124,7 +124,7 @@ public partial class CardSample : UserControl
             _transform.Y = _inity;
             var parent = Parent as Control;
             if(parent != null) parent.ZIndex -= 1;
-            MgrIns.SwapCard();
+            //MgrIns.SwapCard();
             MgrIns.SetCurIndex(-1);
         }
     }

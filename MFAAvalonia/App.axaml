@@ -21,7 +21,6 @@
                 <ResourceInclude Source="avares://MFAAvalonia/Assets/Theme/LightTheme.axaml" x:Key="Light" />
                 <ResourceInclude Source="avares://MFAAvalonia/Assets/Theme/DarkTheme.axaml" x:Key="Dark" />
             </ResourceDictionary.ThemeDictionaries>
-            <converters:ImagePathConverter x:Key="ImagePathConverter" />
         </ResourceDictionary>
     </Application.Resources>
     <Application.Styles>

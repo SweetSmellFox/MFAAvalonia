@@ -18,6 +18,7 @@
         <Folder Include="Img\"/>
         <Folder Include="Models\"/>
         <AvaloniaResource Include="Assets\**"/>
+        <AvaloniaResource Include="Assets\CardImg\CardTable.csv" />
     </ItemGroup>
 
 
