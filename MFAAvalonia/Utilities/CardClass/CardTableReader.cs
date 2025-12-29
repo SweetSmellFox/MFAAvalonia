@@ -4,6 +4,7 @@ using System.Linq;
 using MFAAvalonia.ViewModels.Pages;
 using System.Collections.Generic;
 using Avalonia.Platform;
+using MFAAvalonia.Utilities.CardClass;
 
 
 public static class CardTableReader

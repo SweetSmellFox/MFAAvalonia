@@ -6,16 +6,15 @@ using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.VisualTree;
 using Avalonia.Media;
+using MFAAvalonia.Utilities.CardClass;
 using MFAAvalonia.ViewModels.Pages;
 using MFAAvalonia.Views.UserControls.Card;
 using Microsoft.Extensions.DependencyInjection;
-using Svg;
 
 namespace MFAAvalonia.Views.Pages;
 
 public partial class CardCollection : UserControl
 {
-    private bool IsDetailPage = false;
     private CCMgr mgr;
     
     #region  dragcard
@@ -51,7 +50,7 @@ public partial class CardCollection : UserControl
         return 0;                      // 中间40%
     }
 
-    private void logg(double num)
+    private static void Logg(double num)
     {
         Console.WriteLine(num);
     }
@@ -61,37 +60,19 @@ public partial class CardCollection : UserControl
         AddHandler(PointerPressedEvent, OnPointerPressed, RoutingStrategies.Tunnel);
         AddHandler(PointerReleasedEvent, OnPointerReleased, RoutingStrategies.Tunnel);
         AddHandler(PointerMovedEvent, OnPointerMoved, RoutingStrategies.Tunnel);
-        //AddHandler(PointerEnteredEvent, OnPointerEntered, RoutingStrategies.Tunnel);
-        //AddHandler(PointerExitedEvent, OnPointerExited, RoutingStrategies.Tunnel);
     }
     
-    private void OnPointerEntered(object sender, PointerEventArgs e)
-    {
-        if (sender is not CardSample || !(sender as CardSample).IsDragbility) return;
-        e.Handled = true;
-    }
-
-    private void OnPointerExited(object sender, PointerEventArgs e)
-    {
-        if (sender is not CardSample || !(sender as CardSample).IsDragbility) return;
-        e.Handled = true;
-    }
-
     private void OnPointerPressed(object sender, PointerPressedEventArgs e)
     {
         if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
         {
-            logg(1);
             DraggingCard = (e.Source as Visual)?.FindAncestorOfType<CardSample>();
             transform = new TranslateTransform();
-            logg(2);
             if(DraggingCard == null) return;  // 点击空白处，不阻止事件传播
             e.Handled = true;  // 点击卡片时才阻止事件传播
             DraggingCard.RenderTransform = transform;
-            logg(3);
             IsDragging = true;
             var Zparent = DraggingCard.Parent as Control;
-            logg(4);
             if (Zparent == null) return;
             Zparent.ZIndex += 1;
             var parent = Parent as Control;
@@ -105,7 +86,6 @@ public partial class CardCollection : UserControl
             cur_index = vm.Index;  // 记录当前拖拽卡片的索引
             int clickRegion = GetClickRegion(e);  // 右30%=1, 左30%=-1, 中间=0
             mgr.SetSelectedCard(vm.CardImage, clickRegion);
-            logg(5);
         }
     }
 
@@ -127,7 +107,6 @@ public partial class CardCollection : UserControl
             e.Handled = true;  // 只在拖拽时阻止事件传播
             transform.X = currentPoint.X - DragStartPoint.X + this._initx;
             transform.Y = currentPoint.Y - DragStartPoint.Y  + this._inity;
-            logg(6);
             DraggingCard.IsHitTestVisible = false;
             var hitVisual = this.InputHitTest(currentPoint) as Visual;
             var newTargetCard = hitVisual?.FindAncestorOfType<CardSample>();
@@ -146,7 +125,6 @@ public partial class CardCollection : UserControl
         if (IsDragging && IsDragStarted)
         {
             e.Handled = true;  // 只在拖拽时阻止事件传播
-            logg(7);
             this.IsDragging = false;
             this.IsDragStarted = false;
             e.Pointer.Capture(null);
@@ -154,20 +132,16 @@ public partial class CardCollection : UserControl
             this.DragStartPoint = new Point(0, 0);
             transform.X = 0;
             transform.Y = 0;
-            logg(8);
             var Zparent = DraggingCard.Parent as Control;
-            logg(9);
             if(Zparent != null) Zparent.ZIndex -= 1;
             Console.WriteLine("cur_index = " + cur_index);
             Console.WriteLine("hov_index = " + hov_index);
             if (cur_index != undefine && hov_index != undefine)
             {
-                logg(9.1);
                 mgr.SwapCard(cur_index, hov_index);
             }
             cur_index = undefine;
             hov_index = undefine;
-            logg(10);
             
         } 
         else if (IsDragging)  // 点击但未拖拽，重置状态
@@ -196,7 +170,6 @@ public partial class CardCollection : UserControl
 
     public void ClickBlankSpace(object sender, PointerReleasedEventArgs e)
     {
-        logg(11);
         mgr.SetIsOpenDetail(false);
     }
     
