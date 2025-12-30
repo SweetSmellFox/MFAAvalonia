@@ -11,36 +11,58 @@ using Avalonia.Platform;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.DependencyInjection;
 using CommunityToolkit.Mvvm.Input;
+using MFAAvalonia.Helper;
 using MFAAvalonia.Utilities.CardClass;
 namespace MFAAvalonia.ViewModels.Pages;
 
 
 
-public partial class CardCollectionViewModel : ViewModelBase
-{
-    private CCMgr CCMgrInstance;
-    private PlayerDataHandler PlayerDataHandler;
-
-    public ObservableCollection<CardViewModel>  PlayerCards { get; } = new();
-
-    [ObservableProperty]
-    /** 放大面板 */
-    private bool isOpenDetail = false;
-
-    [ObservableProperty] 
-    /** 放大面板的位置 */
-    private HorizontalAlignment hori = HorizontalAlignment.Right;
-
-    [ObservableProperty] 
-    /** 放大面板中的图片 */
-    private IImage? selectImage;
-    
-    public CardCollectionViewModel()
+    public partial class CardCollectionViewModel : ViewModelBase
     {
-        LoadPlayerCards();
-        CCMgrInstance =  CCMgr.Instance;
-        CCMgrInstance.SetCCVM(this);
-    }
+        private CCMgr CCMgrInstance;
+        private PlayerDataHandler PlayerDataHandler;
+
+        public ObservableCollection<CardViewModel>  PlayerCards { get; } = new();
+
+        [ObservableProperty]
+        /** 放大面板 */
+        private bool isOpenDetail = false;
+
+        [ObservableProperty] 
+        /** 放大面板的位置 */
+        private HorizontalAlignment hori = HorizontalAlignment.Right;
+
+        [ObservableProperty] 
+        /** 放大面板中的图片 */
+        private IImage? selectImage;
+
+        [ObservableProperty]
+        private CardViewModel? _pulledCard;
+
+        [RelayCommand]
+        private void PullCard()
+        {
+            try
+            {
+                var card = CCMgr.Instance.PullOne();
+                PulledCard = new CardViewModel(card);
+            }
+            catch (Exception ex)
+            {
+                // Simple error handling
+                Console.WriteLine($"Error pulling card: {ex.Message}");
+                PulledCard = null;
+            }
+        }
+        
+        public CardCollectionViewModel()
+        {
+            LoadPlayerCards();
+            CCMgrInstance =  CCMgr.Instance;
+            CCMgrInstance.SetCCVM(this);
+            CCMgrInstance.OnStart();
+            LoggerHelper.Info("01:CardCollectionViewModel, 构造");
+        }
     
     private void LoadPlayerCards()
     {
@@ -56,6 +78,7 @@ public partial class CardCollectionViewModel : ViewModelBase
             vm.Index = i++;
             PlayerCards.Add(vm);
         }
+            LoggerHelper.Info("008:LoadPlayerCards, 加载玩家数据");
     }
     
     public void SwapCard(int index1, int index2)
@@ -87,6 +110,7 @@ public partial class CardCollectionViewModel : ViewModelBase
             });
         }
         PlayerDataHandler.SaveLocal(cardBaseList);
+            LoggerHelper.Info("999:SavePlayerData, 保存玩家数据");
     }
 
 }

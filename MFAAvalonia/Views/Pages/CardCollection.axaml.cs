@@ -6,9 +6,12 @@ using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.VisualTree;
 using Avalonia.Media;
+using MFAAvalonia.Helper;
 using MFAAvalonia.Utilities.CardClass;
 using MFAAvalonia.ViewModels.Pages;
 using MFAAvalonia.Views.UserControls.Card;
+using MFAAvalonia.Views.Windows;
+using MFAAvalonia.Windows;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MFAAvalonia.Views.Pages;
@@ -172,6 +175,15 @@ public partial class CardCollection : UserControl
     {
         mgr.SetIsOpenDetail(false);
     }
+
+    private async void PullButton_OnClick(object? sender, RoutedEventArgs e)
+    {
+        // 逻辑已迁移到 CCMgr.PullOne_real()，这里仅负责转发，保持按钮响应性
+        if (mgr == null)
+            mgr = CCMgr.Instance;
+
+        await mgr.PullOne_real();
+    }
     
     public CardCollection()
     {
@@ -185,8 +197,5 @@ public partial class CardCollection : UserControl
         BindEvent();
     }
 
-    private void Button_OnClick(object? sender, RoutedEventArgs e)
-    {
-        CCMgr.Instance.addCard_test();
-    }
+
 }

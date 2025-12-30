@@ -1,0 +1,56 @@
+<suki:SukiWindow x:Class="MFAAvalonia.Windows.PullResult" 
+                 xmlns="https://github.com/avaloniaui"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                 xmlns:suki="https://github.com/kikipoulet/SukiUI"
+                 xmlns:local="using:MFAAvalonia.Views.UserControls.Card"
+                 mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="600"
+                 x:Name="Root"
+                 Title="抽卡结果"
+                 Width="500" Height="750">
+    <Grid RowDefinitions="*,Auto">
+        <!-- 卡牌展示区域 -->
+        <ScrollViewer Grid.Row="0" Margin="15">
+            <StackPanel Spacing="12">
+                <!-- 错误信息（如果有） -->
+                <Border Background="#33FF3B30" CornerRadius="6" Padding="10"
+                        IsVisible="{Binding ErrorMessage, ElementName=Root, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <TextBlock Text="{Binding ErrorMessage, ElementName=Root}" 
+                               Foreground="#FF3B30" TextWrapping="Wrap" />
+                </Border>
+
+                <!-- 有卡片时展示 -->
+                <Border CornerRadius="8" Padding="12"
+                        Background="{DynamicResource SukiCardBackground}"
+                        IsVisible="{Binding PulledCard, ElementName=Root, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <StackPanel Spacing="10"
+                                DataContext="{Binding PulledCard, ElementName=Root}">
+                        <TextBlock Text="{Binding Name}" HorizontalAlignment="Center" FontSize="16" FontWeight="Bold"/>
+                        <local:CardSample
+                            CardWith="350"
+                            CardHeight="520"
+                            HorizontalAlignment="Center"
+                            IsHitTestVisible="False"
+                            IsDragbility="False"
+                            mImage="{Binding CardImage}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- 无卡片且无错误时 -->
+                <TextBlock Text="暂无卡片"
+                           Opacity="0.5"
+                           HorizontalAlignment="Center"
+                           IsVisible="{Binding PulledCard, ElementName=Root, Converter={x:Static ObjectConverters.IsNull}}"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- 确定按钮 -->
+        <Button Grid.Row="1"
+                Content="确定"
+                Classes="Accent"
+                HorizontalAlignment="Center"
+                Margin="0,0,0,20"
+                Click="OkButton_OnClick"/>
+    </Grid>
+</suki:SukiWindow>

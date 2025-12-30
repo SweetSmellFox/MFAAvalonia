@@ -53,27 +53,7 @@
         </Grid>
         <Button Height="50" Width="50" Background="Red"
                 VerticalAlignment="Bottom" HorizontalAlignment="Center"
-                x:Name="ShowCardBtn">
-            <Button.Flyout>
-                <Flyout Placement="Top" ShowMode="Standard">
-                    <Border MinWidth="300" MinHeight="200" 
-                            Background="{DynamicResource SukiCardBackground}"
-                            CornerRadius="8" Padding="15">
-                        <StackPanel Spacing="10">
-                            <TextBlock Text="获取的卡片" FontWeight="Bold" FontSize="16"/>
-                            <Border Height="150" 
-                                    Background="{DynamicResource SukiBackground}" 
-                                    CornerRadius="6">
-                                <TextBlock Text="暂无卡片" 
-                                           Opacity="0.5"
-                                           HorizontalAlignment="Center" 
-                                           VerticalAlignment="Center"/>
-                            </Border>
-                        </StackPanel>
-                    </Border>
-                </Flyout>
-            </Button.Flyout>
-        </Button>
+                Click="PullButton_OnClick"/>
     </Grid>
 
     
