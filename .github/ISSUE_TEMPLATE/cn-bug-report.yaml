@@ -9,7 +9,7 @@ body:
       description: |
         请确认自己完成了要求之后再进行勾选
       options:
-        - label: 我不知道这个项目是独立的通用GUI项目，并且认为在里反馈资源问题(如M9A)可以得到答复
+        - label: 我不知道这个项目是独立的通用GUI项目，并且认为在这里反馈资源问题(如M9A)可以得到答复
           required: false
         - label: 我理解 Issue 是用于反馈和解决问题的，而非吐槽评论区，将尽可能提供更多信息帮助问题解决
           required: true
