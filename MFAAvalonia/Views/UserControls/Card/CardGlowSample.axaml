@@ -1,0 +1,76 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:card="clr-namespace:MFAAvalonia.Views.UserControls.Card"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Name="Root"
+             x:Class="MFAAvalonia.Views.UserControls.Card.CardGlowSample">
+    
+    <!-- 
+    卡牌流光特效示例
+    展示如何使用CardGlowRenderer实现动态流光效果
+    -->
+    
+    <Design.Width>400</Design.Width>
+    <Design.Height>600</Design.Height>
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        
+        <!-- 标题 -->
+        <TextBlock Grid.Row="0" 
+                   Text="卡牌流光特效演示" 
+                   FontSize="20" 
+                   FontWeight="Bold"
+                   HorizontalAlignment="Center"
+                   Margin="0,10"/>
+        
+        <!-- 卡牌显示区域 -->
+        <Grid Grid.Row="1" 
+              Width="{Binding CardWidth, ElementName=Root}" 
+              Height="{Binding CardHeight, ElementName=Root}"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Center">
+            
+            <!-- 流光特效渲染器 -->
+            <card:CardGlowRenderer x:Name="GlowRenderer"
+                                   Source="{Binding CardImage, ElementName=Root}"
+                                   IsGlowEnabled="{Binding IsGlowEnabled, ElementName=Root}"/>
+            
+            <!-- 边框装饰 (可选) -->
+            <Border BorderBrush="#40FFFFFF" 
+                    BorderThickness="2" 
+                    CornerRadius="8"
+                    IsHitTestVisible="False"/>
+        </Grid>
+        
+        <!-- 控制面板 -->
+        <StackPanel Grid.Row="2" 
+                    Orientation="Horizontal" 
+                    HorizontalAlignment="Center"
+                    Spacing="10"
+                    Margin="10">
+            
+            <!-- 效果开关 -->
+            <ToggleButton x:Name="ToggleGlow"
+                          Content="流光效果"
+                          IsChecked="{Binding IsGlowEnabled, ElementName=Root, Mode=TwoWay}"/>
+            
+            <!-- 预设选择 -->
+            <ComboBox x:Name="PresetSelector"
+                      Width="120"
+                      SelectedIndex="0"
+                      SelectionChanged="OnPresetChanged">
+                <ComboBoxItem Content="默认"/>
+                <ComboBoxItem Content="金色稀有"/>
+                <ComboBoxItem Content="蓝色稀有"/>
+                <ComboBoxItem Content="紫色传说"/>
+                <ComboBoxItem Content="彩虹全息"/>
+                <ComboBoxItem Content="低调效果"/>
+            </ComboBox>
+            
+        </StackPanel>
+        
+    </Grid>
+
+</UserControl>

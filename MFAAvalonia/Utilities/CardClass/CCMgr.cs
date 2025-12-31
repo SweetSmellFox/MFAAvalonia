@@ -7,6 +7,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using MFAAvalonia.Helper;
 using MFAAvalonia.ViewModels.Pages;
+using MFAAvalonia.Views.UserControls.Card;
 using MFAAvalonia.Views.Windows;
 using MFAAvalonia.Windows;
 
@@ -69,7 +70,7 @@ public sealed class CCMgr
     }
 
     /// <summary>
-    /// 将“红色抽卡按钮”的完整行为迁移到这里：
+    /// 将"红色抽卡按钮"的完整行为迁移到这里：
     /// 1) 调用 PullOne() 抽卡并写入玩家卡组
     /// 2) 更新 CCVM.PulledCard
     /// 3) 弹出 PullResult 窗口展示结果（或失败信息）
@@ -99,10 +100,11 @@ public sealed class CCMgr
             else
                 window.Show();
             LoggerHelper.Info("PullOne_real()");
+            AddGlowingCard();
         }
         catch (Exception ex)
         {
-            // 错误处理：优先弹出错误窗口，同时给一个 PullResult 兜底提示，避免“点了没反应”
+            // 错误处理：优先弹出错误窗口，同时给一个 PullResult 兜底提示，避免"点了没反应"
             try
             {
                 ErrorView.ShowException(ex);
@@ -155,5 +157,138 @@ public sealed class CCMgr
         }
         catch { return null; }
     }
+    
+    #region 发光卡片接口
+    
+    /// <summary>
+    /// 添加带发光效果的卡片到CardCollection
+    /// 使用硬编码数据：ImagePath固定为"/Assets/CardImg/aa.jpg"，金色传说级别发光
+    /// </summary>
+    /// <returns>添加的CardViewModel</returns>
+    public CardViewModel AddGlowingCard()
+    {
+        if (CCVM is null)
+            throw new InvalidOperationException("CCMgr.CCVM 尚未初始化（未调用 SetCCVM），无法添加卡片。");
+        
+        // 硬编码数据：金色传说卡
+        var cardBase = new CardBase
+        {
+            Name = "金色传说卡",
+            ImagePath = "/Assets/CardImg/aa.jpg",
+            Index = 0,
+            Rarity = CardRarity.Legendary,  // 金色传说级别
+            EnableGlow = true               // 启用发光效果
+        };
+        
+        var cardVm = new CardViewModel(cardBase);
+        CCVM.addcard(cardVm);
+        
+        LoggerHelper.Info($"AddGlowingCard: 添加金色传说卡，路径={cardBase.ImagePath}");
+        return cardVm;
+    }
+    
+    /// <summary>
+    /// 添加普通卡片到CardCollection（无发光效果）
+    /// 使用硬编码数据：ImagePath固定为"/Assets/CardImg/aa.jpg"
+    /// </summary>
+    /// <returns>添加的CardViewModel</returns>
+    public CardViewModel AddNormalCard()
+    {
+        if (CCVM is null)
+            throw new InvalidOperationException("CCMgr.CCVM 尚未初始化（未调用 SetCCVM），无法添加卡片。");
+        
+        // 硬编码数据：普通卡
+        var cardBase = new CardBase
+        {
+            Name = "普通卡",
+            ImagePath = "/Assets/CardImg/aa.jpg",
+            Index = 0,
+            Rarity = CardRarity.Normal,     // 普通级别
+            EnableGlow = false              // 不启用发光效果
+        };
+        
+        var cardVm = new CardViewModel(cardBase);
+        CCVM.addcard(cardVm);
+        
+        LoggerHelper.Info($"AddNormalCard: 添加普通卡，路径={cardBase.ImagePath}");
+        return cardVm;
+    }
+    
+    /// <summary>
+    /// 添加自定义发光效果的卡片到CardCollection
+    /// </summary>
+    /// <param name="imagePath">图片路径（如："/Assets/CardImg/aa.jpg"）</param>
+    /// <param name="name">卡片名称</param>
+    /// <param name="rarity">稀有度（决定发光效果类型）</param>
+    /// <param name="enableGlow">是否启用发光</param>
+    /// <returns>添加的CardViewModel</returns>
+    public CardViewModel AddCardWithGlow(string imagePath, string name, CardRarity rarity, bool enableGlow = true)
+    {
+        if (CCVM is null)
+            throw new InvalidOperationException("CCMgr.CCVM 尚未初始化（未调用 SetCCVM），无法添加卡片。");
+        
+        var cardBase = new CardBase
+        {
+            Name = name,
+            ImagePath = imagePath,
+            Index = 0,
+            Rarity = rarity,
+            EnableGlow = enableGlow
+        };
+        
+        var cardVm = new CardViewModel(cardBase);
+        CCVM.addcard(cardVm);
+        
+        LoggerHelper.Info($"AddCardWithGlow: 添加卡片 [{name}]，稀有度={rarity}，发光={enableGlow}");
+        return cardVm;
+    }
+    
+    /// <summary>
+    /// 添加自定义发光配置的卡片到CardCollection
+    /// </summary>
+    /// <param name="imagePath">图片路径</param>
+    /// <param name="name">卡片名称</param>
+    /// <param name="glowConfig">自定义发光配置</param>
+    /// <returns>添加的CardViewModel</returns>
+    public CardViewModel AddCardWithCustomGlow(string imagePath, string name, CardGlowConfig glowConfig)
+    {
+        if (CCVM is null)
+            throw new InvalidOperationException("CCMgr.CCVM 尚未初始化（未调用 SetCCVM），无法添加卡片。");
+        
+        var cardBase = new CardBase
+        {
+            Name = name,
+            ImagePath = imagePath,
+            Index = 0,
+            Rarity = CardRarity.Legendary,  // 自定义配置时默认传说级
+            EnableGlow = true
+        };
+        
+        var cardVm = new CardViewModel(cardBase)
+        {
+            GlowConfig = glowConfig  // 覆盖默认配置
+        };
+        
+        CCVM.addcard(cardVm);
+        
+        LoggerHelper.Info($"AddCardWithCustomGlow: 添加自定义发光卡片 [{name}]");
+        return cardVm;
+    }
+    
+    /// <summary>
+    /// 测试接口：添加一张金色传说卡和一张普通卡
+    /// </summary>
+    public void TestAddGlowCards()
+    {
+        // 添加金色传说卡（带发光）
+        AddGlowingCard();
+        
+        // 添加普通卡（无发光）
+        AddNormalCard();
+        
+        LoggerHelper.Info("TestAddGlowCards: 测试完成，添加了1张金色传说卡和1张普通卡");
+    }
+    
+    #endregion
     
 }
