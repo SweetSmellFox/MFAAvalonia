@@ -78,8 +78,8 @@ public class CardGlowRenderer : Control
 
     private CompositionCustomVisual? _customVisual;
     private CardGlowDraw? _visualHandler;
-    private SKBitmap? _sourceBitmap;
     private bool _needsImageUpdate = true;
+
 
     #endregion
 
@@ -480,9 +480,11 @@ vec4 main(vec2 fragCoord) {
     private void CleanupResources()
     {
         _customVisual?.SendHandlerMessage(CardGlowDraw.StopAnimations);
-        _sourceBitmap?.Dispose();
-        _sourceBitmap = null;
+        _customVisual?.SendHandlerMessage(CardGlowDraw.DisposeBitmap);
+        _visualHandler = null;
+        _customVisual = null;
     }
+
 
     #endregion
 
@@ -546,37 +548,32 @@ vec4 main(vec2 fragCoord) {
     /// </summary>
     private void UpdateSourceBitmap()
     {
-        if (!_needsImageUpdate || _visualHandler == null) 
+        if (!_needsImageUpdate || _visualHandler == null || _customVisual == null) 
         {
-            Debug.WriteLine($"[CardGlowRenderer] UpdateSourceBitmap skipped: needsUpdate={_needsImageUpdate}, hasHandler={_visualHandler != null}");
             return;
         }
 
         try
         {
-            _sourceBitmap?.Dispose();
-            _sourceBitmap = null;
+            SKBitmap? skBitmap = null;
 
             // 支持多种 IImage 类型
             if (Source is Bitmap bitmap)
             {
-                _sourceBitmap = ConvertToSKBitmap(bitmap);
+                skBitmap = ConvertToSKBitmap(bitmap);
             }
             else if (Source != null)
             {
                 // 尝试将其他 IImage 类型转换为 SKBitmap
-                _sourceBitmap = ConvertIImageToSKBitmap(Source);
+                skBitmap = ConvertIImageToSKBitmap(Source);
             }
             
-            if (_sourceBitmap != null)
+            if (skBitmap != null)
             {
-                _visualHandler.SetSourceBitmap(_sourceBitmap);
+                // 通过消息传递给渲染线程，移交所有权
+                _customVisual.SendHandlerMessage(skBitmap);
                 _needsImageUpdate = false;
-                Debug.WriteLine($"[CardGlowRenderer] UpdateSourceBitmap success: {_sourceBitmap.Width}x{_sourceBitmap.Height}");
-            }
-            else
-            {
-                Debug.WriteLine($"[CardGlowRenderer] UpdateSourceBitmap failed: Could not convert source, type={Source?.GetType().Name ?? "null"}");
+                Debug.WriteLine($"[CardGlowRenderer] Sent bitmap to handler: {skBitmap.Width}x{skBitmap.Height}");
             }
         }
         catch (Exception ex)
@@ -584,6 +581,7 @@ vec4 main(vec2 fragCoord) {
             Debug.WriteLine($"[CardGlowRenderer] UpdateSourceBitmap failed: {ex.Message}");
         }
     }
+
     
     /// <summary>
     /// 将 IImage 转换为 SKBitmap
@@ -715,6 +713,7 @@ vec4 main(vec2 fragCoord) {
     {
         public static readonly object StartAnimations = new();
         public static readonly object StopAnimations = new();
+        public static readonly object DisposeBitmap = new();
 
         private readonly Stopwatch _animationTick = new();
         private bool _animationEnabled;
@@ -722,8 +721,12 @@ vec4 main(vec2 fragCoord) {
         private SKShader? _imageShader;
         private SKRuntimeEffect? _effect;
         private CardGlowConfig _config = CardGlowConfig.Default;
+        
+        private float _lastRenderWidth = -1;
+        private float _lastRenderHeight = -1;
 
         // Uniform数组预分配，避免每帧GC
+
         private readonly float[] _resolutionAlloc = new float[3];
         private readonly float[] _imageSizeAlloc = new float[2];
         private readonly float[] _flowColorAlloc = new float[3];
@@ -767,40 +770,25 @@ uniform vec3 iResolution;
         }
 
         /// <summary>
-        /// 设置源位图
-        /// </summary>
-        public void SetSourceBitmap(SKBitmap? bitmap)
-        {
-            _imageShader?.Dispose();
-            _imageShader = null;
-
-            _sourceBitmap = bitmap;
-            if (bitmap != null)
-            {
-                // 保存图像尺寸用于Shader采样
-                _imageSizeAlloc[0] = bitmap.Width;
-                _imageSizeAlloc[1] = bitmap.Height;
-                
-                // 创建图像Shader用于在SKSL中采样
-                // 注意：这里不添加变换矩阵，让Shader自己处理坐标映射
-                _imageShader = bitmap.ToShader(SKShaderTileMode.Clamp, SKShaderTileMode.Clamp);
-                
-                Debug.WriteLine($"[CardGlowDraw] SetSourceBitmap: {bitmap.Width}x{bitmap.Height}");
-            }
-        }
-
-        /// <summary>
         /// 更新图像Shader（当渲染尺寸变化时调用）
         /// </summary>
         private void UpdateImageShaderWithScale(float renderWidth, float renderHeight)
         {
             if (_sourceBitmap == null) return;
             
+            // 只有当尺寸确实发生变化时才更新Shader
+            if (Math.Abs(_lastRenderWidth - renderWidth) < 0.01f && 
+                Math.Abs(_lastRenderHeight - renderHeight) < 0.01f && 
+                _imageShader != null)
+            {
+                return;
+            }
+
             _imageShader?.Dispose();
             
             // 计算缩放比例，将图像缩放到渲染区域大小
-            float scaleX = renderWidth / _sourceBitmap.Width;
-            float scaleY = renderHeight / _sourceBitmap.Height;
+            float scaleX = renderWidth / Math.Max(1, _sourceBitmap.Width);
+            float scaleY = renderHeight / Math.Max(1, _sourceBitmap.Height);
             
             // 创建缩放变换矩阵
             var matrix = SKMatrix.CreateScale(scaleX, scaleY);
@@ -808,7 +796,8 @@ uniform vec3 iResolution;
             // 创建带缩放的图像Shader
             _imageShader = _sourceBitmap.ToShader(SKShaderTileMode.Clamp, SKShaderTileMode.Clamp, matrix);
             
-            Debug.WriteLine($"[CardGlowDraw] UpdateImageShaderWithScale: scale=({scaleX:F2}, {scaleY:F2})");
+            _lastRenderWidth = renderWidth;
+            _lastRenderHeight = renderHeight;
         }
 
         /// <summary>
@@ -831,6 +820,7 @@ uniform vec3 iResolution;
         }
 
         public override void OnMessage(object message)
+
         {
             if (message == StartAnimations)
             {
@@ -843,7 +833,33 @@ uniform vec3 iResolution;
                 _animationEnabled = false;
                 _animationTick.Stop();
             }
+            else if (message == DisposeBitmap)
+            {
+                _imageShader?.Dispose();
+                _imageShader = null;
+                _sourceBitmap?.Dispose();
+                _sourceBitmap = null;
+            }
+            else if (message is SKBitmap bitmap)
+            {
+                _imageShader?.Dispose();
+                _imageShader = null;
+                _sourceBitmap?.Dispose();
+                
+                _sourceBitmap = bitmap;
+                
+                // 重置尺寸记录，强制重新生成Shader
+                _lastRenderWidth = -1;
+                _lastRenderHeight = -1;
+                
+                // 预存图像尺寸
+                _imageSizeAlloc[0] = bitmap.Width;
+                _imageSizeAlloc[1] = bitmap.Height;
+                
+                Debug.WriteLine($"[CardGlowDraw] Received new bitmap: {bitmap.Width}x{bitmap.Height}");
+            }
         }
+
 
         public override void OnAnimationFrameUpdate()
         {
@@ -887,6 +903,7 @@ uniform vec3 iResolution;
             {
                 var time = (float)_animationTick.Elapsed.TotalSeconds;
 
+                Console.WriteLine("rect width = " + rect.Width + " Height = " + rect.Height);
                 // 每次渲染时更新图像Shader的缩放（确保图像正确填充渲染区域）
                 UpdateImageShaderWithScale(rect.Width, rect.Height);
                 
