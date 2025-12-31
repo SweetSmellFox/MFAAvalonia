@@ -431,7 +431,12 @@ vec4 main(vec2 fragCoord) {
         {
             OnGlowEnabledChanged();
         }
+        else if (change.Property == OpacityProperty)
+        {
+            _customVisual?.SendHandlerMessage((float)change.NewValue!);
+        }
     }
+
 
     #endregion
 
@@ -626,7 +631,7 @@ vec4 main(vec2 fragCoord) {
     /// </summary>
     private void UpdateConfig()
     {
-        if (_visualHandler == null) return;
+        if (_visualHandler == null || _customVisual == null) return;
 
         // 验证配置
         if (!Config.Validate(out var error))
@@ -635,8 +640,10 @@ vec4 main(vec2 fragCoord) {
             return;
         }
 
-        _visualHandler.SetConfig(Config);
+        // 发送配置克隆给渲染线程，避免多线程访问同一个对象
+        _customVisual.SendHandlerMessage(Config.Clone());
     }
+
 
     /// <summary>
     /// 将Avalonia Bitmap转换为SKBitmap
@@ -724,8 +731,10 @@ vec4 main(vec2 fragCoord) {
         
         private float _lastRenderWidth = -1;
         private float _lastRenderHeight = -1;
+        private float _alpha = 1.0f;
 
         // Uniform数组预分配，避免每帧GC
+
 
         private readonly float[] _resolutionAlloc = new float[3];
         private readonly float[] _imageSizeAlloc = new float[2];
@@ -801,9 +810,9 @@ uniform vec3 iResolution;
         }
 
         /// <summary>
-        /// 设置配置
+        /// 内部更新配置
         /// </summary>
-        public void SetConfig(CardGlowConfig config)
+        private void UpdateConfigInternal(CardGlowConfig config)
         {
             _config = config;
 
@@ -817,10 +826,11 @@ uniform vec3 iResolution;
             Array.Copy(secFlowColor, _secFlowColorAlloc, 3);
             Array.Copy(sparkleColor, _sparkleColorAlloc, 3);
             Array.Copy(edgeGlowColor, _edgeGlowColorAlloc, 3);
+            
+            Debug.WriteLine($"[CardGlowDraw] Config updated in render thread");
         }
 
         public override void OnMessage(object message)
-
         {
             if (message == StartAnimations)
             {
@@ -858,7 +868,17 @@ uniform vec3 iResolution;
                 
                 Debug.WriteLine($"[CardGlowDraw] Received new bitmap: {bitmap.Width}x{bitmap.Height}");
             }
+            else if (message is CardGlowConfig config)
+            {
+                UpdateConfigInternal(config);
+            }
+            else if (message is float alpha)
+            {
+                _alpha = alpha;
+            }
         }
+
+
 
 
         public override void OnAnimationFrameUpdate()
@@ -879,9 +899,9 @@ uniform vec3 iResolution;
             // 如果尺寸无效，不渲染
             if (rect.Width <= 0 || rect.Height <= 0) return;
 
-            // 检查是否可以使用GPU渲染
-            // 注意：移除 lease.GrContext == null 的检查，因为某些情况下软件渲染也可以工作
-            if (_effect == null || _imageShader == null || _sourceBitmap == null)
+            // 检查渲染基础条件
+            // 注意：不再检查 _imageShader == null，因为它会在 Render 内部通过 UpdateImageShaderWithScale 创建
+            if (_effect == null || _sourceBitmap == null)
             {
                 // 软件渲染回退 - 直接绘制原图
                 RenderSoftware(lease.SkCanvas, rect);
@@ -891,6 +911,7 @@ uniform vec3 iResolution;
                 Render(lease.SkCanvas, rect);
             }
         }
+
 
         /// <summary>
         /// GPU渲染 - 使用Shader实现流光效果
@@ -903,8 +924,8 @@ uniform vec3 iResolution;
             {
                 var time = (float)_animationTick.Elapsed.TotalSeconds;
 
-                Console.WriteLine("rect width = " + rect.Width + " Height = " + rect.Height);
                 // 每次渲染时更新图像Shader的缩放（确保图像正确填充渲染区域）
+
                 UpdateImageShaderWithScale(rect.Width, rect.Height);
                 
                 if (_imageShader == null)
@@ -918,17 +939,18 @@ uniform vec3 iResolution;
                 _resolutionAlloc[1] = rect.Height;
                 _resolutionAlloc[2] = 0;
                 
-                // 更新图像尺寸
-                _imageSizeAlloc[0] = rect.Width;
-                _imageSizeAlloc[1] = rect.Height;
+                // 注意：不再在这里更新 _imageSizeAlloc，因为它应该保持为图片的原始尺寸
+                // 原始尺寸已在 OnMessage 接收位图时存入 _imageSizeAlloc
 
                 // 创建Uniform - 传递所有配置参数到Shader
                 var uniforms = new SKRuntimeEffectUniforms(_effect)
                 {
                     // 基础参数
                     { "iTime", time },
-                    { "iAlpha", 1.0f },
+                    { "iAlpha", _alpha },
+
                     { "iResolution", _resolutionAlloc },
+
                     
                     // 图像尺寸 (渲染区域尺寸，因为图像已经被缩放)
                     { "iImageSize", _imageSizeAlloc },

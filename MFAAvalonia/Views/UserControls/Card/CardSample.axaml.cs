@@ -137,9 +137,11 @@ public partial class CardSample : UserControl
         // 当DataContext变化时，从CardViewModel同步发光配置
         if (DataContext is CardViewModel cardVm)
         {
+            mImage = cardVm.CardImage; // 显式同步图片属性
             IsGlowEnabled = cardVm.EnableGlow;
             IsNormalMode = !cardVm.EnableGlow;
             GlowConfig = cardVm.GlowConfig ?? CardGlowConfig.Default;
         }
     }
+
 }

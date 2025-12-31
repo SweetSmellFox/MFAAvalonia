@@ -86,6 +86,7 @@
                 Background="#2D2D30" 
                 BorderBrush="#3F3F46" 
                 BorderThickness="0,1,0,0"
+                IsVisible = "false"
                 Padding="10">
             <Grid>
                 <Grid.ColumnDefinitions>

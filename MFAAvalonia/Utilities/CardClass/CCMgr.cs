@@ -31,10 +31,11 @@ public sealed class CCMgr
 
     public void PostLoading()
     {
-        PullOne_real();
+        _ = PullOne_real();
         LoggerHelper.Info("0099 pullOnre_real");
         
     }
+
 
     private bool btest = false;
     public void addCard_test()
