@@ -17,14 +17,14 @@ public class CardGlowConfig
     /// 像素亮度超过此值才会被识别为发光区域
     /// 默认值: 0.4 (降低以便更多区域显示流光)
     /// </summary>
-    public float BrightnessThreshold { get; set; } = 0.4f;
+    public float BrightnessThreshold { get; set; } = 0.5f;
 
     /// <summary>
     /// 饱和度阈值 (0.0 - 1.0)
     /// 像素饱和度超过此值才会被识别为发光区域
     /// 默认值: 0.2
     /// </summary>
-    public float SaturationThreshold { get; set; } = 0.2f;
+    public float SaturationThreshold { get; set; } = 0.4f;
 
     /// <summary>
     /// 亮度权重 (0.0 - 1.0)
@@ -48,7 +48,7 @@ public class CardGlowConfig
     /// 主流光速度
     /// 默认值: 0.5
     /// </summary>
-    public float FlowSpeed { get; set; } = 0.5f;
+    public float FlowSpeed { get; set; } = 0.35f;
 
     /// <summary>
     /// 主流光宽度 (0.0 - 1.0)
@@ -67,7 +67,7 @@ public class CardGlowConfig
     /// 主流光强度 (0.0 - 2.0)
     /// 默认值: 0.8
     /// </summary>
-    public float FlowIntensity { get; set; } = 0.8f;
+    public float FlowIntensity { get; set; } = 0.65f;
 
     /// <summary>
     /// 次流光速度倍率
@@ -138,7 +138,7 @@ public class CardGlowConfig
     /// 边缘辉光强度 (0.0 - 1.0)
     /// 默认值: 0.5
     /// </summary>
-    public float EdgeGlowIntensity { get; set; } = 0.5f;
+    public float EdgeGlowIntensity { get; set; } = 0.4f;
 
     #endregion
 
@@ -227,8 +227,8 @@ public class CardGlowConfig
     public static CardGlowConfig GoldRare => new()
     {
         // 降低亮度阈值，让更多区域显示流光
-        BrightnessThreshold = 0.35f,
-        SaturationThreshold = 0.15f,
+        BrightnessThreshold = 0.55f,
+        SaturationThreshold = 0.25f,
         BrightnessWeight = 0.5f,
         SaturationWeight = 0.5f,
         
@@ -239,14 +239,14 @@ public class CardGlowConfig
         SparkleColor = Color.FromRgb(255, 240, 200),
         
         // 增强的流光效果
-        FlowIntensity = 1.1f,
+        FlowIntensity = 0.5f,
         FlowSpeed = 0.4f,
         FlowWidth = 0.35f,
-        SecondaryFlowIntensity = 0.55f,
+        SecondaryFlowIntensity = 0.45f,
         
         // 柔和的流沙效果
         EnableSparkle = true,
-        SparkleIntensity = 0.35f,
+        SparkleIntensity = 0.25f,
         SparkleDensity = 0.45f,
         SparkleFrequency = 1.8f,
         
@@ -256,7 +256,7 @@ public class CardGlowConfig
         BlueHueWeight = 0.3f,
         
         // 整体强度
-        OverallIntensity = 1.15f,
+        OverallIntensity = 0.95f,
         BlendMode = 0  // Add模式，效果更明显
     };
 
@@ -327,7 +327,7 @@ public class CardGlowConfig
         SparkleDensity = 0.55f,
         SparkleFrequency = 2.5f,
         EnableHueWeighting = false, // 彩虹效果不需要色相加权
-        OverallIntensity = 1.2f,
+        OverallIntensity = 0.75f,
         BlendMode = 0 // Add模式更亮
     };
 
