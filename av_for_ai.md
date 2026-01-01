@@ -2,6 +2,50 @@
 
 ## 卡牌系统
 
+### 卡牌集合页面打开慢（首屏阻塞）优化总结
+
+**问题**
+- 进入 CardCollection 页面时，首屏会卡住/白屏约 4–5 秒。
+- 根因：`CardCollectionViewModel` 构造函数里同步执行 `LoadPlayerCards()`，包含本地读取/解析与对象构建，阻塞 UI 线程。
+
+**回答**
+- 将加载流程改为**后台线程执行**，并在**UI 线程回填**到 `ObservableCollection`，避免阻塞首帧渲染。
+- 涉及文件：`MFAAvalonia/ViewModels/Pages/CardCollectionViewModel.cs`
+- 核心改动点：
+  - 构造函数里不再直接调用同步加载，而是 fire-and-forget 异步加载：
+    ```csharp
+    public CardCollectionViewModel()
+    {
+        _ = LoadPlayerCardsAsync();
+        CCMgrInstance = CCMgr.Instance;
+        CCMgrInstance.SetCCVM(this);
+        CCMgrInstance.OnStart();
+    }
+    ```
+  - 在后台线程读取并组装数据：`await Task.Run(() => ...)`
+  - 在 UI 线程更新集合：`await Dispatcher.UIThread.InvokeAsync(() => { PlayerCards.Clear(); ... });`
+
+### 拖拽交换卡顿（Glow 渲染/动画）优化总结
+
+**问题**
+- 卡牌拖拽交换时出现明显卡顿/掉帧。
+- 根因集中在 `CardGlowRenderer` 的渲染链路：
+  - glow 动画导致大量 `SKCanvas.DrawRect` 触发（CPU profile 热点）。
+  - 频繁 Bitmap→SKBitmap 转换与资源生命周期处理带来额外开销。
+  - 滚动列表中不可见卡片仍在持续动画与重绘。
+
+**回答**
+- 渲染侧削峰 + 资源缓存 + 视口裁剪：
+  1) **共享缓存 Bitmap→SKBitmap**（进程级），避免重复转换：
+     - 文件：`MFAAvalonia/Views/UserControls/Card/CardGlowRenderer.cs`
+     - 使用 `ConditionalWeakTable<Bitmap, SKBitmap>` 做共享缓存。
+  2) **资源所有权标记**，避免误 Dispose 共享位图：
+     - 扩展 handler message（示例）：`SourceBitmapMessage(SKBitmap Bitmap, bool IsShared)` / `MaskBitmapMessage(...)`
+     - Dispose 时仅在 `!IsShared` 才释放。
+  3) **降帧**：将动画刷新频率限制到约 20fps，减少无效重绘。
+  4) **仅视口内动画**：监听 `EffectiveViewportChanged`，滚出 `ScrollViewer` 视口即停止动画；回到视口再恢复。
+  5) **减少默认负载**：`MFAAvalonia/Views/Pages/CardCollection.axaml` 中将流光测试面板默认 `IsVisible="False"`。
+
 ### 自动抽卡触发机制
 
 在任务完成时添加了自动抽卡功能，当任务执行时间超过2分钟时自动触发抽卡奖励。
@@ -193,7 +237,7 @@ vec3 totalGlow = (iFlowColor * maskValue1 * iFlowIntensity + iSecFlowColor * mas
 #### 优化点
 
 - **零 GC 渲染**: 预分配了 Uniform 变量所需的 `float[]` 数组，避免在每秒 60 帧的渲染循环中产生任何内存分配。
-- **即时适配**: 系统支持在运行时动态切换遮罩。例如，更换为 `Mark_for_cardEffect.jpeg` 后，流光会立即呈现出烟雾般的丝滑质感。
+- **即时适配**: 系统支持在运行时动态切换遮罩。例如，更换为 `mark5.jpeg` 后，流光会立即呈现出烟雾般的丝滑质感。
 - **精简指令**: 移除了原有的 FBM 噪声、感知亮度计算等指令，大幅降低了移动端或低端 GPU 的发热量。
 
 ## 类说明
@@ -914,5 +958,5 @@ vec3 totalGlow = (iFlowColor * maskValue1 * iFlowIntensity + iSecFlowColor * mas
 #### 优化点
 
 - **零 GC 渲染**: 预分配了 Uniform 变量所需的 `float[]` 数组，避免在每秒 60 帧的渲染循环中产生任何内存分配。
-- **即时适配**: 系统支持在运行时动态切换遮罩。例如，更换为 `Mark_for_cardEffect.jpeg` 后，流光会立即呈现出烟雾般的丝滑质感。
+- **即时适配**: 系统支持在运行时动态切换遮罩。例如，更换为 `mark5.jpeg` 后，流光会立即呈现出烟雾般的丝滑质感。
 - **精简指令**: 移除了原有的 FBM 噪声、感知亮度计算等指令，大幅降低了移动端或低端 GPU 的发热量。
