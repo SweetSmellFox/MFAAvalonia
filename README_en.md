@@ -174,6 +174,51 @@ Task documentation (`doc`) supports the following formats:
 | `[u]...[/u]`              | <u>Underline</u>  | `[u]Underlined text[/u]`      |
 | `[s]...[/s]`              | ~~Strikethrough~~ | `[s]Strikethrough text[/s]`   |
 
+### 🎯 Focus Protocol
+
+`focus` is used to output key tips, toast, or logs during task execution. Both **legacy** and **new** protocols are supported in a node:
+
+- **Legacy**: fields `start / succeeded / failed / toast / aborted`
+- **New**: keys are **message types**, values are string or string array
+
+Message types follow MaaFramework node event constants, for example:
+- Recognition: `Node.Recognition.Starting` / `Node.Recognition.Succeeded` / `Node.Recognition.Failed`
+- Action: `Node.Action.Starting` / `Node.Action.Succeeded` / `Node.Action.Failed`
+
+The new protocol matches by message type and renders to logs.
+
+**Legacy example:**
+```jsonc
+{
+  "focus": {
+    "start": ["[color:cyan]Start[/color]: {task_name}"],
+    "succeeded": ["[color:green]Done[/color]"],
+    "failed": ["[color:red]Failed[/color]"],
+    "toast": ["Title", "Content"],
+    "aborted": true
+  }
+}
+```
+
+**Legacy field notes:**
+- `toast`: shows a Toast when array length >= 1; item 1 is title, item 2 is content (optional)
+- `aborted`: when `true`, triggers abort callback at `Starting` stage (used to interrupt task)
+
+**New protocol example:**
+```jsonc
+{
+  "focus": {
+    "Node.Action.Starting": "Start: {task_name}",
+    "Node.Action.Succeeded": "Done: {task_name}, [color:green]Cost: {cost}ms[/color]",
+    "Node.Action.Failed": "Reason: {reason}"
+  }
+}
+```
+
+**Placeholders & variables:**
+- `{key}` is replaced from `details`
+- Legacy logs/toast support counter variables like `{count}`, `{++count}`, `{count++}`, `{count+1}`
+
 ## 🧪 Advanced Features
 
 ### Advanced Field (Experimental)
