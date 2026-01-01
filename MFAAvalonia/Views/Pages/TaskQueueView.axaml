@@ -335,7 +335,7 @@
                               SelectedValueBinding="{Binding Name}" VerticalAlignment="Center">
                         <ComboBox.ItemTemplate>
                             <DataTemplate x:DataType="maa:MaaInterface+MaaInterfaceResource">
-                                <Grid ColumnDefinitions="Auto,*,40">
+                                <Grid ColumnDefinitions="Auto,*,Auto">
                                     <controls:DisplayIcon Grid.Column="0" IconSource="{Binding ResolvedIcon}"
                                                           IconSize="20" IsVisible="{Binding HasIcon}" Margin="0,0,6,0"
                                                           VerticalAlignment="Center" />
@@ -344,14 +344,14 @@
                                                Text="{Binding DisplayName}"
                                                TextTrimming="CharacterEllipsis"
                                                VerticalAlignment="Center" />
-                                    <controls:TooltipBlock Grid.Column="2" IsVisible="{Binding HasDescription}"
+                                    <controls:TooltipBlock MaxWidth="40"  Grid.Column="2" IsVisible="{Binding HasDescription}"
                                                            TooltipText="{Binding DisplayDescription}" />
                                 </Grid>
                             </DataTemplate>
                         </ComboBox.ItemTemplate>
                         <ComboBox.SelectionBoxItemTemplate>
                             <DataTemplate>
-                                <Grid ColumnDefinitions="Auto,*,40">
+                                <Grid ColumnDefinitions="Auto,*,Auto">
                                     <controls:DisplayIcon Grid.Column="0" IconSource="{Binding ResolvedIcon}"
                                                           IconSize="20" IsVisible="{Binding HasIcon}" Margin="0,0,6,0"
                                                           VerticalAlignment="Center" />
@@ -360,7 +360,7 @@
                                                Text="{Binding DisplayName}"
                                                TextTrimming="CharacterEllipsis"
                                                VerticalAlignment="Center" />
-                                    <controls:TooltipBlock Grid.Column="2" IsVisible="{Binding HasDescription}"
+                                    <controls:TooltipBlock MaxWidth="40"  Grid.Column="2" IsVisible="{Binding HasDescription}"
                                                            TooltipText="{Binding DisplayDescription}" />
                                 </Grid>
                             </DataTemplate>
@@ -387,7 +387,7 @@
                               MinWidth="120" VerticalAlignment="Center">
                         <ComboBox.ItemTemplate>
                             <DataTemplate x:DataType="maa:MaaInterface+MaaResourceController">
-                                <Grid ColumnDefinitions="Auto,*">
+                                <Grid ColumnDefinitions="Auto,*,Auto">
                                     <controls:DisplayIcon Grid.Column="0" IconSource="{Binding ResolvedIcon}"
                                                           IconSize="20" IsVisible="{Binding HasIcon}" Margin="0,0,6,0"
                                                           VerticalAlignment="Center" />
@@ -396,12 +396,14 @@
                                                Text="{Binding DisplayName}"
                                                TextTrimming="CharacterEllipsis"
                                                VerticalAlignment="Center" />
+                                    <controls:TooltipBlock MaxWidth="40" Grid.Column="2" IsVisible="{Binding HasDescription}"
+                                                           TooltipText="{Binding DisplayDescription}" />
                                 </Grid>
                             </DataTemplate>
                         </ComboBox.ItemTemplate>
                         <ComboBox.SelectionBoxItemTemplate>
                             <DataTemplate>
-                                <Grid ColumnDefinitions="Auto,*">
+                                <Grid ColumnDefinitions="Auto,*,Auto">
                                     <controls:DisplayIcon Grid.Column="0" IconSource="{Binding ResolvedIcon}"
                                                           IconSize="20" IsVisible="{Binding HasIcon}" Margin="0,0,6,0"
                                                           VerticalAlignment="Center" />
@@ -410,6 +412,8 @@
                                                Text="{Binding DisplayName}"
                                                TextTrimming="CharacterEllipsis"
                                                VerticalAlignment="Center" />
+                                    <controls:TooltipBlock MaxWidth="40"  Grid.Column="2" IsVisible="{Binding HasDescription}"
+                                                           TooltipText="{Binding DisplayDescription}" />
                                 </Grid>
                             </DataTemplate>
                         </ComboBox.SelectionBoxItemTemplate>
@@ -417,7 +421,8 @@
                 </Grid>
                 <!-- 右侧：连接设置 -->
                 <Grid x:Name="DeviceSelectorPanel" Grid.Column="5" HorizontalAlignment="Stretch"
-                      MinWidth="200">
+                      MinWidth="200"
+                      IsVisible="{calcBinding:Binding 'CurrentController != maa:MaaControllerTypes.PlayCover'}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
@@ -477,12 +482,21 @@
                             <avalonia1:FluentIcon Height="18" Icon="DesktopEdit" IconSize="Size16"
                                                   IconVariant="Regular" />
                         </Button>
+                        <Button Classes="BasicTight TaskQueueBasicTight"
+                                Command="{Binding EditPlayCoverCommand}"
+                                IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
+                                IsVisible="{calcBinding:Binding 'CurrentController == maa:MaaControllerTypes.PlayCover'}"
+                                Padding="0"
+                                ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.EditControllerConfiguration}}">
+                            <avalonia1:FluentIcon Height="18" Icon="DesktopEdit" IconSize="Size16"
+                                                  IconVariant="Regular" />
+                        </Button>
                         <Button Classes="BasicTight TaskQueueBasicTight SyncButton"
                                 ClipToBounds="False"
                                 Command="{Binding RefreshCommand}"
                                 IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
                                 Padding="0"
-                                Width="24"
+                                Width="24"  IsVisible="{calcBinding:Binding 'CurrentController != maa:MaaControllerTypes.PlayCover'}"
                                 Height="24"
                                 HorizontalContentAlignment="Center"
                                 VerticalContentAlignment="Center"
@@ -498,7 +512,6 @@
                             Content="{Binding IsConnected, Converter={StaticResource ConnectedConditionConverter}, Source={x:Static helper:Instances.TaskQueueViewModel}}" />
                     </StackPanel>
                 </Grid>
-
             </Grid>
         </suki:GlassCard>
 
@@ -1160,107 +1173,107 @@
                 </ScrollViewer>
             </dashboard:DashboardCard>
         </dashboard:DashboardCardGrid>
-
-        <!-- ~1~ 第二行：三栏布局 @1@ -->
-        <!-- ~1~ 竖屏模式下的任务设置 Popup @1@ -->
-        <Popup x:Name="TaskSettingsPopup"
-               IsLightDismissEnabled="True"
-               Placement="Center"
-               PlacementTarget="{Binding #MainGrid}"
-               IsOpen="{Binding IsSettingsPopupOpen, Source={x:Static helper:Instances.TaskQueueViewModel}, Mode=TwoWay}">
-            <Border CornerRadius="15"
-                    MaxWidth="450"
-                    MaxHeight="600"
-                    MinWidth="300"
-                    Margin="20" Background="{DynamicResource GlassBorderBrush}"
-                    BoxShadow="0 8 32 0 #40000000">
-                <suki:GlassCard IsAnimated="False" Padding="20">
-                    <suki:GlassCard.Resources>
-                        <suki:IfConditionConverter x:Key="PopupIfConditionConverter">
-                            <suki:IfConditionConverter.True>
-                                <Thickness>0,1,0,10</Thickness>
-                            </suki:IfConditionConverter.True>
-                            <suki:IfConditionConverter.False>
-                                <Thickness>0,10,0,10</Thickness>
-                            </suki:IfConditionConverter.False>
-                        </suki:IfConditionConverter>
-                    </suki:GlassCard.Resources>
-                    <ScrollViewer x:Name="PopupSettingsContent"
-                                  VerticalScrollBarVisibility="Auto"
-                                  OpacityMask="{Binding (ex:ScrollViewerExtensions.EdgeFadeMask), ElementName=PopupSettingsContent}"
-                                  ex:ScrollViewerExtensions.EnableEdgeFade="True">
-                        <Grid RowDefinitions="Auto,Auto">
-                            <suki:GroupBox Grid.Row="0" IsVisible="{Binding HasPopupSettings}"
-                                           SeparatorMargin="{Binding ShowSettings, Converter={StaticResource PopupIfConditionConverter}}">
-                                <suki:GroupBox.Header>
-                                    <DockPanel>
-                                        <Button Classes="Basic PanelToggleButton" DockPanel.Dock="Right"
-                                                Command="{Binding CloseSettingsPopupCommand, Source={x:Static helper:Instances.TaskQueueViewModel}}"
-                                                Padding="2" Margin="0,-5,0,0"
-                                                Width="24" Height="24" CornerRadius="4"
-                                                ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.ButtonClose}}">
-                                            <avalonia1:FluentIcon Icon="Dismiss" IconSize="Size16" />
-                                        </Button>
-                                        <TextBlock DockPanel.Dock="Left"
-                                                   FontSize="13"
-                                                   FontWeight="Bold" Foreground="{DynamicResource SukiText}"
-                                                   HorizontalAlignment="Left"
-                                                   Margin="2,0,0,0"
-                                                   Text="{markup:I18n {x:Static helper:LangKeys.TaskSettings}}"
-                                                   VerticalAlignment="Center" />
-                                        <StackPanel Margin="10,0,10,5" Orientation="Horizontal"
-                                                    HorizontalAlignment="Right"
-                                                    DockPanel.Dock="Right"
-                                                    IsVisible="{Binding ShowSettings}" Spacing="8">
-                                            <RadioButton FontSize="11" FontWeight="Bold"
-                                                         Classes="Inner" IsChecked="{Binding IsCommon}"
-                                                         GroupName="PopupSettingA">
-                                                <TextBlock
-                                                    Text="{markup:I18n {x:Static helper:LangKeys.CommonSetting}}" />
-                                            </RadioButton>
-                                            <RadioButton FontSize="11" FontWeight="Bold" Classes="Inner"
-                                                         GroupName="PopupSettingA"
-                                                         IsChecked="{calcBinding:Binding '!IsCommon'}">
-                                                <TextBlock
-                                                    Text="{markup:I18n {x:Static helper:LangKeys.AdvancedSetting}}" />
-                                            </RadioButton>
-                                        </StackPanel>
-                                    </DockPanel>
-                                </suki:GroupBox.Header>
-        
-                                <Grid>
-                                    <StackPanel IsVisible="{calcBinding:Binding 'IsCommon'}"
-                                                x:Name="PopupCommonOptionSettings" Orientation="Vertical" />
-                                    <StackPanel IsVisible="{calcBinding:Binding '!IsCommon'}"
-                                                x:Name="PopupAdvancedOptionSettings" Orientation="Vertical" />
-                                </Grid>
-                            </suki:GroupBox>
-                            <suki:GroupBox Grid.Row="1" Margin="0 10 0 0"
-                                           IsVisible="{Binding HasPopupIntroduction}">
-                                <suki:GroupBox.Header>
-                                    <TextBlock FontSize="13" FontWeight="Bold"
-                                               Text="{markup:I18n {x:Static helper:LangKeys.TaskDescription}}" />
-                                </suki:GroupBox.Header>
-                                <ScrollViewer>
-                                    <mdxaml:MarkdownScrollViewer x:Name="PopupIntroduction"
-                                                                 Markdown="{Binding PopupIntroductionContent}">
-                                        <mdxaml:MarkdownScrollViewer.Engine>
-                                            <ex:MarkdownExtension />
-                                        </mdxaml:MarkdownScrollViewer.Engine>
-                                        <mdxaml:MarkdownScrollViewer.Styles>
-                                            <StyleInclude
-                                                Source="avares://MFAAvalonia/Assets/Style/MdXamlDocStyle.axaml" />
-                                        </mdxaml:MarkdownScrollViewer.Styles>
-                                        <mdxaml:MarkdownScrollViewer.Plugins>
-                                            <StaticResource ResourceKey="MdXamlPlugin" />
-                                        </mdxaml:MarkdownScrollViewer.Plugins>
-                                    </mdxaml:MarkdownScrollViewer>
-                                </ScrollViewer>
-                            </suki:GroupBox>
-                        </Grid>
-                    </ScrollViewer>
-                </suki:GlassCard>
-            </Border>
-        </Popup>
+        <!-- -->
+        <!-- ~1~ ~2~ 第二行：三栏布局 @2@ @1@ -->
+        <!-- ~1~ ~2~ 竖屏模式下的任务设置 Popup @2@ @1@ -->
+        <!-- <Popup x:Name="TaskSettingsPopup" -->
+        <!--        IsLightDismissEnabled="True" -->
+        <!--        Placement="Center" -->
+        <!--        PlacementTarget="{Binding #MainGrid}" -->
+        <!--        IsOpen="{Binding IsSettingsPopupOpen, Source={x:Static helper:Instances.TaskQueueViewModel}, Mode=TwoWay}"> -->
+        <!--     <Border CornerRadius="15" -->
+        <!--             MaxWidth="450" -->
+        <!--             MaxHeight="600" -->
+        <!--             MinWidth="300" -->
+        <!--             Margin="20" Background="{DynamicResource GlassBorderBrush}" -->
+        <!--             BoxShadow="0 8 32 0 #40000000"> -->
+        <!--         <suki:GlassCard IsAnimated="False" Padding="20"> -->
+        <!--             <suki:GlassCard.Resources> -->
+        <!--                 <suki:IfConditionConverter x:Key="PopupIfConditionConverter"> -->
+        <!--                     <suki:IfConditionConverter.True> -->
+        <!--                         <Thickness>0,1,0,10</Thickness> -->
+        <!--                     </suki:IfConditionConverter.True> -->
+        <!--                     <suki:IfConditionConverter.False> -->
+        <!--                         <Thickness>0,10,0,10</Thickness> -->
+        <!--                     </suki:IfConditionConverter.False> -->
+        <!--                 </suki:IfConditionConverter> -->
+        <!--             </suki:GlassCard.Resources> -->
+        <!--             <ScrollViewer x:Name="PopupSettingsContent" -->
+        <!--                           VerticalScrollBarVisibility="Auto" -->
+        <!--                           OpacityMask="{Binding (ex:ScrollViewerExtensions.EdgeFadeMask), ElementName=PopupSettingsContent}" -->
+        <!--                           ex:ScrollViewerExtensions.EnableEdgeFade="True"> -->
+        <!--                 <Grid RowDefinitions="Auto,Auto"> -->
+        <!--                     <suki:GroupBox Grid.Row="0" IsVisible="{Binding HasPopupSettings}" -->
+        <!--                                    SeparatorMargin="{Binding ShowSettings, Converter={StaticResource PopupIfConditionConverter}}"> -->
+        <!--                         <suki:GroupBox.Header> -->
+        <!--                             <DockPanel> -->
+        <!--                                 <Button Classes="Basic PanelToggleButton" DockPanel.Dock="Right" -->
+        <!--                                         Command="{Binding CloseSettingsPopupCommand, Source={x:Static helper:Instances.TaskQueueViewModel}}" -->
+        <!--                                         Padding="2" Margin="0,-5,0,0" -->
+        <!--                                         Width="24" Height="24" CornerRadius="4" -->
+        <!--                                         ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.ButtonClose}}"> -->
+        <!--                                     <avalonia1:FluentIcon Icon="Dismiss" IconSize="Size16" /> -->
+        <!--                                 </Button> -->
+        <!--                                 <TextBlock DockPanel.Dock="Left" -->
+        <!--                                            FontSize="13" -->
+        <!--                                            FontWeight="Bold" Foreground="{DynamicResource SukiText}" -->
+        <!--                                            HorizontalAlignment="Left" -->
+        <!--                                            Margin="2,0,0,0" -->
+        <!--                                            Text="{markup:I18n {x:Static helper:LangKeys.TaskSettings}}" -->
+        <!--                                            VerticalAlignment="Center" /> -->
+        <!--                                 <StackPanel Margin="10,0,10,5" Orientation="Horizontal" -->
+        <!--                                             HorizontalAlignment="Right" -->
+        <!--                                             DockPanel.Dock="Right" -->
+        <!--                                             IsVisible="{Binding ShowSettings}" Spacing="8"> -->
+        <!--                                     <RadioButton FontSize="11" FontWeight="Bold" -->
+        <!--                                                  Classes="Inner" IsChecked="{Binding IsCommon}" -->
+        <!--                                                  GroupName="PopupSettingA"> -->
+        <!--                                         <TextBlock -->
+        <!--                                             Text="{markup:I18n {x:Static helper:LangKeys.CommonSetting}}" /> -->
+        <!--                                     </RadioButton> -->
+        <!--                                     <RadioButton FontSize="11" FontWeight="Bold" Classes="Inner" -->
+        <!--                                                  GroupName="PopupSettingA" -->
+        <!--                                                  IsChecked="{calcBinding:Binding '!IsCommon'}"> -->
+        <!--                                         <TextBlock -->
+        <!--                                             Text="{markup:I18n {x:Static helper:LangKeys.AdvancedSetting}}" /> -->
+        <!--                                     </RadioButton> -->
+        <!--                                 </StackPanel> -->
+        <!--                             </DockPanel> -->
+        <!--                         </suki:GroupBox.Header> -->
+        <!-- -->
+        <!--                         <Grid> -->
+        <!--                             <StackPanel IsVisible="{calcBinding:Binding 'IsCommon'}" -->
+        <!--                                         x:Name="PopupCommonOptionSettings" Orientation="Vertical" /> -->
+        <!--                             <StackPanel IsVisible="{calcBinding:Binding '!IsCommon'}" -->
+        <!--                                         x:Name="PopupAdvancedOptionSettings" Orientation="Vertical" /> -->
+        <!--                         </Grid> -->
+        <!--                     </suki:GroupBox> -->
+        <!--                     <suki:GroupBox Grid.Row="1" Margin="0 10 0 0" -->
+        <!--                                    IsVisible="{Binding HasPopupIntroduction}"> -->
+        <!--                         <suki:GroupBox.Header> -->
+        <!--                             <TextBlock FontSize="13" FontWeight="Bold" -->
+        <!--                                        Text="{markup:I18n {x:Static helper:LangKeys.TaskDescription}}" /> -->
+        <!--                         </suki:GroupBox.Header> -->
+        <!--                         <ScrollViewer> -->
+        <!--                             <mdxaml:MarkdownScrollViewer x:Name="PopupIntroduction" -->
+        <!--                                                          Markdown="{Binding PopupIntroductionContent}"> -->
+        <!--                                 <mdxaml:MarkdownScrollViewer.Engine> -->
+        <!--                                     <ex:MarkdownExtension /> -->
+        <!--                                 </mdxaml:MarkdownScrollViewer.Engine> -->
+        <!--                                 <mdxaml:MarkdownScrollViewer.Styles> -->
+        <!--                                     <StyleInclude -->
+        <!--                                         Source="avares://MFAAvalonia/Assets/Style/MdXamlDocStyle.axaml" /> -->
+        <!--                                 </mdxaml:MarkdownScrollViewer.Styles> -->
+        <!--                                 <mdxaml:MarkdownScrollViewer.Plugins> -->
+        <!--                                     <StaticResource ResourceKey="MdXamlPlugin" /> -->
+        <!--                                 </mdxaml:MarkdownScrollViewer.Plugins> -->
+        <!--                             </mdxaml:MarkdownScrollViewer> -->
+        <!--                         </ScrollViewer> -->
+        <!--                     </suki:GroupBox> -->
+        <!--                 </Grid> -->
+        <!--             </ScrollViewer> -->
+        <!--         </suki:GlassCard> -->
+        <!--     </Border> -->
+        <!-- </Popup> -->
     </Grid>
 </UserControl>

@@ -909,6 +909,9 @@
     <data name="TabWin32" xml:space="preserve">
         <value>桌面應用</value>
     </data>
+    <data name="TabPlayCover" xml:space="preserve">
+        <value>PlayCover</value>
+    </data>
     <data name="Task" xml:space="preserve">
         <value>任務</value>
     </data>

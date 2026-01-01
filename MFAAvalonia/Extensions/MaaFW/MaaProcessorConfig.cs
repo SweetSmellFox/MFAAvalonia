@@ -9,6 +9,8 @@ public class MaaFWConfiguration
 {
     public AdbDeviceCoreConfig AdbDevice { get; set; } = new();
     public DesktopWindowCoreConfig DesktopWindow { get; set; } = new();
+    
+    public PlayCoverCoreConfig  PlayCover { get; set; } = new();
 }
 
 /// <summary>
@@ -37,4 +39,14 @@ public class AdbDeviceCoreConfig
     public AdbInputMethods Input { get; set; } = AdbInputMethods.Default;
     public AdbScreencapMethods ScreenCap { get; set; } = AdbScreencapMethods.Default;
     public AdbDeviceInfo? Info { get; set; } = null;
+}
+
+/// <summary>
+/// PlayCover 设备核心配置
+/// </summary>
+public class PlayCoverCoreConfig
+{
+    public string Name { get; set; } = string.Empty;
+    public string AdbSerial { get; set; } = "";
+    public string UUID { get; set; } = "maa.playcover";
 }

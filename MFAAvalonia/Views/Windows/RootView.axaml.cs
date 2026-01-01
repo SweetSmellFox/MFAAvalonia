@@ -244,18 +244,40 @@ public partial class RootView : SukiWindow
                             }
                             // StartupScriptOnly 或 StartupSoftwareAndScript 时启动脚本 (onlyStart = false)
                             // StartupSoftware 时只启动游戏不启动脚本 (onlyStart = true)
-                            if (ConfigurationManager.Current.GetValue(ConfigurationKeys.RememberAdb, true))
+                            var controllerType = Instances.TaskQueueViewModel.CurrentController;
+                            if (controllerType == MaaControllerTypes.PlayCover)
+                            {
+                                Instances.TaskQueueViewModel.TryReadPlayCoverConfig();
+                            }
+                            else if (ConfigurationManager.Current.GetValue(ConfigurationKeys.RememberAdb, true))
+                            {
                                 Instances.TaskQueueViewModel.TryReadAdbDeviceFromConfig(false, false);
+                            }
                             var onlyStart = beforeTask.Equals("StartupSoftware", StringComparison.OrdinalIgnoreCase);
                             MaaProcessor.Instance.Start(onlyStart, checkUpdate: true);
                         }
                         else
                         {
-                            var isAdb = Instances.TaskQueueViewModel.CurrentController == MaaControllerTypes.Adb;
+                            var controllerType = Instances.TaskQueueViewModel.CurrentController;
+                            var controllerKey = controllerType switch
+                            {
+                                MaaControllerTypes.Adb => "Emulator",
+                                MaaControllerTypes.Win32 => "Window",
+                                MaaControllerTypes.PlayCover => "TabPlayCover",
+                                _ => "Window"
+                            };
 
-                            AddLogByKey("ConnectingTo", null, true, true, isAdb ? "Emulator" : "Window");
+                            AddLogByKey("ConnectingTo", null, true, true, controllerKey);
 
-                            Instances.TaskQueueViewModel.TryReadAdbDeviceFromConfig();
+                            if (controllerType == MaaControllerTypes.PlayCover)
+                            {
+                                Instances.TaskQueueViewModel.TryReadPlayCoverConfig();
+                            }
+                            else
+                            {
+                                Instances.TaskQueueViewModel.TryReadAdbDeviceFromConfig();
+                            }
+
                             MaaProcessor.Instance.TaskQueue.Enqueue(new MFATask
                             {
                                 Name = "连接检测",

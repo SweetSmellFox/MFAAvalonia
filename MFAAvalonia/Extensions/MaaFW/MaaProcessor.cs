@@ -290,7 +290,7 @@ public class MaaProcessor
         using var buffer = GetImage(MaaTasker?.Controller);
         return buffer?.ToBitmap();
     }
-    
+
     public Bitmap? GetLiveView(bool test = true)
     {
         if (test)
@@ -298,14 +298,14 @@ public class MaaProcessor
         using var buffer = GetImage(MaaTasker?.Controller, MaaTasker?.IsRunning != true);
         return buffer?.ToBitmap();
     }
-    
+
     public MaaImageBuffer? GetLiveViewBuffer(bool test = true)
     {
         if (test)
             TryConnectAsync(CancellationToken.None);
         return GetImage(MaaTasker?.Controller, MaaTasker?.IsRunning != true);
     }
-    
+
     /// <summary>
     /// 获取截图的MaaImageBuffer。调用者必须负责释放返回的 buffer。
     /// </summary>
@@ -436,7 +436,7 @@ public class MaaProcessor
             controller = await TaskManager.RunTaskAsync(() =>
             {
                 token.ThrowIfCancellationRequested();
-                return InitializeController(Instances.TaskQueueViewModel.CurrentController == MaaControllerTypes.Adb);
+                return InitializeController(Instances.TaskQueueViewModel.CurrentController);
             }, token: token, name: "控制器检测", catchException: true, shouldLog: false, handleError: exception => HandleInitializationError(exception,
                 LangKeys.ConnectingEmulatorOrWindow.ToLocalization()
                     .FormatWith(Instances.TaskQueueViewModel.CurrentController == MaaControllerTypes.Adb
@@ -1026,41 +1026,50 @@ public class MaaProcessor
         LoggerHelper.Error(e.ToString());
     }
 
-    private MaaController InitializeController(bool isAdb)
+    private MaaController InitializeController(MaaControllerTypes controllerType)
     {
         ConnectToMAA();
-        if (isAdb)
+
+        switch (controllerType)
         {
-            LoggerHelper.Info($"Name: {Config.AdbDevice.Name}");
-            LoggerHelper.Info($"AdbPath: {Config.AdbDevice.AdbPath}");
-            LoggerHelper.Info($"AdbSerial: {Config.AdbDevice.AdbSerial}");
-            LoggerHelper.Info($"ScreenCap: {Config.AdbDevice.ScreenCap}");
-            LoggerHelper.Info($"Input: {Config.AdbDevice.Input}");
-            LoggerHelper.Info($"Config: {Config.AdbDevice.Config}");
+            case MaaControllerTypes.Adb:
+                LoggerHelper.Info($"Name: {Config.AdbDevice.Name}");
+                LoggerHelper.Info($"AdbPath: {Config.AdbDevice.AdbPath}");
+                LoggerHelper.Info($"AdbSerial: {Config.AdbDevice.AdbSerial}");
+                LoggerHelper.Info($"ScreenCap: {Config.AdbDevice.ScreenCap}");
+                LoggerHelper.Info($"Input: {Config.AdbDevice.Input}");
+                LoggerHelper.Info($"Config: {Config.AdbDevice.Config}");
+
+                return new MaaAdbController(
+                    Config.AdbDevice.AdbPath,
+                    Config.AdbDevice.AdbSerial,
+                    Config.AdbDevice.ScreenCap, Config.AdbDevice.Input,
+                    !string.IsNullOrWhiteSpace(Config.AdbDevice.Config) ? Config.AdbDevice.Config : "{}",
+                    Path.Combine(AppContext.BaseDirectory, "libs", "MaaAgentBinary")
+                );
+
+            case MaaControllerTypes.PlayCover:
+                LoggerHelper.Info($"PlayCoverAdbSerial: {Config.PlayCover.AdbSerial}");
+                LoggerHelper.Info($"PlayCoverBundleId: {Config.PlayCover.UUID}");
+
+                return new MaaPlayCoverController(Config.PlayCover.AdbSerial, Config.PlayCover.UUID);
+
+            case MaaControllerTypes.Win32:
+            default:
+                LoggerHelper.Info($"Name: {Config.DesktopWindow.Name}");
+                LoggerHelper.Info($"HWnd: {Config.DesktopWindow.HWnd}");
+                LoggerHelper.Info($"ScreenCap: {Config.DesktopWindow.ScreenCap}");
+                LoggerHelper.Info($"MouseInput: {Config.DesktopWindow.Mouse}");
+                LoggerHelper.Info($"KeyboardInput: {Config.DesktopWindow.KeyBoard}");
+                LoggerHelper.Info($"Link: {Config.DesktopWindow.Link}");
+                LoggerHelper.Info($"Check: {Config.DesktopWindow.Check}");
+
+                return new MaaWin32Controller(
+                    Config.DesktopWindow.HWnd,
+                    Config.DesktopWindow.ScreenCap, Config.DesktopWindow.Mouse, Config.DesktopWindow.KeyBoard,
+                    Config.DesktopWindow.Link,
+                    Config.DesktopWindow.Check);
         }
-        else
-        {
-            LoggerHelper.Info($"Name: {Config.DesktopWindow.Name}");
-            LoggerHelper.Info($"HWnd: {Config.DesktopWindow.HWnd}");
-            LoggerHelper.Info($"ScreenCap: {Config.DesktopWindow.ScreenCap}");
-            LoggerHelper.Info($"MouseInput: {Config.DesktopWindow.Mouse}");
-            LoggerHelper.Info($"KeyboardInput: {Config.DesktopWindow.KeyBoard}");
-            LoggerHelper.Info($"Link: {Config.DesktopWindow.Link}");
-            LoggerHelper.Info($"Check: {Config.DesktopWindow.Check}");
-        }
-        return isAdb
-            ? new MaaAdbController(
-                Config.AdbDevice.AdbPath,
-                Config.AdbDevice.AdbSerial,
-                Config.AdbDevice.ScreenCap, Config.AdbDevice.Input,
-                !string.IsNullOrWhiteSpace(Config.AdbDevice.Config) ? Config.AdbDevice.Config : "{}",
-                Path.Combine(AppContext.BaseDirectory, "libs", "MaaAgentBinary")
-            )
-            : new MaaWin32Controller(
-                Config.DesktopWindow.HWnd,
-                Config.DesktopWindow.ScreenCap, Config.DesktopWindow.Mouse, Config.DesktopWindow.KeyBoard,
-                Config.DesktopWindow.Link,
-                Config.DesktopWindow.Check);
     }
 
     public static bool CheckInterface(out string Name, out string NameFallBack, out string Version, out string CustomTitle, out string CustomTitleFallBack)
@@ -1431,6 +1440,7 @@ public class MaaProcessor
         LoggerHelper.Info("Loading MAA Controller Configuration...");
         ConfigureMaaProcessorForADB();
         ConfigureMaaProcessorForWin32();
+        ConfigureMaaProcessorForPlayCover();
     }
 
     private void ConfigureMaaProcessorForADB()
@@ -1487,6 +1497,20 @@ public class MaaProcessor
 
             LoggerHelper.Info(
                 $"{LangKeys.MouseInput.ToLocalization()}:{win32MouseInputType},{LangKeys.KeyboardInput.ToLocalization()}:{win32KeyboardInputType},{LangKeys.AdbCaptureMode.ToLocalization()}{winScreenCapType}");
+        }
+    }
+
+    private void ConfigureMaaProcessorForPlayCover()
+    {
+        if (Instances.TaskQueueViewModel.CurrentController != MaaControllerTypes.PlayCover)
+            return;
+
+        var controller = Interface?.Controller?.FirstOrDefault(c =>
+            c.Type?.Equals("playcover", StringComparison.OrdinalIgnoreCase) == true);
+
+        if (!string.IsNullOrWhiteSpace(controller?.PlayCover?.Uuid))
+        {
+            Config.PlayCover.UUID = controller.PlayCover.Uuid;
         }
     }
 
@@ -2119,17 +2143,27 @@ public class MaaProcessor
     {
         var controllerType = Instances.TaskQueueViewModel.CurrentController;
         var isAdb = controllerType == MaaControllerTypes.Adb;
+        var isPlayCover = controllerType == MaaControllerTypes.PlayCover;
+        var targetKey = controllerType switch
+        {
+            MaaControllerTypes.Adb => LangKeys.Emulator,
+            MaaControllerTypes.Win32 => LangKeys.Window,
+            MaaControllerTypes.PlayCover => "TabPlayCover",
+            _ => LangKeys.Window
+        };
+
         if (showMessage)
-            RootView.AddLogByKeys(LangKeys.ConnectingTo, null, true, isAdb ? LangKeys.Emulator : LangKeys.Window);
+            RootView.AddLogByKeys(LangKeys.ConnectingTo, null, true, targetKey);
         else
-            ToastHelper.Info(LangKeys.Tip.ToLocalization(), LangKeys.ConnectingTo.ToLocalizationFormatted(true, isAdb ? LangKeys.Emulator : LangKeys.Window));
-        if (Instances.TaskQueueViewModel.CurrentDevice == null && Instances.ConnectSettingsUserControlModel.AutoDetectOnConnectionFailed)
+            ToastHelper.Info(LangKeys.Tip.ToLocalization(), LangKeys.ConnectingTo.ToLocalizationFormatted(true, targetKey));
+
+        if (!isPlayCover && Instances.TaskQueueViewModel.CurrentDevice == null && Instances.ConnectSettingsUserControlModel.AutoDetectOnConnectionFailed)
             Instances.TaskQueueViewModel.TryReadAdbDeviceFromConfig(false, true);
+
         var tuple = await TryConnectAsync(token);
         var connected = tuple.Item1;
-        var shouldRetry = tuple.Item3; // 获取是否应该重试的标志
+        var shouldRetry = tuple.Item3;
 
-        // 只有在应该重试的情况下才进行重连
         if (!connected && isAdb && !tuple.Item2 && shouldRetry)
         {
             connected = await HandleAdbConnectionAsync(token, showMessage);
@@ -2138,7 +2172,7 @@ public class MaaProcessor
         if (!connected)
         {
             if (!tuple.Item2 && shouldRetry)
-                HandleConnectionFailureAsync(isAdb, token);
+                HandleConnectionFailureAsync(controllerType, token);
             throw new Exception("Connection failed after all retries");
         }
 
@@ -2200,8 +2234,7 @@ public class MaaProcessor
         var tuple = await GetTaskerAndBoolAsync(token);
         return (tuple.Item1 is { IsInitialized: true }, tuple.Item2, tuple.Item3);
     }
-
-    private void HandleConnectionFailureAsync(bool isAdb, CancellationToken token)
+    private void HandleConnectionFailureAsync(MaaControllerTypes controllerType, CancellationToken token)
     {
         // 如果 token 已取消，不需要再调用 Stop，因为已经在其他地方处理了
         if (token.IsCancellationRequested)
@@ -2211,7 +2244,14 @@ public class MaaProcessor
         }
         RootView.AddLogByKey(LangKeys.ConnectFailed);
         Instances.TaskQueueViewModel.SetConnected(false);
-        ToastHelper.Warn(LangKeys.Warning_CannotConnect.ToLocalizationFormatted(true, isAdb ? LangKeys.Emulator : LangKeys.Window));
+        var targetKey = controllerType switch
+        {
+            MaaControllerTypes.Adb => LangKeys.Emulator,
+            MaaControllerTypes.Win32 => LangKeys.Window,
+            MaaControllerTypes.PlayCover => "TabPlayCover",
+            _ => LangKeys.Window
+        };
+        ToastHelper.Warn(LangKeys.Warning_CannotConnect.ToLocalizationFormatted(true, targetKey));
         Stop(MFATask.MFATaskStatus.STOPPED);
     }
 

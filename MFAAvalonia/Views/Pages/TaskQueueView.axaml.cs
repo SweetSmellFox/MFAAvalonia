@@ -355,56 +355,56 @@ public partial class TaskQueueView : UserControl
     /// </summary>
     private void SetOptionToPopup(DragItemViewModel dragItem)
     {
-        // 清空 Popup 中的内容
-        PopupCommonOptionSettings.Children.Clear();
-        PopupAdvancedOptionSettings.Children.Clear();
+        // // 清空 Popup 中的内容
+        // PopupCommonOptionSettings.Children.Clear();
+        // PopupAdvancedOptionSettings.Children.Clear();
+        //
+        // var cacheKey = dragItem.IsResourceOptionItem
+        //     ? $"ResourceOption_{dragItem.ResourceItem?.Name}_{dragItem.ResourceItem?.GetHashCode()}"
+        //     : $"{dragItem.Name}_{dragItem.InterfaceItem?.Entry}_{dragItem.InterfaceItem?.GetHashCode()}";
+        //
+        // var juggle = dragItem.InterfaceItem is { Advanced: { Count: > 0 }, Option: { Count: > 0 } };
+        // Instances.TaskQueueViewModel.ShowSettings = juggle;
+        //
+        // // 处理资源设置项的选项
+        // if (dragItem.IsResourceOptionItem)
+        // {
+        //     var hasOptions = dragItem.ResourceItem?.SelectOptions != null && dragItem.ResourceItem.SelectOptions.Count > 0;
+        //     if (hasOptions)
+        //     {
+        //         GenerateResourceOptionPanelContent(PopupCommonOptionSettings, dragItem);
+        //     }
+        // }
+        // else
+        // {
+        //     if (juggle)
+        //     {
+        //         GeneratePanelContent(PopupCommonOptionSettings, dragItem);
+        //     }
+        //     else
+        //     {
+        //         GenerateCommonPanelContent(PopupCommonOptionSettings, dragItem);
+        //         GenerateAdvancedPanelContent(PopupAdvancedOptionSettings, dragItem);
+        //     }
+        // }
+        //
+        // var introduction = IntroductionsCache.GetOrAdd(cacheKey, key =>
+        // {
+        //     if (dragItem.IsResourceOptionItem)
+        //     {
+        //         return ConvertCustomMarkup(dragItem.ResourceItem?.Description ?? string.Empty);
+        //     }
+        //     var input = GetTooltipText(dragItem.InterfaceItem?.Description, dragItem.InterfaceItem?.Document);
+        //     return ConvertCustomMarkup(input ?? string.Empty);
+        // });
 
-        var cacheKey = dragItem.IsResourceOptionItem
-            ? $"ResourceOption_{dragItem.ResourceItem?.Name}_{dragItem.ResourceItem?.GetHashCode()}"
-            : $"{dragItem.Name}_{dragItem.InterfaceItem?.Entry}_{dragItem.InterfaceItem?.GetHashCode()}";
-
-        var juggle = dragItem.InterfaceItem is { Advanced: { Count: > 0 }, Option: { Count: > 0 } };
-        Instances.TaskQueueViewModel.ShowSettings = juggle;
-
-        // 处理资源设置项的选项
-        if (dragItem.IsResourceOptionItem)
-        {
-            var hasOptions = dragItem.ResourceItem?.SelectOptions != null && dragItem.ResourceItem.SelectOptions.Count > 0;
-            if (hasOptions)
-            {
-                GenerateResourceOptionPanelContent(PopupCommonOptionSettings, dragItem);
-            }
-        }
-        else
-        {
-            if (juggle)
-            {
-                GeneratePanelContent(PopupCommonOptionSettings, dragItem);
-            }
-            else
-            {
-                GenerateCommonPanelContent(PopupCommonOptionSettings, dragItem);
-                GenerateAdvancedPanelContent(PopupAdvancedOptionSettings, dragItem);
-            }
-        }
-
-        var introduction = IntroductionsCache.GetOrAdd(cacheKey, key =>
-        {
-            if (dragItem.IsResourceOptionItem)
-            {
-                return ConvertCustomMarkup(dragItem.ResourceItem?.Description ?? string.Empty);
-            }
-            var input = GetTooltipText(dragItem.InterfaceItem?.Description, dragItem.InterfaceItem?.Document);
-            return ConvertCustomMarkup(input ?? string.Empty);
-        });
-
-        Instances.TaskQueueViewModel.HasPopupIntroduction = !string.IsNullOrWhiteSpace(introduction);
-        Instances.TaskQueueViewModel.PopupIntroductionContent = introduction;
-
-        // 检查是否有设置选项
-        bool hasSettings = PopupCommonOptionSettings.Children.Count > 0
-            || PopupAdvancedOptionSettings.Children.Count > 0;
-        Instances.TaskQueueViewModel.HasPopupSettings = hasSettings;
+        // Instances.TaskQueueViewModel.HasPopupIntroduction = !string.IsNullOrWhiteSpace(introduction);
+        // Instances.TaskQueueViewModel.PopupIntroductionContent = introduction;
+        //
+        // // 检查是否有设置选项
+        // bool hasSettings = PopupCommonOptionSettings.Children.Count > 0
+        //     || PopupAdvancedOptionSettings.Children.Count > 0;
+        // Instances.TaskQueueViewModel.HasPopupSettings = hasSettings;
 
     }
 

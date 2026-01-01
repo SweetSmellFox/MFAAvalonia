@@ -57,6 +57,7 @@ public static class ConfigurationKeys
     public const string RetryOnDisconnected = "RetryOnDisconnected";
     public const string AutoDetectOnConnectionFailed = "AutoDetectOnConnectionFailed";
     public const string AdbDevice = "AdbDevice";
+    public const string PlayCoverConfig = "PlayCoverConfig";
     public const string CurrentController = "CurrentController";
 
     #endregion

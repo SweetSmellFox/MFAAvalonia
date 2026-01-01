@@ -147,6 +147,40 @@ MaaFramework project templates come with MFAAvalonia pre-configured.
 }
 ```
 
+### Controller Configuration Details
+
+`controller` is an array of objects for preset controllers:
+
+| Field | Type | Description |
+|:--|:--|:--|
+| `name` | string | Unique identifier, used as controller ID |
+| `label` | string | Display name, supports i18n (prefixed with `$`). Falls back to `name` |
+| `description` | string | Detailed description, supports file path/URL/inline Markdown, supports i18n |
+| `icon` | string | Icon path relative to project root, supports i18n |
+| `type` | `'Adb' \| 'Win32' \| 'PlayCover'` | Controller type |
+| `display_short_side` | number | Target short side, default 720. Mutually exclusive with `display_long_side` / `display_raw` |
+| `display_long_side` | number | Target long side. Mutually exclusive with `display_short_side` / `display_raw` |
+| `display_raw` | boolean | Use raw resolution. Mutually exclusive with scaled options |
+| `adb` | object | Adb controller settings (input/screencap auto-detected in V2) |
+| `win32` | object | Win32 controller settings |
+| `playcover` | object | PlayCover controller settings (macOS only) |
+
+`win32` fields:
+
+| Field | Type | Description |
+|:--|:--|:--|
+| `class_regex` | string | Optional. Window class regex |
+| `window_regex` | string | Optional. Window title regex |
+| `mouse` | string | Optional. Mouse control method |
+| `keyboard` | string | Optional. Keyboard control method |
+| `screencap` | string | Optional. Screenshot method |
+
+`playcover` fields:
+
+| Field | Type | Description |
+|:--|:--|:--|
+| `uuid` | string | Optional. Target app bundle identifier, default `maa.playcover` |
+
 ### Task Configuration Details
 
 | Field           |  Type   | Default | Description                             |

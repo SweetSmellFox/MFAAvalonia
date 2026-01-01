@@ -174,6 +174,7 @@ public partial class App : Application
             // Add additional views
             .AddView<AddTaskDialogView, AddTaskDialogViewModel>(services)
             .AddView<AdbEditorDialogView, AdbEditorDialogViewModel>(services)
+            .AddView<PlayCoverEditorDialog, PlayCoverEditorDialogViewModel>(services)
             .AddView<MultiInstanceEditorDialogView, MultiInstanceEditorDialogViewModel>(services)
             .AddView<CustomThemeDialogView, CustomThemeDialogViewModel>(services)
             .AddView<ConnectSettingsUserControl, ConnectSettingsUserControlModel>(services)
