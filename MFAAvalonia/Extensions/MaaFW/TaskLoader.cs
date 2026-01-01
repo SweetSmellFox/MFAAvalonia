@@ -319,7 +319,6 @@ public class TaskLoader(MaaInterface? maaInterface)
             oldItem.InterfaceItem.Label = newItem.Label;
             oldItem.InterfaceItem.PipelineOverride = newItem.PipelineOverride;
             oldItem.InterfaceItem.Description = newItem.Description;
-            oldItem.InterfaceItem.Description = newItem.Description;
             oldItem.InterfaceItem.Document = newItem.Document;
             oldItem.InterfaceItem.Repeatable = newItem.Repeatable;
             oldItem.InterfaceItem.Resource = newItem.Resource;
@@ -329,6 +328,11 @@ public class TaskLoader(MaaInterface? maaInterface)
             oldItem.InterfaceItem.InitializeIcon();
             oldItem.ResolvedIcon = oldItem.InterfaceItem.ResolvedIcon;
             oldItem.HasIcon = oldItem.InterfaceItem.HasIcon;
+    
+            // 更新显示名称
+            oldItem.Name = LanguageHelper.GetLocalizedDisplayName(
+                oldItem.InterfaceItem.DisplayName,
+                oldItem.InterfaceItem.Name ?? LangKeys.Unnamed);
     
             UpdateAdvancedOptions(oldItem, newItem);
             UpdateOptions(oldItem, newItem);

@@ -308,6 +308,7 @@ public static class LangKeys
 	public static readonly string SwitchLanguage = "SwitchLanguage";
 	public static readonly string TabADB = "TabADB";
 	public static readonly string TabWin32 = "TabWin32";
+	public static readonly string TabPlayCover = "TabPlayCover";
 	public static readonly string Task = "Task";
 	public static readonly string TaskAbandoned = "TaskAbandoned";
 	public static readonly string TaskAllCompleted = "TaskAllCompleted";
@@ -477,8 +478,8 @@ public static class LangKeys
 	public static readonly string ResourceNotSupportController = "ResourceNotSupportController";
 	public static readonly string ResourcePresetConfig = "ResourcePresetConfig";
 	public static readonly string UseFingerprintMatching = "UseFingerprintMatching";
-			public static readonly string LiveView = "LiveView";
-				public static readonly string LiveViewRefreshRate = "LiveViewRefreshRate";
-				public static readonly string Running = "Running";
-		public static readonly string CurrentTask = "CurrentTask";
-	}
+	public static readonly string LiveView = "LiveView";
+	public static readonly string Running = "Running";
+	public static readonly string CurrentTask = "CurrentTask";
+	public static readonly string LiveViewRefreshRate = "LiveViewRefreshRate";
+}

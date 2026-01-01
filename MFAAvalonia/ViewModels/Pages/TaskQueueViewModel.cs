@@ -1112,7 +1112,7 @@ public partial class TaskQueueViewModel : ViewModelBase
         {
             MaaControllerTypes.Adb => LangKeys.Emulator,
             MaaControllerTypes.Win32 => LangKeys.Window,
-            MaaControllerTypes.PlayCover => "PlayCover",
+            MaaControllerTypes.PlayCover => LangKeys.TabPlayCover,
             _ => LangKeys.Window
         };
         ToastHelper.Warn(string.Format(
