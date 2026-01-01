@@ -21,10 +21,28 @@ public static class ScrollViewerExtensions
         AvaloniaProperty.RegisterAttached<Control, bool>(
             "AutoScroll", typeof(ScrollViewerExtensions), false);
 
+    // 边缘渐隐控制
+    public static readonly AttachedProperty<bool> EnableEdgeFadeProperty =
+        AvaloniaProperty.RegisterAttached<Control, bool>(
+            "EnableEdgeFade", typeof(ScrollViewerExtensions), false);
+
+    public static readonly AttachedProperty<bool> ShowTopFadeProperty =
+        AvaloniaProperty.RegisterAttached<ScrollViewer, bool>(
+            "ShowTopFade", typeof(ScrollViewerExtensions), false);
+
+    public static readonly AttachedProperty<bool> ShowBottomFadeProperty =
+        AvaloniaProperty.RegisterAttached<ScrollViewer, bool>(
+            "ShowBottomFade", typeof(ScrollViewerExtensions), false);
+
+    private static readonly AttachedProperty<EdgeFadeState?> EdgeFadeStateProperty =
+        AvaloniaProperty.RegisterAttached<ScrollViewer, EdgeFadeState?>(
+            "EdgeFadeState", typeof(ScrollViewerExtensions), null);
+
     static ScrollViewerExtensions()
     {
         PanningModeProperty.Changed.AddClassHandler<Control>(OnPanningModeChanged);
         AutoScrollProperty.Changed.AddClassHandler<Control>(OnAutoScrollChanged);
+        EnableEdgeFadeProperty.Changed.AddClassHandler<Control>(OnEnableEdgeFadeChanged);
     }
 
     #region 属性设置器
@@ -40,6 +58,24 @@ public static class ScrollViewerExtensions
 
     public static bool GetAutoScroll(Control element) =>
         element.GetValue(AutoScrollProperty);
+
+    public static void SetEnableEdgeFade(Control element, bool value) =>
+        element.SetValue(EnableEdgeFadeProperty, value);
+
+    public static bool GetEnableEdgeFade(Control element) =>
+        element.GetValue(EnableEdgeFadeProperty);
+
+    public static void SetShowTopFade(ScrollViewer element, bool value) =>
+        element.SetValue(ShowTopFadeProperty, value);
+
+    public static bool GetShowTopFade(ScrollViewer element) =>
+        element.GetValue(ShowTopFadeProperty);
+
+    public static void SetShowBottomFade(ScrollViewer element, bool value) =>
+        element.SetValue(ShowBottomFadeProperty, value);
+
+    public static bool GetShowBottomFade(ScrollViewer element) =>
+        element.GetValue(ShowBottomFadeProperty);
 
     #endregion
 
@@ -159,6 +195,20 @@ public static class ScrollViewerExtensions
         }
     }
 
+    private static void OnEnableEdgeFadeChanged(Control control, AvaloniaPropertyChangedEventArgs args)
+    {
+        var enabled = args.NewValue is true;
+
+        if (control is ScrollViewer scrollViewer)
+        {
+            SetupEdgeFade(scrollViewer, enabled);
+        }
+        else
+        {
+            WithScrollViewer(control, sv => SetupEdgeFade(sv, enabled));
+        }
+    }
+
     private static void SetupScrollViewerAutoScroll(ScrollViewer scrollViewer, bool alwaysScrollToEnd)
     {
         // 获取或创建状态对象
@@ -265,6 +315,58 @@ public static class ScrollViewerExtensions
         }
     }
 
+    private static void SetupEdgeFade(ScrollViewer scrollViewer, bool enabled)
+    {
+        var state = scrollViewer.GetValue(EdgeFadeStateProperty);
+
+        if (enabled)
+        {
+            if (state == null)
+            {
+                state = new EdgeFadeState();
+                scrollViewer.SetValue(EdgeFadeStateProperty, state);
+            }
+
+            scrollViewer.ScrollChanged -= OnEdgeFadeScrollChanged;
+            scrollViewer.ScrollChanged += OnEdgeFadeScrollChanged;
+            UpdateEdgeFade(scrollViewer);
+        }
+        else
+        {
+            scrollViewer.ScrollChanged -= OnEdgeFadeScrollChanged;
+            scrollViewer.SetValue(EdgeFadeStateProperty, null);
+            SetShowTopFade(scrollViewer, false);
+            SetShowBottomFade(scrollViewer, false);
+        }
+    }
+
+    private static void OnEdgeFadeScrollChanged(object? sender, ScrollChangedEventArgs e)
+    {
+        if (sender is not ScrollViewer scrollViewer)
+            return;
+
+        if (scrollViewer.GetValue(EdgeFadeStateProperty) == null)
+            return;
+
+        UpdateEdgeFade(scrollViewer);
+    }
+
+    private static void UpdateEdgeFade(ScrollViewer scrollViewer)
+    {
+        var max = scrollViewer.ScrollBarMaximum.Y;
+        var offset = scrollViewer.Offset.Y;
+
+        if (max <= 0.5)
+        {
+            SetShowTopFade(scrollViewer, false);
+            SetShowBottomFade(scrollViewer, false);
+            return;
+        }
+
+        SetShowTopFade(scrollViewer, offset > 0.5);
+        SetShowBottomFade(scrollViewer, offset < max - 0.5);
+    }
+
     #endregion
 
     /// <summary>
@@ -281,6 +383,10 @@ public static class ScrollViewerExtensions
     internal class ListBoxAutoScrollState
     {
         public NotifyCollectionChangedEventHandler? Handler { get; set; }
+    }
+
+    internal class EdgeFadeState
+    {
     }
 
     public enum PanningMode
