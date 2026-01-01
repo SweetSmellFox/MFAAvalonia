@@ -1099,7 +1099,7 @@ public partial class TaskQueueViewModel : ViewModelBase
         LoggerHelper.Error(ex);
     }
 
-    public void TryReadAdbDeviceFromConfig(bool InTask = true, bool refresh = false)
+    public void TryReadAdbDeviceFromConfig(bool inTask = true, bool refresh = false)
     {
         if (refresh
             || CurrentController != MaaControllerTypes.Adb
@@ -1110,7 +1110,7 @@ public partial class TaskQueueViewModel : ViewModelBase
         {
             _refreshCancellationTokenSource?.Cancel();
             _refreshCancellationTokenSource = new CancellationTokenSource();
-            if (InTask)
+            if (inTask)
                 TaskManager.RunTask(() => AutoDetectDevice(_refreshCancellationTokenSource.Token), name: "刷新设备");
             else
                 AutoDetectDevice(_refreshCancellationTokenSource.Token);
@@ -1157,7 +1157,7 @@ public partial class TaskQueueViewModel : ViewModelBase
                 LoggerHelper.Info("No matching device found by fingerprint, performing auto detection.");
                 _refreshCancellationTokenSource?.Cancel();
                 _refreshCancellationTokenSource = new CancellationTokenSource();
-                if (InTask)
+                if (inTask)
                     TaskManager.RunTask(() => AutoDetectDevice(_refreshCancellationTokenSource.Token), name: "刷新设备");
                 else
                     AutoDetectDevice(_refreshCancellationTokenSource.Token);

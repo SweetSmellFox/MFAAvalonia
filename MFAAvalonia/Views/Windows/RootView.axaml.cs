@@ -244,6 +244,8 @@ public partial class RootView : SukiWindow
                             }
                             // StartupScriptOnly 或 StartupSoftwareAndScript 时启动脚本 (onlyStart = false)
                             // StartupSoftware 时只启动游戏不启动脚本 (onlyStart = true)
+                            if (ConfigurationManager.Current.GetValue(ConfigurationKeys.RememberAdb, true))
+                                Instances.TaskQueueViewModel.TryReadAdbDeviceFromConfig(false, false);
                             var onlyStart = beforeTask.Equals("StartupSoftware", StringComparison.OrdinalIgnoreCase);
                             MaaProcessor.Instance.Start(onlyStart, checkUpdate: true);
                         }
@@ -617,9 +619,9 @@ public partial class RootView : SukiWindow
         UpdateCachedWindowState();
         ExecuteActualSave();
     }
-    
+
     private void ResourceInfo_OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-       Instances.RootViewModel.TempResourceUpdateAction?.Invoke();
+        Instances.RootViewModel.TempResourceUpdateAction?.Invoke();
     }
 }
