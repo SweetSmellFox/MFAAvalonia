@@ -112,7 +112,7 @@
         <Border Grid.Row="1" 
                 Background="#2D2D30" 
                 BorderBrush="#3F3F46" 
-                IsVisible="False"
+                IsVisible="True"
                 BorderThickness="0,1,0,0"
                 Padding="10">
             <Grid>
@@ -138,7 +138,11 @@
                             x:Name="GlowPreviewRenderer"
                             Width="200" 
                             Height="300"
-                            IsGlowEnabled="True"/>
+                            IsGlowEnabled="True">
+                            <local:CardGlowRenderer.MaskSource>
+                                <Bitmap>avares://MFAAvalonia/Assets/CardImg/mark2.jpg</Bitmap>
+                            </local:CardGlowRenderer.MaskSource>
+                        </local:CardGlowRenderer>
                     </StackPanel>
                 </Border>
                 
@@ -148,7 +152,44 @@
                         CornerRadius="8"
                         Padding="15">
                     <StackPanel>
-                        <TextBlock Text="流光预设选择" 
+                        <TextBlock Text="稀有度效果预览 (实时联动)" 
+                                   Foreground="Gold" 
+                                   FontWeight="Bold"
+                                   FontSize="14"
+                                   Margin="0,0,0,10"/>
+                        
+                        <!-- 稀有度按钮 -->
+                        <WrapPanel Orientation="Horizontal" Margin="0,0,0,15">
+                            <Button Content="普通 (Normal)" 
+                                    Click="OnRarityPreviewClick" 
+                                    Tag="Normal"
+                                    Margin="5" 
+                                    Padding="15,8"
+                                    Background="#555555"/>
+                            <Button Content="稀有 (Rare)" 
+                                    Click="OnRarityPreviewClick" 
+                                    Tag="Rare"
+                                    Margin="5" 
+                                    Padding="15,8"
+                                    Background="#4169E1"/>
+                            <Button Content="史诗 (Epic)" 
+                                    Click="OnRarityPreviewClick" 
+                                    Tag="Epic"
+                                    Margin="5" 
+                                    Padding="15,8"
+                                    Background="#9932CC"/>
+                            <Button Content="传说 (Legendary)" 
+                                    Click="OnRarityPreviewClick" 
+                                    Tag="Legendary"
+                                    Margin="5" 
+                                    Padding="15,8"
+                                    Background="#FFD700"
+                                    Foreground="Black"/>
+                        </WrapPanel>
+
+                        <Separator Background="#33FFFFFF" Height="1" Margin="0,5,0,15"/>
+
+                        <TextBlock Text="底层预设调试" 
                                    Foreground="White" 
                                    FontWeight="Bold"
                                    FontSize="14"

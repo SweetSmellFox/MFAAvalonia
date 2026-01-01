@@ -102,8 +102,6 @@ public partial class CardGlowSample : UserControl
             1 => GlowPreset.GoldRare,
             2 => GlowPreset.BlueRare,
             3 => GlowPreset.PurpleLegend,
-            4 => GlowPreset.RainbowHolo,
-            5 => GlowPreset.Subtle,
             _ => GlowPreset.Default
         };
 

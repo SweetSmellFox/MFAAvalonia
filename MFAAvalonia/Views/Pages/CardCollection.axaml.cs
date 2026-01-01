@@ -255,6 +255,37 @@ public partial class CardCollection : UserControl
     }
 
     /// <summary>
+    /// 稀有度预览按钮点击事件
+    /// </summary>
+    private void OnRarityPreviewClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Button button && button.Tag is string rarityName)
+        {
+            if (Enum.TryParse<CardRarity>(rarityName, out var rarity))
+            {
+                // 创建一个临时的 CardViewModel 来获取对应稀有度的配置
+                var tempBase = new CardBase { Rarity = rarity, EnableGlow = rarity != CardRarity.None && rarity != CardRarity.Normal };
+                var tempVm = new CardViewModel(tempBase);
+                
+                if (tempVm.GlowConfig != null)
+                {
+                    GlowPreviewRenderer.Config = tempVm.GlowConfig;
+                    GlowPreviewRenderer.IsGlowEnabled = true;
+                    // 强制刷新渲染以确保配置立即生效
+                    GlowPreviewRenderer.ForceRefresh();
+                }
+                else
+                {
+                    GlowPreviewRenderer.IsGlowEnabled = false;
+                }
+                
+                CurrentPresetText.Text = $"当前稀有度: {rarityName}";
+                Console.WriteLine($"[CardCollection] Previewed rarity: {rarityName}");
+            }
+        }
+    }
+
+    /// <summary>
     /// 预设按钮点击事件
     /// </summary>
     private void OnPresetClick(object? sender, RoutedEventArgs e)
@@ -267,8 +298,6 @@ public partial class CardCollection : UserControl
                 "GoldRare" => GlowPreset.GoldRare,
                 "BlueRare" => GlowPreset.BlueRare,
                 "PurpleLegend" => GlowPreset.PurpleLegend,
-                "RainbowHolo" => GlowPreset.RainbowHolo,
-                "Subtle" => GlowPreset.Subtle,
                 _ => GlowPreset.Default
             };
 

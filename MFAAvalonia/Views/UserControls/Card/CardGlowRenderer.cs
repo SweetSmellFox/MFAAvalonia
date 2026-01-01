@@ -8,6 +8,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Rendering.Composition;
 using Avalonia.Skia;
+using MFAAvalonia.Utilities.CardClass;
 using SkiaSharp;
 
 namespace MFAAvalonia.Views.UserControls.Card;
@@ -32,6 +33,12 @@ public class CardGlowRenderer : Control
         AvaloniaProperty.Register<CardGlowRenderer, IImage?>(nameof(Source));
 
     /// <summary>
+    /// 流光遮罩纹理属性
+    /// </summary>
+    public static readonly StyledProperty<IImage?> MaskSourceProperty =
+        AvaloniaProperty.Register<CardGlowRenderer, IImage?>(nameof(MaskSource));
+
+    /// <summary>
     /// 流光配置属性
     /// </summary>
     public static readonly StyledProperty<CardGlowConfig> ConfigProperty =
@@ -52,6 +59,15 @@ public class CardGlowRenderer : Control
     {
         get => GetValue(SourceProperty);
         set => SetValue(SourceProperty, value);
+    }
+
+    /// <summary>
+    /// 流光遮罩纹理
+    /// </summary>
+    public IImage? MaskSource
+    {
+        get => GetValue(MaskSourceProperty);
+        set => SetValue(MaskSourceProperty, value);
     }
 
     /// <summary>
@@ -106,237 +122,54 @@ public class CardGlowRenderer : Control
     private const string GlowShaderCode = @"
 // === 自定义Uniform变量 ===
 uniform shader iImage;              // 卡牌原始图像
+uniform shader iMask;               // 流光遮罩图像
 
-// 图像尺寸 (用于正确采样)
+// 图像尺寸
 uniform vec2 iImageSize;            // 原始图像的实际尺寸
-
-// 亮度检测参数
-uniform float iBrightnessThreshold;
-uniform float iSaturationThreshold;
-uniform float iBrightnessWeight;
-uniform float iSaturationWeight;
+uniform vec2 iMaskSize;             // 遮罩图像的实际尺寸
 
 // 流光效果参数
 uniform float iFlowSpeed;
-uniform float iFlowWidth;
+uniform float iFlowWidth;           // 遮罩缩放倍率
 uniform float iFlowAngle;
 uniform float iFlowIntensity;
 uniform float iSecFlowSpeedMult;
-uniform float iSecFlowWidthMult;
 uniform float iSecFlowIntensity;
 
 // 闪烁效果参数
 uniform float iEnableSparkle;
 uniform float iSparkleFreq;
 uniform float iSparkleIntensity;
-uniform float iSparkleDensity;
-
-// 边缘辉光参数
-uniform float iEnableEdgeGlow;
-uniform float iEdgeGlowWidth;
-uniform float iEdgeGlowIntensity;
 
 // 颜色参数
 uniform vec3 iFlowColor;
 uniform vec3 iSecFlowColor;
 uniform vec3 iSparkleColor;
-uniform vec3 iEdgeGlowColor;
 
 // 混合参数
 uniform float iBlendMode;
 uniform float iOverallIntensity;
 
-// 色相加权参数
-uniform float iEnableHueWeight;
-uniform float iGoldHueWeight;
-uniform float iBlueHueWeight;
-
 // ============================================================================
 // 辅助函数
 // ============================================================================
-
-// RGB转HSV - 用于色相分析
-vec3 rgb2hsv(vec3 c) {
-    vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
-    vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
-    vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
-    
-    float d = q.x - min(q.w, q.y);
-    float e = 1.0e-10;
-    return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
-}
 
 // 计算感知亮度 (ITU-R BT.601标准)
 float getLuminance(vec3 color) {
     return dot(color, vec3(0.299, 0.587, 0.114));
 }
 
-// 高质量伪随机数生成器
-float hash(vec2 p) {
-    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
-    p3 += dot(p3, p3.yzx + 33.33);
-    return fract((p3.x + p3.y) * p3.z);
-}
-
-// 高质量2D噪声 - 使用quintic插值，更平滑
-float smoothNoise(vec2 p) {
-    vec2 i = floor(p);
-    vec2 f = fract(p);
-    
-    // 使用quintic插值 (6t^5 - 15t^4 + 10t^3) 获得更平滑的过渡
-    vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
-    
-    float a = hash(i);
-    float b = hash(i + vec2(1.0, 0.0));
-    float c = hash(i + vec2(0.0, 1.0));
-    float d = hash(i + vec2(1.0, 1.0));
-    
-    return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
-}
-
-// 分形布朗运动噪声 (FBM) - 3层叠加产生更自然的效果
-// 注意: SKSL不支持动态循环，所以展开为固定3层
-float fbm3(vec2 p) {
-    float value = 0.0;
-    // 第1层
-    value += 0.5 * smoothNoise(p);
-    // 第2层
-    value += 0.25 * smoothNoise(p * 2.0);
-    // 第3层
-    value += 0.125 * smoothNoise(p * 4.0);
-    return value;
-}
-
-// 计算发光遮罩值 - 核心亮度检测算法
-float calculateGlowMask(vec3 color) {
-    vec3 hsv = rgb2hsv(color);
-    float hue = hsv.x;
-    float saturation = hsv.y;
-    float luminance = getLuminance(color);
-    
-    // 基础发光判断: 使用smoothstep实现软阈值
-    float brightnessScore = smoothstep(max(0.0, iBrightnessThreshold - 0.15), iBrightnessThreshold + 0.15, luminance);
-    float saturationScore = smoothstep(max(0.0, iSaturationThreshold - 0.1), iSaturationThreshold + 0.1, saturation);
-    
-    // 加权组合
-    float baseScore = brightnessScore * iBrightnessWeight + saturationScore * iSaturationWeight;
-    
-    // 特殊色相加权 - 对游戏卡牌常见的发光颜色额外加权
-    float hueBonus = 0.0;
-    if (iEnableHueWeight > 0.5) {
-        // 金色/黄色区域 (hue约0.1-0.2)
-        float goldHue = smoothstep(0.05, 0.1, hue) * smoothstep(0.25, 0.15, hue);
-        hueBonus += goldHue * iGoldHueWeight * saturation;
-        
-        // 橙色区域 (hue约0.0-0.1)
-        float orangeHue = smoothstep(0.0, 0.05, hue) * smoothstep(0.12, 0.08, hue);
-        hueBonus += orangeHue * iGoldHueWeight * 0.8 * saturation;
-        
-        // 蓝色区域 (hue约0.55-0.7)
-        float blueHue = smoothstep(0.5, 0.55, hue) * smoothstep(0.75, 0.7, hue);
-        hueBonus += blueHue * iBlueHueWeight * saturation;
-        
-        // 紫色区域 (hue约0.7-0.85)
-        float purpleHue = smoothstep(0.65, 0.7, hue) * smoothstep(0.9, 0.85, hue);
-        hueBonus += purpleHue * iBlueHueWeight * 0.9 * saturation;
-    }
-    
-    float mask = clamp(baseScore + hueBonus, 0.0, 1.0);
-    
-    // 对高亮度区域额外加权 (白色/高光区域)
-    if (luminance > 0.7) {
-        mask = max(mask, (luminance - 0.5) * 1.5);
-    }
-    
-    // 确保有最小的基础发光（让效果更明显）
-    // 使用平滑的基础发光，避免全黑区域
-    mask = max(mask, luminance * 0.2);
-    
-    return mask;
-}
-
-// 计算流光强度 - 沿指定角度移动的光带，带有柔和边缘
-float calculateFlowIntensity(vec2 uv, float speed, float width, float angle) {
-    float cosA = cos(angle);
-    float sinA = sin(angle);
-    // 计算沿流光方向的位置
-    float flowPos = uv.x * cosA + uv.y * sinA;
-    
-    // 流光中心位置随时间移动
-    float flowCenter = fract(iTime * speed);
-    
-    // 计算到流光中心的距离 (考虑循环)
-    float dist1 = abs(flowPos - flowCenter);
-    float dist2 = abs(flowPos - flowCenter + 1.0);
-    float dist3 = abs(flowPos - flowCenter - 1.0);
-    float dist = min(min(dist1, dist2), dist3);
-    
-    // 高斯衰减 - 产生柔和的光带边缘
-    return exp(-dist * dist / (width * width * 0.5));
-}
-
-// 计算流沙/微粒闪烁效果 - 平滑的流动微光
-float calculateSparkle(vec2 uv, float mask) {
-    if (iEnableSparkle < 0.5 || mask < 0.05) return 0.0;
-    
-    // 使用多层噪声创建流动的微粒效果
-    float time = iTime * iSparkleFreq * 0.3;
-    
-    // 第一层: 缓慢流动的大尺度噪声
-    vec2 uv1 = uv * 8.0 + vec2(time * 0.2, time * 0.1);
-    float noise1 = fbm3(uv1);
-    
-    // 第二层: 中等速度的中尺度噪声
-    vec2 uv2 = uv * 15.0 + vec2(-time * 0.3, time * 0.25);
-    float noise2 = fbm3(uv2);
-    
-    // 第三层: 快速流动的小尺度噪声 (流沙效果)
-    vec2 uv3 = uv * 25.0 + vec2(time * 0.5, -time * 0.4);
-    float noise3 = smoothNoise(uv3);
-    
-    // 组合噪声层，创建流沙般的效果
-    float combined = noise1 * 0.4 + noise2 * 0.35 + noise3 * 0.25;
-    
-    // 使用smoothstep创建柔和的闪烁阈值
-    float threshold = 1.0 - iSparkleDensity * 0.6;
-    float sparkle = smoothstep(threshold - 0.1, threshold + 0.2, combined);
-    
-    // 添加时间变化的脉动效果
-    float pulse = sin(iTime * iSparkleFreq * 2.0 + combined * 6.28) * 0.3 + 0.7;
-    
-    return sparkle * pulse * mask * iSparkleIntensity;
-}
-
 // 混合模式实现
 vec3 blendColors(vec3 base, vec3 glow, float mode) {
     if (mode < 0.5) {
-        // Add模式: 直接相加，效果最亮
         return base + glow;
     } else if (mode < 1.5) {
-        // Screen模式: 柔和提亮，避免过曝
         return 1.0 - (1.0 - base) * (1.0 - glow);
     } else {
-        // Overlay模式: 保留底色细节
-        // SKSL不支持数组索引，展开为分量操作
         vec3 result;
-        // R分量
-        if (base.r < 0.5) {
-            result.r = 2.0 * base.r * glow.r;
-        } else {
-            result.r = 1.0 - 2.0 * (1.0 - base.r) * (1.0 - glow.r);
-        }
-        // G分量
-        if (base.g < 0.5) {
-            result.g = 2.0 * base.g * glow.g;
-        } else {
-            result.g = 1.0 - 2.0 * (1.0 - base.g) * (1.0 - glow.g);
-        }
-        // B分量
-        if (base.b < 0.5) {
-            result.b = 2.0 * base.b * glow.b;
-        } else {
-            result.b = 1.0 - 2.0 * (1.0 - base.b) * (1.0 - glow.b);
-        }
+        if (base.r < 0.5) result.r = 2.0 * base.r * glow.r; else result.r = 1.0 - 2.0 * (1.0 - base.r) * (1.0 - glow.r);
+        if (base.g < 0.5) result.g = 2.0 * base.g * glow.g; else result.g = 1.0 - 2.0 * (1.0 - base.g) * (1.0 - glow.g);
+        if (base.b < 0.5) result.b = 2.0 * base.b * glow.b; else result.b = 1.0 - 2.0 * (1.0 - base.b) * (1.0 - glow.b);
         return result;
     }
 }
@@ -345,40 +178,47 @@ vec3 blendColors(vec3 base, vec3 glow, float mode) {
 // 主函数
 // ============================================================================
 vec4 main(vec2 fragCoord) {
-    // 归一化坐标 (用于流光计算)
     vec2 uv = fragCoord / iResolution.xy;
     
-    // 采样原始图像 (图像已通过矩阵变换缩放，直接使用fragCoord)
+    // 采样原始图像
     vec4 originalColor = iImage.eval(fragCoord);
     vec3 color = originalColor.rgb;
     
-    // 计算发光遮罩
-    float glowMask = calculateGlowMask(color);
+    // 计算流光遮罩
+    // 我们使用两层遮罩反向滚动来增加动态感
+    float angle = iFlowAngle;
+    vec2 dir1 = vec2(cos(angle), sin(angle));
+    vec2 dir2 = vec2(cos(angle + 1.57), sin(angle + 1.57)); // 垂直方向
     
-    // 如果遮罩值太低，直接返回原色 (性能优化)
-    if (glowMask < 0.01) {
-        return vec4(color, originalColor.a * iAlpha);
+    // 遮罩采样坐标
+    float scale = 1.0 / max(0.1, iFlowWidth);
+    vec2 maskUv1 = uv * scale + dir1 * (iTime * iFlowSpeed);
+    vec2 maskUv2 = uv * scale * 1.2 + dir2 * (iTime * iFlowSpeed * iSecFlowSpeedMult);
+    
+    // 使用 eval 采样遮罩
+    // 遮罩通常是灰度的，采样红通道
+    vec2 maskCoord1 = fract(maskUv1) * iMaskSize;
+    vec2 maskCoord2 = fract(maskUv2) * iMaskSize;
+    
+    float maskValue1 = iMask.eval(maskCoord1).r;
+    float maskValue2 = iMask.eval(maskCoord2).r;
+    
+    // 组合遮罩 - 增加层次感
+    float combinedMask = maskValue1 * maskValue2 * 2.0;
+    
+    // 闪烁效果 (基于时间)
+    if (iEnableSparkle > 0.5) {
+        float sparkle = sin(iTime * iSparkleFreq + combinedMask * 10.0) * 0.5 + 0.5;
+        combinedMask *= mix(1.0, sparkle, iSparkleIntensity);
     }
     
-    // 第1层: 主流光 - 较宽的斜向光带
-    float mainFlow = calculateFlowIntensity(uv, iFlowSpeed, iFlowWidth, iFlowAngle);
-    vec3 mainFlowColor = iFlowColor * mainFlow * iFlowIntensity;
+    // 计算最终流光颜色
+    vec3 glowColor = iFlowColor * maskValue1 * iFlowIntensity + 
+                     iSecFlowColor * maskValue2 * iSecFlowIntensity;
+                     
+    vec3 totalGlow = glowColor * combinedMask * iOverallIntensity;
     
-    // 第2层: 次流光 - 垂直于主流光，更快更窄
-    float secFlow = calculateFlowIntensity(uv, 
-        iFlowSpeed * iSecFlowSpeedMult, 
-        iFlowWidth * iSecFlowWidthMult, 
-        iFlowAngle + 1.57);
-    vec3 secFlowColor = iSecFlowColor * secFlow * iSecFlowIntensity;
-    
-    // 第3层: 流沙/微粒闪烁效果
-    float sparkle = calculateSparkle(uv, glowMask);
-    vec3 sparkleColorFinal = iSparkleColor * sparkle;
-    
-    // 合成所有流光效果
-    vec3 totalGlow = (mainFlowColor + secFlowColor + sparkleColorFinal) * glowMask * iOverallIntensity;
-    
-    // 使用选定的混合模式合成
+    // 应用到原图
     vec3 finalColor = blendColors(color, totalGlow, iBlendMode);
     finalColor = clamp(finalColor, 0.0, 1.0);
     
@@ -423,6 +263,10 @@ vec4 main(vec2 fragCoord) {
         {
             OnSourceChanged();
         }
+        else if (change.Property == MaskSourceProperty)
+        {
+            OnMaskSourceChanged();
+        }
         else if (change.Property == ConfigProperty)
         {
             OnConfigChanged();
@@ -462,6 +306,7 @@ vec4 main(vec2 fragCoord) {
             // 强制更新源图像（确保在附加到视觉树后重新处理）
             _needsImageUpdate = true;
             UpdateSourceBitmap();
+            UpdateMaskBitmap();
             
             UpdateVisualSize();
             
@@ -505,6 +350,16 @@ vec4 main(vec2 fragCoord) {
         }
         // 否则会在 InitializeVisual 中更新
         Debug.WriteLine($"[CardGlowRenderer] OnSourceChanged: hasHandler={_visualHandler != null}, Source={Source?.GetType().Name ?? "null"}");
+    }
+
+    private void OnMaskSourceChanged()
+    {
+        // 如果已经初始化，立即更新
+        if (_visualHandler != null)
+        {
+            UpdateMaskBitmap();
+        }
+        Debug.WriteLine($"[CardGlowRenderer] OnMaskSourceChanged: hasHandler={_visualHandler != null}, MaskSource={MaskSource?.GetType().Name ?? "null"}");
     }
 
     private void OnConfigChanged()
@@ -586,6 +441,48 @@ vec4 main(vec2 fragCoord) {
             Debug.WriteLine($"[CardGlowRenderer] UpdateSourceBitmap failed: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// 更新遮罩图像位图
+    /// </summary>
+    private void UpdateMaskBitmap()
+    {
+        if (_visualHandler == null || _customVisual == null) 
+        {
+            return;
+        }
+
+        try
+        {
+            var mask = MaskSource;
+            
+            // 如果未设置遮罩，尝试加载默认资源遮罩
+            if (mask == null)
+            {
+                mask = CCMgr.LoadImageFromAssets("/Assets/CardImg/mark2.jpg");
+            }
+
+            if (mask != null)
+            {
+                SKBitmap? skBitmap = ConvertIImageToSKBitmap(mask);
+                if (skBitmap != null)
+                {
+                    // 使用包装类发送遮罩位图，以区别于主图像
+                    _customVisual.SendHandlerMessage(new MaskBitmapMessage(skBitmap));
+                    Debug.WriteLine($"[CardGlowRenderer] Sent mask bitmap to handler: {skBitmap.Width}x{skBitmap.Height}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CardGlowRenderer] UpdateMaskBitmap failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 遮罩位图消息包装类
+    /// </summary>
+    private record MaskBitmapMessage(SKBitmap Bitmap);
 
     
     /// <summary>
@@ -685,6 +582,7 @@ vec4 main(vec2 fragCoord) {
         Config = preset switch
         {
             GlowPreset.Default => CardGlowConfig.Default,
+            GlowPreset.SilkFlow => CardGlowConfig.SilkFlow,
             GlowPreset.GoldRare => CardGlowConfig.GoldRare,
             GlowPreset.BlueRare => CardGlowConfig.BlueRare,
             GlowPreset.PurpleLegend => CardGlowConfig.PurpleLegend,
@@ -725,7 +623,9 @@ vec4 main(vec2 fragCoord) {
         private readonly Stopwatch _animationTick = new();
         private bool _animationEnabled;
         private SKBitmap? _sourceBitmap;
+        private SKBitmap? _maskBitmap;
         private SKShader? _imageShader;
+        private SKShader? _maskShader;
         private SKRuntimeEffect? _effect;
         private CardGlowConfig _config = CardGlowConfig.Default;
         
@@ -734,14 +634,12 @@ vec4 main(vec2 fragCoord) {
         private float _alpha = 1.0f;
 
         // Uniform数组预分配，避免每帧GC
-
-
         private readonly float[] _resolutionAlloc = new float[3];
         private readonly float[] _imageSizeAlloc = new float[2];
+        private readonly float[] _maskSizeAlloc = new float[2];
         private readonly float[] _flowColorAlloc = new float[3];
         private readonly float[] _secFlowColorAlloc = new float[3];
         private readonly float[] _sparkleColorAlloc = new float[3];
-        private readonly float[] _edgeGlowColorAlloc = new float[3];
 
         public CardGlowDraw()
         {
@@ -755,7 +653,7 @@ vec4 main(vec2 fragCoord) {
         {
             try
             {
-                // 添加基础uniform (SukiUI标准)
+                // 添加基础uniform
                 var shaderCode = @"
 uniform float iTime;
 uniform float iAlpha;
@@ -766,10 +664,6 @@ uniform vec3 iResolution;
                 if (_effect == null)
                 {
                     Debug.WriteLine($"[CardGlowDraw] Shader compilation failed: {errors}");
-                }
-                else
-                {
-                    Debug.WriteLine($"[CardGlowDraw] Shader compiled successfully");
                 }
             }
             catch (Exception ex)
@@ -820,12 +714,10 @@ uniform vec3 iResolution;
             var flowColor = CardGlowConfig.ColorToFloatArray(config.FlowColor);
             var secFlowColor = CardGlowConfig.ColorToFloatArray(config.SecondaryFlowColor);
             var sparkleColor = CardGlowConfig.ColorToFloatArray(config.SparkleColor);
-            var edgeGlowColor = CardGlowConfig.ColorToFloatArray(config.EdgeGlowColor);
 
             Array.Copy(flowColor, _flowColorAlloc, 3);
             Array.Copy(secFlowColor, _secFlowColorAlloc, 3);
             Array.Copy(sparkleColor, _sparkleColorAlloc, 3);
-            Array.Copy(edgeGlowColor, _edgeGlowColorAlloc, 3);
             
             Debug.WriteLine($"[CardGlowDraw] Config updated in render thread");
         }
@@ -849,6 +741,11 @@ uniform vec3 iResolution;
                 _imageShader = null;
                 _sourceBitmap?.Dispose();
                 _sourceBitmap = null;
+                
+                _maskShader?.Dispose();
+                _maskShader = null;
+                _maskBitmap?.Dispose();
+                _maskBitmap = null;
             }
             else if (message is SKBitmap bitmap)
             {
@@ -867,6 +764,22 @@ uniform vec3 iResolution;
                 _imageSizeAlloc[1] = bitmap.Height;
                 
                 Debug.WriteLine($"[CardGlowDraw] Received new bitmap: {bitmap.Width}x{bitmap.Height}");
+            }
+            else if (message is MaskBitmapMessage maskMsg)
+            {
+                _maskShader?.Dispose();
+                _maskShader = null;
+                _maskBitmap?.Dispose();
+                
+                _maskBitmap = maskMsg.Bitmap;
+                
+                // 遮罩通常使用 TileMode.Repeat 以支持 UV 滚动
+                _maskShader = _maskBitmap.ToShader(SKShaderTileMode.Repeat, SKShaderTileMode.Repeat);
+                
+                _maskSizeAlloc[0] = _maskBitmap.Width;
+                _maskSizeAlloc[1] = _maskBitmap.Height;
+                
+                Debug.WriteLine($"[CardGlowDraw] Received new mask bitmap: {_maskBitmap.Width}x{_maskBitmap.Height}");
             }
             else if (message is CardGlowConfig config)
             {
@@ -899,109 +812,90 @@ uniform vec3 iResolution;
             // 如果尺寸无效，不渲染
             if (rect.Width <= 0 || rect.Height <= 0) return;
 
-            // 检查渲染基础条件
-            // 注意：不再检查 _imageShader == null，因为它会在 Render 内部通过 UpdateImageShaderWithScale 创建
-            if (_effect == null || _sourceBitmap == null)
-            {
-                // 软件渲染回退 - 直接绘制原图
-                RenderSoftware(lease.SkCanvas, rect);
-            }
-            else
-            {
-                Render(lease.SkCanvas, rect);
-            }
-        }
-
-
-        /// <summary>
-        /// GPU渲染 - 使用Shader实现流光效果
-        /// </summary>
-        private void Render(SKCanvas canvas, SKRect rect)
-        {
-            if (_effect == null || _sourceBitmap == null) return;
-
-            try
-            {
-                var time = (float)_animationTick.Elapsed.TotalSeconds;
-
-                // 每次渲染时更新图像Shader的缩放（确保图像正确填充渲染区域）
-
-                UpdateImageShaderWithScale(rect.Width, rect.Height);
-                
-                if (_imageShader == null)
+                // 检查渲染基础条件
+                // 注意：不再检查 _imageShader == null，因为它会在 Render 内部通过 UpdateImageShaderWithScale 创建
+                if (_effect == null || _sourceBitmap == null || _maskBitmap == null)
                 {
-                    RenderSoftware(canvas, rect);
-                    return;
+                    // 软件渲染回退 - 直接绘制原图
+                    RenderSoftware(lease.SkCanvas, rect);
                 }
-
-                // 更新分辨率 (渲染区域尺寸)
-                _resolutionAlloc[0] = rect.Width;
-                _resolutionAlloc[1] = rect.Height;
-                _resolutionAlloc[2] = 0;
-                
-                // 注意：不再在这里更新 _imageSizeAlloc，因为它应该保持为图片的原始尺寸
-                // 原始尺寸已在 OnMessage 接收位图时存入 _imageSizeAlloc
-
-                // 创建Uniform - 传递所有配置参数到Shader
-                var uniforms = new SKRuntimeEffectUniforms(_effect)
+                else
                 {
-                    // 基础参数
-                    { "iTime", time },
-                    { "iAlpha", _alpha },
+                    Render(lease.SkCanvas, rect);
+                }
+            }
 
-                    { "iResolution", _resolutionAlloc },
 
+            /// <summary>
+            /// GPU渲染 - 使用Shader实现流光效果
+            /// </summary>
+            private void Render(SKCanvas canvas, SKRect rect)
+            {
+                if (_effect == null || _sourceBitmap == null || _maskBitmap == null) return;
+
+                try
+                {
+                    var time = (float)_animationTick.Elapsed.TotalSeconds;
+
+                    // 每次渲染时更新图像Shader的缩放（确保图像正确填充渲染区域）
+
+                    UpdateImageShaderWithScale(rect.Width, rect.Height);
                     
-                    // 图像尺寸 (渲染区域尺寸，因为图像已经被缩放)
-                    { "iImageSize", _imageSizeAlloc },
+                    if (_imageShader == null || _maskShader == null)
+                    {
+                        RenderSoftware(canvas, rect);
+                        return;
+                    }
 
-                    // 亮度检测参数
-                    { "iBrightnessThreshold", _config.BrightnessThreshold },
-                    { "iSaturationThreshold", _config.SaturationThreshold },
-                    { "iBrightnessWeight", _config.BrightnessWeight },
-                    { "iSaturationWeight", _config.SaturationWeight },
+                    // 更新分辨率 (渲染区域尺寸)
+                    _resolutionAlloc[0] = rect.Width;
+                    _resolutionAlloc[1] = rect.Height;
+                    _resolutionAlloc[2] = 0;
+                    
+                    // 注意：不再在这里更新 _imageSizeAlloc，因为它应该保持为图片的原始尺寸
+                    // 原始尺寸已在 OnMessage 接收位图时存入 _imageSizeAlloc
 
-                    // 流光效果参数
-                    { "iFlowSpeed", _config.FlowSpeed },
-                    { "iFlowWidth", _config.FlowWidth },
-                    { "iFlowAngle", _config.FlowAngle },
-                    { "iFlowIntensity", _config.FlowIntensity },
-                    { "iSecFlowSpeedMult", _config.SecondaryFlowSpeedMultiplier },
-                    { "iSecFlowWidthMult", _config.SecondaryFlowWidthMultiplier },
-                    { "iSecFlowIntensity", _config.SecondaryFlowIntensity },
+                    // 创建Uniform - 传递所有配置参数到Shader
+                    var uniforms = new SKRuntimeEffectUniforms(_effect)
+                    {
+                        // 基础参数
+                        { "iTime", time },
+                        { "iAlpha", _alpha },
+                        { "iResolution", _resolutionAlloc },
+                        
+                        // 图像尺寸
+                        { "iImageSize", _imageSizeAlloc },
+                        { "iMaskSize", _maskSizeAlloc },
 
-                    // 闪烁效果参数
-                    { "iEnableSparkle", _config.EnableSparkle ? 1.0f : 0.0f },
-                    { "iSparkleFreq", _config.SparkleFrequency },
-                    { "iSparkleIntensity", _config.SparkleIntensity },
-                    { "iSparkleDensity", _config.SparkleDensity },
+                        // 流光效果参数
+                        { "iFlowSpeed", _config.FlowSpeed },
+                        { "iFlowWidth", _config.FlowWidth },
+                        { "iFlowAngle", _config.FlowAngle },
+                        { "iFlowIntensity", _config.FlowIntensity },
+                        { "iSecFlowSpeedMult", _config.SecondaryFlowSpeedMultiplier },
+                        { "iSecFlowIntensity", _config.SecondaryFlowIntensity },
 
-                    // 边缘辉光参数
-                    { "iEnableEdgeGlow", _config.EnableEdgeGlow ? 1.0f : 0.0f },
-                    { "iEdgeGlowWidth", _config.EdgeGlowWidth },
-                    { "iEdgeGlowIntensity", _config.EdgeGlowIntensity },
+                        // 闪烁效果参数
+                        { "iEnableSparkle", _config.EnableSparkle ? 1.0f : 0.0f },
+                        { "iSparkleFreq", _config.SparkleFrequency },
+                        { "iSparkleIntensity", _config.SparkleIntensity },
 
-                    // 颜色参数
-                    { "iFlowColor", _flowColorAlloc },
-                    { "iSecFlowColor", _secFlowColorAlloc },
-                    { "iSparkleColor", _sparkleColorAlloc },
-                    { "iEdgeGlowColor", _edgeGlowColorAlloc },
+                        // 颜色参数
+                        { "iFlowColor", _flowColorAlloc },
+                        { "iSecFlowColor", _secFlowColorAlloc },
+                        { "iSparkleColor", _sparkleColorAlloc },
 
-                    // 混合参数
-                    { "iBlendMode", (float)_config.BlendMode },
-                    { "iOverallIntensity", _config.OverallIntensity },
+                        // 混合参数
+                        { "iBlendMode", (float)_config.BlendMode },
+                        { "iOverallIntensity", _config.OverallIntensity }
+                    };
 
-                    // 色相加权参数
-                    { "iEnableHueWeight", _config.EnableHueWeighting ? 1.0f : 0.0f },
-                    { "iGoldHueWeight", _config.GoldHueWeight },
-                    { "iBlueHueWeight", _config.BlueHueWeight }
-                };
-
-                // 创建子Shader (图像输入)
-                var children = new SKRuntimeEffectChildren(_effect)
-                {
-                    { "iImage", _imageShader }
-                };
+                    // 创建子Shader (图像输入)
+                    var children = new SKRuntimeEffectChildren(_effect)
+                    {
+                        { "iImage", _imageShader },
+                        { "iMask", _maskShader }
+                    };
 
                 // 创建最终Shader并绘制
                 using var shader = _effect.ToShader(uniforms, children);
@@ -1044,13 +938,15 @@ public enum GlowPreset
 {
     /// <summary>默认效果</summary>
     Default,
+    /// <summary>丝绸流光 (适合烟雾遮罩)</summary>
+    SilkFlow,
     /// <summary>金色稀有卡</summary>
     GoldRare,
     /// <summary>蓝色稀有卡</summary>
     BlueRare,
     /// <summary>紫色传说卡</summary>
     PurpleLegend,
-    /// <summary>彩虹全息卡</summary>
+    /// <summary>彩虹全息</summary>
     RainbowHolo,
     /// <summary>低调效果</summary>
     Subtle

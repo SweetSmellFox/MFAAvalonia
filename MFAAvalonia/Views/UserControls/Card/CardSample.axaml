@@ -25,7 +25,12 @@
                                Config="{Binding GlowConfig, ElementName=Root}"
                                IsGlowEnabled="{Binding IsGlowEnabled, ElementName=Root}"
                                Margin="8"
-                               IsVisible="{Binding IsGlowEnabled, ElementName=Root}" />
+                               IsVisible="{Binding IsGlowEnabled, ElementName=Root}">
+            <!-- 显式指定遮罩资源 -->
+            <card:CardGlowRenderer.MaskSource>
+                <Bitmap>avares://MFAAvalonia/Assets/CardImg/mark2.jpg</Bitmap>
+            </card:CardGlowRenderer.MaskSource>
+        </card:CardGlowRenderer>
         
         <!-- Shader边框效果层 -->
         <card:CardBorderRenderer />

@@ -170,24 +170,7 @@ public sealed class CCMgr
     /// <returns>添加的CardViewModel</returns>
     public CardViewModel AddGlowingCard()
     {
-        if (CCVM is null)
-            throw new InvalidOperationException("CCMgr.CCVM 尚未初始化（未调用 SetCCVM），无法添加卡片。");
-        
-        // 硬编码数据：金色传说卡
-        var cardBase = new CardBase
-        {
-            Name = "金色传说卡",
-            ImagePath = "/Assets/CardImg/aa.jpg",
-            Index = 0,
-            Rarity = CardRarity.Legendary,  // 金色传说级别
-            EnableGlow = true               // 启用发光效果
-        };
-        
-        var cardVm = new CardViewModel(cardBase);
-        CCVM.addcard(cardVm);
-        
-        LoggerHelper.Info($"AddGlowingCard: 添加金色传说卡，路径={cardBase.ImagePath}");
-        return cardVm;
+        return AddCardWithGlow("/Assets/CardImg/aa.jpg", "金色传说卡", CardRarity.Legendary, true);
     }
     
     /// <summary>
@@ -197,24 +180,23 @@ public sealed class CCMgr
     /// <returns>添加的CardViewModel</returns>
     public CardViewModel AddNormalCard()
     {
-        if (CCVM is null)
-            throw new InvalidOperationException("CCMgr.CCVM 尚未初始化（未调用 SetCCVM），无法添加卡片。");
-        
-        // 硬编码数据：普通卡
-        var cardBase = new CardBase
-        {
-            Name = "普通卡",
-            ImagePath = "/Assets/CardImg/aa.jpg",
-            Index = 0,
-            Rarity = CardRarity.Normal,     // 普通级别
-            EnableGlow = false              // 不启用发光效果
-        };
-        
-        var cardVm = new CardViewModel(cardBase);
-        CCVM.addcard(cardVm);
-        
-        LoggerHelper.Info($"AddNormalCard: 添加普通卡，路径={cardBase.ImagePath}");
-        return cardVm;
+        return AddCardWithGlow("/Assets/CardImg/aa.jpg", "普通卡", CardRarity.Normal, false);
+    }
+
+    /// <summary>
+    /// 添加史诗卡片到CardCollection（紫色发光）
+    /// </summary>
+    public CardViewModel AddEpicCard()
+    {
+        return AddCardWithGlow("/Assets/CardImg/aa.jpg", "史诗紫色卡", CardRarity.Epic, true);
+    }
+
+    /// <summary>
+    /// 添加稀有卡片到CardCollection（蓝色发光）
+    /// </summary>
+    public CardViewModel AddRareCard()
+    {
+        return AddCardWithGlow("/Assets/CardImg/aa.jpg", "稀有蓝色卡", CardRarity.Rare, true);
     }
     
     /// <summary>
