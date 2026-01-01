@@ -1418,9 +1418,9 @@
         <value>任務: {0}</value>
     </data>
     <data name="LiveView" xml:space="preserve">
-        <value>實時畫面</value>
+        <value>即時視圖</value>
     </data>
-    <data name="LiveViewRefreshInterval" xml:space="preserve">
-        <value>即時視圖刷新間隔 (秒)</value>
+    <data name="LiveViewRefreshRate" xml:space="preserve">
+        <value>即時視圖最大刷新率 (FPS)</value>
     </data>
-</root>
+    </root>

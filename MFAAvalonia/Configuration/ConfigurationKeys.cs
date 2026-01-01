@@ -160,7 +160,10 @@ public static class ConfigurationKeys
     public const string TaskQueueColumn3Width = "UI.TaskQueue.Column3Width";
     public const string TaskQueueLeftPanelCollapsed = "UI.TaskQueue.LeftPanelCollapsed";
     public const string TaskQueueRightPanelCollapsed = "UI.TaskQueue.RightPanelCollapsed";
-    public const string LiveViewRefreshInterval = "UI.LiveView.RefreshInterval";
+    public const string TaskQueueDashboardLayout = "UI.TaskQueue.DashboardLayout";
+    public const string DashboardCardGridLayout = "UI.DashboardCardGrid.Layout";
+    public const string EnableLiveView = "UI.LiveView.EnableLiveView";
+    public const string LiveViewRefreshRate = "UI.LiveView.RefreshRate";
     public const string MainWindowWidth = "UI.MainWindow.Width";
     public const string MainWindowHeight = "UI.MainWindow.Height";
     public const string MainWindowPositionX = "UI.MainWindow.PositionX";

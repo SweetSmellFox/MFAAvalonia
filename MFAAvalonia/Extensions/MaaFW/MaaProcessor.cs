@@ -298,7 +298,14 @@ public class MaaProcessor
         using var buffer = GetImage(MaaTasker?.Controller, MaaTasker?.IsRunning != true);
         return buffer?.ToBitmap();
     }
-
+    
+    public MaaImageBuffer? GetLiveViewBuffer(bool test = true)
+    {
+        if (test)
+            TryConnectAsync(CancellationToken.None);
+        return GetImage(MaaTasker?.Controller, MaaTasker?.IsRunning != true);
+    }
+    
     /// <summary>
     /// 获取截图的MaaImageBuffer。调用者必须负责释放返回的 buffer。
     /// </summary>

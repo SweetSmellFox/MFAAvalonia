@@ -882,13 +882,13 @@
     <data name="StartupSoftware" xml:space="preserve">
         <value>Startup game</value>
     </data>
-        <data name="StartupSoftwareAndScript" xml:space="preserve">
+    <data name="StartupSoftwareAndScript" xml:space="preserve">
             <value>Startup game and script</value>
         </data>
-        <data name="StartupScriptOnly" xml:space="preserve">
+    <data name="StartupScriptOnly" xml:space="preserve">
             <value>Startup script only</value>
         </data>
-        <data name="Stopping" xml:space="preserve">
+    <data name="Stopping" xml:space="preserve">
             <value>Stopping......</value>
         </data>
     <data name="StoppingFailed" xml:space="preserve">
@@ -1427,10 +1427,10 @@
         <value>Running</value>
     </data>
     <data name="CurrentTask" xml:space="preserve">
-        <value>Task: {0}</value>
-    </data>
-    <data name="LiveViewRefreshInterval" xml:space="preserve">
-        <value>Live View Refresh Interval (s)</value>
+            <value>Task: {0}</value>
+        </data>
+    <data name="LiveViewRefreshRate" xml:space="preserve">
+        <value>Live View Max Refresh Rate (FPS)</value>
     </data>
 </root>
 

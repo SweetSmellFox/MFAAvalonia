@@ -1,11 +1,14 @@
-﻿using Avalonia.Collections;
+﻿using Avalonia;
+using Avalonia.Collections;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MaaFramework.Binding;
+using MaaFramework.Binding.Buffers;
 using MFAAvalonia.Configuration;
 using MFAAvalonia.Extensions;
 using MFAAvalonia.Extensions.MaaFW;
@@ -33,7 +36,7 @@ namespace MFAAvalonia.ViewModels.Pages;
 public partial class TaskQueueViewModel : ViewModelBase
 {
     [ObservableProperty] private bool _isCompactMode = false;
-    
+
     // 竖屏模式下的设置弹窗状态
     [ObservableProperty] private bool _isSettingsPopupOpen = false;
 
@@ -42,7 +45,7 @@ public partial class TaskQueueViewModel : ViewModelBase
         if (!value && IsSettingsPopupOpen)
             IsSettingsPopupOpen = false;
     }
-    
+
     [RelayCommand]
     private void CloseSettingsPopup()
     {
@@ -164,24 +167,24 @@ public partial class TaskQueueViewModel : ViewModelBase
             Column2Width = GridLength.Parse(col2Str);
             Column3Width = IsRightPanelCollapsed ? new GridLength(CollapsedPanelWidth) : _savedColumn3Width;
 
-                        SuppressPropertyChangedCallbacks = false;
-            
-                        // 初始化时检测是否需要自动折叠（宽度 <= 50 时自动折叠）
-                        if (Column1Width.Value <= CollapsedPanelWidth && !IsLeftPanelCollapsed)
-                        {
-                            _savedColumn1Width = GridLength.Parse(DefaultColumn1Width);
-                            IsLeftPanelCollapsed = true;
-                        }
-                        if (Column3Width.Value <= CollapsedPanelWidth && !IsRightPanelCollapsed)
-                        {
-                            _savedColumn3Width = GridLength.Parse(DefaultColumn3Width);
-                            IsRightPanelCollapsed = true;
-                        }
-            
-                        LoggerHelper.Info("Column width set successfully in the constructor");
-                    }
-            
-                    catch (Exception ex)
+            SuppressPropertyChangedCallbacks = false;
+
+            // 初始化时检测是否需要自动折叠（宽度 <= 50 时自动折叠）
+            if (Column1Width.Value <= CollapsedPanelWidth && !IsLeftPanelCollapsed)
+            {
+                _savedColumn1Width = GridLength.Parse(DefaultColumn1Width);
+                IsLeftPanelCollapsed = true;
+            }
+            if (Column3Width.Value <= CollapsedPanelWidth && !IsRightPanelCollapsed)
+            {
+                _savedColumn3Width = GridLength.Parse(DefaultColumn3Width);
+                IsRightPanelCollapsed = true;
+            }
+
+            LoggerHelper.Info("Column width set successfully in the constructor");
+        }
+
+        catch (Exception ex)
         {
             LoggerHelper.Error($"Failed to set column width in the constructor: {ex.Message}");
             SetDefaultColumnWidths();
@@ -1174,7 +1177,7 @@ public partial class TaskQueueViewModel : ViewModelBase
     }
 
     #endregion
-    
+
     #region 资源
 
     [ObservableProperty] private ObservableCollection<MaaInterface.MaaInterfaceResource> _currentResources = [];
@@ -1375,7 +1378,7 @@ public partial class TaskQueueViewModel : ViewModelBase
     }
 
     #endregion
-    
+
     #region 面板折叠
 
     // 折叠时的最小宽度
@@ -1405,75 +1408,75 @@ public partial class TaskQueueViewModel : ViewModelBase
         ConfigurationManager.Current.SetValue(ConfigurationKeys.TaskQueueRightPanelCollapsed, value);
     }
 
-        [RelayCommand]
-        public void ToggleLeftPanel()
+    [RelayCommand]
+    public void ToggleLeftPanel()
+    {
+        if (!IsLeftPanelCollapsed)
         {
-            if (!IsLeftPanelCollapsed)
-            {
-                // 折叠前保存当前宽度
-                _savedColumn1Width = Column1Width;
-            }
-            // 只切换状态，列宽变化由 View 的动画控制
-            IsLeftPanelCollapsed = !IsLeftPanelCollapsed;
+            // 折叠前保存当前宽度
+            _savedColumn1Width = Column1Width;
         }
-    
-        [RelayCommand]
-        public void ToggleRightPanel()
+        // 只切换状态，列宽变化由 View 的动画控制
+        IsLeftPanelCollapsed = !IsLeftPanelCollapsed;
+    }
+
+    [RelayCommand]
+    public void ToggleRightPanel()
+    {
+        if (!IsRightPanelCollapsed)
         {
-            if (!IsRightPanelCollapsed)
-            {
-                // 折叠前保存当前宽度
-                _savedColumn3Width = Column3Width;
-            }
-            // 只切换状态，列宽变化由 View 的动画控制
-            IsRightPanelCollapsed = !IsRightPanelCollapsed;
+            // 折叠前保存当前宽度
+            _savedColumn3Width = Column3Width;
         }
-        
-        /// <summary>
-        /// 设置左侧面板列宽（由 View 动画调用）
-        /// </summary>
-        public void SetLeftPanelWidth(GridLength width)
-        {
-            SuppressPropertyChangedCallbacks = true;
-            Column1Width = width;
-            SuppressPropertyChangedCallbacks = false;
-        }
-        
-        /// <summary>
-        /// 设置右侧面板列宽（由 View 动画调用）
-        /// </summary>
-        public void SetRightPanelWidth(GridLength width)
-        {
-            SuppressPropertyChangedCallbacks = true;
-            Column3Width = width;
-            SuppressPropertyChangedCallbacks = false;
-        }
-        
+        // 只切换状态，列宽变化由 View 的动画控制
+        IsRightPanelCollapsed = !IsRightPanelCollapsed;
+    }
+
+    /// <summary>
+    /// 设置左侧面板列宽（由 View 动画调用）
+    /// </summary>
+    public void SetLeftPanelWidth(GridLength width)
+    {
+        SuppressPropertyChangedCallbacks = true;
+        Column1Width = width;
+        SuppressPropertyChangedCallbacks = false;
+    }
+
+    /// <summary>
+    /// 设置右侧面板列宽（由 View 动画调用）
+    /// </summary>
+    public void SetRightPanelWidth(GridLength width)
+    {
+        SuppressPropertyChangedCallbacks = true;
+        Column3Width = width;
+        SuppressPropertyChangedCallbacks = false;
+    }
+
 // 展开时的最小宽度（当保存的宽度太小时使用）
-        private const double MinExpandedPanelWidth = 250;
+    private const double MinExpandedPanelWidth = 250;
 
-        public GridLength GetSavedLeftPanelWidth()
-        {
-            return _savedColumn1Width.Value > CollapsedPanelWidth
-                ? _savedColumn1Width
-                : new GridLength(MinExpandedPanelWidth);  // 改为 150
-        }
+    public GridLength GetSavedLeftPanelWidth()
+    {
+        return _savedColumn1Width.Value > CollapsedPanelWidth
+            ? _savedColumn1Width
+            : new GridLength(MinExpandedPanelWidth); // 改为 150
+    }
 
-        public GridLength GetSavedRightPanelWidth()
-        {
-            return _savedColumn3Width.Value > CollapsedPanelWidth
-                ? _savedColumn3Width
-                : new GridLength(MinExpandedPanelWidth);  // 改为 150
-        }
+    public GridLength GetSavedRightPanelWidth()
+    {
+        return _savedColumn3Width.Value > CollapsedPanelWidth
+            ? _savedColumn3Width
+            : new GridLength(MinExpandedPanelWidth); // 改为 150
+    }
 
-        /// <summary>
-        /// 获取折叠时的面板宽度
-        /// </summary>
-        public static double GetCollapsedPanelWidth() => CollapsedPanelWidth;
-    
-        [ObservableProperty] private bool _hasPopupIntroduction = false;
-        [ObservableProperty] private bool _hasPopupSettings = false;
-        [ObservableProperty] private string _popupIntroductionContent = string.Empty;
+    /// <summary>
+    /// 获取折叠时的面板宽度
+    /// </summary>
+    public static double GetCollapsedPanelWidth() => CollapsedPanelWidth;
+
+    [ObservableProperty] private bool _hasPopupIntroduction = false;
+    [ObservableProperty] private bool _hasPopupSettings = false;
+    [ObservableProperty] private string _popupIntroductionContent = string.Empty;
 
     #endregion
 
@@ -1726,61 +1729,83 @@ public partial class TaskQueueViewModel : ViewModelBase
 
     #endregion
 
-        #region 实时画面
-    
-        /// <summary>
-        /// Live View 刷新间隔变化事件
-        /// </summary>
-        public event Action<double>? LiveViewRefreshIntervalChanged;
-    
-        /// <summary>
-        /// Live View 刷新间隔（秒），范围 0.1-10，默认 1
-        /// </summary>
-        [ObservableProperty] private double _liveViewRefreshInterval =
-            ConfigurationManager.Current.GetValue(ConfigurationKeys.LiveViewRefreshInterval, 0.5);
-    
-        partial void OnLiveViewRefreshIntervalChanged(double value)
+    #region 实时画面
+
+    /// <summary>
+    /// Live View 刷新率变化事件，参数为计算后的间隔（秒）
+    /// </summary>
+    public event Action<double>? LiveViewRefreshRateChanged;
+
+    /// <summary>
+    /// Live View 是否启用
+    /// </summary>
+    [ObservableProperty] private bool _enableLiveView =
+        ConfigurationManager.Current.GetValue(ConfigurationKeys.EnableLiveView, true);
+
+    /// <summary>
+    /// Live View 刷新率（FPS），范围 1-60，默认 10
+    /// </summary>
+    [ObservableProperty] private double _liveViewRefreshRate =
+        ConfigurationManager.Current.GetValue(ConfigurationKeys.LiveViewRefreshRate, 10.0);
+
+    partial void OnEnableLiveViewChanged(bool value)
+    {
+        OnPropertyChanged(nameof(IsLiveViewVisible));
+    }
+
+    partial void OnLiveViewRefreshRateChanged(double value)
+    {
+        // 限制范围在 1 到 60 FPS 之间，不允许 0 以防止除零错误
+        if (value < 1)
         {
-            // 限制范围在 0.1 到 10 秒之间
-            if (value < 0.1){
-                _liveViewRefreshInterval = 0.1;
-                OnPropertyChanged(nameof(LiveViewRefreshInterval));
-                return;
-            }
-            if (value > 10)
-            {
-                _liveViewRefreshInterval = 10;
-                OnPropertyChanged(nameof(LiveViewRefreshInterval));
-                return;
-            }
-    
-            ConfigurationManager.Current.SetValue(ConfigurationKeys.LiveViewRefreshInterval, value);LiveViewRefreshIntervalChanged?.Invoke(value);
+            LiveViewRefreshRate = 1;
+            return;
         }
-    
-        [ObservableProperty] private Bitmap? _liveViewImage;
-        [ObservableProperty] private bool _isLiveViewExpanded = true;
-        [ObservableProperty] private string _currentTaskName = "";
-    
-        /// <summary>
-        /// Live View 是否可见（已连接且有图像）
-        /// </summary>
-        public bool IsLiveViewVisible => IsConnected && LiveViewImage != null;
-    
-        partial void OnIsConnectedChanged(bool value)
+        if (value > 120)
         {
-            OnPropertyChanged(nameof(IsLiveViewVisible));
+            LiveViewRefreshRate = 120;
+            return;
         }
-    
-        partial void OnLiveViewImageChanged(Bitmap? value)
-        {
-            OnPropertyChanged(nameof(IsLiveViewVisible));
-        }
-    
-        [RelayCommand]
-        private void ToggleLiveViewExpanded()
-        {
-            IsLiveViewExpanded = !IsLiveViewExpanded;
-        }
+
+        ConfigurationManager.Current.SetValue(ConfigurationKeys.LiveViewRefreshRate, value);
+        // 将 FPS 转换为间隔（秒）并触发事件
+        var interval = 1.0 / value;
+        LiveViewRefreshRateChanged?.Invoke(interval);
+    }
+
+    /// <summary>
+    /// 获取当前刷新间隔（秒），用于定时器
+    /// </summary>
+    public double GetLiveViewRefreshInterval() => 1.0 / LiveViewRefreshRate;
+
+    [ObservableProperty] private Bitmap? _liveViewImage;
+    [ObservableProperty] private bool _isLiveViewExpanded = true;
+    private WriteableBitmap? _liveViewWriteableBitmap;
+    [ObservableProperty] private double _liveViewFps;
+    private DateTime _liveViewFpsWindowStart = DateTime.UtcNow;
+    private int _liveViewFrameCount;
+    [ObservableProperty] private string _currentTaskName = "";
+
+    /// <summary>
+    /// Live View 是否可见（已连接且有图像）
+    /// </summary>
+    public bool IsLiveViewVisible => EnableLiveView && IsConnected && LiveViewImage != null;
+
+    partial void OnIsConnectedChanged(bool value)
+    {
+        OnPropertyChanged(nameof(IsLiveViewVisible));
+    }
+
+    partial void OnLiveViewImageChanged(Bitmap? value)
+    {
+        OnPropertyChanged(nameof(IsLiveViewVisible));
+    }
+
+    [RelayCommand]
+    private void ToggleLiveViewExpanded()
+    {
+        IsLiveViewExpanded = !IsLiveViewExpanded;
+    }
 
     /// <summary>
     /// 更新当前任务名称
@@ -1793,15 +1818,115 @@ public partial class TaskQueueViewModel : ViewModelBase
     /// <summary>
     /// 更新 Live View 图像
     /// </summary>
-    public void UpdateLiveViewImage(Bitmap? image)
+    public void UpdateLiveViewImage(Bitmap? bitmap)
     {
-        if (LiveViewImage != null && LiveViewImage != image)
-            LiveViewImage.Dispose();
-        DispatcherHelper.PostOnMainThread(() => LiveViewImage = image);
+        if (bitmap == null)
+        {
+            DispatcherHelper.PostOnMainThread(() =>
+            {
+                LiveViewImage = null;
+                // _liveViewWriteableBitmap?.Dispose();
+                // _liveViewWriteableBitmap = null;
+                LiveViewFps = 0;
+                _liveViewFrameCount = 0;
+                _liveViewFpsWindowStart = DateTime.UtcNow;
+            });
+            return;
+        }
+
+
+        DispatcherHelper.PostOnMainThread(() =>
+        {
+            try
+            {
+
+                LiveViewImage?.Dispose(); 
+
+                LiveViewImage = bitmap;
+                
+                _liveViewFrameCount++;
+                var elapsed = (DateTime.UtcNow - _liveViewFpsWindowStart).TotalSeconds;
+                if (elapsed >= 1)
+                {
+                    LiveViewFps = _liveViewFrameCount / elapsed;
+                    _liveViewFrameCount = 0;
+                    _liveViewFpsWindowStart = DateTime.UtcNow;
+                }
+            }
+            catch
+            {
+                // 忽略解码失败
+            }
+        });
+    }
+    
+    public void UpdateLiveViewImage(MaaImageBuffer? buffer)
+    {
+        if (buffer == null)
+        {
+            DispatcherHelper.PostOnMainThread(() =>
+            {
+                LiveViewImage = null;
+                _liveViewWriteableBitmap?.Dispose();
+                _liveViewWriteableBitmap = null;
+                LiveViewFps = 0;
+                _liveViewFrameCount = 0;
+                _liveViewFpsWindowStart = DateTime.UtcNow;
+            });
+            return;
+        }
+        if (!buffer.TryGetEncodedData(out Stream encodedDataStream))
+        {
+            buffer.Dispose();
+            return;
+        }
+
+        DispatcherHelper.PostOnMainThread(() =>
+        {
+            try
+            {
+                encodedDataStream.Seek(0, SeekOrigin.Begin);
+                using var decodedBitmap = new Bitmap(encodedDataStream);
+
+                if (_liveViewWriteableBitmap == null
+                    || _liveViewWriteableBitmap.PixelSize != decodedBitmap.PixelSize)
+                {
+                    _liveViewWriteableBitmap?.Dispose();
+                    _liveViewWriteableBitmap = new WriteableBitmap(
+                        decodedBitmap.PixelSize,
+                        decodedBitmap.Dpi,
+                        PixelFormat.Bgra8888,
+                        AlphaFormat.Premul);
+
+                    LiveViewImage = _liveViewWriteableBitmap;
+                }
+
+                using var framebuffer = _liveViewWriteableBitmap!.Lock();
+                decodedBitmap.CopyPixels(framebuffer, AlphaFormat.Premul);
+
+                _liveViewFrameCount++;
+                var elapsed = (DateTime.UtcNow - _liveViewFpsWindowStart).TotalSeconds;
+                if (elapsed >= 1)
+                {
+                    LiveViewFps = _liveViewFrameCount / elapsed;
+                    _liveViewFrameCount = 0;
+                    _liveViewFpsWindowStart = DateTime.UtcNow;
+                }
+            }
+            catch
+            {
+                // 忽略解码失败
+            }
+            finally
+            {
+                encodedDataStream.Dispose();
+                buffer.Dispose();
+            }
+        });
     }
 
     #endregion
-    
+
     #region 配置切换
 
     /// <summary>
@@ -1826,5 +1951,4 @@ public partial class TaskQueueViewModel : ViewModelBase
     }
 
     #endregion
-
 }

@@ -310,6 +310,7 @@ public partial class RootView : SukiWindow
                     {
                         DispatcherHelper.RunOnMainThread(VersionChecker.CheckMinVersion);
                         AnnouncementViewModel.CheckAnnouncement();
+
                         if (ConfigurationManager.Current.GetValue(ConfigurationKeys.AutoMinimize, false))
                         {
                             WindowState = WindowState.Minimized;

@@ -1427,16 +1427,16 @@
         <value>使用指纹匹配设备</value>
     </data>
     <data name="LiveView" xml:space="preserve">
-        <value>实时画面</value>
+        <value>实时视图</value>
     </data>
     <data name="Running" xml:space="preserve">
         <value>运行中</value>
     </data>
-    <data name="CurrentTask" xml:space="preserve">
-        <value>任务: {0}</value>
+        <data name="CurrentTask" xml:space="preserve">
+            <value>任务: {0}</value>
+        </data>
+    <data name="LiveViewRefreshRate" xml:space="preserve">
+        <value>实时视图最高刷新率 (FPS)</value>
     </data>
-    <data name="LiveViewRefreshInterval" xml:space="preserve">
-        <value>实时视图刷新间隔 (秒)</value>
-    </data>
-</root>
+    </root>
 

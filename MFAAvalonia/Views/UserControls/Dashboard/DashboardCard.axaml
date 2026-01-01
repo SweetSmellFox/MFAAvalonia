@@ -1,0 +1,340 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<ContentControl xmlns="https://github.com/avaloniaui"
+                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                xmlns:suki="https://github.com/kikipoulet/SukiUI"
+                xmlns:avalonia1="clr-namespace:FluentIcons.Avalonia;assembly=FluentIcons.Avalonia"
+                xmlns:dashboard="clr-namespace:MFAAvalonia.Views.UserControls.Dashboard"
+                xmlns:converters="clr-namespace:Avalonia.Data.Converters;assembly=Avalonia.Base"
+                mc:Ignorable="d"
+                d:DesignWidth="300"
+                d:DesignHeight="220"
+                x:Class="MFAAvalonia.Views.UserControls.Dashboard.DashboardCard"
+                x:DataType="dashboard:DashboardCard">
+
+    <ContentControl.Styles>
+        <Style Selector="dashboard|DashboardCard /template/ Border#HeaderArea:pointerover">
+            <Setter Property="Cursor" Value="SizeAll" />
+        </Style>
+
+        <Style Selector="dashboard|DashboardCard /template/ avalonia1|FluentIcon#CollapseIcon">
+            <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+            <Setter Property="RenderTransform" Value="rotate(0deg)" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.25" Easing="CubicEaseInOut" />
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="dashboard|DashboardCard[IsCollapsed=true] /template/ avalonia1|FluentIcon#CollapseIcon">
+            <Setter Property="RenderTransform" Value="rotate(180deg)" />
+        </Style>
+
+        <Style Selector="dashboard|DashboardCard[IsCollapsed=true] /template/ ContentPresenter#HeaderActionsPresenter">
+            <Setter Property="IsVisible" Value="False" />
+        </Style>
+
+        <Style Selector="dashboard|DashboardCard[IsCollapsed=true] /template/ ContentPresenter#ContentArea">
+            <Setter Property="IsVisible" Value="False" />
+        </Style>
+
+        <Style Selector="dashboard|DashboardCard[IsCollapsed=true] /template/ Border#HeaderSeparator">
+            <Setter Property="IsVisible" Value="False" />
+        </Style>
+        
+
+        <Style Selector="dashboard|DashboardCard /template/ Thumb.ResizeThumb">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource SukiPrimaryColor}" />
+            <Setter Property="IsHitTestVisible" Value="True" />
+            <Setter Property="Opacity" Value="0" />
+        </Style>
+
+        <Style Selector="dashboard|DashboardCard /template/ Thumb.ResizeThumb:pointerover">
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+
+        <Style Selector="dashboard|DashboardCard /template/ Thumb.ResizeThumbHorizontal">
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Grid>
+                        <Border Background="{TemplateBinding Background}" />
+                        <Grid HorizontalAlignment="Stretch"
+                              VerticalAlignment="Center"
+                              Height="12"
+                              Margin="8,0"
+                              ColumnDefinitions="Auto,*,Auto">
+                            <Path Data="M0,0 L8,6 L0,12 Z"
+                                  Width="8"
+                                  Height="12"
+                                  Fill="{TemplateBinding Foreground}" />
+                            <Border Grid.Column="1"
+                                    Height="2"
+                                    Background="{TemplateBinding Foreground}"
+                                    VerticalAlignment="Center"
+                                    CornerRadius="1" />
+                            <Path Grid.Column="2"
+                                  Data="M8,0 L0,6 L8,12 Z"
+                                  Width="8"
+                                  Height="12"
+                                  Fill="{TemplateBinding Foreground}" />
+                        </Grid>
+                    </Grid>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+
+        <Style Selector="dashboard|DashboardCard /template/ Thumb.ResizeThumbVertical">
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Grid>
+                        <Border Background="{TemplateBinding Background}" />
+                        <Grid HorizontalAlignment="Center"
+                              VerticalAlignment="Stretch"
+                              Width="12"
+                              Margin="0,8"
+                              RowDefinitions="Auto,*,Auto">
+                            <Path Data="M0,0 L12,0 L6,8 Z"
+                                  Width="12"
+                                  Height="8"
+                                  Fill="{TemplateBinding Foreground}" />
+                            <Border Grid.Row="1"
+                                    Width="2"
+                                    Background="{TemplateBinding Foreground}"
+                                    HorizontalAlignment="Center"
+                                    CornerRadius="1" />
+                            <Path Grid.Row="2"
+                                  Data="M0,8 L12,8 L6,0 Z"
+                                  Width="12"
+                                  Height="8"
+                                  Fill="{TemplateBinding Foreground}" />
+                        </Grid>
+                    </Grid>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+
+        <Style Selector="dashboard|DashboardCard /template/ Thumb.ResizeThumbCorner">
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Grid>
+                        <Border Background="{TemplateBinding Background}" />
+                        <Path Data="M8,1 L1,1 L1,8 M1,1 L6,6"
+                              Stroke="{TemplateBinding Foreground}"
+                              StrokeThickness="1.6"
+                              StrokeLineCap="Round"
+                              HorizontalAlignment="Left"
+                              VerticalAlignment="Top" />
+                    </Grid>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+
+        <Style Selector="dashboard|DashboardCard /template/ Thumb.ResizeThumbCorner.CornerTR">
+            <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+            <Setter Property="RenderTransform" Value="rotate(90deg)" />
+        </Style>
+
+        <Style Selector="dashboard|DashboardCard /template/ Thumb.ResizeThumbCorner.CornerBR">
+            <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+            <Setter Property="RenderTransform" Value="rotate(180deg)" />
+        </Style>
+
+        <Style Selector="dashboard|DashboardCard /template/ Thumb.ResizeThumbCorner.CornerBL">
+            <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+            <Setter Property="RenderTransform" Value="rotate(270deg)" />
+        </Style>
+
+
+        <Style Selector="dashboard|DashboardCard">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Height" Duration="0:0:0.25" Easing="LinearEasing" />
+                </Transitions>
+            </Setter>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <suki:GlassCard x:Name="RootCard"
+                                    IsAnimated="False"
+                                    Padding="0"
+                                    Margin="5"
+                                    ClipToBounds="False">
+                        <Grid RowDefinitions="Auto,Auto,*"
+                              ClipToBounds="False">
+                            <!-- Header -->
+                            <Border x:Name="HeaderArea"
+                                    Grid.Row="0"
+                                    Background="Transparent"
+                                    MinHeight="36" MaxHeight="36"
+                                    Padding="12,6">
+                                <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                                    <!-- Title (always visible) -->
+                                    <!-- Prefer TitleContent when provided (e.g. your I18n TextBlock), otherwise fallback to Title -->
+                                    <ContentPresenter Grid.Column="0"
+                                                      x:Name="TitleContentPresenter"
+                                                      Content="{TemplateBinding TitleContent}"
+                                                      VerticalAlignment="Center"
+                                                      IsVisible="{Binding TitleContent, RelativeSource={RelativeSource TemplatedParent}, Converter={x:Static converters:ObjectConverters.IsNotNull}}" />
+
+                                    <TextBlock Grid.Column="0"
+                                               x:Name="TitleText"
+                                               FontSize="11" 
+                                               FontWeight="Bold"
+                                               Foreground="{DynamicResource SukiLowText}"
+                                               Margin="2,0,0,0"
+                                               VerticalAlignment="Center"
+                                               Text="{TemplateBinding Title}"
+                                               IsVisible="{Binding TitleContent, RelativeSource={RelativeSource TemplatedParent}, Converter={x:Static converters:ObjectConverters.IsNull}}" />
+
+                                    <!-- Actions (hidden when collapsed) -->
+                                    <ContentPresenter x:Name="HeaderActionsPresenter"
+                                                      Grid.Column="2"
+                                                      Content="{TemplateBinding HeaderActions}"
+                                                      HorizontalAlignment="Right"
+                                                      VerticalAlignment="Center" />
+
+                                    <!-- Collapse button (always visible, fixed to the right) -->
+
+                                    <Button Grid.Column="3"
+                                            x:Name="CollapseButton"
+                                            Classes="BasicTight" Margin="8 4" Foreground="{DynamicResource SukiPrimaryColor}"
+                                            CornerRadius="4" ClipToBounds="False"
+                                            HorizontalAlignment="Right" VerticalAlignment="Center"
+                                            Click="OnCollapseButtonClick">
+                                        <avalonia1:FluentIcon x:Name="CollapseIcon"
+                                                              Icon="ChevronUp"
+                                                              IconSize="Size16" />
+                                    </Button>
+
+                                </Grid>
+                            </Border>
+
+                            <Border x:Name="HeaderSeparator"
+                                    Grid.Row="1"
+                                    Height="1"
+                                    Margin="12,0,12,0"
+                                    Background="{DynamicResource SukiControlBorderBrush}"
+                                    IsVisible="{Binding !IsCollapsed, RelativeSource={RelativeSource TemplatedParent}}" />
+
+                            <!-- Content (hidden when collapsed) -->
+                            <ContentPresenter Grid.Row="2"
+                                              x:Name="ContentArea"
+                                              Margin="12,0,12,12"
+                                              Content="{TemplateBinding Content}"
+                                              IsVisible="{Binding !IsCollapsed, RelativeSource={RelativeSource TemplatedParent}}"
+                                              IsHitTestVisible="True"
+                                              ClipToBounds="True" />
+
+                            <Thumb Grid.Row="0"
+                                   Grid.RowSpan="3"
+                                   Classes="ResizeThumb ResizeThumbCorner CornerTL"
+                                   Width="22"
+                                   Height="22"
+                                   HorizontalAlignment="Left"
+                                   VerticalAlignment="Top"
+                                   Cursor="TopLeftCorner"
+                                   DragDelta="OnResizeDragDelta"
+                                   Tag="tl"
+                                   ZIndex="60"
+                                   IsVisible="{Binding IsResizeEnabled, RelativeSource={RelativeSource TemplatedParent}}" />
+
+                            <Thumb Grid.Row="0"
+                                   Grid.RowSpan="3"
+                                   Classes="ResizeThumb ResizeThumbCorner CornerTR"
+                                   Width="22"
+                                   Height="22"
+                                   HorizontalAlignment="Right"
+                                   VerticalAlignment="Top"
+                                   Cursor="TopRightCorner"
+                                   DragDelta="OnResizeDragDelta"
+                                   Tag="tr"
+                                   ZIndex="60"
+                                   IsVisible="{Binding IsResizeEnabled, RelativeSource={RelativeSource TemplatedParent}}" />
+
+                            <Thumb Grid.Row="0"
+                                   Grid.RowSpan="3"
+                                   Classes="ResizeThumb ResizeThumbCorner CornerBL"
+                                   Width="22"
+                                   Height="22"
+                                   HorizontalAlignment="Left"
+                                   VerticalAlignment="Bottom"
+                                   Cursor="BottomLeftCorner"
+                                   DragDelta="OnResizeDragDelta"
+                                   Tag="bl"
+                                   ZIndex="60"
+                                   IsVisible="{Binding IsResizeEnabled, RelativeSource={RelativeSource TemplatedParent}}" />
+
+                            <Thumb Grid.Row="0"
+                                   Grid.RowSpan="3"
+                                   Classes="ResizeThumb ResizeThumbCorner CornerBR"
+                                   Width="22"
+                                   Height="22"
+                                   HorizontalAlignment="Right"
+                                   VerticalAlignment="Bottom"
+                                   Cursor="BottomRightCorner"
+                                   DragDelta="OnResizeDragDelta"
+                                   Tag="br"
+                                   ZIndex="60"
+                                   IsVisible="{Binding IsResizeEnabled, RelativeSource={RelativeSource TemplatedParent}}" />
+
+                            <Thumb Grid.Row="0"
+                                   Grid.RowSpan="3"
+                                   Classes="ResizeThumb ResizeThumbHorizontal"
+                                   Height="12"
+                                   HorizontalAlignment="Stretch"
+                                   VerticalAlignment="Top"
+                                   Margin="0,-8,0,0"
+                                   Cursor="TopSide"
+                                   DragDelta="OnResizeDragDelta"
+                                   Tag="t"
+                                   ZIndex="40"
+                                   IsVisible="{Binding IsResizeEnabled, RelativeSource={RelativeSource TemplatedParent}}" />
+
+                            <Thumb Grid.Row="0"
+                                   Grid.RowSpan="3"
+                                   Classes="ResizeThumb ResizeThumbHorizontal"
+                                   Height="12"
+                                   HorizontalAlignment="Stretch"
+                                   VerticalAlignment="Bottom"
+                                   Margin="0,0,0,-8"
+                                   Cursor="BottomSide"
+                                   DragDelta="OnResizeDragDelta"
+                                   Tag="b"
+                                   ZIndex="40"
+                                   IsVisible="{Binding IsResizeEnabled, RelativeSource={RelativeSource TemplatedParent}}" />
+
+                            <Thumb Grid.Row="0"
+                                   Grid.RowSpan="3"
+                                   Classes="ResizeThumb ResizeThumbVertical"
+                                   Width="12"
+                                   HorizontalAlignment="Left"
+                                   VerticalAlignment="Stretch"
+                                   Margin="-8,0,0,0"
+                                   Cursor="LeftSide"
+                                   DragDelta="OnResizeDragDelta"
+                                   Tag="l"
+                                   ZIndex="40"
+                                   IsVisible="{Binding IsResizeEnabled, RelativeSource={RelativeSource TemplatedParent}}" />
+
+                            <Thumb Grid.Row="0"
+                                   Grid.RowSpan="3"
+                                   Classes="ResizeThumb ResizeThumbVertical"
+                                   Width="12"
+                                   HorizontalAlignment="Right"
+                                   VerticalAlignment="Stretch"
+                                   Margin="0,0,-8,0"
+                                   Cursor="RightSide"
+                                   DragDelta="OnResizeDragDelta"
+                                   Tag="r"
+                                   ZIndex="40"
+                                   IsVisible="{Binding IsResizeEnabled, RelativeSource={RelativeSource TemplatedParent}}" />
+                        </Grid>
+                    </suki:GlassCard>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+    </ContentControl.Styles>
+</ContentControl>
