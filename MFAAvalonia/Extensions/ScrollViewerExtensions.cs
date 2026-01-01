@@ -1,6 +1,7 @@
 ﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using System;
@@ -33,6 +34,10 @@ public static class ScrollViewerExtensions
     public static readonly AttachedProperty<bool> ShowBottomFadeProperty =
         AvaloniaProperty.RegisterAttached<ScrollViewer, bool>(
             "ShowBottomFade", typeof(ScrollViewerExtensions), false);
+
+    public static readonly AttachedProperty<IBrush?> EdgeFadeMaskProperty =
+        AvaloniaProperty.RegisterAttached<ScrollViewer, IBrush?>(
+            "EdgeFadeMask", typeof(ScrollViewerExtensions), null);
 
     private static readonly AttachedProperty<EdgeFadeState?> EdgeFadeStateProperty =
         AvaloniaProperty.RegisterAttached<ScrollViewer, EdgeFadeState?>(
@@ -76,6 +81,12 @@ public static class ScrollViewerExtensions
 
     public static bool GetShowBottomFade(ScrollViewer element) =>
         element.GetValue(ShowBottomFadeProperty);
+
+    public static void SetEdgeFadeMask(ScrollViewer element, IBrush? value) =>
+        element.SetValue(EdgeFadeMaskProperty, value);
+
+    public static IBrush? GetEdgeFadeMask(ScrollViewer element) =>
+        element.GetValue(EdgeFadeMaskProperty);
 
     #endregion
 
@@ -360,11 +371,16 @@ public static class ScrollViewerExtensions
         {
             SetShowTopFade(scrollViewer, false);
             SetShowBottomFade(scrollViewer, false);
+            SetEdgeFadeMask(scrollViewer, null);
             return;
         }
 
-        SetShowTopFade(scrollViewer, offset > 0.5);
-        SetShowBottomFade(scrollViewer, offset < max - 0.5);
+        var showTop = offset > 0.5;
+        var showBottom = offset < max - 0.5;
+
+        SetShowTopFade(scrollViewer, showTop);
+        SetShowBottomFade(scrollViewer, showBottom);
+        SetEdgeFadeMask(scrollViewer, CreateEdgeFadeMask(showTop, showBottom));
     }
 
     #endregion
@@ -383,6 +399,49 @@ public static class ScrollViewerExtensions
     internal class ListBoxAutoScrollState
     {
         public NotifyCollectionChangedEventHandler? Handler { get; set; }
+    }
+
+    private static IBrush? CreateEdgeFadeMask(bool showTop, bool showBottom)
+    {
+        if (!showTop && !showBottom)
+            return null;
+
+        var brush = new LinearGradientBrush
+        {
+            StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
+            EndPoint = new RelativePoint(0, 1, RelativeUnit.Relative)
+        };
+
+        if (showTop && showBottom)
+        {
+            brush.GradientStops = new GradientStops
+            {
+                new GradientStop(Colors.Transparent, 0.0),
+                new GradientStop(Colors.Black, 0.15),
+                new GradientStop(Colors.Black, 0.85),
+                new GradientStop(Colors.Transparent, 1.0)
+            };
+        }
+        else if (showTop)
+        {
+            brush.GradientStops = new GradientStops
+            {
+                new GradientStop(Colors.Transparent, 0.0),
+                new GradientStop(Colors.Black, 0.2),
+                new GradientStop(Colors.Black, 1.0)
+            };
+        }
+        else
+        {
+            brush.GradientStops = new GradientStops
+            {
+                new GradientStop(Colors.Black, 0.0),
+                new GradientStop(Colors.Black, 0.8),
+                new GradientStop(Colors.Transparent, 1.0)
+            };
+        }
+
+        return brush;
     }
 
     internal class EdgeFadeState

@@ -545,44 +545,21 @@
                         </RadioButton>
                     </StackPanel>
                 </dashboard:DashboardCard.HeaderActions>
-                <Grid>
-                    <ScrollViewer x:Name="SettingsContent"
-                                  HorizontalAlignment="Stretch"
-                                  VerticalAlignment="Stretch"
-                                  VerticalScrollBarVisibility="Auto"
-                                  ex:ScrollViewerExtensions.EnableEdgeFade="True">
-                        <Grid>
-                            <StackPanel IsVisible="{calcBinding:Binding 'IsCommon'}"
-                                        x:Name="CommonOptionSettings"
-                                        Orientation="Vertical" />
-                            <StackPanel IsVisible="{calcBinding:Binding '!IsCommon'}"
-                                        x:Name="AdvancedOptionSettings"
-                                        Orientation="Vertical" />
-                        </Grid>
-                    </ScrollViewer>
-                    <Border Height="18"
-                            VerticalAlignment="Top"
-                            IsHitTestVisible="False"
-                            IsVisible="{Binding (ex:ScrollViewerExtensions.ShowTopFade), ElementName=SettingsContent}">
-                        <Border.Background>
-                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-                                <GradientStop Color="{DynamicResource SukiGlassCardBackground}" Offset="0" />
-                                <GradientStop Color="Transparent" Offset="1" />
-                            </LinearGradientBrush>
-                        </Border.Background>
-                    </Border>
-                    <Border Height="18"
-                            VerticalAlignment="Bottom"
-                            IsHitTestVisible="False"
-                            IsVisible="{Binding (ex:ScrollViewerExtensions.ShowBottomFade), ElementName=SettingsContent}">
-                        <Border.Background>
-                            <LinearGradientBrush StartPoint="0%,100%" EndPoint="0%,0%">
-                                <GradientStop Color="{DynamicResource SukiGlassCardBackground}" Offset="0" />
-                                <GradientStop Color="Transparent" Offset="1" />
-                            </LinearGradientBrush>
-                        </Border.Background>
-                    </Border>
-                </Grid>
+                <ScrollViewer x:Name="SettingsContent"
+                              HorizontalAlignment="Stretch"
+                              VerticalAlignment="Stretch"
+                              VerticalScrollBarVisibility="Auto"
+                              OpacityMask="{Binding (ex:ScrollViewerExtensions.EdgeFadeMask), ElementName=SettingsContent}"
+                              ex:ScrollViewerExtensions.EnableEdgeFade="True">
+                    <Grid>
+                        <StackPanel IsVisible="{calcBinding:Binding 'IsCommon'}"
+                                    x:Name="CommonOptionSettings"
+                                    Orientation="Vertical" />
+                        <StackPanel IsVisible="{calcBinding:Binding '!IsCommon'}"
+                                    x:Name="AdvancedOptionSettings"
+                                    Orientation="Vertical" />
+                    </Grid>
+                </ScrollViewer>
             </dashboard:DashboardCard>
 
             <dashboard:DashboardCard x:Name="TaskListCard"
@@ -1184,8 +1161,8 @@
             </dashboard:DashboardCard>
         </dashboard:DashboardCardGrid>
 
-        <!-- 第二行：三栏布局 -->
-        <!-- 竖屏模式下的任务设置 Popup -->
+        <!-- ~1~ 第二行：三栏布局 @1@ -->
+        <!-- ~1~ 竖屏模式下的任务设置 Popup @1@ -->
         <Popup x:Name="TaskSettingsPopup"
                IsLightDismissEnabled="True"
                Placement="Center"
@@ -1208,102 +1185,81 @@
                             </suki:IfConditionConverter.False>
                         </suki:IfConditionConverter>
                     </suki:GlassCard.Resources>
-                    <Grid>
-                        <ScrollViewer x:Name="PopupSettingsContent"
-                                      VerticalScrollBarVisibility="Auto"
-                                      ex:ScrollViewerExtensions.EnableEdgeFade="True">
-                            <Grid RowDefinitions="Auto,Auto">
-                                <suki:GroupBox Grid.Row="0" IsVisible="{Binding HasPopupSettings}"
-                                               SeparatorMargin="{Binding ShowSettings, Converter={StaticResource PopupIfConditionConverter}}">
-                                    <suki:GroupBox.Header>
-                                        <DockPanel>
-                                            <Button Classes="Basic PanelToggleButton" DockPanel.Dock="Right"
-                                                    Command="{Binding CloseSettingsPopupCommand, Source={x:Static helper:Instances.TaskQueueViewModel}}"
-                                                    Padding="2" Margin="0,-5,0,0"
-                                                    Width="24" Height="24" CornerRadius="4"
-                                                    ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.ButtonClose}}">
-                                                <avalonia1:FluentIcon Icon="Dismiss" IconSize="Size16" />
-                                            </Button>
-                                            <TextBlock DockPanel.Dock="Left"
-                                                       FontSize="13"
-                                                       FontWeight="Bold" Foreground="{DynamicResource SukiText}"
-                                                       HorizontalAlignment="Left"
-                                                       Margin="2,0,0,0"
-                                                       Text="{markup:I18n {x:Static helper:LangKeys.TaskSettings}}"
-                                                       VerticalAlignment="Center" />
-                                            <StackPanel Margin="10,0,10,5" Orientation="Horizontal"
-                                                        HorizontalAlignment="Right"
-                                                        DockPanel.Dock="Right"
-                                                        IsVisible="{Binding ShowSettings}" Spacing="8">
-                                                <RadioButton FontSize="11" FontWeight="Bold"
-                                                             Classes="Inner" IsChecked="{Binding IsCommon}"
-                                                             GroupName="PopupSettingA">
-                                                    <TextBlock
-                                                        Text="{markup:I18n {x:Static helper:LangKeys.CommonSetting}}" />
-                                                </RadioButton>
-                                                <RadioButton FontSize="11" FontWeight="Bold" Classes="Inner"
-                                                             GroupName="PopupSettingA"
-                                                             IsChecked="{calcBinding:Binding '!IsCommon'}">
-                                                    <TextBlock
-                                                        Text="{markup:I18n {x:Static helper:LangKeys.AdvancedSetting}}" />
-                                                </RadioButton>
-                                            </StackPanel>
-                                        </DockPanel>
-                                    </suki:GroupBox.Header>
-
-                                    <Grid>
-                                        <StackPanel IsVisible="{calcBinding:Binding 'IsCommon'}"
-                                                    x:Name="PopupCommonOptionSettings" Orientation="Vertical" />
-                                        <StackPanel IsVisible="{calcBinding:Binding '!IsCommon'}"
-                                                    x:Name="PopupAdvancedOptionSettings" Orientation="Vertical" />
-                                    </Grid>
-                                </suki:GroupBox>
-                                <suki:GroupBox Grid.Row="1" Margin="0 10 0 0" IsVisible="{Binding HasPopupIntroduction}">
-                                    <suki:GroupBox.Header>
-                                        <TextBlock FontSize="13" FontWeight="Bold"
-                                                   Text="{markup:I18n {x:Static helper:LangKeys.TaskDescription}}" />
-                                    </suki:GroupBox.Header>
-                                    <ScrollViewer>
-                                        <mdxaml:MarkdownScrollViewer x:Name="PopupIntroduction"
-                                                                     Markdown="{Binding PopupIntroductionContent}">
-                                            <mdxaml:MarkdownScrollViewer.Engine>
-                                                <ex:MarkdownExtension />
-                                            </mdxaml:MarkdownScrollViewer.Engine>
-                                            <mdxaml:MarkdownScrollViewer.Styles>
-                                                <StyleInclude
-                                                    Source="avares://MFAAvalonia/Assets/Style/MdXamlDocStyle.axaml" />
-                                            </mdxaml:MarkdownScrollViewer.Styles>
-                                            <mdxaml:MarkdownScrollViewer.Plugins>
-                                                <StaticResource ResourceKey="MdXamlPlugin" />
-                                            </mdxaml:MarkdownScrollViewer.Plugins>
-                                        </mdxaml:MarkdownScrollViewer>
-                                    </ScrollViewer>
-                                </suki:GroupBox>
-                            </Grid>
-                        </ScrollViewer>
-                        <Border Height="18"
-                                VerticalAlignment="Top"
-                                IsHitTestVisible="False"
-                                IsVisible="{Binding (ex:ScrollViewerExtensions.ShowTopFade), ElementName=PopupSettingsContent}">
-                            <Border.Background>
-                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-                                    <GradientStop Color="{DynamicResource SukiCardBackground}" Offset="0" />
-                                    <GradientStop Color="Transparent" Offset="1" />
-                                </LinearGradientBrush>
-                            </Border.Background>
-                        </Border>
-                        <Border Height="18"
-                                VerticalAlignment="Bottom"
-                                IsHitTestVisible="False"
-                                IsVisible="{Binding (ex:ScrollViewerExtensions.ShowBottomFade), ElementName=PopupSettingsContent}">
-                            <Border.Background>
-                                <LinearGradientBrush StartPoint="0%,100%" EndPoint="0%,0%">
-                                    <GradientStop Color="{DynamicResource SukiCardBackground}" Offset="0" />
-                                    <GradientStop Color="Transparent" Offset="1" />
-                                </LinearGradientBrush>
-                            </Border.Background>
-                        </Border>
-                    </Grid>
+                    <ScrollViewer x:Name="PopupSettingsContent"
+                                  VerticalScrollBarVisibility="Auto"
+                                  OpacityMask="{Binding (ex:ScrollViewerExtensions.EdgeFadeMask), ElementName=PopupSettingsContent}"
+                                  ex:ScrollViewerExtensions.EnableEdgeFade="True">
+                        <Grid RowDefinitions="Auto,Auto">
+                            <suki:GroupBox Grid.Row="0" IsVisible="{Binding HasPopupSettings}"
+                                           SeparatorMargin="{Binding ShowSettings, Converter={StaticResource PopupIfConditionConverter}}">
+                                <suki:GroupBox.Header>
+                                    <DockPanel>
+                                        <Button Classes="Basic PanelToggleButton" DockPanel.Dock="Right"
+                                                Command="{Binding CloseSettingsPopupCommand, Source={x:Static helper:Instances.TaskQueueViewModel}}"
+                                                Padding="2" Margin="0,-5,0,0"
+                                                Width="24" Height="24" CornerRadius="4"
+                                                ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.ButtonClose}}">
+                                            <avalonia1:FluentIcon Icon="Dismiss" IconSize="Size16" />
+                                        </Button>
+                                        <TextBlock DockPanel.Dock="Left"
+                                                   FontSize="13"
+                                                   FontWeight="Bold" Foreground="{DynamicResource SukiText}"
+                                                   HorizontalAlignment="Left"
+                                                   Margin="2,0,0,0"
+                                                   Text="{markup:I18n {x:Static helper:LangKeys.TaskSettings}}"
+                                                   VerticalAlignment="Center" />
+                                        <StackPanel Margin="10,0,10,5" Orientation="Horizontal"
+                                                    HorizontalAlignment="Right"
+                                                    DockPanel.Dock="Right"
+                                                    IsVisible="{Binding ShowSettings}" Spacing="8">
+                                            <RadioButton FontSize="11" FontWeight="Bold"
+                                                         Classes="Inner" IsChecked="{Binding IsCommon}"
+                                                         GroupName="PopupSettingA">
+                                                <TextBlock
+                                                    Text="{markup:I18n {x:Static helper:LangKeys.CommonSetting}}" />
+                                            </RadioButton>
+                                            <RadioButton FontSize="11" FontWeight="Bold" Classes="Inner"
+                                                         GroupName="PopupSettingA"
+                                                         IsChecked="{calcBinding:Binding '!IsCommon'}">
+                                                <TextBlock
+                                                    Text="{markup:I18n {x:Static helper:LangKeys.AdvancedSetting}}" />
+                                            </RadioButton>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </suki:GroupBox.Header>
+        
+                                <Grid>
+                                    <StackPanel IsVisible="{calcBinding:Binding 'IsCommon'}"
+                                                x:Name="PopupCommonOptionSettings" Orientation="Vertical" />
+                                    <StackPanel IsVisible="{calcBinding:Binding '!IsCommon'}"
+                                                x:Name="PopupAdvancedOptionSettings" Orientation="Vertical" />
+                                </Grid>
+                            </suki:GroupBox>
+                            <suki:GroupBox Grid.Row="1" Margin="0 10 0 0"
+                                           IsVisible="{Binding HasPopupIntroduction}">
+                                <suki:GroupBox.Header>
+                                    <TextBlock FontSize="13" FontWeight="Bold"
+                                               Text="{markup:I18n {x:Static helper:LangKeys.TaskDescription}}" />
+                                </suki:GroupBox.Header>
+                                <ScrollViewer>
+                                    <mdxaml:MarkdownScrollViewer x:Name="PopupIntroduction"
+                                                                 Markdown="{Binding PopupIntroductionContent}">
+                                        <mdxaml:MarkdownScrollViewer.Engine>
+                                            <ex:MarkdownExtension />
+                                        </mdxaml:MarkdownScrollViewer.Engine>
+                                        <mdxaml:MarkdownScrollViewer.Styles>
+                                            <StyleInclude
+                                                Source="avares://MFAAvalonia/Assets/Style/MdXamlDocStyle.axaml" />
+                                        </mdxaml:MarkdownScrollViewer.Styles>
+                                        <mdxaml:MarkdownScrollViewer.Plugins>
+                                            <StaticResource ResourceKey="MdXamlPlugin" />
+                                        </mdxaml:MarkdownScrollViewer.Plugins>
+                                    </mdxaml:MarkdownScrollViewer>
+                                </ScrollViewer>
+                            </suki:GroupBox>
+                        </Grid>
+                    </ScrollViewer>
+        
                 </suki:GlassCard>
             </Border>
         </Popup>
