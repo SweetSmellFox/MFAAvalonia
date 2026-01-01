@@ -15,7 +15,7 @@
                 x:DataType="dashboard:DashboardCard">
 
     <ContentControl.Styles>
-        <Style Selector="dashboard|DashboardCard /template/ Border#HeaderArea:pointerover">
+        <Style Selector="dashboard|DashboardCard /template/ Border#DragHandle:pointerover">
             <Setter Property="Cursor" Value="SizeAll" />
         </Style>
 
@@ -171,17 +171,21 @@
                                     MinHeight="36" MaxHeight="36"
                                     Padding="12,6">
                                 <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                                    <Border x:Name="DragHandle"
+                                            Grid.Column="0"
+                                            Grid.ColumnSpan="2"
+                                            Background="Transparent" />
                                     <!-- Title (always visible) -->
                                     <!-- Prefer TitleContent when provided (e.g. your I18n TextBlock), otherwise fallback to Title -->
                                     <ContentPresenter Grid.Column="0"
-                                                      x:Name="TitleContentPresenter"
+                                                      x:Name="TitleContentPresenter" IsHitTestVisible="False"
                                                       Content="{TemplateBinding TitleContent}"
                                                       VerticalAlignment="Center"
                                                       IsVisible="{Binding TitleContent, RelativeSource={RelativeSource TemplatedParent}, Converter={x:Static converters:ObjectConverters.IsNotNull}}" />
 
                                     <TextBlock Grid.Column="0"
                                                x:Name="TitleText"
-                                               FontSize="11" 
+                                               FontSize="11"  IsHitTestVisible="False"
                                                FontWeight="Bold"
                                                Foreground="{DynamicResource SukiLowText}"
                                                Margin="2,0,0,0"

@@ -145,7 +145,7 @@ public partial class DashboardCard : ContentControl
     public event EventHandler<DashboardCardResizeEventArgs>? ResizeStarted;
     public event EventHandler<DashboardCardResizeEventArgs>? ResizeCompleted;
 
-    private Border? _headerArea;
+    private Border? _dragHandle;
     private bool _isDragging;
 
     public DashboardCard()
@@ -177,22 +177,22 @@ public partial class DashboardCard : ContentControl
 
     private void SetupEventHandlers(TemplateAppliedEventArgs e)
     {
-        if (_headerArea != null)
+        if (_dragHandle != null)
         {
-            _headerArea.PointerPressed -= OnHeaderPointerPressed;
-            _headerArea.PointerMoved -= OnHeaderPointerMoved;
-            _headerArea.PointerReleased -= OnHeaderPointerReleased;
+            _dragHandle.PointerPressed -= OnHeaderPointerPressed;
+            _dragHandle.PointerMoved -= OnHeaderPointerMoved;
+            _dragHandle.PointerReleased -= OnHeaderPointerReleased;
         }
 
-        _headerArea = e.NameScope.Find<Border>("HeaderArea");
-        if (_headerArea == null)
+        _dragHandle = e.NameScope.Find<Border>("DragHandle");
+        if (_dragHandle == null)
         {
             return;
         }
 
-        _headerArea.PointerPressed += OnHeaderPointerPressed;
-        _headerArea.PointerMoved += OnHeaderPointerMoved;
-        _headerArea.PointerReleased += OnHeaderPointerReleased;
+        _dragHandle.PointerPressed += OnHeaderPointerPressed;
+        _dragHandle.PointerMoved += OnHeaderPointerMoved;
+        _dragHandle.PointerReleased += OnHeaderPointerReleased;
     }
 
     private void UpdateCollapseState()
@@ -209,19 +209,19 @@ public partial class DashboardCard : ContentControl
 
     private void OnHeaderPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (!IsDragEnabled || _headerArea == null)
+        if (!IsDragEnabled || _dragHandle == null)
         {
             return;
         }
 
-        var point = e.GetCurrentPoint(_headerArea);
+        var point = e.GetCurrentPoint(_dragHandle);
         if (!point.Properties.IsLeftButtonPressed)
         {
             return;
         }
 
         _isDragging = true;
-        e.Pointer.Capture(_headerArea);
+        e.Pointer.Capture(_dragHandle);
         DragStarted?.Invoke(this, e);
     }
 
