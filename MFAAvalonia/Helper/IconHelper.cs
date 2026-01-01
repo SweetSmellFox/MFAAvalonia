@@ -23,13 +23,14 @@ public static class IconHelper
             // 尝试从执行目录加载
             var exeDirectory = AppContext.BaseDirectory;
             var iconPath = Path.Combine(exeDirectory, "Assets", "logo.ico");
-
+            if (!File.Exists(iconPath))
+                 iconPath = Path.Combine(exeDirectory, "assets", "logo.ico");
             if (File.Exists(iconPath))
             {
                 using var fileStream = File.OpenRead(iconPath);
                 return new Bitmap(fileStream);
             }
-
+            
             // 尝试从嵌入资源加载
             var uri = new Uri("avares://MFAAvalonia/Assets/logo.ico");
             if (AssetLoader.Exists(uri))
