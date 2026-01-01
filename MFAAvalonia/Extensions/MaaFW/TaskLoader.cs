@@ -23,45 +23,52 @@ public class TaskLoader(MaaInterface? maaInterface)
     /// <summary>
     /// 加载任务列表
     /// </summary>
-    public void LoadTasks(
-        List<MaaInterface.MaaInterfaceTask> tasks,
-        ObservableCollection<DragItemViewModel> tasksSource,
-        ref bool firstTask,
-        IList<DragItemViewModel>? oldDrags = null)
-    {
-        var currentTasks = ConfigurationManager.Current.GetValue(ConfigurationKeys.CurrentTasks, new List<string>());
-        if (currentTasks.Count <= 0 || currentTasks.Any(t => t.Contains(OLD_SEPARATOR) && !t.Contains(NEW_SEPARATOR)))
+        /// <summary>
+        /// 加载任务列表
+        /// </summary>
+        public void LoadTasks(
+            List<MaaInterface.MaaInterfaceTask> tasks,
+            ObservableCollection<DragItemViewModel> tasksSource,
+            ref bool firstTask,
+            IList<DragItemViewModel>? oldDrags = null)
         {
-            currentTasks.Clear();
-            currentTasks.AddRange(tasks.Select(t => $"{t.Name}{NEW_SEPARATOR}{t.Entry}").Distinct().ToList());
+            var currentTasks = ConfigurationManager.Current.GetValue(ConfigurationKeys.CurrentTasks, new List<string>());
+            // 保存原始 currentTasks 副本，用于判断哪些是新任务
+            // 这样即使后面更新了 currentTasks，也能正确识别 interface 中新增的任务
+            var originalCurrentTasks = new List<string>(currentTasks);
+            
+            if (currentTasks.Count <= 0 || currentTasks.Any(t => t.Contains(OLD_SEPARATOR) && !t.Contains(NEW_SEPARATOR)))
+            {
+                currentTasks.Clear();
+                currentTasks.AddRange(tasks.Select(t => $"{t.Name}{NEW_SEPARATOR}{t.Entry}").Distinct().ToList());
+                ConfigurationManager.Current.SetValue(ConfigurationKeys.CurrentTasks, currentTasks);
+            }
+    
+            // 如果传入了 oldDrags（用户当前的任务列表），优先使用它来保留用户的顺序和 check 状态
+            // 只有当 oldDrags 为空时，才从配置中读取
+            List<DragItemViewModel> drags;
+            if (oldDrags != null && oldDrags.Count > 0)
+            {
+                drags = oldDrags.ToList();
+            }
+            else
+            {
+                var items = ConfigurationManager.Current.GetValue(ConfigurationKeys.TaskItems, new List<MaaInterface.MaaInterfaceTask>()) ?? new List<MaaInterface.MaaInterfaceTask>();
+                drags = items.Select(interfaceItem => new DragItemViewModel(interfaceItem)).ToList();
+            }
+    
+            if (firstTask)
+            {
+                InitializeResources();
+                firstTask = false;
+            }
+    
+            var (updateList, removeList) = SynchronizeTaskItems(ref currentTasks, originalCurrentTasks, drags, tasks);
             ConfigurationManager.Current.SetValue(ConfigurationKeys.CurrentTasks, currentTasks);
+            updateList.RemoveAll(d => removeList.Contains(d));
+    
+            UpdateViewModels(updateList, tasks, tasksSource);
         }
-
-        // 如果传入了 oldDrags（用户当前的任务列表），优先使用它来保留用户的顺序和 check 状态
-        // 只有当 oldDrags 为空时，才从配置中读取
-        List<DragItemViewModel> drags;
-        if (oldDrags != null && oldDrags.Count > 0)
-        {
-            drags = oldDrags.ToList();
-        }
-        else
-        {
-            var items = ConfigurationManager.Current.GetValue(ConfigurationKeys.TaskItems, new List<MaaInterface.MaaInterfaceTask>()) ?? new List<MaaInterface.MaaInterfaceTask>();
-            drags = items.Select(interfaceItem => new DragItemViewModel(interfaceItem)).ToList();
-        }
-
-        if (firstTask)
-        {
-            InitializeResources();
-            firstTask = false;
-        }
-
-        var (updateList, removeList) = SynchronizeTaskItems(ref currentTasks, drags, tasks);
-        ConfigurationManager.Current.SetValue(ConfigurationKeys.CurrentTasks, currentTasks);
-        updateList.RemoveAll(d => removeList.Contains(d));
-
-        UpdateViewModels(updateList, tasks, tasksSource);
-    }
 
     private void InitializeResources()
     {
@@ -233,58 +240,73 @@ public class TaskLoader(MaaInterface? maaInterface)
         }).ToList();
     }
 
-    private (List<DragItemViewModel> updateList, List<DragItemViewModel> removeList) SynchronizeTaskItems(
-        ref List<string> currentTasks,
-        IList<DragItemViewModel> drags,
-        List<MaaInterface.MaaInterfaceTask> tasks)
-    {
-        var currentTaskSet = new HashSet<(string Name, string Entry)>(
-            currentTasks.Select(t => t.Split(NEW_SEPARATOR, 2)).Where(parts => parts.Length == 2).Select(parts => (parts[0], parts[1])));
-
-        var newDict = tasks.GroupBy(t => (t.Name, t.Entry)).ToDictionary(group => group.Key, group => group.Last());
-        var removeList = new List<DragItemViewModel>();
-        var updateList = new List<DragItemViewModel>();
-
-        if (drags.Count == 0) return (updateList, removeList);
-
-        // 记录已经处理过的任务（用于避免重复添加）
-        var processedTasks = new HashSet<(string? Name, string? Entry)>();
-
-        foreach (var oldItem in drags)
+        private (List<DragItemViewModel> updateList, List<DragItemViewModel> removeList) SynchronizeTaskItems(
+            ref List<string> currentTasks,
+            List<string> originalCurrentTasks,
+            IList<DragItemViewModel> drags,
+            List<MaaInterface.MaaInterfaceTask> tasks)
         {
-            var taskKey = (oldItem.InterfaceItem?.Name, oldItem.InterfaceItem?.Entry);
-
-            if (newDict.TryGetValue((oldItem.InterfaceItem?.Name, oldItem.InterfaceItem?.Entry), out var newItem))
+            // 使用当前 currentTasks 创建 currentTaskSet，用于避免重复写入
+            var currentTaskSet = new HashSet<(string Name, string Entry)>(
+                currentTasks.Select(t => t.Split(NEW_SEPARATOR, 2))
+                    .Where(parts => parts.Length == 2)
+                    .Select(parts => (parts[0], parts[1])));
+    
+            var newDict = tasks.GroupBy(t => (t.Name, t.Entry)).ToDictionary(group => group.Key, group => group.Last());
+            var removeList = new List<DragItemViewModel>();
+            var updateList = new List<DragItemViewModel>();
+    
+            // 记录已经处理过的任务（用于避免重复添加）
+            var processedTasks = new HashSet<(string? Name, string? Entry)>();
+    
+            // 处理现有的 drags 任务
+            foreach (var oldItem in drags)
             {
-                UpdateExistingItem(oldItem, newItem);
-                updateList.Add(oldItem);
-                processedTasks.Add(taskKey);
-            }
-            else
-            {
-                var sameNameTasks = tasks.Where(t => t.Entry == oldItem.InterfaceItem?.Entry).ToList();
-                if (sameNameTasks.Any())
+                var taskKey = (oldItem.InterfaceItem?.Name, oldItem.InterfaceItem?.Entry);
+    
+                if (newDict.TryGetValue((oldItem.InterfaceItem?.Name, oldItem.InterfaceItem?.Entry), out var newItem))
                 {
-                    UpdateExistingItem(oldItem, sameNameTasks.First(), tasks.Any(t => t.Name == sameNameTasks.First().Name));
+                    UpdateExistingItem(oldItem, newItem);
                     updateList.Add(oldItem);
-                    processedTasks.Add((sameNameTasks.First().Name, sameNameTasks.First().Entry));
+                    processedTasks.Add(taskKey);
                 }
-                else removeList.Add(oldItem);
+                else
+                {
+                    var sameNameTasks = tasks.Where(t => t.Entry == oldItem.InterfaceItem?.Entry).ToList();
+                    if (sameNameTasks.Any())
+                    {
+                        UpdateExistingItem(oldItem, sameNameTasks.First(), tasks.Any(t => t.Name == sameNameTasks.First().Name));
+                        updateList.Add(oldItem);
+                        processedTasks.Add((sameNameTasks.First().Name, sameNameTasks.First().Entry));
+                    }
+                    else removeList.Add(oldItem);
+                }
             }
-        }
-
-        // 只添加尚未处理的新任务
-        foreach (var task in tasks)
-        {
-            var taskKey = (task.Name, task.Entry);
-            if (!processedTasks.Contains(taskKey) && !currentTaskSet.Contains((task.Name ?? string.Empty, task.Entry ?? string.Empty)))
+    
+            // 添加 interface 中新增的任务（以当前任务列表为准补齐缺失项）
+            foreach (var task in tasks)
             {
-                updateList.Add(new DragItemViewModel(task));
-                currentTasks.Add($"{task.Name}{NEW_SEPARATOR}{task.Entry}");
+                var taskKey = (task.Name, task.Entry);
+                if (!processedTasks.Contains(taskKey))
+                {
+                    var newItem = new DragItemViewModel(task);
+                    // 为新任务设置默认选项值
+                    if (task.Option != null)
+                    {
+                        task.Option.ForEach(option => SetDefaultOptionValue(maaInterface, option));
+                    }
+                    updateList.Add(newItem);
+    
+                    var taskKeyForSet = (task.Name ?? string.Empty, task.Entry ?? string.Empty);
+                    if (!currentTaskSet.Contains(taskKeyForSet))
+                    {
+                        currentTasks.Add($"{task.Name}{NEW_SEPARATOR}{task.Entry}");
+                        currentTaskSet.Add(taskKeyForSet);
+                    }
+                }
             }
+            return (updateList, removeList);
         }
-        return (updateList, removeList);
-    }
 
 
         private void UpdateExistingItem(DragItemViewModel oldItem, MaaInterface.MaaInterfaceTask newItem, bool updateName = false)
