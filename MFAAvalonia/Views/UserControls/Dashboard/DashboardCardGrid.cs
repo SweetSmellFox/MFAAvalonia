@@ -97,7 +97,10 @@ public sealed class DashboardCardGrid : Panel
     private readonly List<Thumb> _rowSplitters = new();
     private bool _isUpdatingSplitterHost;
     private SplitterDragContext? _activeSplitterContext;
+    private SplitterLayout? _activeSplitterLayout;
     private RowSplitterDragContext? _activeRowSplitterContext;
+    private Thumb? _activeSplitterThumb;
+    private Thumb? _activeRowSplitterThumb;
     private bool _isSplitterDragging;
     private bool _isRowSplitterDragging;
 
@@ -1526,7 +1529,18 @@ public sealed class DashboardCardGrid : Panel
 
     private void EnsureRowSplitters()
     {
-        var required = Math.Max(0, Rows - 1);
+        if (_isRowSplitterDragging)
+        {
+            return;
+        }
+
+        var layouts = BuildRowSplitterLayouts();
+        SyncRowSplitters(layouts);
+    }
+
+    private void SyncRowSplitters(IReadOnlyList<RowSplitterLayout> layouts)
+    {
+        var required = Math.Max(0, layouts.Count);
 
         for (var i = _rowSplitters.Count - 1; i >= required; i--)
         {
@@ -1544,7 +1558,7 @@ public sealed class DashboardCardGrid : Panel
         {
             var splitter = new Thumb
             {
-                Tag = i,
+                Tag = null,
                 IsVisible = false,
                 Background = Brushes.Transparent,
                 ZIndex = 20,
@@ -1563,9 +1577,9 @@ public sealed class DashboardCardGrid : Panel
             Children.Add(splitter);
         }
 
-        for (var i = 0; i < _rowSplitters.Count; i++)
+        for (var i = 0; i < required; i++)
         {
-            _rowSplitters[i].Tag = i;
+            _rowSplitters[i].Tag = layouts[i];
         }
     }
 
@@ -1628,7 +1642,25 @@ public sealed class DashboardCardGrid : Panel
         for (var i = 0; i < _columnSplitters.Count; i++)
         {
             var splitter = _columnSplitters[i];
-            if (!TryBuildSplitterLayout(i, out _))
+            var isActive = _isSplitterDragging && ReferenceEquals(splitter, _activeSplitterThumb);
+            SplitterLayout? layout = null;
+
+            if (isActive)
+            {
+                layout = _activeSplitterLayout;
+            }
+            else if (!TryBuildSplitterLayout(i, out var resolved))
+            {
+                splitter.IsVisible = false;
+                splitter.Arrange(new Rect(0, 0, 0, 0));
+                continue;
+            }
+            else
+            {
+                layout = resolved;
+            }
+
+            if (layout == null)
             {
                 splitter.IsVisible = false;
                 splitter.Arrange(new Rect(0, 0, 0, 0));
@@ -1636,23 +1668,68 @@ public sealed class DashboardCardGrid : Panel
             }
 
             splitter.IsVisible = true;
-            var centerX = Padding.Left + (i + 1) * metrics.CellPitchX - CellSpacing * 0.5;
+            var boundaryOffset = isActive ? _activeSplitterContext?.LastDelta ?? 0 : 0;
+            var boundary = Math.Clamp(i + boundaryOffset, 0, Math.Max(0, Columns - 2));
+            var centerX = Padding.Left + (boundary + 1) * metrics.CellPitchX - CellSpacing * 0.5;
             var width = Math.Max(12, CellSpacing);
             var x = centerX - width / 2;
-            splitter.Arrange(new Rect(x, top, width, Math.Max(0, height)));
+
+            var leftMin = int.MaxValue;
+            var leftMax = int.MinValue;
+            var rightMin = int.MaxValue;
+            var rightMax = int.MinValue;
+
+            foreach (var card in layout.LeftCards)
+            {
+                var row = ClampIndex(card.GridRow, rows);
+                var span = Math.Clamp(Math.Max(1, card.IsCollapsed ? 1 : card.GridRowSpan), 1, rows - row);
+                leftMin = Math.Min(leftMin, row);
+                leftMax = Math.Max(leftMax, row + span);
+            }
+
+            foreach (var card in layout.RightCards)
+            {
+                var row = ClampIndex(card.GridRow, rows);
+                var span = Math.Clamp(Math.Max(1, card.IsCollapsed ? 1 : card.GridRowSpan), 1, rows - row);
+                rightMin = Math.Min(rightMin, row);
+                rightMax = Math.Max(rightMax, row + span);
+            }
+
+            if (leftMin != int.MaxValue && leftMin == rightMin && leftMax == rightMax && rightMax > rightMin)
+            {
+                var y = Padding.Top + leftMin * metrics.CellPitchY;
+                var h = (leftMax - leftMin) * metrics.CellHeight + (leftMax - leftMin - 1) * CellSpacing;
+                splitter.Arrange(new Rect(x, y, width, Math.Max(0, h)));
+            }
+            else
+            {
+                splitter.Arrange(new Rect(x, top, width, Math.Max(0, height)));
+            }
         }
     }
 
     private void ArrangeRowSplitters(Size finalSize)
     {
-        if (_rowSplitters.Count == 0)
+        var layouts = _isRowSplitterDragging
+            ? _rowSplitters.Select(splitter => splitter.Tag).OfType<RowSplitterLayout>().ToList()
+            : BuildRowSplitterLayouts();
+
+        if (layouts.Count == 0)
         {
+            foreach (var splitter in _rowSplitters)
+            {
+                splitter.Arrange(new Rect(0, 0, 0, 0));
+            }
             return;
+        }
+
+        if (!_isRowSplitterDragging && _rowSplitters.Count != layouts.Count)
+        {
+            SyncRowSplitters(layouts);
         }
 
         var metrics = GetMetrics(finalSize);
         var columns = Math.Max(1, Columns);
-        var rows = Math.Max(1, Rows);
 
         if (metrics.CellWidth <= 0 || metrics.CellHeight <= 0)
         {
@@ -1663,21 +1740,22 @@ public sealed class DashboardCardGrid : Panel
             return;
         }
 
-        var width = columns * metrics.CellWidth + (columns - 1) * CellSpacing;
-        var left = Padding.Left;
-
-        for (var i = 0; i < _rowSplitters.Count; i++)
+        for (var i = 0; i < layouts.Count && i < _rowSplitters.Count; i++)
         {
             var splitter = _rowSplitters[i];
-            if (!TryBuildRowSplitterLayout(i, out var layout))
-            {
-                splitter.IsVisible = false;
-                splitter.Arrange(new Rect(0, 0, 0, 0));
-                continue;
-            }
+            var layout = layouts[i];
 
             splitter.IsVisible = true;
-            var centerY = Padding.Top + (i + 1) * metrics.CellPitchY - CellSpacing * 0.5;
+            if (!_isRowSplitterDragging)
+            {
+                splitter.Tag = layout;
+            }
+
+            var boundaryOffset = _isRowSplitterDragging && ReferenceEquals(splitter, _activeRowSplitterThumb)
+                ? _activeRowSplitterContext?.LastDelta ?? 0
+                : 0;
+            var boundary = Math.Clamp(layout.Boundary + boundaryOffset, 0, Math.Max(0, Rows - 2));
+            var centerY = Padding.Top + (boundary + 1) * metrics.CellPitchY - CellSpacing * 0.5;
             var height = Math.Max(12, CellSpacing);
             var y = centerY - height / 2;
 
@@ -1703,6 +1781,9 @@ public sealed class DashboardCardGrid : Panel
         }
 
         _isSplitterDragging = true;
+        _activeSplitterThumb = splitter;
+        _activeSplitterLayout = layout;
+        splitter.ZIndex = 60;
         splitter.Opacity = 1;
         _activeSplitterContext = SplitterDragContext.FromLayout(layout, Columns);
         _activeSplitterContext.LastDelta = 0;
@@ -1710,17 +1791,14 @@ public sealed class DashboardCardGrid : Panel
 
     private void OnRowSplitterDragStarted(object? sender, VectorEventArgs e)
     {
-        if (sender is not Thumb splitter || splitter.Tag is not int boundary)
-        {
-            return;
-        }
-
-        if (!TryBuildRowSplitterLayout(boundary, out var layout))
+        if (sender is not Thumb splitter || splitter.Tag is not RowSplitterLayout layout)
         {
             return;
         }
 
         _isRowSplitterDragging = true;
+        _activeRowSplitterThumb = splitter;
+        splitter.ZIndex = 60;
         splitter.Opacity = 1;
         _activeRowSplitterContext = RowSplitterDragContext.FromLayout(layout, Rows);
         _activeRowSplitterContext.LastDelta = 0;
@@ -1740,7 +1818,8 @@ public sealed class DashboardCardGrid : Panel
         }
 
         var rawDelta = (int)Math.Round(e.Vector.X / metrics.CellPitchX);
-        var clamped = _activeSplitterContext.ClampDelta(rawDelta);
+        var totalDelta = _activeSplitterContext.LastDelta + rawDelta;
+        var clamped = _activeSplitterContext.ClampDelta(totalDelta);
 
         if (clamped == _activeSplitterContext.LastDelta)
         {
@@ -1768,7 +1847,8 @@ public sealed class DashboardCardGrid : Panel
         }
 
         var rawDelta = (int)Math.Round(e.Vector.Y / metrics.CellPitchY);
-        var clamped = _activeRowSplitterContext.ClampDelta(rawDelta);
+        var totalDelta = _activeRowSplitterContext.LastDelta + rawDelta;
+        var clamped = _activeRowSplitterContext.ClampDelta(totalDelta);
 
         if (clamped == _activeRowSplitterContext.LastDelta)
         {
@@ -1781,6 +1861,7 @@ public sealed class DashboardCardGrid : Panel
         InvalidateMeasure();
         InvalidateArrange();
     }
+
     private void OnSplitterDragCompleted(object? sender, VectorEventArgs e)
     {
         if (_activeSplitterContext == null)
@@ -1791,11 +1872,18 @@ public sealed class DashboardCardGrid : Panel
         _isSplitterDragging = false;
         if (sender is Thumb splitter)
         {
+            splitter.ZIndex = 20;
             splitter.Opacity = splitter.IsPointerOver ? 1 : 0;
         }
 
         SaveLayouts();
         _activeSplitterContext = null;
+        _activeSplitterLayout = null;
+        _activeSplitterThumb = null;
+        EnsureSplitters();
+        EnsureSplitterHost();
+        InvalidateMeasure();
+        InvalidateArrange();
     }
 
     private void OnRowSplitterDragCompleted(object? sender, VectorEventArgs e)
@@ -1808,11 +1896,17 @@ public sealed class DashboardCardGrid : Panel
         _isRowSplitterDragging = false;
         if (sender is Thumb splitter)
         {
+            splitter.ZIndex = 20;
             splitter.Opacity = splitter.IsPointerOver ? 1 : 0;
         }
 
         SaveLayouts();
         _activeRowSplitterContext = null;
+        _activeRowSplitterThumb = null;
+        EnsureRowSplitters();
+        EnsureSplitterHost();
+        InvalidateMeasure();
+        InvalidateArrange();
     }
 
 
@@ -1946,117 +2040,121 @@ public sealed class DashboardCardGrid : Panel
         return layout.LeftCards.Count > 0 && layout.RightCards.Count > 0;
     }
 
-    private bool TryBuildRowSplitterLayout(int boundary, out RowSplitterLayout layout)
+    private List<RowSplitterLayout> BuildRowSplitterLayouts()
     {
-        layout = new RowSplitterLayout(boundary);
+        var layouts = new List<RowSplitterLayout>();
         var columns = Math.Max(1, Columns);
         var rows = Math.Max(1, Rows);
 
-        if (boundary < 0 || boundary >= rows - 1)
+        if (rows < 2)
         {
-            return false;
+            return layouts;
         }
 
-        var topCards = new Dictionary<int, DashboardCard>();
-        var bottomCards = new Dictionary<int, DashboardCard>();
-
-        foreach (var card in Children.OfType<DashboardCard>())
+        for (var boundary = 0; boundary < rows - 1; boundary++)
         {
-            if (!card.IsVisible)
+            var topCards = new Dictionary<int, DashboardCard>();
+            var bottomCards = new Dictionary<int, DashboardCard>();
+
+            foreach (var card in Children.OfType<DashboardCard>())
             {
-                continue;
-            }
-
-            var col = ClampIndex(card.GridColumn, columns);
-            var row = ClampIndex(card.GridRow, rows);
-            var colSpan = Math.Clamp(Math.Max(1, card.GridColumnSpan), 1, columns - col);
-            var rowSpan = Math.Clamp(Math.Max(1, card.IsCollapsed ? 1 : card.GridRowSpan), 1, rows - row);
-
-            var topEdge = row;
-            var bottomEdge = row + rowSpan - 1;
-
-            if (topEdge <= boundary && bottomEdge >= boundary + 1)
-            {
-                continue;
-            }
-
-            if (bottomEdge == boundary || topEdge == boundary + 1)
-            {
-                for (var c = col; c < col + colSpan; c++)
+                if (!card.IsVisible)
                 {
-                    if (c < 0 || c >= columns)
-                    {
-                        continue;
-                    }
+                    continue;
+                }
 
-                    if (bottomEdge == boundary)
+                var col = ClampIndex(card.GridColumn, columns);
+                var row = ClampIndex(card.GridRow, rows);
+                var colSpan = Math.Clamp(Math.Max(1, card.GridColumnSpan), 1, columns - col);
+                var rowSpan = Math.Clamp(Math.Max(1, card.IsCollapsed ? 1 : card.GridRowSpan), 1, rows - row);
+
+                var topEdge = row;
+                var bottomEdge = row + rowSpan - 1;
+
+                if (topEdge <= boundary && bottomEdge >= boundary + 1)
+                {
+                    continue;
+                }
+
+                if (bottomEdge == boundary || topEdge == boundary + 1)
+                {
+                    for (var c = col; c < col + colSpan; c++)
                     {
-                        if (topCards.TryGetValue(c, out var existing) && !ReferenceEquals(existing, card))
+                        if (c < 0 || c >= columns)
                         {
-                            return false;
+                            continue;
                         }
 
-                        topCards[c] = card;
-                    }
-
-                    if (topEdge == boundary + 1)
-                    {
-                        if (bottomCards.TryGetValue(c, out var existing) && !ReferenceEquals(existing, card))
+                        if (bottomEdge == boundary)
                         {
-                            return false;
+                            if (topCards.TryGetValue(c, out var existing) && !ReferenceEquals(existing, card))
+                            {
+                                topCards.Clear();
+                                bottomCards.Clear();
+                                goto NextBoundary;
+                            }
+
+                            topCards[c] = card;
                         }
 
-                        bottomCards[c] = card;
+                        if (topEdge == boundary + 1)
+                        {
+                            if (bottomCards.TryGetValue(c, out var existing) && !ReferenceEquals(existing, card))
+                            {
+                                topCards.Clear();
+                                bottomCards.Clear();
+                                goto NextBoundary;
+                            }
+
+                            bottomCards[c] = card;
+                        }
                     }
                 }
             }
-        }
 
-        var matchedTopCards = new HashSet<DashboardCard>();
-        var matchedBottomCards = new HashSet<DashboardCard>();
+            var groupedPairs = new Dictionary<(int Col, int Span), (DashboardCard Top, DashboardCard Bottom)>();
 
-        for (var c = 0; c < columns; c++)
-        {
-            if (!topCards.TryGetValue(c, out var top) || !bottomCards.TryGetValue(c, out var bottom))
+            for (var c = 0; c < columns; c++)
             {
-                continue;
+                if (!topCards.TryGetValue(c, out var top) || !bottomCards.TryGetValue(c, out var bottom))
+                {
+                    continue;
+                }
+
+                var topCol = ClampIndex(top.GridColumn, columns);
+                var topSpan = Math.Clamp(Math.Max(1, top.GridColumnSpan), 1, columns - topCol);
+
+                if (topCol != ClampIndex(bottom.GridColumn, columns) || topSpan != Math.Clamp(Math.Max(1, bottom.GridColumnSpan), 1, columns - ClampIndex(bottom.GridColumn, columns)))
+                {
+                    continue;
+                }
+
+                groupedPairs.TryAdd((topCol, topSpan), (top, bottom));
             }
 
-            if (top.GridColumn != bottom.GridColumn || Math.Max(1, top.GridColumnSpan) != Math.Max(1, bottom.GridColumnSpan))
+            foreach (var group in groupedPairs.OrderBy(item => item.Key.Col).ThenBy(item => item.Key.Span))
             {
-                continue;
+                var layout = new RowSplitterLayout(boundary)
+                {
+                    StartColumn = group.Key.Col,
+                    ColumnSpan = group.Key.Span,
+                    TopCards = new List<DashboardCard>
+                    {
+                        group.Value.Top
+                    },
+                    BottomCards = new List<DashboardCard>
+                    {
+                        group.Value.Bottom
+                    }
+                };
+                layouts.Add(layout);
             }
 
-            matchedTopCards.Add(top);
-            matchedBottomCards.Add(bottom);
+            NextBoundary:
+            continue;
         }
 
-        if (matchedTopCards.Count == 0 || matchedBottomCards.Count == 0)
-        {
-            return false;
-        }
-
-        var minCol = int.MaxValue;
-        var maxColExclusive = int.MinValue;
-
-        foreach (var card in matchedTopCards.Concat(matchedBottomCards))
-        {
-            var col = ClampIndex(card.GridColumn, columns);
-            var colSpan = Math.Clamp(Math.Max(1, card.GridColumnSpan), 1, columns - col);
-            minCol = Math.Min(minCol, col);
-            maxColExclusive = Math.Max(maxColExclusive, col + colSpan);
-        }
-
-        if (minCol == int.MaxValue || maxColExclusive <= minCol)
-        {
-            return false;
-        }
-
-        layout.TopCards = matchedTopCards.ToList();
-        layout.BottomCards = matchedBottomCards.ToList();
-        layout.StartColumn = minCol;
-        layout.ColumnSpan = maxColExclusive - minCol;
-        return true;
+        return layouts;
     }
 
     private sealed class SplitterLayout
