@@ -1415,6 +1415,12 @@
     <data name="ResourceNotSupportController" xml:space="preserve">
         <value>Current controller {1} does not support resource {0}, auto-switched to {2}. Please check resource settings.</value>
     </data>
+    <data name="ResourceNotSelected" xml:space="preserve">
+        <value>No resource selected. Please select a resource first.</value>
+    </data>
+    <data name="DeviceNotSelected" xml:space="preserve">
+        <value>No device selected. Please select a device first.</value>
+    </data>
 
 
     <data name="ResourcePresetConfig" xml:space="preserve">
@@ -1434,6 +1440,12 @@
         </data>
     <data name="LiveViewRefreshRate" xml:space="preserve">
         <value>Live View Max Refresh Rate (FPS)</value>
+    </data>
+    <data name="PlayCoverAddress" xml:space="preserve">
+        <value>Address</value>
+    </data>
+    <data name="PlayCoverBundleIdentifier" xml:space="preserve">
+        <value>Bundle Identifier</value>
     </data>
 </root>
 

@@ -482,4 +482,6 @@ public static class LangKeys
 	public static readonly string Running = "Running";
 	public static readonly string CurrentTask = "CurrentTask";
 	public static readonly string LiveViewRefreshRate = "LiveViewRefreshRate";
+	public static readonly string PlayCoverAddress = "PlayCoverAddress";
+	public static readonly string PlayCoverBundleIdentifier = "PlayCoverBundleIdentifier";
 }

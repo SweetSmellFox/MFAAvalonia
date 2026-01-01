@@ -1407,6 +1407,12 @@
     <data name="ResourceNotSupportController" xml:space="preserve">
         <value>當前控制器 {1} 不支援資源 {0}，已自動切換為 {2}，請檢查資源設定</value>
     </data>
+    <data name="ResourceNotSelected" xml:space="preserve">
+        <value>未選擇資源，請先選擇資源</value>
+    </data>
+    <data name="DeviceNotSelected" xml:space="preserve">
+        <value>未選擇裝置，請先選擇裝置</value>
+    </data>
 
     <data name="ResourcePresetConfig" xml:space="preserve">
         <value>資源預設配置</value>
@@ -1426,4 +1432,10 @@
     <data name="LiveViewRefreshRate" xml:space="preserve">
         <value>即時視圖最大刷新率 (FPS)</value>
     </data>
-    </root>
+    <data name="PlayCoverAddress" xml:space="preserve">
+        <value>位址</value>
+    </data>
+    <data name="PlayCoverBundleIdentifier" xml:space="preserve">
+        <value>應用識別碼</value>
+    </data>
+</root>

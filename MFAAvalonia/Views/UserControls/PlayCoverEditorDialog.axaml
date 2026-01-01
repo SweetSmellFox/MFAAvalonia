@@ -1,7 +1,7 @@
 ﻿<UserControl
-    MinHeight="320"
+    MinHeight="280"
     MinWidth="350"
-    d:DesignHeight="320"
+    d:DesignHeight="280"
     mc:Ignorable="d"
     x:Class="MFAAvalonia.Views.UserControls.PlayCoverEditorDialog"
     x:DataType="usersControls:PlayCoverEditorDialogViewModel"
@@ -22,14 +22,14 @@
             FontSize="12"
             FontWeight="DemiBold"
             Margin="8,27,0,0"
-            Text="{markup:I18n {x:Static helper:LangKeys.AdbSerial}}" />
+            Text="{markup:I18n {x:Static helper:LangKeys.PlayCoverAddress}}" />
         <TextBox Text="{Binding PlayCoverAdbSerial}" />
 
         <TextBlock
             FontSize="12"
             FontWeight="DemiBold"
             Margin="8,15,0,0"
-            Text="Bundle Identifier" />
+            Text="{markup:I18n {x:Static helper:LangKeys.PlayCoverBundleIdentifier}}" />
         <TextBox Text="{Binding PlayCoverBundleIdentifier}" />
 
         <StackPanel

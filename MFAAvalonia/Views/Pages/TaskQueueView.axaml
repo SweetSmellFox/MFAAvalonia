@@ -292,6 +292,7 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <!-- 在 TopToolbar Grid 中添加新列，放在资源选择之前 -->
                 <Grid x:Name="ConfigSelectorPanel" Grid.Column="0" VerticalAlignment="Center"
@@ -331,7 +332,7 @@
                               IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
                               ItemsSource="{Binding CurrentResources}"
                               MinWidth="150" HorizontalAlignment="Stretch"
-                              SelectedValue="{Binding CurrentResource}"
+                              SelectedValue="{Binding CurrentResource, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                               SelectedValueBinding="{Binding Name}" VerticalAlignment="Center">
                         <ComboBox.ItemTemplate>
                             <DataTemplate x:DataType="maa:MaaInterface+MaaInterfaceResource">
@@ -344,7 +345,8 @@
                                                Text="{Binding DisplayName}"
                                                TextTrimming="CharacterEllipsis"
                                                VerticalAlignment="Center" />
-                                    <controls:TooltipBlock MaxWidth="40"  Grid.Column="2" IsVisible="{Binding HasDescription}"
+                                    <controls:TooltipBlock MaxWidth="40" Grid.Column="2"
+                                                           IsVisible="{Binding HasDescription}"
                                                            TooltipText="{Binding DisplayDescription}" />
                                 </Grid>
                             </DataTemplate>
@@ -360,7 +362,8 @@
                                                Text="{Binding DisplayName}"
                                                TextTrimming="CharacterEllipsis"
                                                VerticalAlignment="Center" />
-                                    <controls:TooltipBlock MaxWidth="40"  Grid.Column="2" IsVisible="{Binding HasDescription}"
+                                    <controls:TooltipBlock MaxWidth="40" Grid.Column="2"
+                                                           IsVisible="{Binding HasDescription}"
                                                            TooltipText="{Binding DisplayDescription}" />
                                 </Grid>
                             </DataTemplate>
@@ -396,7 +399,8 @@
                                                Text="{Binding DisplayName}"
                                                TextTrimming="CharacterEllipsis"
                                                VerticalAlignment="Center" />
-                                    <controls:TooltipBlock MaxWidth="40" Grid.Column="2" IsVisible="{Binding HasDescription}"
+                                    <controls:TooltipBlock MaxWidth="40" Grid.Column="2"
+                                                           IsVisible="{Binding HasDescription}"
                                                            TooltipText="{Binding DisplayDescription}" />
                                 </Grid>
                             </DataTemplate>
@@ -412,7 +416,8 @@
                                                Text="{Binding DisplayName}"
                                                TextTrimming="CharacterEllipsis"
                                                VerticalAlignment="Center" />
-                                    <controls:TooltipBlock MaxWidth="40"  Grid.Column="2" IsVisible="{Binding HasDescription}"
+                                    <controls:TooltipBlock MaxWidth="40" Grid.Column="2"
+                                                           IsVisible="{Binding HasDescription}"
                                                            TooltipText="{Binding DisplayDescription}" />
                                 </Grid>
                             </DataTemplate>
@@ -456,62 +461,63 @@
                             </DataTemplate>
                         </ComboBox.DataTemplates>
                     </ComboBox>
-                    <StackPanel x:Name="ConnectionButtonsPanel" Grid.Column="2" Orientation="Horizontal"
-                                VerticalAlignment="Center" Spacing="4">
-                        <StackPanel.Resources>
-                            <markup:IfConditionConverter x:Key="ConnectedConditionConverter">
-                                <markup:IfConditionConverter.True>
-                                    <Path Data="{StaticResource ConnectedGeometry}" Fill="LimeGreen"
-                                          Height="11" Margin="3,2,4,0" Stretch="Uniform"
-                                          ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.Connected}}" />
-                                </markup:IfConditionConverter.True>
-                                <markup:IfConditionConverter.False>
-                                    <Path Data="{StaticResource UnconnectedGeometry}" Fill="Red"
-                                          Height="16" Margin="3,3,4,0" Stretch="Uniform"
-                                          ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.Unconnected}}"
-                                          VerticalAlignment="Center" />
-                                </markup:IfConditionConverter.False>
-                            </markup:IfConditionConverter>
-                        </StackPanel.Resources>
-                        <Button Classes="BasicTight TaskQueueBasicTight"
-                                ClipToBounds="False"
-                                Command="{Binding CustomAdbCommand}"
-                                IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
-                                IsVisible="{calcBinding:Binding 'CurrentController == maa:MaaControllerTypes.Adb'}"
-                                Padding="0" ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.Custom}}">
-                            <avalonia1:FluentIcon Height="18" Icon="DesktopEdit" IconSize="Size16"
-                                                  IconVariant="Regular" />
-                        </Button>
-                        <Button Classes="BasicTight TaskQueueBasicTight"
-                                Command="{Binding EditPlayCoverCommand}"
-                                IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
-                                IsVisible="{calcBinding:Binding 'CurrentController == maa:MaaControllerTypes.PlayCover'}"
-                                Padding="0"
-                                ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.EditControllerConfiguration}}">
-                            <avalonia1:FluentIcon Height="18" Icon="DesktopEdit" IconSize="Size16"
-                                                  IconVariant="Regular" />
-                        </Button>
-                        <Button Classes="BasicTight TaskQueueBasicTight SyncButton"
-                                ClipToBounds="False"
-                                Command="{Binding RefreshCommand}"
-                                IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
-                                Padding="0"
-                                Width="24"  IsVisible="{calcBinding:Binding 'CurrentController != maa:MaaControllerTypes.PlayCover'}"
-                                Height="24"
-                                HorizontalContentAlignment="Center"
-                                VerticalContentAlignment="Center"
-                                ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.TooltipRefresh}}"
-                                VerticalAlignment="Center">
-                            <Path Data="{StaticResource RefreshGeometry}"
-                                  Width="16"
-                                  Height="16"
-                                  Stretch="Uniform"
-                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
-                        </Button>
-                        <ContentControl
-                            Content="{Binding IsConnected, Converter={StaticResource ConnectedConditionConverter}, Source={x:Static helper:Instances.TaskQueueViewModel}}" />
-                    </StackPanel>
                 </Grid>
+                <StackPanel x:Name="ConnectionButtonsPanel" Grid.Column="6" Orientation="Horizontal"
+                            VerticalAlignment="Center" Spacing="4">
+                    <StackPanel.Resources>
+                        <markup:IfConditionConverter x:Key="ConnectedConditionConverter">
+                            <markup:IfConditionConverter.True>
+                                <Path Data="{StaticResource ConnectedGeometry}" Fill="LimeGreen"
+                                      Height="11" Margin="3,2,4,0" Stretch="Uniform"
+                                      ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.Connected}}" />
+                            </markup:IfConditionConverter.True>
+                            <markup:IfConditionConverter.False>
+                                <Path Data="{StaticResource UnconnectedGeometry}" Fill="Red"
+                                      Height="16" Margin="3,3,4,0" Stretch="Uniform"
+                                      ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.Unconnected}}"
+                                      VerticalAlignment="Center" />
+                            </markup:IfConditionConverter.False>
+                        </markup:IfConditionConverter>
+                    </StackPanel.Resources>
+                    <Button Classes="BasicTight TaskQueueBasicTight"
+                            ClipToBounds="False"
+                            Command="{Binding CustomAdbCommand}"
+                            IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
+                            IsVisible="{calcBinding:Binding 'CurrentController == maa:MaaControllerTypes.Adb'}"
+                            Padding="0" ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.Custom}}">
+                        <avalonia1:FluentIcon Height="18" Icon="DesktopEdit" IconSize="Size16"
+                                              IconVariant="Regular" />
+                    </Button>
+                    <Button Classes="BasicTight TaskQueueBasicTight"
+                            Command="{Binding EditPlayCoverCommand}"
+                            IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
+                            IsVisible="{calcBinding:Binding 'CurrentController == maa:MaaControllerTypes.PlayCover'}"
+                            Padding="0"
+                            ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.EditControllerConfiguration}}">
+                        <avalonia1:FluentIcon Height="18" Icon="DesktopEdit" IconSize="Size16"
+                                              IconVariant="Regular" />
+                    </Button>
+                    <Button Classes="BasicTight TaskQueueBasicTight SyncButton"
+                            ClipToBounds="False"
+                            Command="{Binding RefreshCommand}"
+                            IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
+                            Padding="0"
+                            Width="24"
+                            IsVisible="{calcBinding:Binding 'CurrentController != maa:MaaControllerTypes.PlayCover'}"
+                            Height="24"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
+                            ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.TooltipRefresh}}"
+                            VerticalAlignment="Center">
+                        <Path Data="{StaticResource RefreshGeometry}"
+                              Width="16"
+                              Height="16"
+                              Stretch="Uniform"
+                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                    </Button>
+                    <ContentControl
+                        Content="{Binding IsConnected, Converter={StaticResource ConnectedConditionConverter}, Source={x:Static helper:Instances.TaskQueueViewModel}}" />
+                </StackPanel>
             </Grid>
         </suki:GlassCard>
 

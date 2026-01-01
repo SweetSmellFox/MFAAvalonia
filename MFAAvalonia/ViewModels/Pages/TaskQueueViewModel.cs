@@ -202,6 +202,21 @@ public partial class TaskQueueViewModel : ViewModelBase
             LoggerHelper.Warning(LangKeys.ConfirmExitTitle.ToLocalization());
             return;
         }
+
+        if (CurrentResources.Count == 0 || string.IsNullOrWhiteSpace(CurrentResource) || CurrentResources.All(r => r.Name != CurrentResource))
+        {
+            ToastHelper.Warn(LangKeys.CannotStart.ToLocalization(), "ResourceNotSelected".ToLocalization());
+            LoggerHelper.Warning(LangKeys.CannotStart.ToLocalization());
+            return;
+        }
+
+        if (CurrentController != MaaControllerTypes.PlayCover && CurrentDevice == null)
+        {
+            ToastHelper.Warn(LangKeys.CannotStart.ToLocalization(), "DeviceNotSelected".ToLocalization());
+            LoggerHelper.Warning(LangKeys.CannotStart.ToLocalization());
+            return;
+        }
+
         MaaProcessor.Instance.Start();
     }
 
@@ -691,8 +706,14 @@ public partial class TaskQueueViewModel : ViewModelBase
         // 更新资源列表
         CurrentResources = new ObservableCollection<MaaInterface.MaaInterfaceResource>(filteredResources);
 
-        // 如果当前选中的资源不在过滤后的列表中，则选择第一个并提示用户
-        if (CurrentResources.Count > 0 && CurrentResources.All(r => r.Name != CurrentResource))
+        if (CurrentResources.Count == 0)
+        {
+            CurrentResource = string.Empty;
+            return;
+        }
+
+        // 当前资源为空或不在列表时，选择第一个
+        if (string.IsNullOrWhiteSpace(CurrentResource) || CurrentResources.All(r => r.Name != CurrentResource))
         {
             var oldResource = CurrentResource;
             var newResource = CurrentResources[0].Name ?? "Default";
@@ -708,7 +729,12 @@ public partial class TaskQueueViewModel : ViewModelBase
                         false, oldResource, controllerDisplayName, newResource),
                     6);
             }
+
+            return;
         }
+
+        // 资源仍然有效时，强制刷新绑定以更新下拉框显示
+        OnPropertyChanged(nameof(CurrentResource));
     }
 
     /// <summary>
@@ -938,6 +964,8 @@ public partial class TaskQueueViewModel : ViewModelBase
             Devices = devices;
             if (devices.Count > index)
                 CurrentDevice = devices[index];
+            else
+                CurrentDevice = null;
         });
     }
 
@@ -1211,18 +1239,33 @@ public partial class TaskQueueViewModel : ViewModelBase
     #region 资源
 
     [ObservableProperty] private ObservableCollection<MaaInterface.MaaInterfaceResource> _currentResources = [];
+    private string _currentResource = string.Empty;
 
     public string CurrentResource
     {
-        get => field;
+        get => _currentResource;
         set
         {
+            if (string.Equals(_currentResource, value, StringComparison.Ordinal))
+            {
+                return;
+            }
+
             if (!string.IsNullOrWhiteSpace(value))
             {
                 MaaProcessor.Instance.SetTasker();
-                SetNewProperty(ref field, value);
-                HandlePropertyChanged(ConfigurationKeys.Resource, value);
+            }
+
+            SetNewProperty(ref _currentResource, value);
+            HandlePropertyChanged(ConfigurationKeys.Resource, value);
+
+            if (!string.IsNullOrWhiteSpace(value))
+            {
                 UpdateTasksForResource(value);
+            }
+            else
+            {
+                UpdateTasksForResource(null);
             }
         }
     }
