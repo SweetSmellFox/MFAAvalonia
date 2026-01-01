@@ -91,7 +91,8 @@ public partial class CardCollection : UserControl
             var vm = (DraggingCard.DataContext) as CardViewModel;
             cur_index = vm.Index;  // 记录当前拖拽卡片的索引
             int clickRegion = GetClickRegion(e);  // 右30%=1, 左30%=-1, 中间=0
-            mgr.SetSelectedCard(vm.CardImage, clickRegion);
+            mgr.SetSelectedCard(vm, clickRegion);
+
         }
     }
 
@@ -181,11 +182,11 @@ public partial class CardCollection : UserControl
 
     private async void PullButton_OnClick(object? sender, RoutedEventArgs e)
     {
-        // 逻辑已迁移到 CCMgr.PullOne_real()，这里仅负责转发，保持按钮响应性
+        // 逻辑已迁移到 CCMgr.PullOne()，这里仅负责转发，保持按钮响应性
         if (mgr == null)
             mgr = CCMgr.Instance;
 
-        await mgr.PullOne_real();
+        await mgr.PullOne();
     }
     
     public CardCollection()

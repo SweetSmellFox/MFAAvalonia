@@ -37,6 +37,11 @@ namespace MFAAvalonia.ViewModels.Pages;
         private IImage? selectImage;
 
         [ObservableProperty]
+        /** 放大面板中选中的卡片模型 */
+        private CardViewModel? selectedCard;
+
+
+        [ObservableProperty]
         private CardViewModel? _pulledCard;
 
         [RelayCommand]
@@ -44,7 +49,7 @@ namespace MFAAvalonia.ViewModels.Pages;
         {
             try
             {
-                var card = CCMgr.Instance.PullOne();
+                var card = CCMgr.Instance.GetRandomCardBase();
                 PulledCard = new CardViewModel(card);
             }
             catch (Exception ex)
@@ -106,13 +111,14 @@ namespace MFAAvalonia.ViewModels.Pages;
             {
                 Name = cvm.Name,
                 ImagePath = cvm.ImagePath,
-                Index = cvm.Index
+                Index = cvm.Index,
+                Rarity = cvm.Rarity,
+                EnableGlow = cvm.EnableGlow
             });
         }
         PlayerDataHandler.SaveLocal(cardBaseList);
             LoggerHelper.Info("999:SavePlayerData, 保存玩家数据");
     }
-
 }
 
 

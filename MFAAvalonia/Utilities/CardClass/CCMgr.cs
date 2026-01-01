@@ -31,7 +31,7 @@ public sealed class CCMgr
 
     public void PostLoading()
     {
-        _ = PullOne_real();
+        _ = PullOne();
         LoggerHelper.Info("0099 pullOnre_real");
         
     }
@@ -63,10 +63,9 @@ public sealed class CCMgr
         CCVM.IsOpenDetail = isOpen;
     }
 
-    public CardBase PullOne()
+    public CardBase GetRandomCardBase()
     {
         var cb = PullExecuter.PullOne(CardData);
-        CCVM.addcard(new CardViewModel(cb));
         return cb;
     }
 
@@ -77,7 +76,7 @@ public sealed class CCMgr
     /// 3) 弹出 PullResult 窗口展示结果（或失败信息）
     /// 4) 异常时同时尝试弹出 ErrorView
     /// </summary>
-    public async Task PullOne_real()
+    public async Task PullOne()
     {
         try
         {
@@ -85,9 +84,11 @@ public sealed class CCMgr
                 throw new InvalidOperationException("CCMgr.CCVM 尚未初始化（未调用 SetCCVM），无法抽卡。");
 
             // 1) 卡片数据获取逻辑：调用 CCMgr.PullOne()
-            var cardBase = PullOne();
+            var cardBase = GetRandomCardBase();
+            cardBase.Rarity = PullExecuter.GetRandomRarity();
+            if (cardBase.Rarity != CardRarity.None) cardBase.EnableGlow = true;
             var cardVm = new CardViewModel(cardBase);
-
+            CCVM.addcard(cardVm);
             // 2) UI状态更新：同步更新 PulledCard
             CCVM.PulledCard = cardVm;
 
@@ -100,8 +101,7 @@ public sealed class CCMgr
                 await window.ShowDialog(owner);
             else
                 window.Show();
-            LoggerHelper.Info("PullOne_real()");
-            AddGlowingCard();
+            LoggerHelper.Info("PullOne()");
         }
         catch (Exception ex)
         {
@@ -127,19 +127,21 @@ public sealed class CCMgr
             catch
             {
                 // 最后兜底：避免任何UI弹窗失败导致崩溃
-                Console.WriteLine($"PullOne_real Error: {ex}");
+                Console.WriteLine($"PullOne Error: {ex}");
             }
         }
     }
     
     /** 设置选中的卡片 */
-    public void SetSelectedCard(IImage cardImage, int region)
+    public void SetSelectedCard(CardViewModel cardVm, int region)
     {
         if (region == 1) CCVM.Hori = HorizontalAlignment.Left;
         if (region == -1) CCVM.Hori = HorizontalAlignment.Right;
         CCVM.IsOpenDetail = true;
-        CCVM.SelectImage = cardImage;
+        CCVM.SelectedCard = cardVm;
+        CCVM.SelectImage = cardVm.CardImage;
     }
+
 
     public void SwapCard(int in_cur_idx1, int in_hov_indx2)
     {

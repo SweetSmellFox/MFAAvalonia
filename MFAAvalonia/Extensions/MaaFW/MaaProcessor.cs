@@ -2634,7 +2634,7 @@ public class MaaProcessor
                     try
                     {
                         LoggerHelper.Info($"任务执行时间 {elapsedTime.TotalMinutes:F1} 分钟，触发自动抽卡");
-                        TaskManager.RunTaskAsync(async () => await CCMgr.Instance.PullOne_real(), null, "自动抽卡");
+                        TaskManager.RunTaskAsync(async () => await CCMgr.Instance.PullOne(), null, "自动抽卡");
                     }
                     catch (Exception ex)
                     {

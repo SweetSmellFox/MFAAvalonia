@@ -64,7 +64,7 @@ public partial class RootView : SukiWindow
                 // 加载UI
                 LoadUI();
 
-                _ = CCMgr.Instance.PullOne_real();
+                _ = CCMgr.Instance.PullOne();
             });
 
         };

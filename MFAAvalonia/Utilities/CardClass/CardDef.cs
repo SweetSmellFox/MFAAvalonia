@@ -9,16 +9,14 @@ namespace MFAAvalonia.Utilities.CardClass;
 /// </summary>
 public enum CardRarity
 {
+    None,
     /// <summary>普通卡 - 无发光效果</summary>
     Normal,
-    /// <summary>稀有卡 - 蓝色发光</summary>
-    Rare,
     /// <summary>史诗卡 - 紫色发光</summary>
     Epic,
     /// <summary>传说卡 - 金色发光</summary>
     Legendary,
-    /// <summary>彩虹卡 - 全息彩虹效果</summary>
-    Rainbow
+
 }
 
 public class CardBase
@@ -71,12 +69,10 @@ public class CardViewModel : CardBase
     {
         return rarity switch
         {
+            CardRarity.None => null,
             CardRarity.Normal => CardGlowConfig.Subtle,
-            CardRarity.Rare => CardGlowConfig.BlueRare,
             CardRarity.Epic => CardGlowConfig.PurpleLegend,
             CardRarity.Legendary => CardGlowConfig.GoldRare,
-            CardRarity.Rainbow => CardGlowConfig.RainbowHolo,
-            _ => CardGlowConfig.Default
         };
     }
 }

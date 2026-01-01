@@ -49,17 +49,44 @@
             <!-- 细节栏 -->
             <Grid HorizontalAlignment="{Binding Hori}"
                   Margin="0, 20, 0, 20"
-                  IsVisible="{Binding IsOpenDetail}"
-                  >
-                <!--IsVisible="{Binding IsOpenDetail}"  -->
-                <local:CardSample 
-                    CardWith="500"
-                    CardHeight="750"
-                    mImage="{Binding SelectImage}" 
-                    IsHitTestVisible="False"
-                    IsDragbility="False"
-                    Margin="5"/>
+                  IsVisible="{Binding IsOpenDetail}">
+                
+                <Grid.Styles>
+                    <Style Selector="Border.glowPulse">
+                        <Style.Animations>
+                            <Animation Duration="0:0:2" IterationCount="Infinite">
+                                <KeyFrame KeyTime="0:0:0">
+                                    <Setter Property="BoxShadow" Value="0 0 20 5 #44FFD700"/>
+                                </KeyFrame>
+                                <KeyFrame KeyTime="0:0:1">
+                                    <Setter Property="BoxShadow" Value="0 0 60 15 #AAFFD700"/>
+                                </KeyFrame>
+                                <KeyFrame KeyTime="0:0:2">
+                                    <Setter Property="BoxShadow" Value="0 0 20 5 #44FFD700"/>
+                                </KeyFrame>
+                            </Animation>
+                        </Style.Animations>
+                    </Style>
+                </Grid.Styles>
+
+                <!-- 选中状态的高亮背景/阴影效果 -->
+                <Border Classes="glowPulse"
+                        CornerRadius="12"
+                        Margin="15">
+                    <local:CardSample 
+                        DataContext="{Binding SelectedCard}"
+                        CardWith="500"
+                        CardHeight="750"
+                        mImage="{Binding CardImage}" 
+                        IsGlowEnabled="True"
+                        IsNormalMode="False"
+                        IsHitTestVisible="False"
+                        IsDragbility="False"
+                        Margin="0"/>
+                </Border>
             </Grid>
+
+
             <Button Height="50" Width="50" Background="Red"
                     VerticalAlignment="Bottom" HorizontalAlignment="Center"
                     Click="PullButton_OnClick"/>
@@ -85,6 +112,7 @@
         <Border Grid.Row="1" 
                 Background="#2D2D30" 
                 BorderBrush="#3F3F46" 
+                IsVisible="False"
                 BorderThickness="0,1,0,0"
                 Padding="10">
             <Grid>
