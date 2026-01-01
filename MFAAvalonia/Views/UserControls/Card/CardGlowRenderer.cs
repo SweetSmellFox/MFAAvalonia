@@ -1,6 +1,8 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Runtime.CompilerServices;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
@@ -96,6 +98,29 @@ public class CardGlowRenderer : Control
     private CardGlowDraw? _visualHandler;
     private bool _needsImageUpdate = true;
 
+    // 默认遮罩：全局只加载/解码一次，避免每张卡都 new Bitmap + 转 SKBitmap
+    private static readonly Lazy<Bitmap?> DefaultMaskBitmap = new(() =>
+        CCMgr.LoadImageFromAssets("/Assets/CardImg/mark5.jpeg") as Bitmap);
+
+    // 默认遮罩的 SKBitmap：全局只转换一次，并且在整个进程生命周期内复用
+    private static readonly Lazy<SKBitmap?> DefaultMaskSkBitmap = new(() =>
+        DefaultMaskBitmap.Value is { } bmp ? GetOrCreateSharedSkBitmap(bmp) : null);
+
+    // 卡牌图片通常来自资源且会重复使用：对 Bitmap->SKBitmap 做进程级缓存，避免每个 CardGlowRenderer 都重复 CopyPixels
+    private static readonly ConditionalWeakTable<Bitmap, SKBitmap> SharedSkBitmapCache = new();
+
+    private static SKBitmap? GetOrCreateSharedSkBitmap(Bitmap bmp)
+    {
+        try
+        {
+            return SharedSkBitmapCache.GetValue(bmp, ConvertToSKBitmap);
+        }
+        catch
+        {
+            // 极端情况下（比如转换失败/抛异常）不要让缓存影响逻辑
+            return ConvertToSKBitmap(bmp);
+        }
+    }
 
     #endregion
 
@@ -184,45 +209,51 @@ vec4 main(vec2 fragCoord) {
     vec4 originalColor = iImage.eval(fragCoord);
     vec3 color = originalColor.rgb;
     
-    // 计算流光遮罩
-    // 我们使用两层遮罩反向滚动来增加动态感
-    float angle = iFlowAngle;
-    vec2 dir1 = vec2(cos(angle), sin(angle));
-    vec2 dir2 = vec2(cos(angle + 1.57), sin(angle + 1.57)); // 垂直方向
+    // === 1. 有机扭曲场 (增强流动的自然感) ===
+    float warp = 0.3 * sin(uv.x * 3.5 + iTime * 0.6) + 
+                 0.2 * cos(uv.y * 2.8 - iTime * 0.5);
     
-    // 遮罩采样坐标
-    float scale = 1.0 / max(0.1, iFlowWidth);
-    vec2 maskUv1 = uv * scale + dir1 * (iTime * iFlowSpeed);
-    vec2 maskUv2 = uv * scale * 1.2 + dir2 * (iTime * iFlowSpeed * iSecFlowSpeedMult);
+    // === 2. 第一道流光 (主流光: 左上 -> 右下) ===
+    // 特点：宽、慢、沉稳
+    float dist1 = (uv.x + uv.y) * 0.7 + warp * 0.5;
+    float time1 = iTime * iFlowSpeed + 0.4 * sin(iTime * 0.8); // 呼吸感节奏
+    float progress1 = mod(time1, 5.5);
+    float tail1 = iFlowWidth * 2.5; // 较宽的拖尾
+    float flow1 = smoothstep(progress1 - tail1, progress1 - tail1 * 0.4, dist1) * 
+                  (1.0 - smoothstep(progress1, progress1 + 0.15, dist1));
+
+    // === 3. 第二道流光 (辅助流光: 右上 -> 左下) ===
+    // 特点：细、快、凌厉
+    float dist2 = ((1.0 - uv.x) + uv.y) * 0.9 + warp * 0.3;
+    float time2 = iTime * (iFlowSpeed * iSecFlowSpeedMult * 1.8) + 1.5; // 显著提速，错开相位
+    float progress2 = mod(time2, 4.0);
+    float tail2 = iFlowWidth * 0.6; // 纤细的线条
+    float flow2 = smoothstep(progress2 - tail2, progress2 - tail2 * 0.5, dist2) * 
+                  (1.0 - smoothstep(progress2, progress2 + 0.08, dist2));
+
+    // === 4. 遮罩采样与艺术化合成 ===
+    // 采样遮罩，根据流向略微偏移坐标，产生视差效果
+    float mask1 = iMask.eval(fragCoord + vec2(warp * 8.0)).r;
+    float mask2 = iMask.eval(fragCoord - vec2(warp * 4.0)).r;
     
-    // 使用 eval 采样遮罩
-    // 遮罩通常是灰度的，采样红通道
-    vec2 maskCoord1 = fract(maskUv1) * iMaskSize;
-    vec2 maskCoord2 = fract(maskUv2) * iMaskSize;
+    // 计算最终强度
+    vec3 glow1 = iFlowColor * flow1 * iFlowIntensity * mask1;
+    vec3 glow2 = iSecFlowColor * flow2 * iSecFlowIntensity * 0.7 * mask2;
     
-    float maskValue1 = iMask.eval(maskCoord1).r;
-    float maskValue2 = iMask.eval(maskCoord2).r;
+    vec3 totalGlow = (glow1 + glow2) * iOverallIntensity;
     
-    // 组合遮罩 - 增加层次感
-    float combinedMask = maskValue1 * maskValue2 * 2.0;
-    
-    // 闪烁效果 (基于时间)
+    // 增加细微的边缘辉光增强
+    float rim = pow(1.0 - uv.y, 3.0) * 0.1;
+    totalGlow += iFlowColor * rim * flow1;
+
+    // 闪烁效果 (具有波纹感)
     if (iEnableSparkle > 0.5) {
-        float sparkle = sin(iTime * iSparkleFreq + combinedMask * 10.0) * 0.5 + 0.5;
-        combinedMask *= mix(1.0, sparkle, iSparkleIntensity);
+        float sparkle = sin(iTime * iSparkleFreq + (uv.x - uv.y) * 10.0) * 0.5 + 0.5;
+        totalGlow *= mix(1.0, sparkle, iSparkleIntensity);
     }
     
-    // 计算最终流光颜色
-    vec3 glowColor = iFlowColor * maskValue1 * iFlowIntensity + 
-                     iSecFlowColor * maskValue2 * iSecFlowIntensity;
-                     
-    vec3 totalGlow = glowColor * combinedMask * iOverallIntensity;
-    
-    // 应用到原图
     vec3 finalColor = blendColors(color, totalGlow, iBlendMode);
-    finalColor = clamp(finalColor, 0.0, 1.0);
-    
-    return vec4(finalColor, originalColor.a * iAlpha);
+    return vec4(clamp(finalColor, 0.0, 1.0), originalColor.a * iAlpha);
 }
 ";
 
@@ -239,16 +270,27 @@ vec4 main(vec2 fragCoord) {
 
     #region 生命周期
 
+    private bool _inViewport = true;
+
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
+        EffectiveViewportChanged += OnEffectiveViewportChanged;
         InitializeVisual();
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
+        EffectiveViewportChanged -= OnEffectiveViewportChanged;
         CleanupResources();
+    }
+
+    private void OnEffectiveViewportChanged(object? sender, EffectiveViewportChangedEventArgs e)
+    {
+        // 滚出 ScrollViewer 可视区域时会变成空/零尺寸
+        _inViewport = e.EffectiveViewport.Width > 0 && e.EffectiveViewport.Height > 0;
+        UpdateAnimationState();
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -274,6 +316,11 @@ vec4 main(vec2 fragCoord) {
         else if (change.Property == IsGlowEnabledProperty)
         {
             OnGlowEnabledChanged();
+        }
+        else if (change.Property == IsVisibleProperty)
+        {
+            // 不可见时停止动画（大量卡片在视觉树中但滚出视口时能显著降CPU）
+            UpdateAnimationState();
         }
         else if (change.Property == OpacityProperty)
         {
@@ -310,11 +357,8 @@ vec4 main(vec2 fragCoord) {
             
             UpdateVisualSize();
             
-            // 启动动画（必须在所有配置完成之后）
-            if (IsGlowEnabled)
-            {
-                _customVisual.SendHandlerMessage(CardGlowDraw.StartAnimations);
-            }
+            // 动画状态统一由 UpdateAnimationState 控制（包含可见性判断）
+            UpdateAnimationState();
             
             Debug.WriteLine($"[CardGlowRenderer] InitializeVisual completed, IsGlowEnabled={IsGlowEnabled}, HasSource={Source != null}");
         }
@@ -371,9 +415,9 @@ vec4 main(vec2 fragCoord) {
     private void OnGlowEnabledChanged()
     {
         Debug.WriteLine($"[CardGlowRenderer] OnGlowEnabledChanged: IsGlowEnabled={IsGlowEnabled}, hasVisual={_customVisual != null}");
-        
+
         if (_customVisual == null) return;
-        
+
         if (IsGlowEnabled)
         {
             // 确保有源图像
@@ -382,12 +426,20 @@ vec4 main(vec2 fragCoord) {
                 _needsImageUpdate = true;
                 UpdateSourceBitmap();
             }
+        }
+
+        UpdateAnimationState();
+    }
+
+    private void UpdateAnimationState()
+    {
+        if (_customVisual == null) return;
+
+        // 不在视口内（滚出 ScrollViewer）或不可见时直接停动画；避免大量卡片持续 60fps
+        if (IsGlowEnabled && IsVisible && _inViewport)
             _customVisual.SendHandlerMessage(CardGlowDraw.StartAnimations);
-        }
         else
-        {
             _customVisual.SendHandlerMessage(CardGlowDraw.StopAnimations);
-        }
     }
 
     #endregion
@@ -418,22 +470,26 @@ vec4 main(vec2 fragCoord) {
             SKBitmap? skBitmap = null;
 
             // 支持多种 IImage 类型
+            bool isShared = false;
             if (Source is Bitmap bitmap)
             {
-                skBitmap = ConvertToSKBitmap(bitmap);
+                // 资源图片通常重复使用：走共享缓存，避免重复 CopyPixels
+                skBitmap = GetOrCreateSharedSkBitmap(bitmap);
+                isShared = true;
             }
             else if (Source != null)
             {
                 // 尝试将其他 IImage 类型转换为 SKBitmap
                 skBitmap = ConvertIImageToSKBitmap(Source);
+                isShared = false;
             }
-            
+
             if (skBitmap != null)
             {
-                // 通过消息传递给渲染线程，移交所有权
-                _customVisual.SendHandlerMessage(skBitmap);
+                // 通过消息传递给渲染线程：共享位图不应在 handler 中 Dispose
+                _customVisual.SendHandlerMessage(new SourceBitmapMessage(skBitmap, isShared));
                 _needsImageUpdate = false;
-                Debug.WriteLine($"[CardGlowRenderer] Sent bitmap to handler: {skBitmap.Width}x{skBitmap.Height}");
+                Debug.WriteLine($"[CardGlowRenderer] Sent bitmap to handler: {skBitmap.Width}x{skBitmap.Height}, IsShared={isShared}");
             }
         }
         catch (Exception ex)
@@ -454,23 +510,24 @@ vec4 main(vec2 fragCoord) {
 
         try
         {
-            var mask = MaskSource;
-            
-            // 如果未设置遮罩，尝试加载默认资源遮罩
-            if (mask == null)
+            // 绝大多数情况下遮罩不变：如果未显式设置，直接复用全局默认遮罩（避免重复解码/转换）
+            if (MaskSource == null)
             {
-                mask = CCMgr.LoadImageFromAssets("/Assets/CardImg/mark2.jpg");
+                if (DefaultMaskSkBitmap.Value is { } sharedMask)
+                {
+                    _customVisual.SendHandlerMessage(new MaskBitmapMessage(sharedMask, true));
+                    Debug.WriteLine($"[CardGlowRenderer] Sent shared mask bitmap to handler: {sharedMask.Width}x{sharedMask.Height}");
+                }
+                return;
             }
 
-            if (mask != null)
+            var mask = MaskSource;
+            SKBitmap? skBitmap = ConvertIImageToSKBitmap(mask);
+            if (skBitmap != null)
             {
-                SKBitmap? skBitmap = ConvertIImageToSKBitmap(mask);
-                if (skBitmap != null)
-                {
-                    // 使用包装类发送遮罩位图，以区别于主图像
-                    _customVisual.SendHandlerMessage(new MaskBitmapMessage(skBitmap));
-                    Debug.WriteLine($"[CardGlowRenderer] Sent mask bitmap to handler: {skBitmap.Width}x{skBitmap.Height}");
-                }
+                // 使用包装类发送遮罩位图，以区别于主图像
+                _customVisual.SendHandlerMessage(new MaskBitmapMessage(skBitmap, false));
+                Debug.WriteLine($"[CardGlowRenderer] Sent mask bitmap to handler: {skBitmap.Width}x{skBitmap.Height}");
             }
         }
         catch (Exception ex)
@@ -480,9 +537,14 @@ vec4 main(vec2 fragCoord) {
     }
 
     /// <summary>
+    /// 源图位图消息包装类
+    /// </summary>
+    private record SourceBitmapMessage(SKBitmap Bitmap, bool IsShared);
+
+    /// <summary>
     /// 遮罩位图消息包装类
     /// </summary>
-    private record MaskBitmapMessage(SKBitmap Bitmap);
+    private record MaskBitmapMessage(SKBitmap Bitmap, bool IsShared);
 
     
     /// <summary>
@@ -545,27 +607,80 @@ vec4 main(vec2 fragCoord) {
     /// <summary>
     /// 将Avalonia Bitmap转换为SKBitmap
     /// 
-    /// 转换流程:
-    /// 1. 将Avalonia Bitmap保存到内存流 (PNG格式)
-    /// 2. 使用SKBitmap.Decode从流中加载
+    /// 关键优化点：
+    /// - 旧实现通过 bitmap.Save(PNG) -> SKBitmap.Decode 属于“二次编解码”，CPU非常吃紧。
+    /// - 新实现优先尝试直接 CopyPixels 到 SKBitmap（纯内存拷贝），失败再走旧路径兜底。
     /// </summary>
     private static SKBitmap? ConvertToSKBitmap(Bitmap bitmap)
     {
         try
         {
-            // 使用内存流进行转换
+            var size = bitmap.PixelSize;
+            if (size.Width <= 0 || size.Height <= 0)
+                return null;
+
+            // Avalonia 默认是 BGRA8888 Premul（多数平台），这里按该格式创建即可
+            var skBitmap = new SKBitmap(size.Width, size.Height, SKColorType.Bgra8888, SKAlphaType.Premul);
+
+            if (TryCopyPixels(bitmap, skBitmap))
+                return skBitmap;
+
+            // 兜底：兼容路径（慢）
+            skBitmap.Dispose();
             using var memoryStream = new MemoryStream();
             bitmap.Save(memoryStream);
             memoryStream.Position = 0;
-            
-            // 从流中解码SKBitmap
-            var skBitmap = SKBitmap.Decode(memoryStream);
-            return skBitmap;
+            return SKBitmap.Decode(memoryStream);
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"[CardGlowRenderer] ConvertToSKBitmap failed: {ex.Message}");
             return null;
+        }
+    }
+
+    private static bool TryCopyPixels(Bitmap bitmap, SKBitmap skBitmap)
+    {
+        try
+        {
+            // Avalonia Bitmap.CopyPixels 是 public 的（不同版本签名可能略有差异），用反射做兼容。
+            var methods = typeof(Bitmap).GetMethods().Where(m => m.Name == "CopyPixels");
+            var pixelRect = new PixelRect(0, 0, bitmap.PixelSize.Width, bitmap.PixelSize.Height);
+            var dstPtr = skBitmap.GetPixels();
+            var stride = skBitmap.Info.RowBytes;
+            var bufferSize = stride * skBitmap.Height;
+
+            foreach (var m in methods)
+            {
+                var ps = m.GetParameters();
+
+                // CopyPixels(PixelRect, IntPtr, int bufferSize, int stride)
+                if (ps.Length == 4 &&
+                    ps[0].ParameterType == typeof(PixelRect) &&
+                    ps[1].ParameterType == typeof(IntPtr) &&
+                    ps[2].ParameterType == typeof(int) &&
+                    ps[3].ParameterType == typeof(int))
+                {
+                    m.Invoke(bitmap, new object[] { pixelRect, dstPtr, bufferSize, stride });
+                    return true;
+                }
+
+                // CopyPixels(PixelRect, IntPtr, int stride)
+                if (ps.Length == 3 &&
+                    ps[0].ParameterType == typeof(PixelRect) &&
+                    ps[1].ParameterType == typeof(IntPtr) &&
+                    ps[2].ParameterType == typeof(int))
+                {
+                    m.Invoke(bitmap, new object[] { pixelRect, dstPtr, stride });
+                    return true;
+                }
+            }
+
+            return false;
+        }
+        catch
+        {
+            return false;
         }
     }
 
@@ -623,7 +738,9 @@ vec4 main(vec2 fragCoord) {
         private readonly Stopwatch _animationTick = new();
         private bool _animationEnabled;
         private SKBitmap? _sourceBitmap;
+        private bool _sourceBitmapShared;
         private SKBitmap? _maskBitmap;
+        private bool _maskBitmapShared;
         private SKShader? _imageShader;
         private SKShader? _maskShader;
         private SKRuntimeEffect? _effect;
@@ -631,7 +748,13 @@ vec4 main(vec2 fragCoord) {
         
         private float _lastRenderWidth = -1;
         private float _lastRenderHeight = -1;
+        private float _lastMaskWidth = -1;
+        private float _lastMaskHeight = -1;
         private float _alpha = 1.0f;
+
+        // 降帧：大量卡片同时发光时 60fps 会让 CPU 爆炸，这里默认限制到 20fps
+        private const double TargetFps = 20;
+        private double _lastInvalidateSeconds;
 
         // Uniform数组预分配，避免每帧GC
         private readonly float[] _resolutionAlloc = new float[3];
@@ -641,15 +764,7 @@ vec4 main(vec2 fragCoord) {
         private readonly float[] _secFlowColorAlloc = new float[3];
         private readonly float[] _sparkleColorAlloc = new float[3];
 
-        public CardGlowDraw()
-        {
-            CompileShader();
-        }
-
-        /// <summary>
-        /// 编译Shader
-        /// </summary>
-        private void CompileShader()
+        private static readonly Lazy<SKRuntimeEffect?> SharedEffect = new(() =>
         {
             try
             {
@@ -660,16 +775,23 @@ uniform float iAlpha;
 uniform vec3 iResolution;
 " + GlowShaderCode;
 
-                _effect = SKRuntimeEffect.CreateShader(shaderCode, out var errors);
-                if (_effect == null)
-                {
+                var effect = SKRuntimeEffect.CreateShader(shaderCode, out var errors);
+                if (effect == null)
                     Debug.WriteLine($"[CardGlowDraw] Shader compilation failed: {errors}");
-                }
+
+                return effect;
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"[CardGlowDraw] CompileShader exception: {ex.Message}");
+                return null;
             }
+        });
+
+        public CardGlowDraw()
+        {
+            // Shader 全局复用：避免每张卡都编译一次（页面首次打开会非常卡）
+            _effect = SharedEffect.Value;
         }
 
         /// <summary>
@@ -704,6 +826,34 @@ uniform vec3 iResolution;
         }
 
         /// <summary>
+        /// 更新遮罩Shader（确保其完整填充拉伸）
+        /// </summary>
+        private void UpdateMaskShaderWithScale(float renderWidth, float renderHeight)
+        {
+            if (_maskBitmap == null) return;
+
+            if (Math.Abs(_lastMaskWidth - renderWidth) < 0.01f &&
+                Math.Abs(_lastMaskHeight - renderHeight) < 0.01f &&
+                _maskShader != null)
+            {
+                return;
+            }
+
+            _maskShader?.Dispose();
+
+            // 拉伸遮罩以匹配卡牌尺寸
+            float scaleX = renderWidth / Math.Max(1, _maskBitmap.Width);
+            float scaleY = renderHeight / Math.Max(1, _maskBitmap.Height);
+            var matrix = SKMatrix.CreateScale(scaleX, scaleY);
+
+            // 使用 Clamp 模式确保不重复
+            _maskShader = _maskBitmap.ToShader(SKShaderTileMode.Clamp, SKShaderTileMode.Clamp, matrix);
+
+            _lastMaskWidth = renderWidth;
+            _lastMaskHeight = renderHeight;
+        }
+
+        /// <summary>
         /// 内部更新配置
         /// </summary>
         private void UpdateConfigInternal(CardGlowConfig config)
@@ -727,6 +877,7 @@ uniform vec3 iResolution;
             if (message == StartAnimations)
             {
                 _animationEnabled = true;
+                _lastInvalidateSeconds = 0;
                 _animationTick.Start();
                 RegisterForNextAnimationFrameUpdate();
             }
@@ -739,47 +890,77 @@ uniform vec3 iResolution;
             {
                 _imageShader?.Dispose();
                 _imageShader = null;
-                _sourceBitmap?.Dispose();
+                if (!_sourceBitmapShared)
+                    _sourceBitmap?.Dispose();
                 _sourceBitmap = null;
-                
+                _sourceBitmapShared = false;
+
                 _maskShader?.Dispose();
                 _maskShader = null;
-                _maskBitmap?.Dispose();
+                if (!_maskBitmapShared)
+                    _maskBitmap?.Dispose();
                 _maskBitmap = null;
+                _maskBitmapShared = false;
             }
-            else if (message is SKBitmap bitmap)
+            else if (message is SourceBitmapMessage srcMsg)
             {
                 _imageShader?.Dispose();
                 _imageShader = null;
-                _sourceBitmap?.Dispose();
-                
-                _sourceBitmap = bitmap;
-                
+                if (!_sourceBitmapShared)
+                    _sourceBitmap?.Dispose();
+
+                _sourceBitmap = srcMsg.Bitmap;
+                _sourceBitmapShared = srcMsg.IsShared;
+
                 // 重置尺寸记录，强制重新生成Shader
                 _lastRenderWidth = -1;
                 _lastRenderHeight = -1;
-                
+
+                // 预存图像尺寸
+                _imageSizeAlloc[0] = _sourceBitmap.Width;
+                _imageSizeAlloc[1] = _sourceBitmap.Height;
+
+                Debug.WriteLine($"[CardGlowDraw] Received new bitmap: {_sourceBitmap.Width}x{_sourceBitmap.Height}, IsShared={_sourceBitmapShared}");
+            }
+            else if (message is SKBitmap bitmap)
+            {
+                // 兼容旧消息：认为移交所有权
+                _imageShader?.Dispose();
+                _imageShader = null;
+                if (!_sourceBitmapShared)
+                    _sourceBitmap?.Dispose();
+
+                _sourceBitmap = bitmap;
+                _sourceBitmapShared = false;
+
+                // 重置尺寸记录，强制重新生成Shader
+                _lastRenderWidth = -1;
+                _lastRenderHeight = -1;
+
                 // 预存图像尺寸
                 _imageSizeAlloc[0] = bitmap.Width;
                 _imageSizeAlloc[1] = bitmap.Height;
-                
+
                 Debug.WriteLine($"[CardGlowDraw] Received new bitmap: {bitmap.Width}x{bitmap.Height}");
             }
             else if (message is MaskBitmapMessage maskMsg)
             {
                 _maskShader?.Dispose();
                 _maskShader = null;
-                _maskBitmap?.Dispose();
-                
+                if (!_maskBitmapShared)
+                    _maskBitmap?.Dispose();
+
                 _maskBitmap = maskMsg.Bitmap;
-                
-                // 遮罩通常使用 TileMode.Repeat 以支持 UV 滚动
-                _maskShader = _maskBitmap.ToShader(SKShaderTileMode.Repeat, SKShaderTileMode.Repeat);
-                
+                _maskBitmapShared = maskMsg.IsShared;
+
+                // 重置尺寸记录，强制重新生成带拉伸的Shader
+                _lastMaskWidth = -1;
+                _lastMaskHeight = -1;
+
                 _maskSizeAlloc[0] = _maskBitmap.Width;
                 _maskSizeAlloc[1] = _maskBitmap.Height;
-                
-                Debug.WriteLine($"[CardGlowDraw] Received new mask bitmap: {_maskBitmap.Width}x{_maskBitmap.Height}");
+
+                Debug.WriteLine($"[CardGlowDraw] Received new mask bitmap: {_maskBitmap.Width}x{_maskBitmap.Height}, IsShared={_maskBitmapShared}");
             }
             else if (message is CardGlowConfig config)
             {
@@ -796,8 +977,19 @@ uniform vec3 iResolution;
 
         public override void OnAnimationFrameUpdate()
         {
-            if (!_animationEnabled) return;
-            Invalidate(GetRenderBounds());
+            if (!_animationEnabled)
+                return;
+
+            var now = _animationTick.Elapsed.TotalSeconds;
+            var interval = 1.0 / TargetFps;
+
+            // 降帧：只在到达目标帧间隔时才 Invalidate，从而减少 Render/DrawRect 调用次数
+            if (now - _lastInvalidateSeconds >= interval)
+            {
+                _lastInvalidateSeconds = now;
+                Invalidate(GetRenderBounds());
+            }
+
             RegisterForNextAnimationFrameUpdate();
         }
 
@@ -837,9 +1029,9 @@ uniform vec3 iResolution;
                 {
                     var time = (float)_animationTick.Elapsed.TotalSeconds;
 
-                    // 每次渲染时更新图像Shader的缩放（确保图像正确填充渲染区域）
-
+                    // 每次渲染时更新图像和遮罩的缩放（确保它们正确填充并拉伸至渲染区域）
                     UpdateImageShaderWithScale(rect.Width, rect.Height);
+                    UpdateMaskShaderWithScale(rect.Width, rect.Height);
                     
                     if (_imageShader == null || _maskShader == null)
                     {

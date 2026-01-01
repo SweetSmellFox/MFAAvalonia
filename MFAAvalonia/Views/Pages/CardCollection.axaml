@@ -108,11 +108,11 @@
             </StackPanel>
         </Grid>
         
-        <!-- 流光效果测试面板 -->
+        <!-- 流光效果测试面板（非常耗性能：默认关闭，需要时再打开） -->
         <Border Grid.Row="1" 
                 Background="#2D2D30" 
                 BorderBrush="#3F3F46" 
-                IsVisible="True"
+                IsVisible="False"
                 BorderThickness="0,1,0,0"
                 Padding="10">
             <Grid>
@@ -140,7 +140,7 @@
                             Height="300"
                             IsGlowEnabled="True">
                             <local:CardGlowRenderer.MaskSource>
-                                <Bitmap>avares://MFAAvalonia/Assets/CardImg/mark2.jpg</Bitmap>
+                                <Bitmap>avares://MFAAvalonia/Assets/CardImg/mark5.jpeg</Bitmap>
                             </local:CardGlowRenderer.MaskSource>
                         </local:CardGlowRenderer>
                     </StackPanel>

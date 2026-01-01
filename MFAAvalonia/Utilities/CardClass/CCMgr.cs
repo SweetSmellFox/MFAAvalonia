@@ -151,14 +151,29 @@ public sealed class CCMgr
 
     public const int undefine = -1;
     
+    private static readonly Dictionary<string, Bitmap> AssetBitmapCache = new(StringComparer.OrdinalIgnoreCase);
+
     public static IImage? LoadImageFromAssets(string path)
     {
         try
         {
-            var uri = new Uri($"avares://MFAAvalonia{path}");
-            return new Bitmap(AssetLoader.Open(uri));
+            // 绝大多数卡牌图片/遮罩都是重复引用，频繁 new Bitmap(AssetLoader.Open) 会导致解码+内存分配抖动。
+            // 这里做一个进程级缓存：同一路径只解码一次。
+            lock (AssetBitmapCache)
+            {
+                if (AssetBitmapCache.TryGetValue(path, out var cached))
+                    return cached;
+
+                var uri = new Uri($"avares://MFAAvalonia{path}");
+                var bmp = new Bitmap(AssetLoader.Open(uri));
+                AssetBitmapCache[path] = bmp;
+                return bmp;
+            }
         }
-        catch { return null; }
+        catch
+        {
+            return null;
+        }
     }
     
     #region 发光卡片接口
