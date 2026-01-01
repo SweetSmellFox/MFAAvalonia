@@ -68,11 +68,7 @@ public partial class TaskQueueView : UserControl
         if (viewModel == null) return;
 
     }
-
-
-    private int _currentLayoutMode = -1;
-    private int _currentThreeColumnLayoutMode = -1; // 三栏布局模式：0=横向三列，1=纵向三行
-
+    
 
 // private void UpdateDeviceSelectorLayout()
 // {
@@ -2368,8 +2364,7 @@ public partial class TaskQueueView : UserControl
     #endregion
 
     #region 实时图像
-
-    private DispatcherTimer? _liveViewTimer;
+    
     private CancellationTokenSource? _liveViewCts;
     private Task? _liveViewTask;
 

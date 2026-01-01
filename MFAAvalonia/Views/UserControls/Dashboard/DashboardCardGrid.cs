@@ -6,10 +6,15 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Reactive;
 using MFAAvalonia.Configuration;
+using MFAAvalonia.Extensions.MaaFW;
+using MFAAvalonia.Helper;
 using MFAAvalonia.Helper.ValueType;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.IO;
 using System.Linq;
 
 namespace MFAAvalonia.Views.UserControls.Dashboard;
@@ -77,6 +82,15 @@ public sealed class DashboardCardGrid : Panel
     private bool _isUpdatingPreviewHost;
     private bool _layoutLoaded;
     private bool _suppressLayoutSave;
+    private DashboardCard? _resizingCard;
+    private int _resizeStartCol;
+    private int _resizeStartRow;
+    private int _resizeStartColSpan;
+    private int _resizeStartRowSpan;
+    private Rect _resizeStartRect;
+    private double _resizeDeltaX;
+    private double _resizeDeltaY;
+    private bool _isResizing;
     private readonly Dictionary<DashboardCard, HiddenLayout> _hiddenCards = new();
     private readonly Dictionary<DashboardCard, IDisposable> _visibilitySubscriptions = new();
     private readonly List<Thumb> _columnSplitters = new();
@@ -193,13 +207,17 @@ public sealed class DashboardCardGrid : Panel
         card.DragStarted -= OnCardDragStarted;
         card.DragMoved -= OnCardDragMoved;
         card.DragEnded -= OnCardDragEnded;
+        card.ResizeStarted -= OnCardResizeStarted;
         card.Resized -= OnCardResized;
+        card.ResizeCompleted -= OnCardResizeCompleted;
         card.CollapseStateChanged -= OnCardCollapseStateChanged;
 
         card.DragStarted += OnCardDragStarted;
         card.DragMoved += OnCardDragMoved;
         card.DragEnded += OnCardDragEnded;
+        card.ResizeStarted += OnCardResizeStarted;
         card.Resized += OnCardResized;
+        card.ResizeCompleted += OnCardResizeCompleted;
         card.CollapseStateChanged += OnCardCollapseStateChanged;
 
         if (_visibilitySubscriptions.TryGetValue(card, out var subscription))
@@ -220,7 +238,9 @@ public sealed class DashboardCardGrid : Panel
         card.DragStarted -= OnCardDragStarted;
         card.DragMoved -= OnCardDragMoved;
         card.DragEnded -= OnCardDragEnded;
+        card.ResizeStarted -= OnCardResizeStarted;
         card.Resized -= OnCardResized;
+        card.ResizeCompleted -= OnCardResizeCompleted;
         card.CollapseStateChanged -= OnCardCollapseStateChanged;
 
         if (_visibilitySubscriptions.TryGetValue(card, out var subscription))
@@ -361,78 +381,166 @@ public sealed class DashboardCardGrid : Panel
         SaveLayouts();
     }
 
-    private void OnCardResized(object? sender, DashboardCardResizeEventArgs e)
+    private void OnCardResizeStarted(object? sender, DashboardCardResizeEventArgs e)
     {
         if (sender is not DashboardCard card)
         {
             return;
         }
 
-        var metrics = GetMetrics(Bounds.Size);
-        if (metrics.CellPitchX <= 0 || metrics.CellPitchY <= 0)
+        _resizingCard = card;
+        _resizeStartCol = ClampIndex(card.GridColumn, Columns);
+        _resizeStartRow = ClampIndex(card.GridRow, Rows);
+        _resizeStartColSpan = Math.Max(1, card.GridColumnSpan);
+        _resizeStartRowSpan = Math.Max(1, card.IsCollapsed ? 1 : card.GridRowSpan);
+        _resizeDeltaX = 0;
+        _resizeDeltaY = 0;
+        _isResizing = true;
+
+        _resizeStartRect = GetRectFromGrid(_resizeStartCol, _resizeStartRow, _resizeStartColSpan, _resizeStartRowSpan);
+        UpdateDragPreview(_resizeStartCol, _resizeStartRow, _resizeStartColSpan, _resizeStartRowSpan);
+    }
+
+    private void OnCardResized(object? sender, DashboardCardResizeEventArgs e)
+    {
+        if (sender is not DashboardCard card || !_isResizing || !ReferenceEquals(card, _resizingCard))
         {
             return;
         }
 
-        var newCol = ClampIndex(card.GridColumn, Columns);
-        var newRow = ClampIndex(card.GridRow, Rows);
+        _resizeDeltaX = e.HorizontalChange;
+        _resizeDeltaY = e.VerticalChange;
 
-        var currentColSpan = Math.Max(1, card.GridColumnSpan);
-        var currentRowSpan = Math.Max(1, card.IsCollapsed ? 1 : card.GridRowSpan);
+        if (!TryBuildResizeLayout(card, e.Direction, _resizeDeltaX, _resizeDeltaY,
+                out var newCol, out var newRow, out var newColSpan, out var newRowSpan))
+        {
+            ClearDragPreview();
+            return;
+        }
 
-        var newColSpan = currentColSpan;
-        var newRowSpan = currentRowSpan;
+        UpdateDragPreview(newCol, newRow, newColSpan, newRowSpan);
+    }
 
-        switch (e.Direction)
+    private void OnCardResizeCompleted(object? sender, DashboardCardResizeEventArgs e)
+    {
+        if (sender is not DashboardCard card || !_isResizing || !ReferenceEquals(card, _resizingCard))
+        {
+            return;
+        }
+
+        if (TryBuildResizeLayout(card, e.Direction, _resizeDeltaX, _resizeDeltaY,
+                out var newCol, out var newRow, out var newColSpan, out var newRowSpan))
+        {
+            card.GridColumn = newCol;
+            card.GridRow = newRow;
+            card.GridColumnSpan = newColSpan;
+            card.GridRowSpan = card.IsCollapsed ? 1 : newRowSpan;
+
+            if (!card.IsCollapsed)
+            {
+                card.ExpandedColumnSpan = newColSpan;
+                card.ExpandedRowSpan = newRowSpan;
+            }
+
+            InvalidateMeasure();
+            InvalidateArrange();
+            SaveLayouts();
+        }
+
+        _isResizing = false;
+        _resizingCard = null;
+        ClearDragPreview();
+    }
+
+    private bool TryBuildResizeLayout(
+        DashboardCard card,
+        string direction,
+        double horizontalChange,
+        double verticalChange,
+        out int newCol,
+        out int newRow,
+        out int newColSpan,
+        out int newRowSpan)
+    {
+        newCol = _resizeStartCol;
+        newRow = _resizeStartRow;
+        newColSpan = Math.Max(1, _resizeStartColSpan);
+        newRowSpan = Math.Max(1, card.IsCollapsed ? 1 : _resizeStartRowSpan);
+
+        var metrics = GetMetrics(Bounds.Size);
+        if (metrics.CellPitchX <= 0 || metrics.CellPitchY <= 0)
+        {
+            return false;
+        }
+
+        var rect = _resizeStartRect;
+        var x = rect.X;
+        var y = rect.Y;
+        var w = rect.Width;
+        var h = rect.Height;
+
+        if (string.Equals(direction, "br", StringComparison.OrdinalIgnoreCase))
+        {
+            horizontalChange = -horizontalChange;
+            verticalChange = -verticalChange;
+        }
+        else if (string.Equals(direction, "bl", StringComparison.OrdinalIgnoreCase)
+                 || string.Equals(direction, "tr", StringComparison.OrdinalIgnoreCase))
+        {
+            (horizontalChange, verticalChange) = (verticalChange, horizontalChange);
+            if (string.Equals(direction, "bl", StringComparison.OrdinalIgnoreCase))
+                verticalChange = -verticalChange;
+            if (string.Equals(direction, "tr", StringComparison.OrdinalIgnoreCase))
+                horizontalChange = -horizontalChange;
+        }
+
+        switch (direction)
         {
             case "r":
             case "tr":
             case "br":
-            {
-                var colDelta = (int)Math.Round(e.HorizontalChange / metrics.CellPitchX);
-                newColSpan = Math.Clamp(currentColSpan + colDelta, 1, Columns - newCol);
+                w += horizontalChange;
                 break;
-            }
             case "l":
             case "tl":
             case "bl":
-            {
-                var colDelta = (int)Math.Round(e.HorizontalChange / metrics.CellPitchX);
-                var rightEdge = newCol + currentColSpan;
-                var maxSpan = Math.Clamp(rightEdge, 1, Columns);
-                newColSpan = Math.Clamp(currentColSpan - colDelta, 1, maxSpan);
-                newCol = Math.Clamp(rightEdge - newColSpan, 0, Columns - 1);
+                x += horizontalChange;
+                w -= horizontalChange;
                 break;
-            }
         }
 
         if (!card.IsCollapsed)
         {
-            switch (e.Direction)
+            switch (direction)
             {
                 case "b":
                 case "bl":
                 case "br":
-                {
-                    var rowDelta = (int)Math.Round(e.VerticalChange / metrics.CellPitchY);
-                    newRowSpan = Math.Clamp(currentRowSpan + rowDelta, 1, Rows - newRow);
+                    h += verticalChange;
                     break;
-                }
                 case "t":
                 case "tl":
                 case "tr":
-                {
-                    var rowDelta = (int)Math.Round(e.VerticalChange / metrics.CellPitchY);
-                    var bottomEdge = newRow + currentRowSpan;
-                    var maxSpan = Math.Clamp(bottomEdge, 1, Rows);
-                    newRowSpan = Math.Clamp(currentRowSpan - rowDelta, 1, maxSpan);
-                    newRow = Math.Clamp(bottomEdge - newRowSpan, 0, Rows - 1);
+                    y += verticalChange;
+                    h -= verticalChange;
                     break;
-                }
             }
         }
-        else
+
+        w = Math.Max(0, w);
+        h = Math.Max(0, h);
+
+        newCol = (int)Math.Round((x - Padding.Left) / metrics.CellPitchX);
+        newRow = (int)Math.Round((y - Padding.Top) / metrics.CellPitchY);
+        newColSpan = (int)Math.Round((w + CellSpacing) / metrics.CellPitchX);
+        newRowSpan = (int)Math.Round((h + CellSpacing) / metrics.CellPitchY);
+
+        newColSpan = Math.Max(1, newColSpan);
+        newRowSpan = Math.Max(1, newRowSpan);
+
+        if (card.IsCollapsed)
         {
+            newRow = _resizeStartRow;
             newRowSpan = 1;
         }
 
@@ -441,25 +549,17 @@ public sealed class DashboardCardGrid : Panel
         newColSpan = Math.Clamp(newColSpan, 1, Columns - newCol);
         newRowSpan = Math.Clamp(newRowSpan, 1, Rows - newRow);
 
-        if (!CanPlace(card, newCol, newRow, newColSpan, newRowSpan))
-        {
-            return;
-        }
+        return CanPlace(card, newCol, newRow, newColSpan, newRowSpan);
+    }
 
-        card.GridColumn = newCol;
-        card.GridRow = newRow;
-        card.GridColumnSpan = newColSpan;
-        card.GridRowSpan = newRowSpan;
-
-        if (!card.IsCollapsed)
-        {
-            card.ExpandedColumnSpan = newColSpan;
-            card.ExpandedRowSpan = newRowSpan;
-        }
-
-        InvalidateMeasure();
-        InvalidateArrange();
-        SaveLayouts();
+    private Rect GetRectFromGrid(int col, int row, int colSpan, int rowSpan)
+    {
+        var metrics = GetMetrics(Bounds.Size);
+        var x = Padding.Left + col * metrics.CellPitchX;
+        var y = Padding.Top + row * metrics.CellPitchY;
+        var w = colSpan * metrics.CellWidth + (colSpan - 1) * CellSpacing;
+        var h = rowSpan * metrics.CellHeight + (rowSpan - 1) * CellSpacing;
+        return new Rect(x, y, Math.Max(0, w), Math.Max(0, h));
     }
 
     private bool CanPlace(DashboardCard movingCard, int col, int row, int colSpan, int rowSpan)
@@ -542,24 +642,34 @@ public sealed class DashboardCardGrid : Panel
         var defaults = GetDefaultLayouts();
         var key = GetLayoutKey();
 
-        var layouts = ConfigurationManager.Current.GetValue(
-            key,
-            defaults);
+        var layouts = LoadConfigLayouts(defaults, key, out var hasConfigLayouts);
+        var layoutMeta = LoadLayoutMeta();
+        var resourceLayout = TryLoadResourceLayout();
 
-        if (layouts == null || layouts.Count == 0)
+        if (resourceLayout == null && !hasConfigLayouts)
         {
-            layouts = defaults;
-
-            if (!string.Equals(key, ConfigurationKeys.DashboardCardGridLayout, StringComparison.OrdinalIgnoreCase))
-            {
-                var legacy = ConfigurationManager.Current.GetValue(ConfigurationKeys.DashboardCardGridLayout, defaults);
-                if (legacy != null && legacy.Count > 0)
-                {
-                    layouts = legacy;
-                }
-            }
+            ApplyLayouts(defaults);
+            EnsureResourceLayoutFile(defaults);
+            return;
         }
 
+        if (!hasConfigLayouts && resourceLayout != null)
+        {
+            ApplyResourceLayout(resourceLayout, defaults);
+            return;
+        }
+
+        if (resourceLayout != null
+            && layoutMeta != null
+            && layoutMeta.Rows > 0
+            && layoutMeta.Columns > 0
+            && (layoutMeta.Rows != resourceLayout.Rows || layoutMeta.Columns != resourceLayout.Columns))
+        {
+            ApplyResourceLayout(resourceLayout, defaults);
+            return;
+        }
+
+        ApplyLayoutMeta(layoutMeta);
         ApplyLayouts(layouts);
     }
 
@@ -639,6 +749,7 @@ public sealed class DashboardCardGrid : Panel
             .ToList();
 
         ConfigurationManager.Current.SetValue(GetLayoutKey(), layouts);
+        SaveLayoutMeta();
     }
 
     private string GetLayoutKey()
@@ -646,6 +757,321 @@ public sealed class DashboardCardGrid : Panel
         return string.IsNullOrWhiteSpace(GridId)
             ? ConfigurationKeys.DashboardCardGridLayout
             : $"{ConfigurationKeys.DashboardCardGridLayout}.{GridId}";
+    }
+
+    private string GetLayoutMetaKey()
+    {
+        return string.IsNullOrWhiteSpace(GridId)
+            ? ConfigurationKeys.TaskQueueDashboardLayout
+            : $"{ConfigurationKeys.TaskQueueDashboardLayout}.{GridId}";
+    }
+
+    private List<DashboardCardLayout> LoadConfigLayouts(List<DashboardCardLayout> defaults, string key, out bool hasConfigLayouts)
+    {
+        var layouts = ConfigurationManager.Current.GetValue(key, new List<DashboardCardLayout>());
+        hasConfigLayouts = ConfigurationManager.Current.ContainsKey(key) && layouts is { Count: > 0 };
+
+        if (layouts == null || layouts.Count == 0)
+        {
+            layouts = defaults;
+
+            if (!string.Equals(key, ConfigurationKeys.DashboardCardGridLayout, StringComparison.OrdinalIgnoreCase))
+            {
+                var legacy = ConfigurationManager.Current.GetValue(ConfigurationKeys.DashboardCardGridLayout, defaults);
+                if (legacy != null && legacy.Count > 0)
+                {
+                    layouts = legacy;
+                }
+            }
+        }
+
+        return layouts;
+    }
+
+    private sealed class DashboardGridMeta
+    {
+        [JsonProperty("rows")]
+        public int Rows { get; set; }
+
+        [JsonProperty("columns")]
+        public int Columns { get; set; }
+
+        [JsonProperty("spacing")]
+        public double Spacing { get; set; }
+    }
+
+    private DashboardGridMeta? LoadLayoutMeta()
+    {
+        var key = GetLayoutMetaKey();
+        if (!ConfigurationManager.Current.ContainsKey(key))
+        {
+            return null;
+        }
+
+        var meta = ConfigurationManager.Current.GetValue(key, new DashboardGridMeta());
+        if (meta.Rows <= 0 || meta.Columns <= 0)
+        {
+            return null;
+        }
+
+        return meta;
+    }
+
+    private void SaveLayoutMeta()
+    {
+        var key = GetLayoutMetaKey();
+        var meta = new DashboardGridMeta
+        {
+            Rows = Rows,
+            Columns = Columns,
+            Spacing = CellSpacing
+        };
+
+        ConfigurationManager.Current.SetValue(key, meta);
+    }
+
+    private void ApplyLayoutMeta(DashboardGridMeta? meta)
+    {
+        if (meta == null)
+        {
+            return;
+        }
+
+        if (meta.Columns > 0)
+        {
+            Columns = meta.Columns;
+        }
+
+        if (meta.Rows > 0)
+        {
+            Rows = meta.Rows;
+        }
+
+        if (meta.Spacing > 0)
+        {
+            CellSpacing = meta.Spacing;
+        }
+    }
+
+    private sealed class LayoutCell
+    {
+        public int Row { get; init; }
+        public int Col { get; init; }
+        public int RowSpan { get; init; }
+        public int ColSpan { get; init; }
+    }
+
+    private sealed class ResourceLayoutDefinition
+    {
+        public int Rows { get; init; }
+        public int Columns { get; init; }
+        public double Spacing { get; init; }
+        public Dictionary<string, LayoutCell> Cards { get; init; } = new();
+    }
+
+    private ResourceLayoutDefinition? TryLoadResourceLayout()
+    {
+        if (!TryGetResourceLayoutPath(out var layoutPath, forWrite: false) || !File.Exists(layoutPath))
+        {
+            return null;
+        }
+
+        try
+        {
+            var json = File.ReadAllText(layoutPath);
+            var root = JObject.Parse(json);
+
+            var rows = root["rows"]?.Value<int>() ?? 0;
+            var columns = root["columns"]?.Value<int>() ?? 0;
+            var spacing = root["spacing"]?.Value<double>() ?? 0;
+
+            var cards = new Dictionary<string, LayoutCell>(StringComparer.OrdinalIgnoreCase);
+            foreach (var property in root.Properties())
+            {
+                if (string.Equals(property.Name, "rows", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(property.Name, "columns", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(property.Name, "spacing", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (property.Value is not JObject cardObject)
+                {
+                    continue;
+                }
+
+                var row = cardObject["row"]?.Value<int>() ?? 0;
+                var col = cardObject["col"]?.Value<int>() ?? 0;
+                var rowSpan = cardObject["row_span"]?.Value<int>()
+                    ?? cardObject["rowSpan"]?.Value<int>()
+                    ?? 1;
+                var colSpan = cardObject["col_span"]?.Value<int>()
+                    ?? cardObject["colSpan"]?.Value<int>()
+                    ?? 1;
+
+                cards[property.Name] = new LayoutCell
+                {
+                    Row = row,
+                    Col = col,
+                    RowSpan = rowSpan,
+                    ColSpan = colSpan
+                };
+            }
+
+            return new ResourceLayoutDefinition
+            {
+                Rows = rows > 0 ? rows : Rows,
+                Columns = columns > 0 ? columns : Columns,
+                Spacing = spacing > 0 ? spacing : CellSpacing,
+                Cards = cards
+            };
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private void ApplyResourceLayout(ResourceLayoutDefinition layout, List<DashboardCardLayout> defaults)
+    {
+        _suppressLayoutSave = true;
+
+        Columns = layout.Columns > 0 ? layout.Columns : Columns;
+        Rows = layout.Rows > 0 ? layout.Rows : Rows;
+        CellSpacing = layout.Spacing > 0 ? layout.Spacing : CellSpacing;
+
+        ApplyLayouts(defaults);
+
+        foreach (var card in Children.OfType<DashboardCard>())
+        {
+            if (string.IsNullOrWhiteSpace(card.CardId))
+            {
+                continue;
+            }
+
+            if (!layout.Cards.TryGetValue(card.CardId, out var cell))
+            {
+                continue;
+            }
+
+            var colSpan = Math.Max(1, cell.ColSpan);
+            var rowSpan = Math.Max(1, cell.RowSpan);
+
+            card.GridColumn = cell.Col;
+            card.GridRow = cell.Row;
+            card.GridColumnSpan = colSpan;
+            card.GridRowSpan = card.IsCollapsed ? 1 : rowSpan;
+            card.ExpandedColumnSpan = colSpan;
+            card.ExpandedRowSpan = rowSpan;
+        }
+
+        _suppressLayoutSave = false;
+        InvalidateMeasure();
+        InvalidateArrange();
+    }
+
+    private void EnsureResourceLayoutFile(List<DashboardCardLayout> defaults)
+    {
+        if (!TryGetResourceLayoutPath(out var layoutPath, forWrite: true))
+        {
+            return;
+        }
+
+        if (File.Exists(layoutPath))
+        {
+            return;
+        }
+
+        try
+        {
+            var layout = BuildResourceLayout(defaults);
+            var json = JsonConvert.SerializeObject(layout, Formatting.Indented);
+            File.WriteAllText(layoutPath, json);
+        }
+        catch
+        {
+            // 忽略生成失败
+        }
+    }
+
+    private bool TryGetResourceLayoutPath(out string layoutPath, bool forWrite)
+    {
+        layoutPath = string.Empty;
+
+        var resourcePaths = GetCurrentResourcePaths();
+        foreach (var path in resourcePaths)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                continue;
+            }
+
+            var fullPath = Path.GetFullPath(path);
+            if (forWrite && !Directory.Exists(fullPath))
+            {
+                Directory.CreateDirectory(fullPath);
+            }
+
+            var candidate = Path.Combine(fullPath, "mfa_layout.json");
+            if (forWrite || File.Exists(candidate))
+            {
+                layoutPath = candidate;
+                return true;
+            }
+        }
+
+        var fallback = Path.Combine(MaaProcessor.Resource, "mfa_layout.json");
+        if (forWrite)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(fallback)!);
+        }
+
+        layoutPath = fallback;
+        return forWrite || File.Exists(fallback);
+    }
+
+    private static IEnumerable<string> GetCurrentResourcePaths()
+    {
+        var model = Instances.TaskQueueViewModel;
+        if (model == null)
+        {
+            return Array.Empty<string>();
+        }
+
+        var current = model.CurrentResources.FirstOrDefault(r => r.Name == model.CurrentResource);
+        var paths = current?.ResolvedPath ?? current?.Path ?? new List<string>();
+
+        return paths;
+    }
+
+    private JObject BuildResourceLayout(IEnumerable<DashboardCardLayout> defaults)
+    {
+        var obj = new JObject
+        {
+            ["rows"] = Rows,
+            ["columns"] = Columns,
+            ["spacing"] = CellSpacing
+        };
+
+        foreach (var layout in defaults)
+        {
+            if (string.IsNullOrWhiteSpace(layout.Id))
+            {
+                continue;
+            }
+
+            var card = new JObject
+            {
+                ["row"] = layout.Row,
+                ["col"] = layout.Col,
+                ["row_span"] = Math.Max(1, layout.RowSpan),
+                ["col_span"] = Math.Max(1, layout.ColSpan)
+            };
+
+            obj[layout.Id] = card;
+        }
+
+        return obj;
     }
 
     protected override Size MeasureOverride(Size availableSize)

@@ -142,6 +142,8 @@ public partial class DashboardCard : ContentControl
     public event EventHandler<PointerEventArgs>? DragMoved;
     public event EventHandler<PointerReleasedEventArgs>? DragEnded;
     public event EventHandler<DashboardCardResizeEventArgs>? Resized;
+    public event EventHandler<DashboardCardResizeEventArgs>? ResizeStarted;
+    public event EventHandler<DashboardCardResizeEventArgs>? ResizeCompleted;
 
     private Border? _headerArea;
     private bool _isDragging;
@@ -258,6 +260,56 @@ public partial class DashboardCard : ContentControl
         }
 
         Resized?.Invoke(this, new DashboardCardResizeEventArgs
+        {
+            Direction = direction,
+            HorizontalChange = e.Vector.X,
+            VerticalChange = e.Vector.Y,
+            CardId = CardId,
+            CurrentColumn = GridColumn,
+            CurrentRow = GridRow,
+            CurrentColumnSpan = GridColumnSpan,
+            CurrentRowSpan = IsCollapsed ? 1 : GridRowSpan
+        });
+    }
+
+    private void OnResizeDragStarted(object? sender, VectorEventArgs e)
+    {
+        if (!IsResizeEnabled)
+        {
+            return;
+        }
+
+        if (sender is not Thumb thumb || thumb.Tag is not string direction)
+        {
+            return;
+        }
+
+        ResizeStarted?.Invoke(this, new DashboardCardResizeEventArgs
+        {
+            Direction = direction,
+            HorizontalChange = e.Vector.X,
+            VerticalChange = e.Vector.Y,
+            CardId = CardId,
+            CurrentColumn = GridColumn,
+            CurrentRow = GridRow,
+            CurrentColumnSpan = GridColumnSpan,
+            CurrentRowSpan = IsCollapsed ? 1 : GridRowSpan
+        });
+    }
+
+    private void OnResizeDragCompleted(object? sender, VectorEventArgs e)
+    {
+        if (!IsResizeEnabled)
+        {
+            return;
+        }
+
+        if (sender is not Thumb thumb || thumb.Tag is not string direction)
+        {
+            return;
+        }
+
+        ResizeCompleted?.Invoke(this, new DashboardCardResizeEventArgs
         {
             Direction = direction,
             HorizontalChange = e.Vector.X,

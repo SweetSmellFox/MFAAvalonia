@@ -236,7 +236,9 @@
                                    HorizontalAlignment="Left"
                                    VerticalAlignment="Top"
                                    Cursor="TopLeftCorner"
+                                   DragStarted="OnResizeDragStarted"
                                    DragDelta="OnResizeDragDelta"
+                                   DragCompleted="OnResizeDragCompleted"
                                    Tag="tl"
                                    ZIndex="60"
                                    IsVisible="{Binding IsResizeEnabled, RelativeSource={RelativeSource TemplatedParent}}" />
@@ -249,7 +251,9 @@
                                    HorizontalAlignment="Right"
                                    VerticalAlignment="Top"
                                    Cursor="TopRightCorner"
+                                   DragStarted="OnResizeDragStarted"
                                    DragDelta="OnResizeDragDelta"
+                                   DragCompleted="OnResizeDragCompleted"
                                    Tag="tr"
                                    ZIndex="60"
                                    IsVisible="{Binding IsResizeEnabled, RelativeSource={RelativeSource TemplatedParent}}" />
@@ -262,7 +266,9 @@
                                    HorizontalAlignment="Left"
                                    VerticalAlignment="Bottom"
                                    Cursor="BottomLeftCorner"
+                                   DragStarted="OnResizeDragStarted"
                                    DragDelta="OnResizeDragDelta"
+                                   DragCompleted="OnResizeDragCompleted"
                                    Tag="bl"
                                    ZIndex="60"
                                    IsVisible="{Binding IsResizeEnabled, RelativeSource={RelativeSource TemplatedParent}}" />
@@ -275,7 +281,9 @@
                                    HorizontalAlignment="Right"
                                    VerticalAlignment="Bottom"
                                    Cursor="BottomRightCorner"
+                                   DragStarted="OnResizeDragStarted"
                                    DragDelta="OnResizeDragDelta"
+                                   DragCompleted="OnResizeDragCompleted"
                                    Tag="br"
                                    ZIndex="60"
                                    IsVisible="{Binding IsResizeEnabled, RelativeSource={RelativeSource TemplatedParent}}" />
@@ -288,7 +296,9 @@
                                    VerticalAlignment="Top"
                                    Margin="0,-8,0,0"
                                    Cursor="TopSide"
+                                   DragStarted="OnResizeDragStarted"
                                    DragDelta="OnResizeDragDelta"
+                                   DragCompleted="OnResizeDragCompleted"
                                    Tag="t"
                                    ZIndex="40"
                                    IsVisible="{Binding IsResizeEnabled, RelativeSource={RelativeSource TemplatedParent}}" />
@@ -301,7 +311,9 @@
                                    VerticalAlignment="Bottom"
                                    Margin="0,0,0,-8"
                                    Cursor="BottomSide"
+                                   DragStarted="OnResizeDragStarted"
                                    DragDelta="OnResizeDragDelta"
+                                   DragCompleted="OnResizeDragCompleted"
                                    Tag="b"
                                    ZIndex="40"
                                    IsVisible="{Binding IsResizeEnabled, RelativeSource={RelativeSource TemplatedParent}}" />
@@ -314,7 +326,9 @@
                                    VerticalAlignment="Stretch"
                                    Margin="-8,0,0,0"
                                    Cursor="LeftSide"
+                                   DragStarted="OnResizeDragStarted"
                                    DragDelta="OnResizeDragDelta"
+                                   DragCompleted="OnResizeDragCompleted"
                                    Tag="l"
                                    ZIndex="40"
                                    IsVisible="{Binding IsResizeEnabled, RelativeSource={RelativeSource TemplatedParent}}" />
@@ -327,7 +341,9 @@
                                    VerticalAlignment="Stretch"
                                    Margin="0,0,-8,0"
                                    Cursor="RightSide"
+                                   DragStarted="OnResizeDragStarted"
                                    DragDelta="OnResizeDragDelta"
+                                   DragCompleted="OnResizeDragCompleted"
                                    Tag="r"
                                    ZIndex="40"
                                    IsVisible="{Binding IsResizeEnabled, RelativeSource={RelativeSource TemplatedParent}}" />
