@@ -53,23 +53,10 @@ public partial class TaskQueueView : UserControl
         DataContext = Instances.TaskQueueViewModel;
         InitializeComponent();
         MaaProcessor.Instance.InitializeData();
-        // InitializeDeviceSelectorLayout();
-        InitializePanelAnimations();
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
     }
-
-    /// <summary>
-    /// 初始化面板动画，订阅 ViewModel 的属性变化
-    /// </summary>
-    private void InitializePanelAnimations()
-    {
-        var viewModel = Instances.TaskQueueViewModel;
-        if (viewModel == null) return;
-
-    }
     
-
 // private void UpdateDeviceSelectorLayout()
 // {
 //     // 只有在三行布局模式（_currentLayoutMode == 2）时才使用垂直布局
@@ -117,11 +104,7 @@ public partial class TaskQueueView : UserControl
 
     #region UI
 
-    private void GridSplitter_DragCompleted(object sender, VectorEventArgs e)
-    {
-    }
 
-    #endregion
 
     private void SelectingItemsControl_OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
@@ -187,7 +170,8 @@ public partial class TaskQueueView : UserControl
             }
         }
     }
-
+    #endregion
+    
     #region 任务选项
 
     private static readonly ConcurrentDictionary<string, Control> CommonPanelCache = new();
@@ -2188,179 +2172,7 @@ public partial class TaskQueueView : UserControl
         //
         // return string.Join("\n", lines);
     }
-
-
-// private static List<TextStyleMetadata> _currentStyles = new();
-//
-// private class RichTextLineTransformer : DocumentColorizingTransformer
-// {
-//     protected override void ColorizeLine(DocumentLine line)
-//     {
-//         _currentStyles = _currentStyles.OrderByDescending(s => s.EndOffset).ToList();
-//         int lineStart = line.Offset;
-//         int lineEnd = line.Offset + line.Length;
-//
-//         foreach (var style in _currentStyles)
-//         {
-//             if (style.EndOffset <= lineStart || style.StartOffset >= lineEnd)
-//                 continue;
-//
-//             int start = Math.Max(style.StartOffset, lineStart);
-//             int end = Math.Min(style.EndOffset, lineEnd);
-//             ApplyStyle(start, end, style.Tag, style.Value);
-//         }
-//     }
-//
-//
-//     /// <summary>
-//     /// 应用样式到指定范围的文本
-//     /// </summary>
-//     /// <param name="startOffset">起始偏移量</param>
-//     /// <param name="endOffset">结束偏移量</param>
-//     /// <param name="tag">标记名称</param>
-//     /// <param name="value">标记值</param>
-//     private void ApplyStyle(int startOffset, int endOffset, string tag, string value)
-//     {
-//         switch (tag)
-//         {
-//             case "color":
-//                 ChangeLinePart(startOffset, endOffset, element => element.TextRunProperties.SetForegroundBrush(new SolidColorBrush(Color.Parse(value))));
-//                 break;
-//             case "size":
-//                 if (double.TryParse(value, out var size))
-//                 {
-//                     ChangeLinePart(startOffset, endOffset, element => element.TextRunProperties.SetFontRenderingEmSize(size));
-//                 }
-//                 break;
-//             case "b":
-//                 ChangeLinePart(startOffset, endOffset, element =>
-//                 {
-//                     var typeface = new Typeface(
-//                         element.TextRunProperties.Typeface.FontFamily,
-//                         element.TextRunProperties.Typeface.Style, FontWeight.Bold, // 设置粗体
-//                         element.TextRunProperties.Typeface.Stretch
-//                     );
-//                     element.TextRunProperties.SetTypeface(typeface);
-//                 });
-//                 break;
-//             case "i":
-//                 ChangeLinePart(startOffset, endOffset, element =>
-//                 {
-//                     var typeface = new Typeface(
-//                         element.TextRunProperties.Typeface.FontFamily,
-//                         FontStyle.Italic, // 设置斜体
-//                         element.TextRunProperties.Typeface.Weight,
-//                         element.TextRunProperties.Typeface.Stretch
-//                     );
-//                     element.TextRunProperties.SetTypeface(typeface);
-//                 });
-//                 break;
-//             case "u":
-//                 ChangeLinePart(startOffset, endOffset, element => element.TextRunProperties.SetTextDecorations(TextDecorations.Underline));
-//                 break;
-//             case "s":
-//                 ChangeLinePart(startOffset, endOffset, element => element.TextRunProperties.SetTextDecorations(TextDecorations.Strikethrough));
-//                 break;
-//         }
-//     }
-// }
-//
-// public class TextStyleMetadata
-// {
-//     public int StartOffset { get; set; }
-//     public int EndOffset { get; set; }
-//     public string Tag { get; set; }
-//     public string Value { get; set; }
-//
-//     // 新增字段存储标签部分的长度
-//     public int OriginalLength { get; set; }
-// }
-//
-// private (string CleanText, List<TextStyleMetadata> Styles) ProcessRichTextTags(string input)
-// {
-//     var styles = new List<TextStyleMetadata>();
-//     var cleanText = new StringBuilder();
-//     ProcessNestedContent(input, cleanText, styles, new Stack<(string Tag, string Value, int CleanStart)>());
-//     return (cleanText.ToString(), styles);
-// }
-//
-// private void ProcessNestedContent(string input, StringBuilder cleanText, List<TextStyleMetadata> styles, Stack<(string Tag, string Value, int CleanStart)> stack)
-// {
-//     var matches = Regex.Matches(input, @"\[(?<tag>[^\]]+):?(?<value>[^\]]*)\](?<content>.*?)\[/\k<tag>\]");
-//     int lastPos = 0;
-//
-//     foreach (Match match in matches.Cast<Match>())
-//     {
-//         // 添加非标签内容
-//         if (match.Index > lastPos)
-//         {
-//             cleanText.Append(input.Substring(lastPos, match.Index - lastPos));
-//         }
-//
-//         string tag = match.Groups["tag"].Value.ToLower();
-//         string value = match.Groups["value"].Value;
-//         string content = match.Groups["content"].Value;
-//
-//         // 记录开始位置
-//         int contentStart = cleanText.Length;
-//         stack.Push((tag, value, contentStart));
-//
-//         // 递归解析嵌套内容
-//         var nestedCleanText = new StringBuilder();
-//         ProcessNestedContent(content, nestedCleanText, styles, new Stack<(string Tag, string Value, int CleanStart)>(stack));
-//         cleanText.Append(nestedCleanText);
-//
-//         // 记录样式元数据
-//         if (stack.Count > 0 && stack.Peek().Tag == tag)
-//         {
-//             var (openTag, openValue, cleanStart) = stack.Pop();
-//             styles.Add(new TextStyleMetadata
-//             {
-//                 StartOffset = cleanStart,
-//                 EndOffset = cleanText.Length,
-//                 Tag = openTag,
-//                 Value = openValue
-//             });
-//         }
-//         lastPos = match.Index + match.Length;
-//     }
-//
-//     // 添加剩余文本
-//     if (lastPos < input.Length)
-//     {
-//         cleanText.Append(input.Substring(lastPos));
-//     }
-// }
-//
-// // 使用 MatchEvaluator 的独立方法
-//
-
-    /// <summary>
-    /// 左侧 SettingCard 点击事件处理 - 折叠状态下点击整个卡片展开
-    /// </summary>
-    private void SettingCard_PointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        var viewModel = Instances.TaskQueueViewModel;
-        if (viewModel?.IsLeftPanelCollapsed == true)
-        {
-            viewModel.ToggleLeftPanel();
-            e.Handled = true; // 防止事件继续传播
-        }
-    }
-
-    /// <summary>
-    /// 右侧 LogCard 点击事件处理 - 折叠状态下点击整个卡片展开
-    /// </summary>
-    private void LogCard_PointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        var viewModel = Instances.TaskQueueViewModel;
-        if (viewModel?.IsRightPanelCollapsed == true)
-        {
-            viewModel.ToggleRightPanel();
-            e.Handled = true; // 防止事件继续传播
-        }
-    }
-
+    
     #endregion
 
     #region 实时图像

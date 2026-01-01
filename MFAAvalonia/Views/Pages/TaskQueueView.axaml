@@ -1002,7 +1002,7 @@
                         </Grid>
 
                         <Grid Grid.Row="1" Grid.Column="0"
-                              HorizontalAlignment="Left" Margin="0 8 0 8"
+                              HorizontalAlignment="Left" Margin="8 0 0 8"
                               VerticalAlignment="Bottom"
                               IsVisible="{Binding LiveViewImage, Source={x:Static helper:Instances.TaskQueueViewModel}, Converter={x:Static ObjectConverters.IsNotNull}}">
                             <Border Background="{DynamicResource SukiCardBackground}"
@@ -1259,7 +1259,6 @@
                             </suki:GroupBox>
                         </Grid>
                     </ScrollViewer>
-        
                 </suki:GlassCard>
             </Border>
         </Popup>
