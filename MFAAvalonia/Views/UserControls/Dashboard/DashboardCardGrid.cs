@@ -95,6 +95,7 @@ public sealed class DashboardCardGrid : Panel
     private readonly Dictionary<DashboardCard, IDisposable> _visibilitySubscriptions = new();
     private readonly List<Thumb> _columnSplitters = new();
     private readonly List<Thumb> _rowSplitters = new();
+    private bool _isSyncingRowSplitters;
     private bool _isUpdatingSplitterHost;
     private SplitterDragContext? _activeSplitterContext;
     private SplitterLayout? _activeSplitterLayout;
@@ -1540,46 +1541,60 @@ public sealed class DashboardCardGrid : Panel
 
     private void SyncRowSplitters(IReadOnlyList<RowSplitterLayout> layouts)
     {
-        var required = Math.Max(0, layouts.Count);
-
-        for (var i = _rowSplitters.Count - 1; i >= required; i--)
+        if (_isSyncingRowSplitters)
         {
-            var splitter = _rowSplitters[i];
-            splitter.DragDelta -= OnRowSplitterDragDelta;
-            splitter.DragStarted -= OnRowSplitterDragStarted;
-            splitter.DragCompleted -= OnRowSplitterDragCompleted;
-            splitter.PointerEntered -= OnRowSplitterPointerEntered;
-            splitter.PointerExited -= OnRowSplitterPointerExited;
-            _rowSplitters.RemoveAt(i);
-            Children.Remove(splitter);
+            return;
         }
 
-        for (var i = _rowSplitters.Count; i < required; i++)
+        _isSyncingRowSplitters = true;
+        try
         {
-            var splitter = new Thumb
+            var required = Math.Max(0, layouts.Count);
+
+            for (var i = _rowSplitters.Count - 1; i >= required; i--)
             {
-                Tag = null,
-                IsVisible = false,
-                Background = Brushes.Transparent,
-                ZIndex = 20,
-                Opacity = 0,
-                Classes =
-                {
-                    "DashboardGridSplitterHorizontal"
-                }
-            };
-            splitter.PointerEntered += OnRowSplitterPointerEntered;
-            splitter.PointerExited += OnRowSplitterPointerExited;
-            splitter.DragDelta += OnRowSplitterDragDelta;
-            splitter.DragStarted += OnRowSplitterDragStarted;
-            splitter.DragCompleted += OnRowSplitterDragCompleted;
-            _rowSplitters.Add(splitter);
-            Children.Add(splitter);
-        }
+                var splitter = _rowSplitters[i];
+                splitter.DragDelta -= OnRowSplitterDragDelta;
+                splitter.DragStarted -= OnRowSplitterDragStarted;
+                splitter.DragCompleted -= OnRowSplitterDragCompleted;
+                splitter.PointerEntered -= OnRowSplitterPointerEntered;
+                splitter.PointerExited -= OnRowSplitterPointerExited;
+                _rowSplitters.RemoveAt(i);
+                Children.Remove(splitter);
+            }
 
-        for (var i = 0; i < required; i++)
+            for (var i = _rowSplitters.Count; i < required; i++)
+            {
+                var splitter = new Thumb
+                {
+                    Tag = null,
+                    IsVisible = false,
+                    Background = Brushes.Transparent,
+                    ZIndex = 20,
+                    Opacity = 0,
+                    Classes =
+                    {
+                        "DashboardGridSplitterHorizontal"
+                    }
+                };
+                splitter.PointerEntered += OnRowSplitterPointerEntered;
+                splitter.PointerExited += OnRowSplitterPointerExited;
+                splitter.DragDelta += OnRowSplitterDragDelta;
+                splitter.DragStarted += OnRowSplitterDragStarted;
+                splitter.DragCompleted += OnRowSplitterDragCompleted;
+                _rowSplitters.Add(splitter);
+                Children.Add(splitter);
+            }
+
+            var assignCount = Math.Min(required, _rowSplitters.Count);
+            for (var i = 0; i < assignCount; i++)
+            {
+                _rowSplitters[i].Tag = layouts[i];
+            }
+        }
+        finally
         {
-            _rowSplitters[i].Tag = layouts[i];
+            _isSyncingRowSplitters = false;
         }
     }
 
