@@ -85,48 +85,87 @@
                             Text="{markup:I18n {x:Static helper:LangKeys.EnableRecording}}" />
                     </StackPanel>
                 </DockPanel>
-                                <DockPanel>
-                                    <ToggleSwitch
-                                        Classes="Switch"
-                                        DockPanel.Dock="Right"
-                                        IsChecked="{Binding EnableSaveDraw}"
-                                        IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
-                                        VerticalAlignment="Top" />
-                                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                                        <TextBlock
-                                            FontSize="16"
-                                            FontWeight="SemiBold"
-                                            Text="{markup:I18n {x:Static helper:LangKeys.EnableSaveDraw}}" />
-                                    </StackPanel>
-                                </DockPanel>
-                                <DockPanel>
-                                    <ToggleSwitch
-                                        Classes="Switch"
-                                        DockPanel.Dock="Right"
-                                        IsChecked="{Binding EnableSaveOnError}"
-                                        IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
-                                        VerticalAlignment="Top" />
-                                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                                        <TextBlock
-                                            FontSize="16"
-                                            FontWeight="SemiBold"
-                                            Text="{markup:I18n {x:Static helper:LangKeys.EnableSaveOnError}}" />
-                                    </StackPanel>
-                                </DockPanel>
-                                <DockPanel>
-                                    <ToggleSwitch
-                                        Classes="Switch"
-                                        DockPanel.Dock="Right"
-                                        IsChecked="{Binding ShowHitDraw}"
-                                        IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
-                                        VerticalAlignment="Top" />
-                                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                                        <TextBlock
-                                            FontSize="16"
-                                            FontWeight="SemiBold"
-                                            Text="{markup:I18n {x:Static helper:LangKeys.ShowHitDraw}}" />
-                                    </StackPanel>
-                                </DockPanel>
+                <DockPanel>
+                    <ToggleSwitch
+                        Classes="Switch"
+                        DockPanel.Dock="Right"
+                        IsChecked="{Binding EnableSaveDraw}"
+                        IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
+                        VerticalAlignment="Top" />
+                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
+                        <TextBlock
+                            FontSize="16"
+                            FontWeight="SemiBold"
+                            Text="{markup:I18n {x:Static helper:LangKeys.EnableSaveDraw}}" />
+                    </StackPanel>
+                </DockPanel>
+                <DockPanel>
+                    <ToggleSwitch
+                        Classes="Switch"
+                        DockPanel.Dock="Right"
+                        IsChecked="{Binding EnableSaveOnError}"
+                        IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
+                        VerticalAlignment="Top" />
+                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
+                        <TextBlock
+                            FontSize="16"
+                            FontWeight="SemiBold"
+                            Text="{markup:I18n {x:Static helper:LangKeys.EnableSaveOnError}}" />
+                    </StackPanel>
+                </DockPanel>
+                <DockPanel>
+                    <ToggleSwitch
+                        Classes="Switch"
+                        DockPanel.Dock="Right"
+                        IsChecked="{Binding ShowHitDraw}"
+                        IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
+                        VerticalAlignment="Top" />
+                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
+                        <TextBlock
+                            FontSize="16"
+                            FontWeight="SemiBold"
+                            Text="{markup:I18n {x:Static helper:LangKeys.ShowHitDraw}}" />
+                    </StackPanel>
+                </DockPanel>
+            </StackPanel>
+        </suki:GlassCard>
+        <!-- Live View Settings -->
+        <suki:GlassCard Margin="0,25,0,0" Padding="25,10,25,10">
+            <StackPanel>
+                <DockPanel>
+                    <ToggleSwitch
+                        Classes="Switch"
+                        DockPanel.Dock="Right"
+                        IsChecked="{Binding EnableLiveView, Source={x:Static helper:Instances.TaskQueueViewModel}}"
+                        IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
+                        VerticalAlignment="Top" />
+                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
+                        <TextBlock
+                            FontSize="16"
+                            FontWeight="SemiBold"
+                            Text="{markup:I18n {x:Static helper:LangKeys.LiveView}}"
+                            VerticalAlignment="Center" />
+                    </StackPanel>
+                </DockPanel>
+                <DockPanel>
+                    <NumericUpDown
+                        DockPanel.Dock="Right"
+                        FormatString="0"
+                        HorizontalAlignment="Center"
+                        Increment="1"
+                        IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
+                        Maximum="120"
+                        Minimum="1"
+                        Value="{Binding LiveViewRefreshRate, Source={x:Static helper:Instances.TaskQueueViewModel}}"
+                        Width="215" />
+                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
+                        <TextBlock
+                            FontSize="16"
+                            FontWeight="SemiBold"
+                            Text="{markup:I18n {x:Static helper:LangKeys.LiveViewRefreshRate}}"
+                            VerticalAlignment="Center" />
+                    </StackPanel>
+                </DockPanel>
             </StackPanel>
         </suki:GlassCard>
     </StackPanel>

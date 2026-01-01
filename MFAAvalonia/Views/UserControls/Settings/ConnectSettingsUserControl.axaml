@@ -14,9 +14,9 @@
              xmlns:suki="https://github.com/kikipoulet/SukiUI"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <StackPanel Spacing="20">
-                <suki:GlassCard
-                    IsVisible="{calcBinding:Binding 'CurrentController == maa:MaaControllerTypes.Adb', Source={x:Static helper:Instances.TaskQueueViewModel}}"
-                    Margin="0,25,0,0" Padding="25,10,25,10">
+        <suki:GlassCard
+            IsVisible="{calcBinding:Binding 'CurrentController == maa:MaaControllerTypes.Adb', Source={x:Static helper:Instances.TaskQueueViewModel}}"
+            Margin="0,25,0,0" Padding="25,10,25,10">
             <StackPanel>
                 <DockPanel>
                     <ComboBox
@@ -203,34 +203,6 @@
                             FontSize="16"
                             FontWeight="SemiBold"
                             Text="{markup:I18n {x:Static helper:LangKeys.KeyboardInput}}"
-                            VerticalAlignment="Center" />
-                    </StackPanel>
-                </DockPanel>
-            </StackPanel>
-        </suki:GlassCard>
-        <!-- Live View Settings -->
-        <suki:GlassCard Margin="0,25,0,0" Padding="25,10,25,10">
-            <StackPanel>
-                <TextBlock
-                    FontSize="18"
-                    FontWeight="Bold" Margin="0,5,0,10"
-                    Text="{markup:I18n {x:Static helper:LangKeys.LiveView}}" />
-                <DockPanel>
-                    <NumericUpDown
-                        DockPanel.Dock="Right"
-                        FormatString="0.0"
-                        HorizontalAlignment="Center"
-                        Increment="0.1"
-                        IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
-                        Maximum="60"
-                        Minimum="0.1"
-                        Value="{Binding LiveViewRefreshInterval, Source={x:Static helper:Instances.TaskQueueViewModel}}"
-                        Width="215"  />
-                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                        <TextBlock
-                            FontSize="16"
-                            FontWeight="SemiBold"
-                            Text="{markup:I18n {x:Static helper:LangKeys.LiveViewRefreshInterval}}"
                             VerticalAlignment="Center" />
                     </StackPanel>
                 </DockPanel>
