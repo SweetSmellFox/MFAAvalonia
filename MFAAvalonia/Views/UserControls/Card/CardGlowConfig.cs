@@ -14,9 +14,9 @@ public class CardGlowConfig
 
     /// <summary>
     /// 主遮罩滚动速度
-    /// 默认值: 0.1
+    /// 默认值: 1.0
     /// </summary>
-    public float FlowSpeed { get; set; } = 0.1f;
+    public float FlowSpeed { get; set; } = 0.5f;
 
     /// <summary>
     /// 遮罩缩放倍率 (值越小，纹理被拉伸得越大)
@@ -116,7 +116,7 @@ public class CardGlowConfig
     /// </summary>
     public static CardGlowConfig SilkFlow => new()
     {
-        FlowSpeed = 0.08f,
+        FlowSpeed = 0.8f,
         FlowWidth = 0.6f,
         FlowIntensity = 0.7f,
         SecondaryFlowSpeedMultiplier = -0.8f,
@@ -130,7 +130,7 @@ public class CardGlowConfig
         SecondaryFlowColor = Color.FromRgb(255, 180, 50),
         FlowIntensity = 1.0f,
         SecondaryFlowIntensity = 0.6f,
-        FlowSpeed = 0.12f,
+        FlowSpeed = 1.2f,
         BlendMode = 0 // Add
     };
 
@@ -156,7 +156,7 @@ public class CardGlowConfig
         SecondaryFlowColor = Color.FromRgb(100, 255, 240),
         FlowIntensity = 1.2f,
         SecondaryFlowIntensity = 0.8f,
-        FlowSpeed = 0.15f,
+        FlowSpeed = 1.5f,
         SparkleIntensity = 0.6f,
         BlendMode = 0 // Add
     };
@@ -165,7 +165,7 @@ public class CardGlowConfig
     {
         FlowIntensity = 0.3f,
         SecondaryFlowIntensity = 0.2f,
-        FlowSpeed = 0.05f,
+        FlowSpeed = 0.5f,
         EnableSparkle = false,
         BlendMode = 1 // Screen
     };
