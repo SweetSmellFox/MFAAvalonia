@@ -1459,6 +1459,9 @@
     <data name="PlayCoverBundleIdentifier" xml:space="preserve">
         <value>应用标识符</value>
     </data>
+    <data name="PlayCoverAddressEmpty" xml:space="preserve">
+        <value>PlayCover 地址不能为空</value>
+    </data>
     <data name="Reconnect" xml:space="preserve">
         <value>重新连接</value>
     </data>

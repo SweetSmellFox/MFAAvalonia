@@ -1444,6 +1444,9 @@
     <data name="PlayCoverBundleIdentifier" xml:space="preserve">
         <value>應用識別碼</value>
     </data>
+    <data name="PlayCoverAddressEmpty" xml:space="preserve">
+        <value>PlayCover 位址不能為空</value>
+    </data>
     <data name="Reconnect" xml:space="preserve">
         <value>重新連接</value>
     </data>

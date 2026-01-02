@@ -15,7 +15,7 @@ public partial class PlayCoverEditorDialogViewModel : ObservableObject
 
     public PlayCoverEditorDialogViewModel(PlayCoverCoreConfig config, ISukiDialog dialog)
     {
-        PlayCoverAdbSerial = config.AdbSerial ?? string.Empty;
+        PlayCoverAdbSerial = config.PlayCoverAddress ?? string.Empty;
         PlayCoverBundleIdentifier = string.IsNullOrWhiteSpace(config.UUID) ? "maa.playcover" : config.UUID;
         Dialog = dialog;
     }
@@ -26,7 +26,7 @@ public partial class PlayCoverEditorDialogViewModel : ObservableObject
         var config = new PlayCoverCoreConfig
         {
             Name = "PlayCover",
-            AdbSerial = PlayCoverAdbSerial,
+            PlayCoverAddress = PlayCoverAdbSerial,
             UUID = string.IsNullOrWhiteSpace(PlayCoverBundleIdentifier) ? "maa.playcover" : PlayCoverBundleIdentifier
         };
 

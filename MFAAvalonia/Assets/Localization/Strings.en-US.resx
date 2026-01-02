@@ -1453,6 +1453,9 @@
     <data name="PlayCoverBundleIdentifier" xml:space="preserve">
         <value>Bundle Identifier</value>
     </data>
+    <data name="PlayCoverAddressEmpty" xml:space="preserve">
+        <value>PlayCover address cannot be empty</value>
+    </data>
     <data name="Reconnect" xml:space="preserve">
         <value>Reconnect</value>
     </data>

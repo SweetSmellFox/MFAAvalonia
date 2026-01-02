@@ -488,5 +488,6 @@ public static class LangKeys
 	public static readonly string LiveViewRefreshRate = "LiveViewRefreshRate";
 	public static readonly string PlayCoverAddress = "PlayCoverAddress";
 	public static readonly string PlayCoverBundleIdentifier = "PlayCoverBundleIdentifier";
+	public static readonly string PlayCoverAddressEmpty = "PlayCoverAddressEmpty";
 	public static readonly string Reconnect = "Reconnect";
 }

@@ -214,6 +214,14 @@ public partial class TaskQueueViewModel : ViewModelBase
             return;
         }
 
+        if (CurrentController == MaaControllerTypes.PlayCover
+            && string.IsNullOrWhiteSpace(MaaProcessor.Config.PlayCover.PlayCoverAddress))
+        {
+            ToastHelper.Warn(LangKeys.CannotStart.ToLocalization(), LangKeys.PlayCoverAddressEmpty.ToLocalization());
+            LoggerHelper.Warning(LangKeys.CannotStart.ToLocalization());
+            return;
+        }
+
         MaaProcessor.Instance.Start();
     }
 
@@ -786,6 +794,14 @@ public partial class TaskQueueViewModel : ViewModelBase
         if (CurrentController != MaaControllerTypes.PlayCover && CurrentDevice == null)
         {
             ToastHelper.Warn(LangKeys.CannotStart.ToLocalization(), "DeviceNotSelected".ToLocalization());
+            LoggerHelper.Warning(LangKeys.CannotStart.ToLocalization());
+            return;
+        }
+
+        if (CurrentController == MaaControllerTypes.PlayCover
+            && string.IsNullOrWhiteSpace(MaaProcessor.Config.PlayCover.PlayCoverAddress))
+        {
+            ToastHelper.Warn(LangKeys.CannotStart.ToLocalization(), LangKeys.PlayCoverAddressEmpty.ToLocalization());
             LoggerHelper.Warning(LangKeys.CannotStart.ToLocalization());
             return;
         }

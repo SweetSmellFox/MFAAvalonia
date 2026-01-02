@@ -1071,10 +1071,10 @@ public class MaaProcessor
                 );
 
             case MaaControllerTypes.PlayCover:
-                LoggerHelper.Info($"PlayCoverAdbSerial: {Config.PlayCover.AdbSerial}");
-                LoggerHelper.Info($"PlayCoverBundleId: {Config.PlayCover.UUID}");
+                LoggerHelper.Info($"PlayCover Address: {Config.PlayCover.PlayCoverAddress}");
+                LoggerHelper.Info($"PlayCover BundleId: {Config.PlayCover.UUID}");
 
-                return new MaaPlayCoverController(Config.PlayCover.AdbSerial, Config.PlayCover.UUID);
+                return new MaaPlayCoverController(Config.PlayCover.PlayCoverAddress, Config.PlayCover.UUID);
 
             case MaaControllerTypes.Win32:
             default:

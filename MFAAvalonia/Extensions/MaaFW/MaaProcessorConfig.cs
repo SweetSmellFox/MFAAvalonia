@@ -47,6 +47,6 @@ public class AdbDeviceCoreConfig
 public class PlayCoverCoreConfig
 {
     public string Name { get; set; } = string.Empty;
-    public string AdbSerial { get; set; } = "";
+    public string PlayCoverAddress { get; set; } = "";
     public string UUID { get; set; } = "maa.playcover";
 }
