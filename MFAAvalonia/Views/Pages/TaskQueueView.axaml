@@ -285,255 +285,508 @@
         <!-- 第一行：顶部工具栏（资源选择 + 连接设置） -->
         <suki:GlassCard Grid.Row="0" Margin="15,15,15,5" Padding="12,8" IsAnimated="False">
             <Grid x:Name="TopToolbar">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <!-- 在 TopToolbar Grid 中添加新列，放在资源选择之前 -->
-                <Grid x:Name="ConfigSelectorPanel" Grid.Column="0" VerticalAlignment="Center"
-                      ColumnDefinitions="Auto,*">
-                    <TextBlock FontSize="12" Grid.Column="0"
-                               FontWeight="Bold" Foreground="{DynamicResource SukiLowText}"
-                               Text="{markup:I18n {x:Static helper:LangKeys.CurrentConfig}}"
-                               VerticalAlignment="Center" />
-                    <ComboBox Margin="8 0 0 0" Grid.Column="1"
-                              ex:ComboBoxExtensions.DisableNavigationOnLostFocus="True"
-                              IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
-                              ItemsSource="{Binding ConfigurationList}"
-                              SelectedValue="{Binding CurrentConfiguration}"
-                              SelectedValueBinding="{Binding Name}"
-                              MinWidth="120">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
-
-                </Grid>
-                <!-- ~1~ 添加分隔符 @1@ -->
-                <Border x:Name="Spliter1" Grid.Column="1" Width="1" Height="30"
-                        Background="{DynamicResource SukiControlBorderBrush}" Margin="20,0" />
-
-                <!-- 左侧：资源选择 -->
-                <Grid x:Name="ResourceSelectorPanel" Grid.Column="2" VerticalAlignment="Center"
-                      ColumnDefinitions="Auto,*">
-                    <TextBlock FontSize="12" Grid.Column="0"
-                               FontWeight="Bold" Foreground="{DynamicResource SukiLowText}"
-                               Text="{markup:I18n {x:Static helper:LangKeys.ResourceOption}}"
-                               VerticalAlignment="Center" />
-                    <ComboBox Margin="8 0 0 0" Grid.Column="1"
-                              ex:ComboBoxExtensions.DisableNavigationOnLostFocus="True"
-                              IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
-                              ItemsSource="{Binding CurrentResources}"
-                              MinWidth="150" HorizontalAlignment="Stretch"
-                              SelectedValue="{Binding CurrentResource, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                              SelectedValueBinding="{Binding Name}" VerticalAlignment="Center">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate x:DataType="maa:MaaInterface+MaaInterfaceResource">
-                                <Grid ColumnDefinitions="Auto,*,Auto">
-                                    <controls:DisplayIcon Grid.Column="0" IconSource="{Binding ResolvedIcon}"
-                                                          IconSize="20" IsVisible="{Binding HasIcon}" Margin="0,0,6,0"
-                                                          VerticalAlignment="Center" />
-                                    <TextBlock Background="Transparent" Foreground="{DynamicResource SukiText}"
-                                               Grid.Column="1"
-                                               Text="{Binding DisplayName}"
-                                               TextTrimming="CharacterEllipsis"
-                                               VerticalAlignment="Center" />
-                                    <controls:TooltipBlock MaxWidth="40" Grid.Column="2"
-                                                           IsVisible="{Binding HasDescription}"
-                                                           TooltipText="{Binding DisplayDescription}" />
-                                </Grid>
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                        <ComboBox.SelectionBoxItemTemplate>
-                            <DataTemplate>
-                                <Grid ColumnDefinitions="Auto,*,Auto">
-                                    <controls:DisplayIcon Grid.Column="0" IconSource="{Binding ResolvedIcon}"
-                                                          IconSize="20" IsVisible="{Binding HasIcon}" Margin="0,0,6,0"
-                                                          VerticalAlignment="Center" />
-                                    <TextBlock Background="Transparent" Foreground="{DynamicResource SukiText}"
-                                               Grid.Column="1"
-                                               Text="{Binding DisplayName}"
-                                               TextTrimming="CharacterEllipsis"
-                                               VerticalAlignment="Center" />
-                                    <controls:TooltipBlock MaxWidth="40" Grid.Column="2"
-                                                           IsVisible="{Binding HasDescription}"
-                                                           TooltipText="{Binding DisplayDescription}" />
-                                </Grid>
-                            </DataTemplate>
-                        </ComboBox.SelectionBoxItemTemplate>
-                    </ComboBox>
-                </Grid>
-
-                <!-- 中间：分隔符 -->
-                <Border Grid.Column="3" Width="1" Height="30" Background="{DynamicResource SukiControlBorderBrush}"
-                        x:Name="Spliter2"
-                        Margin="20,0" />
-                <!-- 控制器类型选择 -->
-                <Grid x:Name="ControllerSelectorPanel" Grid.Column="4" VerticalAlignment="Center"
-                      ColumnDefinitions="Auto,*">
-                    <TextBlock Grid.Column="0" FontSize="12"
-                               FontWeight="Bold" Foreground="{DynamicResource SukiLowText}"
-                               Text="{markup:I18n {x:Static helper:LangKeys.ControllerType}}"
-                               VerticalAlignment="Center" />
-                    <ComboBox Margin="8 0 0 0" Grid.Column="1" x:Name="ControllerComboBox"
-                              ex:ComboBoxExtensions.DisableNavigationOnLostFocus="True"
-                              IsEnabled="{calcBinding:Binding '!LockController and Idle',Source={x:Static helper:Instances.RootViewModel}}"
-                              ItemsSource="{Binding ControllerOptions}"
-                              SelectedItem="{Binding SelectedController, Mode=TwoWay}"
-                              MinWidth="120" VerticalAlignment="Center">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate x:DataType="maa:MaaInterface+MaaResourceController">
-                                <Grid ColumnDefinitions="Auto,*,Auto">
-                                    <controls:DisplayIcon Grid.Column="0" IconSource="{Binding ResolvedIcon}"
-                                                          IconSize="20" IsVisible="{Binding HasIcon}" Margin="0,0,6,0"
-                                                          VerticalAlignment="Center" />
-                                    <TextBlock Background="Transparent" Foreground="{DynamicResource SukiText}"
-                                               Grid.Column="1"
-                                               Text="{Binding DisplayName}"
-                                               TextTrimming="CharacterEllipsis"
-                                               VerticalAlignment="Center" />
-                                    <controls:TooltipBlock MaxWidth="40" Grid.Column="2"
-                                                           IsVisible="{Binding HasDescription}"
-                                                           TooltipText="{Binding DisplayDescription}" />
-                                </Grid>
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                        <ComboBox.SelectionBoxItemTemplate>
-                            <DataTemplate>
-                                <Grid ColumnDefinitions="Auto,*,Auto">
-                                    <controls:DisplayIcon Grid.Column="0" IconSource="{Binding ResolvedIcon}"
-                                                          IconSize="20" IsVisible="{Binding HasIcon}" Margin="0,0,6,0"
-                                                          VerticalAlignment="Center" />
-                                    <TextBlock Background="Transparent" Foreground="{DynamicResource SukiText}"
-                                               Grid.Column="1"
-                                               Text="{Binding DisplayName}"
-                                               TextTrimming="CharacterEllipsis"
-                                               VerticalAlignment="Center" />
-                                    <controls:TooltipBlock MaxWidth="40" Grid.Column="2"
-                                                           IsVisible="{Binding HasDescription}"
-                                                           TooltipText="{Binding DisplayDescription}" />
-                                </Grid>
-                            </DataTemplate>
-                        </ComboBox.SelectionBoxItemTemplate>
-                    </ComboBox>
-                </Grid>
-                <!-- 右侧：连接设置 -->
-                <Grid x:Name="DeviceSelectorPanel" Grid.Column="5" HorizontalAlignment="Stretch"
-                      MinWidth="200"
-                      IsVisible="{calcBinding:Binding 'CurrentController != maa:MaaControllerTypes.PlayCover'}">
+                <Grid x:Name="TopToolbarWide">
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" x:Name="DeviceSelectorLabel"
-                               FontSize="12" Margin="8 0"
-                               FontWeight="Bold" Foreground="{DynamicResource SukiLowText}"
-                               Text="{markup:I18n {x:Static helper:LangKeys.CurrentController}}"
-                               VerticalAlignment="Center" />
-                    <ComboBox Grid.Column="1" x:Name="DeviceComboBox"
-                              ex:ComboBoxExtensions.DisableNavigationOnLostFocus="True"
-                              Classes="LimitWidth" Height="35"
-                              IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
-                              ItemsSource="{Binding Devices}"
-                              MinWidth="100"
-                              HorizontalAlignment="Stretch"
-                              SelectedValue="{Binding CurrentDevice, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                        <ToolTip.Tip>
-                            <TextBlock
-                                Text="{Binding CurrentDevice, Converter={converters:DeviceDisplayConverter}}" />
-                        </ToolTip.Tip>
-                        <ComboBox.DataTemplates>
-                            <DataTemplate DataType="binding:AdbDeviceInfo">
-                                <TextBlock HorizontalAlignment="Left"
-                                           Text="{Binding Converter={converters:DeviceDisplayConverter}}" />
-                            </DataTemplate>
-                            <DataTemplate DataType="binding:DesktopWindowInfo">
-                                <TextBlock HorizontalAlignment="Left"
-                                           Text="{Binding Name}" />
-                            </DataTemplate>
-                        </ComboBox.DataTemplates>
-                    </ComboBox>
+                    <!-- 在 TopToolbar Grid 中添加新列，放在资源选择之前 -->
+                    <Grid x:Name="ConfigSelectorPanel" Grid.Column="0" VerticalAlignment="Center"
+                          ColumnDefinitions="Auto,*">
+                        <TextBlock FontSize="12" Grid.Column="0"
+                                   FontWeight="Bold" Foreground="{DynamicResource SukiLowText}"
+                                   Text="{markup:I18n {x:Static helper:LangKeys.CurrentConfig}}"
+                                   VerticalAlignment="Center" />
+                        <ComboBox Margin="8 0 0 0" Grid.Column="1"
+                                  ex:ComboBoxExtensions.DisableNavigationOnLostFocus="True"
+                                  IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
+                                  ItemsSource="{Binding ConfigurationList}"
+                                  SelectedValue="{Binding CurrentConfiguration}"
+                                  SelectedValueBinding="{Binding Name}"
+                                  MinWidth="120">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+
+                    </Grid>
+                    <!-- ~1~ 添加分隔符 @1@ -->
+                    <Border x:Name="Spliter1" Grid.Column="1" Width="1" Height="30"
+                            Background="{DynamicResource SukiControlBorderBrush}" Margin="20,0" />
+
+                    <!-- 左侧：资源选择 -->
+                    <Grid x:Name="ResourceSelectorPanel" Grid.Column="2" VerticalAlignment="Center"
+                          ColumnDefinitions="Auto,*">
+                        <TextBlock FontSize="12" Grid.Column="0"
+                                   FontWeight="Bold" Foreground="{DynamicResource SukiLowText}"
+                                   Text="{markup:I18n {x:Static helper:LangKeys.ResourceOption}}"
+                                   VerticalAlignment="Center" />
+                        <ComboBox Margin="8 0 0 0" Grid.Column="1"
+                                  ex:ComboBoxExtensions.DisableNavigationOnLostFocus="True"
+                                  IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
+                                  ItemsSource="{Binding CurrentResources}"
+                                  MinWidth="150" HorizontalAlignment="Stretch"
+                                  SelectedValue="{Binding CurrentResource, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                  SelectedValueBinding="{Binding Name}" VerticalAlignment="Center">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="maa:MaaInterface+MaaInterfaceResource">
+                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                        <controls:DisplayIcon Grid.Column="0" IconSource="{Binding ResolvedIcon}"
+                                                              IconSize="20" IsVisible="{Binding HasIcon}"
+                                                              Margin="0,0,6,0"
+                                                              VerticalAlignment="Center" />
+                                        <TextBlock Background="Transparent" Foreground="{DynamicResource SukiText}"
+                                                   Grid.Column="1"
+                                                   Text="{Binding DisplayName}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   VerticalAlignment="Center" />
+                                        <controls:TooltipBlock MaxWidth="40" Grid.Column="2"
+                                                               IsVisible="{Binding HasDescription}"
+                                                               TooltipText="{Binding DisplayDescription}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                            <ComboBox.SelectionBoxItemTemplate>
+                                <DataTemplate>
+                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                        <controls:DisplayIcon Grid.Column="0" IconSource="{Binding ResolvedIcon}"
+                                                              IconSize="20" IsVisible="{Binding HasIcon}"
+                                                              Margin="0,0,6,0"
+                                                              VerticalAlignment="Center" />
+                                        <TextBlock Background="Transparent" Foreground="{DynamicResource SukiText}"
+                                                   Grid.Column="1"
+                                                   Text="{Binding DisplayName}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   VerticalAlignment="Center" />
+                                        <controls:TooltipBlock MaxWidth="40" Grid.Column="2"
+                                                               IsVisible="{Binding HasDescription}"
+                                                               TooltipText="{Binding DisplayDescription}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ComboBox.SelectionBoxItemTemplate>
+                        </ComboBox>
+                    </Grid>
+
+                    <!-- 中间：分隔符 -->
+                    <Border Grid.Column="3" Width="1" Height="30" Background="{DynamicResource SukiControlBorderBrush}"
+                            x:Name="Spliter2"
+                            Margin="20,0" />
+                    <!-- 控制器类型选择 -->
+                    <Grid x:Name="ControllerSelectorPanel" Grid.Column="4" VerticalAlignment="Center"
+                          ColumnDefinitions="Auto,*">
+                        <TextBlock Grid.Column="0" FontSize="12"
+                                   FontWeight="Bold" Foreground="{DynamicResource SukiLowText}"
+                                   Text="{markup:I18n {x:Static helper:LangKeys.ControllerType}}"
+                                   VerticalAlignment="Center" />
+                        <ComboBox Margin="8 0 0 0" Grid.Column="1" x:Name="ControllerComboBox"
+                                  ex:ComboBoxExtensions.DisableNavigationOnLostFocus="True"
+                                  IsEnabled="{calcBinding:Binding '!LockController and Idle',Source={x:Static helper:Instances.RootViewModel}}"
+                                  ItemsSource="{Binding ControllerOptions}"
+                                  SelectedItem="{Binding SelectedController, Mode=TwoWay}"
+                                  MinWidth="120" VerticalAlignment="Center">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="maa:MaaInterface+MaaResourceController">
+                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                        <controls:DisplayIcon Grid.Column="0" IconSource="{Binding ResolvedIcon}"
+                                                              IconSize="20" IsVisible="{Binding HasIcon}"
+                                                              Margin="0,0,6,0"
+                                                              VerticalAlignment="Center" />
+                                        <TextBlock Background="Transparent" Foreground="{DynamicResource SukiText}"
+                                                   Grid.Column="1"
+                                                   Text="{Binding DisplayName}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   VerticalAlignment="Center" />
+                                        <controls:TooltipBlock MaxWidth="40" Grid.Column="2"
+                                                               IsVisible="{Binding HasDescription}"
+                                                               TooltipText="{Binding DisplayDescription}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                            <ComboBox.SelectionBoxItemTemplate>
+                                <DataTemplate>
+                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                        <controls:DisplayIcon Grid.Column="0" IconSource="{Binding ResolvedIcon}"
+                                                              IconSize="20" IsVisible="{Binding HasIcon}"
+                                                              Margin="0,0,6,0"
+                                                              VerticalAlignment="Center" />
+                                        <TextBlock Background="Transparent" Foreground="{DynamicResource SukiText}"
+                                                   Grid.Column="1"
+                                                   Text="{Binding DisplayName}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   VerticalAlignment="Center" />
+                                        <controls:TooltipBlock MaxWidth="40" Grid.Column="2"
+                                                               IsVisible="{Binding HasDescription}"
+                                                               TooltipText="{Binding DisplayDescription}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ComboBox.SelectionBoxItemTemplate>
+                        </ComboBox>
+                    </Grid>
+                    <!-- 右侧：连接设置 -->
+                    <Grid x:Name="DeviceSelectorPanel" Grid.Column="5" HorizontalAlignment="Stretch"
+                          MinWidth="200"
+                          IsVisible="{calcBinding:Binding 'CurrentController != maa:MaaControllerTypes.PlayCover'}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" x:Name="DeviceSelectorLabel"
+                                   FontSize="12" Margin="8 0"
+                                   FontWeight="Bold" Foreground="{DynamicResource SukiLowText}"
+                                   Text="{markup:I18n {x:Static helper:LangKeys.CurrentController}}"
+                                   VerticalAlignment="Center" />
+                        <ComboBox Grid.Column="1" x:Name="DeviceComboBox"
+                                  ex:ComboBoxExtensions.DisableNavigationOnLostFocus="True"
+                                  Classes="LimitWidth" Height="35"
+                                  IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
+                                  ItemsSource="{Binding Devices}"
+                                  MinWidth="100"
+                                  HorizontalAlignment="Stretch"
+                                  SelectedValue="{Binding CurrentDevice, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                            <ToolTip.Tip>
+                                <TextBlock
+                                    Text="{Binding CurrentDevice, Converter={converters:DeviceDisplayConverter}}" />
+                            </ToolTip.Tip>
+                            <ComboBox.DataTemplates>
+                                <DataTemplate DataType="binding:AdbDeviceInfo">
+                                    <TextBlock HorizontalAlignment="Left"
+                                               Text="{Binding Converter={converters:DeviceDisplayConverter}}" />
+                                </DataTemplate>
+                                <DataTemplate DataType="binding:DesktopWindowInfo">
+                                    <TextBlock HorizontalAlignment="Left"
+                                               Text="{Binding Name}" />
+                                </DataTemplate>
+                            </ComboBox.DataTemplates>
+                        </ComboBox>
+                    </Grid>
+                    <StackPanel x:Name="ConnectionButtonsPanel" Grid.Column="6" Orientation="Horizontal"
+                                VerticalAlignment="Center" Spacing="4">
+                        <StackPanel.Resources>
+                            <markup:IfConditionConverter x:Key="ConnectedConditionConverter">
+                                <markup:IfConditionConverter.True>
+                                    <Path Data="{StaticResource ConnectedGeometry}" Fill="LimeGreen"
+                                          Height="11" Margin="3,2,4,0" Stretch="Uniform"
+                                          ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.Connected}}" />
+                                </markup:IfConditionConverter.True>
+                                <markup:IfConditionConverter.False>
+                                    <Path Data="{StaticResource UnconnectedGeometry}" Fill="Red"
+                                          Height="16" Margin="3,3,4,0" Stretch="Uniform"
+                                          ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.Unconnected}}"
+                                          VerticalAlignment="Center" />
+                                </markup:IfConditionConverter.False>
+                            </markup:IfConditionConverter>
+                        </StackPanel.Resources>
+                        <Button Classes="BasicTight TaskQueueBasicTight"
+                                ClipToBounds="False"
+                                Command="{Binding CustomAdbCommand}"
+                                IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
+                                IsVisible="{calcBinding:Binding 'CurrentController == maa:MaaControllerTypes.Adb'}"
+                                Padding="0" ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.Custom}}">
+                            <avalonia1:FluentIcon Height="18" Icon="DesktopEdit" IconSize="Size16"
+                                                  IconVariant="Regular" />
+                        </Button>
+                        <Button Classes="BasicTight TaskQueueBasicTight"
+                                Command="{Binding EditPlayCoverCommand}"
+                                IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
+                                IsVisible="{calcBinding:Binding 'CurrentController == maa:MaaControllerTypes.PlayCover'}"
+                                Padding="0"
+                                ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.EditControllerConfiguration}}">
+                            <avalonia1:FluentIcon Height="18" Icon="DesktopEdit" IconSize="Size16"
+                                                  IconVariant="Regular" />
+                        </Button>
+                        <Button Classes="BasicTight TaskQueueBasicTight"
+                                Command="{Binding ReconnectCommand}"
+                                IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
+                                Padding="0"
+                                Width="24"
+                                Height="24"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.Reconnect}}"
+                                VerticalAlignment="Center">
+                            <Path Data="{StaticResource LinkGeometry}"
+                                  Width="16"
+                                  Height="16"
+                                  Stretch="Uniform"
+                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                        </Button>
+                        <Button Classes="BasicTight TaskQueueBasicTight SyncButton"
+                                ClipToBounds="False"
+                                Command="{Binding RefreshCommand}"
+                                IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
+                                Padding="0"
+                                Width="24"
+                                IsVisible="{calcBinding:Binding 'CurrentController != maa:MaaControllerTypes.PlayCover'}"
+                                Height="24"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.TooltipRefresh}}"
+                                VerticalAlignment="Center">
+                            <Path Data="{StaticResource RefreshGeometry}"
+                                  Width="16"
+                                  Height="16"
+                                  Stretch="Uniform"
+                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                        </Button>
+                        <ContentControl
+                            Content="{Binding IsConnected, Converter={StaticResource ConnectedConditionConverter}, Source={x:Static helper:Instances.TaskQueueViewModel}}" />
+                    </StackPanel>
                 </Grid>
-                <StackPanel x:Name="ConnectionButtonsPanel" Grid.Column="6" Orientation="Horizontal"
-                            VerticalAlignment="Center" Spacing="4">
-                    <StackPanel.Resources>
-                        <markup:IfConditionConverter x:Key="ConnectedConditionConverter">
-                            <markup:IfConditionConverter.True>
-                                <Path Data="{StaticResource ConnectedGeometry}" Fill="LimeGreen"
-                                      Height="11" Margin="3,2,4,0" Stretch="Uniform"
-                                      ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.Connected}}" />
-                            </markup:IfConditionConverter.True>
-                            <markup:IfConditionConverter.False>
-                                <Path Data="{StaticResource UnconnectedGeometry}" Fill="Red"
-                                      Height="16" Margin="3,3,4,0" Stretch="Uniform"
-                                      ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.Unconnected}}"
-                                      VerticalAlignment="Center" />
-                            </markup:IfConditionConverter.False>
-                        </markup:IfConditionConverter>
-                    </StackPanel.Resources>
-                    <Button Classes="BasicTight TaskQueueBasicTight"
-                            ClipToBounds="False"
-                            Command="{Binding CustomAdbCommand}"
-                            IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
-                            IsVisible="{calcBinding:Binding 'CurrentController == maa:MaaControllerTypes.Adb'}"
-                            Padding="0" ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.Custom}}">
-                        <avalonia1:FluentIcon Height="18" Icon="DesktopEdit" IconSize="Size16"
-                                              IconVariant="Regular" />
-                    </Button>
-                    <Button Classes="BasicTight TaskQueueBasicTight"
-                            Command="{Binding EditPlayCoverCommand}"
-                            IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
-                            IsVisible="{calcBinding:Binding 'CurrentController == maa:MaaControllerTypes.PlayCover'}"
-                            Padding="0"
-                            ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.EditControllerConfiguration}}">
-                        <avalonia1:FluentIcon Height="18" Icon="DesktopEdit" IconSize="Size16"
-                                              IconVariant="Regular" />
-                    </Button>
-                    <Button Classes="BasicTight TaskQueueBasicTight"
-                            Command="{Binding ReconnectCommand}"
-                            IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
-                            Padding="0"
-                            Width="24"
-                            Height="24"
-                            HorizontalContentAlignment="Center"
-                            VerticalContentAlignment="Center"
-                            ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.Reconnect}}"
-                            VerticalAlignment="Center">
-                        <Path Data="{StaticResource LinkGeometry}"
-                              Width="16"
-                              Height="16"
-                              Stretch="Uniform"
-                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
-                    </Button>
-                    <Button Classes="BasicTight TaskQueueBasicTight SyncButton"
-                            ClipToBounds="False"
-                            Command="{Binding RefreshCommand}"
-                            IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
-                            Padding="0"
-                            Width="24"
-                            IsVisible="{calcBinding:Binding 'CurrentController != maa:MaaControllerTypes.PlayCover'}"
-                            Height="24"
-                            HorizontalContentAlignment="Center"
-                            VerticalContentAlignment="Center"
-                            ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.TooltipRefresh}}"
-                            VerticalAlignment="Center">
-                        <Path Data="{StaticResource RefreshGeometry}"
-                              Width="16"
-                              Height="16"
-                              Stretch="Uniform"
-                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
-                    </Button>
-                    <ContentControl
-                        Content="{Binding IsConnected, Converter={StaticResource ConnectedConditionConverter}, Source={x:Static helper:Instances.TaskQueueViewModel}}" />
-                </StackPanel>
+                <Grid x:Name="TopToolbarCompact" IsVisible="False" RowDefinitions="Auto,Auto">
+                    <Grid x:Name="TopToolbarCompactRow1" Grid.Row="0" ColumnDefinitions="*,Auto,*">
+                        <Grid x:Name="ConfigSelectorPanelCompact" Grid.Column="0" VerticalAlignment="Center"
+                              ColumnDefinitions="Auto,*">
+                            <TextBlock FontSize="12" Grid.Column="0"
+                                       FontWeight="Bold" Foreground="{DynamicResource SukiLowText}"
+                                       Text="{markup:I18n {x:Static helper:LangKeys.CurrentConfig}}"
+                                       VerticalAlignment="Center" />
+                            <ComboBox Margin="8 0 0 0" Grid.Column="1"
+                                      ex:ComboBoxExtensions.DisableNavigationOnLostFocus="True"
+                                      IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
+                                      ItemsSource="{Binding ConfigurationList}"
+                                      SelectedValue="{Binding CurrentConfiguration}"
+                                      SelectedValueBinding="{Binding Name}"
+                                      MinWidth="120">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </Grid>
+
+                        <Border x:Name="Spliter1Compact" Grid.Column="1" Width="1" Height="30"
+                                Background="{DynamicResource SukiControlBorderBrush}" Margin="20,0" />
+
+                        <Grid x:Name="ResourceSelectorPanelCompact" Grid.Column="2" VerticalAlignment="Center"
+                              ColumnDefinitions="Auto,*">
+                            <TextBlock FontSize="12" Grid.Column="0"
+                                       FontWeight="Bold" Foreground="{DynamicResource SukiLowText}"
+                                       Text="{markup:I18n {x:Static helper:LangKeys.ResourceOption}}"
+                                       VerticalAlignment="Center" />
+                            <ComboBox Margin="8 0 0 0" Grid.Column="1"
+                                      ex:ComboBoxExtensions.DisableNavigationOnLostFocus="True"
+                                      IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
+                                      ItemsSource="{Binding CurrentResources}"
+                                      MinWidth="150" HorizontalAlignment="Stretch"
+                                      SelectedValue="{Binding CurrentResource, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                      SelectedValueBinding="{Binding Name}" VerticalAlignment="Center">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="maa:MaaInterface+MaaInterfaceResource">
+                                        <Grid ColumnDefinitions="Auto,*,Auto">
+                                            <controls:DisplayIcon Grid.Column="0" IconSource="{Binding ResolvedIcon}"
+                                                                  IconSize="20" IsVisible="{Binding HasIcon}"
+                                                                  Margin="0,0,6,0"
+                                                                  VerticalAlignment="Center" />
+                                            <TextBlock Background="Transparent" Foreground="{DynamicResource SukiText}"
+                                                       Grid.Column="1"
+                                                       Text="{Binding DisplayName}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       VerticalAlignment="Center" />
+                                            <controls:TooltipBlock MaxWidth="40" Grid.Column="2"
+                                                                   IsVisible="{Binding HasDescription}"
+                                                                   TooltipText="{Binding DisplayDescription}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                                <ComboBox.SelectionBoxItemTemplate>
+                                    <DataTemplate>
+                                        <Grid ColumnDefinitions="Auto,*,Auto">
+                                            <controls:DisplayIcon Grid.Column="0" IconSource="{Binding ResolvedIcon}"
+                                                                  IconSize="20" IsVisible="{Binding HasIcon}"
+                                                                  Margin="0,0,6,0"
+                                                                  VerticalAlignment="Center" />
+                                            <TextBlock Background="Transparent" Foreground="{DynamicResource SukiText}"
+                                                       Grid.Column="1"
+                                                       Text="{Binding DisplayName}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       VerticalAlignment="Center" />
+                                            <controls:TooltipBlock MaxWidth="40" Grid.Column="2"
+                                                                   IsVisible="{Binding HasDescription}"
+                                                                   TooltipText="{Binding DisplayDescription}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ComboBox.SelectionBoxItemTemplate>
+                            </ComboBox>
+                        </Grid>
+                    </Grid>
+                    <Grid x:Name="TopToolbarCompactRow2" Grid.Row="1" Margin="0,6,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Grid x:Name="ControllerSelectorPanelCompact" Grid.Column="0" VerticalAlignment="Center"
+                              ColumnDefinitions="Auto,*">
+                            <TextBlock Grid.Column="0" FontSize="12"
+                                       FontWeight="Bold" Foreground="{DynamicResource SukiLowText}"
+                                       Text="{markup:I18n {x:Static helper:LangKeys.ControllerType}}"
+                                       VerticalAlignment="Center" />
+                            <ComboBox Margin="8 0 0 0" Grid.Column="1"
+                                      ex:ComboBoxExtensions.DisableNavigationOnLostFocus="True"
+                                      IsEnabled="{calcBinding:Binding '!LockController and Idle',Source={x:Static helper:Instances.RootViewModel}}"
+                                      ItemsSource="{Binding ControllerOptions}"
+                                      SelectedItem="{Binding SelectedController, Mode=TwoWay}"
+                                      MinWidth="120" VerticalAlignment="Center">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="maa:MaaInterface+MaaResourceController">
+                                        <Grid ColumnDefinitions="Auto,*,Auto">
+                                            <controls:DisplayIcon Grid.Column="0" IconSource="{Binding ResolvedIcon}"
+                                                                  IconSize="20" IsVisible="{Binding HasIcon}"
+                                                                  Margin="0,0,6,0"
+                                                                  VerticalAlignment="Center" />
+                                            <TextBlock Background="Transparent" Foreground="{DynamicResource SukiText}"
+                                                       Grid.Column="1"
+                                                       Text="{Binding DisplayName}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       VerticalAlignment="Center" />
+                                            <controls:TooltipBlock MaxWidth="40" Grid.Column="2"
+                                                                   IsVisible="{Binding HasDescription}"
+                                                                   TooltipText="{Binding DisplayDescription}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                                <ComboBox.SelectionBoxItemTemplate>
+                                    <DataTemplate>
+                                        <Grid ColumnDefinitions="Auto,*,Auto">
+                                            <controls:DisplayIcon Grid.Column="0" IconSource="{Binding ResolvedIcon}"
+                                                                  IconSize="20" IsVisible="{Binding HasIcon}"
+                                                                  Margin="0,0,6,0"
+                                                                  VerticalAlignment="Center" />
+                                            <TextBlock Background="Transparent" Foreground="{DynamicResource SukiText}"
+                                                       Grid.Column="1"
+                                                       Text="{Binding DisplayName}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       VerticalAlignment="Center" />
+                                            <controls:TooltipBlock MaxWidth="40" Grid.Column="2"
+                                                                   IsVisible="{Binding HasDescription}"
+                                                                   TooltipText="{Binding DisplayDescription}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ComboBox.SelectionBoxItemTemplate>
+                            </ComboBox>
+                        </Grid>
+
+                        <Border x:Name="Spliter2Compact" Grid.Column="1" Width="1" Height="30"
+                                Background="{DynamicResource SukiControlBorderBrush}" Margin="20,0" />
+
+                        <Grid x:Name="DeviceSelectorPanelCompact" Grid.Column="2" HorizontalAlignment="Stretch"
+                              MinWidth="200"
+                              IsVisible="{calcBinding:Binding 'CurrentController != maa:MaaControllerTypes.PlayCover'}"
+                              ColumnDefinitions="Auto,*">
+                            <TextBlock Grid.Column="0"
+                                       FontSize="12" Margin="8 0"
+                                       FontWeight="Bold" Foreground="{DynamicResource SukiLowText}"
+                                       Text="{markup:I18n {x:Static helper:LangKeys.CurrentController}}"
+                                       VerticalAlignment="Center" />
+                            <ComboBox Grid.Column="1"
+                                      ex:ComboBoxExtensions.DisableNavigationOnLostFocus="True"
+                                      Classes="LimitWidth" Height="35"
+                                      IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
+                                      ItemsSource="{Binding Devices}"
+                                      MinWidth="100"
+                                      HorizontalAlignment="Stretch"
+                                      SelectedValue="{Binding CurrentDevice, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                                <ToolTip.Tip>
+                                    <TextBlock
+                                        Text="{Binding CurrentDevice, Converter={converters:DeviceDisplayConverter}}" />
+                                </ToolTip.Tip>
+                                <ComboBox.DataTemplates>
+                                    <DataTemplate DataType="binding:AdbDeviceInfo">
+                                        <TextBlock HorizontalAlignment="Left"
+                                                   Text="{Binding Converter={converters:DeviceDisplayConverter}}" />
+                                    </DataTemplate>
+                                    <DataTemplate DataType="binding:DesktopWindowInfo">
+                                        <TextBlock HorizontalAlignment="Left"
+                                                   Text="{Binding Name}" />
+                                    </DataTemplate>
+                                </ComboBox.DataTemplates>
+                            </ComboBox>
+                        </Grid>
+
+                        <StackPanel x:Name="ConnectionButtonsPanelCompact" Grid.Column="3" Orientation="Horizontal"
+                                    VerticalAlignment="Center" Spacing="4">
+                            <StackPanel.Resources>
+                                <markup:IfConditionConverter x:Key="ConnectedConditionConverterCompact">
+                                    <markup:IfConditionConverter.True>
+                                        <Path Data="{StaticResource ConnectedGeometry}" Fill="LimeGreen"
+                                              Height="11" Margin="3,2,4,0" Stretch="Uniform"
+                                              ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.Connected}}" />
+                                    </markup:IfConditionConverter.True>
+                                    <markup:IfConditionConverter.False>
+                                        <Path Data="{StaticResource UnconnectedGeometry}" Fill="Red"
+                                              Height="16" Margin="3,3,4,0" Stretch="Uniform"
+                                              ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.Unconnected}}"
+                                              VerticalAlignment="Center" />
+                                    </markup:IfConditionConverter.False>
+                                </markup:IfConditionConverter>
+                            </StackPanel.Resources>
+                            <Button Classes="BasicTight TaskQueueBasicTight"
+                                    ClipToBounds="False"
+                                    Command="{Binding CustomAdbCommand}"
+                                    IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
+                                    IsVisible="{calcBinding:Binding 'CurrentController == maa:MaaControllerTypes.Adb'}"
+                                    Padding="0" ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.Custom}}">
+                                <avalonia1:FluentIcon Height="18" Icon="DesktopEdit" IconSize="Size16"
+                                                      IconVariant="Regular" />
+                            </Button>
+                            <Button Classes="BasicTight TaskQueueBasicTight"
+                                    Command="{Binding EditPlayCoverCommand}"
+                                    IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
+                                    IsVisible="{calcBinding:Binding 'CurrentController == maa:MaaControllerTypes.PlayCover'}"
+                                    Padding="0"
+                                    ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.EditControllerConfiguration}}">
+                                <avalonia1:FluentIcon Height="18" Icon="DesktopEdit" IconSize="Size16"
+                                                      IconVariant="Regular" />
+                            </Button>
+                            <Button Classes="BasicTight TaskQueueBasicTight"
+                                    Command="{Binding ReconnectCommand}"
+                                    IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
+                                    Padding="0"
+                                    Width="24"
+                                    Height="24"
+                                    HorizontalContentAlignment="Center"
+                                    VerticalContentAlignment="Center"
+                                    ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.Reconnect}}"
+                                    VerticalAlignment="Center">
+                                <Path Data="{StaticResource LinkGeometry}"
+                                      Width="16"
+                                      Height="16"
+                                      Stretch="Uniform"
+                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                            </Button>
+                            <Button Classes="BasicTight TaskQueueBasicTight SyncButton"
+                                    ClipToBounds="False"
+                                    Command="{Binding RefreshCommand}"
+                                    IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
+                                    Padding="0"
+                                    Width="24"
+                                    IsVisible="{calcBinding:Binding 'CurrentController != maa:MaaControllerTypes.PlayCover'}"
+                                    Height="24"
+                                    HorizontalContentAlignment="Center"
+                                    VerticalContentAlignment="Center"
+                                    ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.TooltipRefresh}}"
+                                    VerticalAlignment="Center">
+                                <Path Data="{StaticResource RefreshGeometry}"
+                                      Width="16"
+                                      Height="16"
+                                      Stretch="Uniform"
+                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                            </Button>
+                            <ContentControl
+                                Content="{Binding IsConnected, Converter={StaticResource ConnectedConditionConverterCompact}, Source={x:Static helper:Instances.TaskQueueViewModel}}" />
+                        </StackPanel>
+                    </Grid>
+                </Grid>
             </Grid>
         </suki:GlassCard>
 

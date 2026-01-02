@@ -48,6 +48,9 @@ public partial class TaskQueueView : UserControl
     // 动画持续时间
     private static readonly TimeSpan AnimationDuration = TimeSpan.FromMilliseconds(250);
 
+    private const double TopToolbarCompactWidthThreshold = 980;
+    private bool _isTopToolbarCompact;
+
 
     public TaskQueueView()
     {
@@ -2186,6 +2189,12 @@ public partial class TaskQueueView : UserControl
         if (e.PropertyName == nameof(TaskQueueViewModel.IsLiveViewVisible))
         {
             // ApplyLiveViewCardState();
+            return;
+        }
+
+        if (e.PropertyName == nameof(TaskQueueViewModel.CurrentController))
+        {
+            UpdateDeviceColumns();
         }
     }
 
@@ -2332,6 +2341,9 @@ public partial class TaskQueueView : UserControl
         StartLiveViewLoop();
         // ApplyLiveViewCardState();
 
+        TopToolbar.SizeChanged += OnTopToolbarSizeChanged;
+        Dispatcher.UIThread.Post(() => UpdateTopToolbarLayout(true), DispatcherPriority.Render);
+
         if (Instances.TaskQueueViewModel != null)
         {
             Instances.TaskQueueViewModel.PropertyChanged -= OnTaskQueueViewModelPropertyChanged;
@@ -2343,8 +2355,71 @@ public partial class TaskQueueView : UserControl
     private void OnUnloaded(object? sender, RoutedEventArgs e)
     {
         StopLiveViewLoop();
+        TopToolbar.SizeChanged -= OnTopToolbarSizeChanged;
         Instances.TaskQueueViewModel.PropertyChanged -= OnTaskQueueViewModelPropertyChanged;
     }
 
     #endregion
+
+    private void OnTopToolbarSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        UpdateTopToolbarLayout();
+    }
+
+    private void UpdateTopToolbarLayout(bool force = false)
+    {
+        if (TopToolbarWide == null || TopToolbarCompact == null)
+        {
+            return;
+        }
+
+        var width = TopToolbar.Bounds.Width;
+        if (width <= 0)
+        {
+            return;
+        }
+
+        var shouldCompact = width < TopToolbarCompactWidthThreshold;
+        if (!force && shouldCompact == _isTopToolbarCompact)
+        {
+            return;
+        }
+
+        _isTopToolbarCompact = shouldCompact;
+        TopToolbarWide.IsVisible = !shouldCompact;
+        TopToolbarWide.IsHitTestVisible = !shouldCompact;
+        TopToolbarCompact.IsVisible = shouldCompact;
+        TopToolbarCompact.IsHitTestVisible = shouldCompact;
+
+        UpdateDeviceColumns();
+    }
+
+    private void UpdateDeviceColumns()
+    {
+        var deviceVisible = DeviceSelectorPanel?.IsVisible == true || DeviceSelectorPanelCompact?.IsVisible == true;
+
+        if (TopToolbarWide?.ColumnDefinitions.Count >= 6)
+        {
+            TopToolbarWide.ColumnDefinitions[3].Width = deviceVisible ? GridLength.Auto : new GridLength(0);
+            TopToolbarWide.ColumnDefinitions[5].Width = deviceVisible ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
+            TopToolbarWide.ColumnDefinitions[4].Width = deviceVisible ? GridLength.Auto : new GridLength(1, GridUnitType.Star);
+        }
+
+        if (Spliter2 != null)
+        {
+            Spliter2.IsVisible = deviceVisible;
+        }
+
+        if (TopToolbarCompactRow2?.ColumnDefinitions.Count >= 3)
+        {
+            TopToolbarCompactRow2.ColumnDefinitions[1].Width = deviceVisible ? GridLength.Auto : new GridLength(0);
+            TopToolbarCompactRow2.ColumnDefinitions[2].Width = deviceVisible ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
+            TopToolbarCompactRow2.ColumnDefinitions[0].Width = deviceVisible ? GridLength.Auto : new GridLength(1, GridUnitType.Star);
+        }
+
+        if (Spliter2Compact != null)
+        {
+            Spliter2Compact.IsVisible = deviceVisible;
+        }
+    }
 }
