@@ -27,10 +27,10 @@
         <TextBlock
             FontSize="30"
             FontWeight="DemiBold"
-            Margin="60,30,0,0"
+            Margin="20,24,0,0"
             Text="{markup:I18n {x:Static helper:LangKeys.Settings}}" />
-        <suki:SukiStackPage Margin="20,0,20,20" Name="Settings">
-            <suki:SettingsLayout Name="SettingsLayout" ScrollAnimationSpeed="3" MinWidthWhetherStackSummaryShow="850" StackSummaryWidth="250">
+        <suki:SukiStackPage Margin="16,0,16,16" Name="Settings">
+            <suki:SettingsLayout Name="SettingsLayout" ScrollAnimationSpeed="3" MinWidthWhetherStackSummaryShow="700" StackSummaryWidth="220">
                 <suki:SettingsLayout.Items>
                     <suki:SettingsLayoutItem
                         Content="{extensions:ServiceProvider ServiceType={x:Type settings:ConfigurationMgrUserControl}}"
