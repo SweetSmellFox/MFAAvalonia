@@ -121,7 +121,6 @@ public partial class CardCollection : UserControl
             {
                 var vm = (newTargetCard.DataContext) as CardViewModel;  // 获取目标卡片的索引
                 hov_index = vm.Index;
-                Console.WriteLine("Find It In Move, INDEX = " + hov_index);
             }   
             DraggingCard.IsHitTestVisible = true;
         }
@@ -141,8 +140,6 @@ public partial class CardCollection : UserControl
             transform.Y = 0;
             var Zparent = DraggingCard.Parent as Control;
             if(Zparent != null) Zparent.ZIndex -= 1;
-            Console.WriteLine("cur_index = " + cur_index);
-            Console.WriteLine("hov_index = " + hov_index);
             if (cur_index != undefine && hov_index != undefine)
             {
                 mgr.SwapCard(cur_index, hov_index);
@@ -201,7 +198,8 @@ public partial class CardCollection : UserControl
         BindEvent();
         
         // 初始化流光预览 - 加载默认测试图片
-        InitializeGlowPreview();
+        //CardBorderRenderer.UseSimpleRender = true;
+        //CardGlowRenderer.UseSimpleRender = true;
     }
 
     #region 流光效果测试

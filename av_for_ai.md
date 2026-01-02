@@ -240,6 +240,32 @@ vec3 totalGlow = (iFlowColor * maskValue1 * iFlowIntensity + iSecFlowColor * mas
 - **即时适配**: 系统支持在运行时动态切换遮罩。例如，更换为 `mark5.jpeg` 后，流光会立即呈现出烟雾般的丝滑质感。
 - **精简指令**: 移除了原有的 FBM 噪声、感知亮度计算等指令，大幅降低了移动端或低端 GPU 的发热量。
 
+### 卡牌集合页渲染线程高负载（FPS低）优化总结
+
+**问题**
+- `CardCollection` 页面 FPS 仅 10-15 帧，Render 线程耗时高达 60ms。
+- 根因：`CardBorderRenderer` 对所有卡牌（包括不可见）进行全帧率（60FPS+）Shader 渲染，且每个实例重复编译 Shader，导致 GPU 提交和执行瓶颈。
+
+**回答**
+- 重构 `CardBorderRenderer` 实现高性能渲染：
+  1. **Shader 静态复用**：将 Shader 编译改为 `static readonly Lazy<SKRuntimeEffect>`，全局仅编译一次，消除数百次重复编译开销。
+  2. **视口裁剪 (Viewport Culling)**：监听 `EffectiveViewportChanged`，当卡牌滚出可视区域时完全停止动画循环。
+  3. **降帧 (FPS Throttling)**：在渲染循环中限制刷新率为 **20 FPS**，大幅降低 GPU 负载（对于装饰性边框肉眼难以察觉差异）。
+  4. **零 GC 优化**：预分配 Uniform 数组，避免每帧内存分配。
+  5. **性能诊断开关**：添加 `UseSimpleRender` 静态属性，可一键关闭 Shader 渲染以排查 GPU 瓶颈。
+
+### 性能分析日志解读 (2026-01-02)
+
+**现象**
+- `OnRender` CPU 耗时极低（约 0.01ms），理论 FPS > 100k。
+- 实际界面 FPS 低（10-15帧），Render 线程负载高。
+- 开启 `UseSimpleRender` (关闭 Shader) 后，FPS 仅提升至 ~30 帧，仍不流畅。
+
+**结论更新**
+- **Shader 计算不是主要瓶颈**：关闭 Shader 后 FPS 依然很低，说明 GPU 填充率不是罪魁祸首。
+- **调度开销嫌疑最大**：5 张卡片即卡顿，且 `OnRender` 耗时极短，说明时间消耗在 `OnRender` 之外的**Avalonia 合成框架调度**或**Skia 上下文切换**上。
+- **下一步**：测试完全停止动画更新（不调用 `Invalidate`），排查是否是高频的 Visual 提交导致了 Render 线程过载。
+
 ## 类说明
 
 ### CCMgr - 卡牌集合管理器

@@ -1,4 +1,4 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -20,19 +20,15 @@
         <!-- 主内容区域 -->
         <Grid Grid.Row="0">
             <TextBlock  Width="500" Height="500" ZIndex="2" Text="" FontSize="50"/>
-            <ScrollViewer x:Name="CardScrollViewer">
+            <ScrollViewer x:Name="CardScrollViewer"
+                          Background="Transparent"
+                          PointerReleased="ClickBlankSpace">
                 <!-- 绑定显示源 -->
-                <ItemsControl ItemsSource="{Binding PlayerCards}" 
-                              Background="Transparent"
-                              PointerReleased="ClickBlankSpace">
-                    <!-- 卡牌布局 -->
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <WrapPanel Orientation="Horizontal"/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <!-- 卡牌样式 -->
-                    <ItemsControl.ItemTemplate>
+                <ItemsRepeater ItemsSource="{Binding PlayerCards}">
+                    <ItemsRepeater.Layout>
+                        <WrapLayout Orientation="Horizontal" />
+                    </ItemsRepeater.Layout>
+                    <ItemsRepeater.ItemTemplate>
                         <DataTemplate x:DataType="cardClass:CardViewModel">
                             <!-- 这里的 DataContext 自动变成了单个 CardViewModel -->
                             <local:CardSample 
@@ -42,8 +38,8 @@
                                 Margin="5">
                             </local:CardSample>
                         </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                    </ItemsRepeater.ItemTemplate>
+                </ItemsRepeater>
             </ScrollViewer>
             
             <!-- 细节栏 -->

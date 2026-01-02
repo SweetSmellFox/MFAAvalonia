@@ -10,6 +10,7 @@
         <FileVersion>1.1.0</FileVersion>
 				<DebugSymbols>False</DebugSymbols>
 		<DebugType>None</DebugType>
+		<Platforms>AnyCPU;x64</Platforms>
     </PropertyGroup>
 	
     <PropertyGroup>

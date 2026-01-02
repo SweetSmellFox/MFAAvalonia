@@ -14,6 +14,7 @@
         <LangVersion>preview</LangVersion>
 		<DebugSymbols>False</DebugSymbols>
 		<DebugType>None</DebugType>
+		<Platforms>AnyCPU;x64</Platforms>
     </PropertyGroup>
 
     <PropertyGroup>
@@ -46,8 +47,8 @@
     </ItemGroup>
 
     <ItemGroup>
-        <AvaloniaResource Include="**\*.xaml"/>
-        <AvaloniaResource Include="Content\Images\icons8-file-explorer-new-48.png"/>
+        <AvaloniaResource Include="**\*.xaml" />
+        <AvaloniaResource Include="Content\Images\icons8-file-explorer-new-48.png" />
 <!--        <None Remove="CustomFont\MiSans\MiSansLatin-Bold.ttf"/>-->
 
 <!--        <None Remove="CustomFont\MiSans\MiSansLatin-Demibold.ttf"/>-->
@@ -62,27 +63,27 @@
     </ItemGroup>
 
     <ItemGroup>
-        <AvaloniaResource Include="Roboto-Regular.ttf"/>
-        <AvaloniaResource Include="Roboto-Medium.ttf"/>
-        <AvaloniaResource Include="CustomFont\AlibabaPuHuiTi-Bold.ttf"/>
-        <AvaloniaResource Include="CustomFont\AlibabaPuHuiTi-Light.ttf"/>
-        <AvaloniaResource Include="CustomFont\AlibabaPuHuiTi-Medium.ttf"/>
-        <AvaloniaResource Include="CustomFont\AlibabaPuHuiTi-Regular.ttf"/>
-        <AvaloniaResource Include="CustomFont\AlibabaPuHuiTi-SemiBold.ttf"/>
+        <AvaloniaResource Include="Roboto-Regular.ttf" />
+        <AvaloniaResource Include="Roboto-Medium.ttf" />
+        <AvaloniaResource Include="CustomFont\AlibabaPuHuiTi-Bold.ttf" />
+        <AvaloniaResource Include="CustomFont\AlibabaPuHuiTi-Light.ttf" />
+        <AvaloniaResource Include="CustomFont\AlibabaPuHuiTi-Medium.ttf" />
+        <AvaloniaResource Include="CustomFont\AlibabaPuHuiTi-Regular.ttf" />
+        <AvaloniaResource Include="CustomFont\AlibabaPuHuiTi-SemiBold.ttf" />
     </ItemGroup>
 
     <ItemGroup>
         <None Update="OIG.N5o-removebg-preview.png">
             <Pack>True</Pack>
-            <PackagePath/>
+            <PackagePath />
         </None>
     </ItemGroup>
 
     <ItemGroup>
-        <UpToDateCheckInput Remove="Controls\TouchInput\TouchKeyboard\TouchKeyboard.axaml"/>
-        <UpToDateCheckInput Remove="Controls\TouchInput\TouchKeyboard\TouchKeyboardPopUp.axaml"/>
-        <UpToDateCheckInput Remove="Controls\TouchInput\TouchNumericPad\NumericPadPopUp.axaml"/>
-        <UpToDateCheckInput Remove="Controls\TouchInput\TouchNumericPad\TouchNumericPad.axaml"/>
+        <UpToDateCheckInput Remove="Controls\TouchInput\TouchKeyboard\TouchKeyboard.axaml" />
+        <UpToDateCheckInput Remove="Controls\TouchInput\TouchKeyboard\TouchKeyboardPopUp.axaml" />
+        <UpToDateCheckInput Remove="Controls\TouchInput\TouchNumericPad\NumericPadPopUp.axaml" />
+        <UpToDateCheckInput Remove="Controls\TouchInput\TouchNumericPad\TouchNumericPad.axaml" />
     </ItemGroup>
 
     <ItemGroup>
@@ -122,23 +123,23 @@
     </ItemGroup>
 
     <ItemGroup>
-        <EmbeddedResource Include="Content\Shaders\Background\bubblestrong.sksl"/>
-        <EmbeddedResource Include="Content\Shaders\Background\cells.sksl"/>
-        <EmbeddedResource Include="Content\Shaders\Background\flat.sksl"/>
-        <EmbeddedResource Include="Content\Shaders\Background\bubble.sksl"/>
-        <EmbeddedResource Include="Content\Shaders\Background\waves.sksl"/>
-        <EmbeddedResource Include="Content\Shaders\Loading\glow.sksl"/>
-        <EmbeddedResource Include="Content\Shaders\Loading\pellets.sksl"/>
-        <None Remove="Content\Shaders\Background\gradient.sksl"/>
-        <EmbeddedResource Include="Content\Shaders\Background\gradient.sksl"/>
-        <None Remove="Content\Shaders\Loading\simple.sksl"/>
-        <EmbeddedResource Include="Content\Shaders\Loading\simple.sksl"/>
-        <None Remove="Content\Shaders\Background\gradientsoft.sksl"/>
-        <EmbeddedResource Include="Content\Shaders\Background\gradientsoft.sksl"/>
-        <None Remove="Content\Shaders\Background\gradientdarker.sksl"/>
-        <EmbeddedResource Include="Content\Shaders\Background\gradientdarker.sksl"/>
-        <None Remove="Content\Shaders\Background\backgroundshadcn.sksl"/>
-        <EmbeddedResource Include="Content\Shaders\Background\backgroundshadcn.sksl"/>
+        <EmbeddedResource Include="Content\Shaders\Background\bubblestrong.sksl" />
+        <EmbeddedResource Include="Content\Shaders\Background\cells.sksl" />
+        <EmbeddedResource Include="Content\Shaders\Background\flat.sksl" />
+        <EmbeddedResource Include="Content\Shaders\Background\bubble.sksl" />
+        <EmbeddedResource Include="Content\Shaders\Background\waves.sksl" />
+        <EmbeddedResource Include="Content\Shaders\Loading\glow.sksl" />
+        <EmbeddedResource Include="Content\Shaders\Loading\pellets.sksl" />
+        <None Remove="Content\Shaders\Background\gradient.sksl" />
+        <EmbeddedResource Include="Content\Shaders\Background\gradient.sksl" />
+        <None Remove="Content\Shaders\Loading\simple.sksl" />
+        <EmbeddedResource Include="Content\Shaders\Loading\simple.sksl" />
+        <None Remove="Content\Shaders\Background\gradientsoft.sksl" />
+        <EmbeddedResource Include="Content\Shaders\Background\gradientsoft.sksl" />
+        <None Remove="Content\Shaders\Background\gradientdarker.sksl" />
+        <EmbeddedResource Include="Content\Shaders\Background\gradientdarker.sksl" />
+        <None Remove="Content\Shaders\Background\backgroundshadcn.sksl" />
+        <EmbeddedResource Include="Content\Shaders\Background\backgroundshadcn.sksl" />
     </ItemGroup>
 
     <ItemGroup>

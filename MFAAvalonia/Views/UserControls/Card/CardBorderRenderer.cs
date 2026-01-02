@@ -1,20 +1,35 @@
 using System;
+using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Layout;
+using Avalonia.Media;
+using Avalonia.Platform;
 using Avalonia.Rendering.Composition;
+using Avalonia.Skia;
 using SkiaSharp;
-using SukiUI.Utilities.Effects;
 
 namespace MFAAvalonia.Views.UserControls.Card;
 
 /// <summary>
-/// 卡片边框Shader渲染器
-/// 使用Shader实现边框亮度变化效果
+/// 卡片边框Shader渲染器 (高性能版)
+/// 优化点:
+/// 1. Shader全局静态复用，避免重复编译
+/// 2. 视口裁剪(Viewport Culling)，滚出屏幕停止渲染
+/// 3. 降帧处理(FPS Throttling)，限制在20fps降低GPU负载
 /// </summary>
 public class CardBorderRenderer : Control
 {
+    // ================= 诊断开关 =================
+    /// <summary>
+    /// 启用简单渲染模式 (关闭Shader，用于性能诊断)
+    /// </summary>
+    public static bool UseSimpleRender { get; set; } = false;
+    // ==========================================
+
     private CompositionCustomVisual? _customVisual;
-    private SukiEffect? _sukiEffect;
+    private CardBorderDraw? _visualHandler;
+    private bool _inViewport = true;
 
     // 边框shader代码 - 黑色流光特效
     private const string BorderShaderCode = @"
@@ -134,75 +149,248 @@ vec4 main(vec2 fragCoord) {
 
     public CardBorderRenderer()
     {
-        // 从字符串创建shader效果
-        _sukiEffect = SukiEffect.FromString(BorderShaderCode);
+        // 构造函数保持轻量
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
-        var comp = ElementComposition.GetElementVisual(this)?.Compositor;
-        if (comp == null || _customVisual?.Compositor == comp) return;
-        
-        var visualHandler = new CardBorderDraw();
-        _customVisual = comp.CreateCustomVisual(visualHandler);
-        ElementComposition.SetElementChildVisual(this, _customVisual);
-        _customVisual.SendHandlerMessage(EffectDrawBase.StartAnimations);
-        
-        if (_sukiEffect != null)
-            _customVisual.SendHandlerMessage(_sukiEffect);
-        
-        Update();
+        EffectiveViewportChanged += OnEffectiveViewportChanged;
+        InitializeVisual();
     }
 
-    private void Update()
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
-        if (_customVisual == null) return;
-        _customVisual.Size = new Vector(Bounds.Width, Bounds.Height);
+        base.OnDetachedFromVisualTree(e);
+        EffectiveViewportChanged -= OnEffectiveViewportChanged;
+        CleanupResources();
     }
 
-    public void SetEffect(SukiEffect effect)
+    private void OnEffectiveViewportChanged(object? sender, EffectiveViewportChangedEventArgs e)
     {
-        _sukiEffect = effect;
-        _customVisual?.SendHandlerMessage(effect);
+        // 滚出 ScrollViewer 可视区域时会变成空/零尺寸
+        _inViewport = e.EffectiveViewport.Width > 0 && e.EffectiveViewport.Height > 0;
+        UpdateAnimationState();
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
         if (change.Property == BoundsProperty)
-            Update();
+        {
+            UpdateVisualSize();
+        }
+        else if (change.Property == IsVisibleProperty)
+        {
+            UpdateAnimationState();
+        }
     }
 
-    /// <summary>
-    /// 内部渲染类
-    /// </summary>
-    private class CardBorderDraw : EffectDrawBase
+    private void InitializeVisual()
     {
-        public CardBorderDraw()
+        var comp = ElementComposition.GetElementVisual(this)?.Compositor;
+        if (comp == null || _customVisual?.Compositor == comp) return;
+        
+        _visualHandler = new CardBorderDraw();
+        _customVisual = comp.CreateCustomVisual(_visualHandler);
+        ElementComposition.SetElementChildVisual(this, _customVisual);
+        
+        UpdateVisualSize();
+        UpdateAnimationState();
+    }
+
+    private void CleanupResources()
+    {
+        _customVisual?.SendHandlerMessage(CardBorderDraw.StopAnimations);
+        _visualHandler = null;
+        _customVisual = null;
+    }
+
+    private void UpdateVisualSize()
         {
-            AnimationEnabled = true;
-            AnimationSpeedScale = 1f;
+            if (_customVisual == null || _visualHandler == null) return;
+            _customVisual.Size = new Vector(Bounds.Width, Bounds.Height);
+            _visualHandler.UpdateSize(Bounds.Width, Bounds.Height);
         }
 
-        protected override void Render(SKCanvas canvas, SKRect rect)
+        private void UpdateAnimationState()
         {
-            using var mainShaderPaint = new SKPaint();
+            if (_customVisual == null) return;
 
-            if (Effect is not null)
+            // 仅在可见且在视口内时播放动画
+            if (IsVisible && _inViewport)
+                _customVisual.SendHandlerMessage(CardBorderDraw.StartAnimations);
+            else
+                _customVisual.SendHandlerMessage(CardBorderDraw.StopAnimations);
+        }
+
+        /// <summary>
+        /// 内部渲染类
+        /// </summary>
+        private class CardBorderDraw : CompositionCustomVisualHandler
+        {
+            public static readonly object StartAnimations = new();
+            public static readonly object StopAnimations = new();
+
+            private readonly Stopwatch _animationTick = new();
+            private bool _animationEnabled;
+            private double _lastInvalidateSeconds;
+            private double _width;
+            private double _height;
+            
+            // 降帧：限制到 20fps
+            private const double TargetFps = 20;
+            private const double FrameInterval = 1.0 / TargetFps;
+
+            // 预分配 Uniform 数组
+            private readonly float[] _resolutionAlloc = new float[3];
+
+            // 全局静态 Shader，避免重复编译
+            private static readonly Lazy<SKRuntimeEffect?> SharedEffect = new(() =>
             {
-                using var shader = EffectWithUniforms();
-                mainShaderPaint.Shader = shader;
-                canvas.DrawRect(rect, mainShaderPaint);
-            }
-        }
+                try
+                {
+                    var shaderCode = @"
+uniform float iTime;
+uniform float iAlpha;
+uniform vec3 iResolution;
+" + BorderShaderCode;
+                    
+                    var effect = SKRuntimeEffect.CreateShader(shaderCode, out var errors);
+                    if (effect == null)
+                        Debug.WriteLine($"[CardBorderDraw] Shader compilation failed: {errors}");
+                    return effect;
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[CardBorderDraw] CompileShader exception: {ex.Message}");
+                    return null;
+                }
+            });
 
-        protected override void RenderSoftware(SKCanvas canvas, SKRect rect)
+            public void UpdateSize(double width, double height)
+            {
+                _width = width;
+                _height = height;
+            }
+
+            public override void OnMessage(object message)
+            {
+                if (message == StartAnimations)
+                {
+                    // 诊断模式下，强制禁止动画循环，测试调度开销
+                    if (CardBorderRenderer.UseSimpleRender) return;
+
+                    if (!_animationEnabled)
+                    {
+                        _animationEnabled = true;
+                        _lastInvalidateSeconds = 0;
+                        _animationTick.Start();
+                        RegisterForNextAnimationFrameUpdate();
+                    }
+                }
+                else if (message == StopAnimations)
+                {
+                    _animationEnabled = false;
+                    _animationTick.Stop();
+                }
+            }
+
+            public override void OnAnimationFrameUpdate()
+            {
+                if (!_animationEnabled) return;
+
+                double currentSeconds = _animationTick.Elapsed.TotalSeconds;
+                
+                // 降帧逻辑
+                if (currentSeconds - _lastInvalidateSeconds >= FrameInterval)
+                {
+                    _lastInvalidateSeconds = currentSeconds;
+                    Invalidate();
+                }
+
+                RegisterForNextAnimationFrameUpdate();
+            }
+
+            // 性能统计字段
+            private long _renderCount;
+            private double _totalRenderTime;
+            private readonly Stopwatch _renderStopwatch = new();
+
+            public override void OnRender(ImmediateDrawingContext context)
+            {
+                _renderStopwatch.Restart();
+
+                var leaseFeature = context.TryGetFeature<ISkiaSharpApiLeaseFeature>();
+                if (leaseFeature == null)
+                {
+                    return;
+                }
+
+                using var lease = leaseFeature.Lease();
+                var canvas = lease.SkCanvas;
+                var rect = new SKRect(0, 0, (float)_width, (float)_height);
+
+                try
+                {
+                    // 1. 简单渲染模式检测
+                    if (CardBorderRenderer.UseSimpleRender)
+                    {
+                        RenderSoftware(canvas, rect);
+                    }
+                    else
+                    {
+                        var effect = SharedEffect.Value;
+                        if (effect == null)
+                        {
+                            RenderSoftware(canvas, rect);
+                        }
+                        else
+                        {
+                            // 准备 Uniforms
+                            _resolutionAlloc[0] = rect.Width;
+                            _resolutionAlloc[1] = rect.Height;
+                            _resolutionAlloc[2] = 0; // Z
+
+                            var uniforms = new SKRuntimeEffectUniforms(effect)
+                            {
+                                { "iTime", (float)_animationTick.Elapsed.TotalSeconds },
+                                { "iAlpha", 1.0f },
+                                { "iResolution", _resolutionAlloc }
+                            };
+
+                            using var shader = effect.ToShader(uniforms);
+                            using var paint = new SKPaint { Shader = shader };
+                            canvas.DrawRect(rect, paint);
+                        }
+                    }
+                }
+                catch
+                {
+                    RenderSoftware(canvas, rect);
+                }
+
+                _renderStopwatch.Stop();
+                var elapsedMs = _renderStopwatch.Elapsed.TotalMilliseconds;
+                _totalRenderTime += elapsedMs;
+                _renderCount++;
+
+                // 每 20 帧输出一次平均耗时
+                if (_renderCount >= 20)
+                {
+                    var avgTime = _totalRenderTime / _renderCount;
+                    Console.WriteLine($"[CardBorder Perf] Avg Render: {avgTime:F3} ms | FPS: {1000.0 / avgTime:F1} (Theoretical) | Size: {_width:F0}x{_height:F0}");
+                    _renderCount = 0;
+                    _totalRenderTime = 0;
+                }
+            }
+
+        private void RenderSoftware(SKCanvas canvas, SKRect rect)
         {
             // 软件渲染回退 - 绘制简单的深灰色边框
             using var paint = new SKPaint
             {
-                Color = new SKColor(20, 20, 26),  // 深灰/黑色
+                Color = new SKColor(20, 20, 26),
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = 8,
                 IsAntialias = true

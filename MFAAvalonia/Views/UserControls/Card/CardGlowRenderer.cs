@@ -27,6 +27,20 @@ namespace MFAAvalonia.Views.UserControls.Card;
 /// </summary>
 public class CardGlowRenderer : Control
 {
+    // ================= 诊断开关 =================
+    /// <summary>
+    /// 启用简单渲染模式 (关闭Shader和动画，用于性能诊断)
+    /// </summary>
+    public static bool UseSimpleRender { get; set; } = false;
+
+    /// <summary>
+    /// 降采样因子 (0.1 ~ 1.0)
+    /// 降低渲染分辨率以提高性能。例如 0.5 表示长宽各减半，像素数减少75%。
+    /// 默认值: 0.1
+    /// </summary>
+    public static double DownsampleFactor { get; set; } = 0.5;
+    // ==========================================
+
     #region 依赖属性
 
     /// <summary>
@@ -594,9 +608,9 @@ vec4 main(vec2 fragCoord) {
         if (_visualHandler == null || _customVisual == null) return;
 
         // 验证配置
-        if (!Config.Validate(out var error))
+        if (Config is null || !Config.Validate(out var error))
         {
-            Debug.WriteLine($"[CardGlowRenderer] Invalid config: {error}");
+            Debug.WriteLine($"[CardGlowRenderer] Invalid config");
             return;
         }
 
@@ -742,6 +756,10 @@ vec4 main(vec2 fragCoord) {
         private bool _sourceBitmapShared;
         private SKBitmap? _maskBitmap;
         private bool _maskBitmapShared;
+        // 离屏渲染缓冲区 (用于降采样)
+        private SKBitmap? _offscreenBitmap;
+        private SKCanvas? _offscreenCanvas;
+        
         private SKShader? _imageShader;
         private SKShader? _maskShader;
         private SKRuntimeEffect? _effect;
@@ -877,6 +895,9 @@ uniform vec3 iResolution;
         {
             if (message == StartAnimations)
             {
+                // 诊断模式下，强制禁止动画循环
+                if (CardGlowRenderer.UseSimpleRender) return;
+
                 _animationEnabled = true;
                 _lastInvalidateSeconds = 0;
                 _animationTick.Start();
@@ -889,6 +910,11 @@ uniform vec3 iResolution;
             }
             else if (message == DisposeBitmap)
             {
+                _offscreenCanvas?.Dispose();
+                _offscreenCanvas = null;
+                _offscreenBitmap?.Dispose();
+                _offscreenBitmap = null;
+
                 _imageShader?.Dispose();
                 _imageShader = null;
                 if (!_sourceBitmapShared)
@@ -1005,18 +1031,70 @@ uniform vec3 iResolution;
             // 如果尺寸无效，不渲染
             if (rect.Width <= 0 || rect.Height <= 0) return;
 
-                // 检查渲染基础条件
-                // 注意：不再检查 _imageShader == null，因为它会在 Render 内部通过 UpdateImageShaderWithScale 创建
-                if (_effect == null || _sourceBitmap == null || _maskBitmap == null)
-                {
-                    // 软件渲染回退 - 直接绘制原图
-                    RenderSoftware(lease.SkCanvas, rect);
-                }
-                else
+            // 诊断模式：直接回退到软件渲染（只画原图）
+            if (CardGlowRenderer.UseSimpleRender)
+            {
+                RenderSoftware(lease.SkCanvas, rect);
+                return;
+            }
+
+            // 检查渲染基础条件
+            // 注意：不再检查 _imageShader == null，因为它会在 Render 内部通过 UpdateImageShaderWithScale 创建
+            if (_effect == null || _sourceBitmap == null || _maskBitmap == null)
+            {
+                Console.WriteLine($"[CardGlow] Fallback to Software Render! Effect={_effect!=null}, Source={_sourceBitmap!=null}, Mask={_maskBitmap!=null}");
+                // 软件渲染回退 - 直接绘制原图
+                RenderSoftware(lease.SkCanvas, rect);
+            }
+            else
+            {
+                // === 降采样优化 ===
+                var factor = (float)CardGlowRenderer.DownsampleFactor;
+                
+                // 限制范围
+                if (factor < 0.1f) factor = 0.1f;
+                if (factor > 1.0f) factor = 1.0f;
+
+                if (Math.Abs(factor - 1.0f) < 0.01f)
                 {
                     Render(lease.SkCanvas, rect);
                 }
+                else
+                {
+                    int w = (int)(rect.Width * factor);
+                    int h = (int)(rect.Height * factor);
+                    if (w < 1) w = 1;
+                    if (h < 1) h = 1;
+
+                    // 检查缓冲区是否需要重建
+                    if (_offscreenBitmap == null || _offscreenBitmap.Width != w || _offscreenBitmap.Height != h)
+                    {
+                        _offscreenCanvas?.Dispose();
+                        _offscreenBitmap?.Dispose();
+                        
+                        _offscreenBitmap = new SKBitmap(w, h);
+                        _offscreenCanvas = new SKCanvas(_offscreenBitmap);
+                    }
+
+                    // 清空缓冲区
+                    _offscreenCanvas.Clear(SKColors.Transparent);
+
+                    // 在小画布上渲染
+                    // 注意：这里传入的 rect 必须是 (0, 0, w, h)，因为 offscreenCanvas 是从 0,0 开始的
+                    var smallRect = SKRect.Create(0, 0, w, h);
+                    Render(_offscreenCanvas, smallRect);
+
+                    // 将小图绘制到主画布，并拉伸到原始 rect
+                    // 使用低质量采样以获得那种“像素风”或者“模糊”效果，同时性能最好
+                    using var paint = new SKPaint 
+                    { 
+                        FilterQuality = SKFilterQuality.Low,
+                        IsAntialias = false
+                    };
+                    lease.SkCanvas.DrawBitmap(_offscreenBitmap, rect, paint);
+                }
             }
+        }
 
 
             /// <summary>

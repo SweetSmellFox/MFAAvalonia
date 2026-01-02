@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
+using Avalonia.Diagnostics;
 using MFAAvalonia.Configuration;
 using MFAAvalonia.Extensions.MaaFW;
 using MFAAvalonia.Helper;
@@ -46,6 +47,7 @@ public partial class App : Application
         base.Initialize();
         LoggerHelper.InitializeLogger();
         AvaloniaXamlLoader.Load(this);
+
         LanguageHelper.Initialize();
         ConfigurationManager.Initialize();
         FontService.Initialize();

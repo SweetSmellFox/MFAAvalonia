@@ -1,4 +1,4 @@
-﻿using Avalonia;
+using Avalonia;
 using Avalonia.Controls;
 using MaaFramework.Binding;
 using MFAAvalonia.Helper;
