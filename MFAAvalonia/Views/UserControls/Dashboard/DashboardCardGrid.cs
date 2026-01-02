@@ -72,6 +72,9 @@ public sealed class DashboardCardGrid : Panel
     }
 
     private DashboardCard? _draggingCard;
+    private DashboardCard? _maximizedCard;
+    private HiddenLayout? _maximizedLayout;
+    private bool _isApplyingMaximize;
     private Point _dragStartPosition;
     private int _dragStartCol;
     private int _dragStartRow;
@@ -215,6 +218,7 @@ public sealed class DashboardCardGrid : Panel
         card.Resized -= OnCardResized;
         card.ResizeCompleted -= OnCardResizeCompleted;
         card.CollapseStateChanged -= OnCardCollapseStateChanged;
+        card.MaximizeStateChanged -= OnCardMaximizeStateChanged;
 
         card.DragStarted += OnCardDragStarted;
         card.DragMoved += OnCardDragMoved;
@@ -223,6 +227,7 @@ public sealed class DashboardCardGrid : Panel
         card.Resized += OnCardResized;
         card.ResizeCompleted += OnCardResizeCompleted;
         card.CollapseStateChanged += OnCardCollapseStateChanged;
+        card.MaximizeStateChanged += OnCardMaximizeStateChanged;
 
         if (_visibilitySubscriptions.TryGetValue(card, out var subscription))
         {
@@ -246,6 +251,7 @@ public sealed class DashboardCardGrid : Panel
         card.Resized -= OnCardResized;
         card.ResizeCompleted -= OnCardResizeCompleted;
         card.CollapseStateChanged -= OnCardCollapseStateChanged;
+        card.MaximizeStateChanged -= OnCardMaximizeStateChanged;
 
         if (_visibilitySubscriptions.TryGetValue(card, out var subscription))
         {
@@ -254,11 +260,22 @@ public sealed class DashboardCardGrid : Panel
         }
 
         _hiddenCards.Remove(card);
+
+        if (ReferenceEquals(_maximizedCard, card))
+        {
+            _maximizedCard = null;
+            _maximizedLayout = null;
+        }
     }
 
     private void OnCardCollapseStateChanged(object? sender, bool e)
     {
         if (sender is not DashboardCard card)
+        {
+            return;
+        }
+
+        if (card.IsMaximized)
         {
             return;
         }
@@ -321,6 +338,11 @@ public sealed class DashboardCardGrid : Panel
     private void OnCardDragStarted(object? sender, PointerPressedEventArgs e)
     {
         if (sender is not DashboardCard card)
+        {
+            return;
+        }
+
+        if (card.IsMaximized)
         {
             return;
         }
@@ -388,6 +410,11 @@ public sealed class DashboardCardGrid : Panel
     private void OnCardResizeStarted(object? sender, DashboardCardResizeEventArgs e)
     {
         if (sender is not DashboardCard card)
+        {
+            return;
+        }
+
+        if (card.IsMaximized)
         {
             return;
         }
@@ -690,6 +717,7 @@ public sealed class DashboardCardGrid : Panel
                 ColSpan = card.GridColumnSpan,
                 RowSpan = card.GridRowSpan,
                 IsCollapsed = card.IsCollapsed,
+                IsMaximized = false,
                 ExpandedColSpan = card.ExpandedColumnSpan,
                 ExpandedRowSpan = card.ExpandedRowSpan
             })
@@ -715,6 +743,7 @@ public sealed class DashboardCardGrid : Panel
                 continue;
             }
 
+            card.IsMaximized = false;
             card.GridColumn = layout.Col;
             card.GridRow = layout.Row;
             card.GridColumnSpan = Math.Max(1, layout.ColSpan);
@@ -747,6 +776,7 @@ public sealed class DashboardCardGrid : Panel
                 ColSpan = card.GridColumnSpan,
                 RowSpan = card.GridRowSpan,
                 IsCollapsed = card.IsCollapsed,
+                IsMaximized = false,
                 ExpandedColSpan = card.ExpandedColumnSpan,
                 ExpandedRowSpan = card.ExpandedRowSpan
             })
@@ -1346,6 +1376,103 @@ public sealed class DashboardCardGrid : Panel
                 IsCollapsed = card.IsCollapsed
             };
         }
+    }
+
+    private void OnCardMaximizeStateChanged(object? sender, bool isMaximized)
+    {
+        if (sender is not DashboardCard card || _isApplyingMaximize)
+        {
+            return;
+        }
+
+        if (isMaximized)
+        {
+            ApplyMaximize(card);
+        }
+        else
+        {
+            RestoreMaximize(card);
+        }
+    }
+
+    private void ApplyMaximize(DashboardCard card)
+    {
+        if (_maximizedCard != null && !ReferenceEquals(_maximizedCard, card))
+        {
+            _isApplyingMaximize = true;
+            _maximizedCard.IsMaximized = false;
+            _isApplyingMaximize = false;
+            RestoreMaximize(_maximizedCard);
+        }
+
+        if (ReferenceEquals(_maximizedCard, card))
+        {
+            return;
+        }
+
+        _suppressLayoutSave = true;
+        _maximizedCard = card;
+        _maximizedLayout = HiddenLayout.FromCard(card);
+
+        foreach (var other in Children.OfType<DashboardCard>())
+        {
+            if (!ReferenceEquals(other, card))
+            {
+                other.IsVisible = false;
+            }
+        }
+
+        card.IsCollapsed = false;
+        card.GridColumn = 0;
+        card.GridRow = 0;
+        card.GridColumnSpan = Math.Max(1, Columns);
+        card.GridRowSpan = Math.Max(1, Rows);
+        card.ExpandedColumnSpan = card.GridColumnSpan;
+        card.ExpandedRowSpan = card.GridRowSpan;
+
+        _suppressLayoutSave = false;
+        InvalidateMeasure();
+        InvalidateArrange();
+    }
+
+    private void RestoreMaximize(DashboardCard card)
+    {
+        if (!ReferenceEquals(_maximizedCard, card))
+        {
+            return;
+        }
+
+        _suppressLayoutSave = true;
+
+        foreach (var other in Children.OfType<DashboardCard>())
+        {
+            other.IsVisible = true;
+        }
+
+        if (_maximizedLayout != null)
+        {
+            var col = ClampIndex(_maximizedLayout.Col, Columns);
+            var row = ClampIndex(_maximizedLayout.Row, Rows);
+            var colSpan = Math.Max(1, _maximizedLayout.ColSpan);
+            var rowSpan = _maximizedLayout.IsCollapsed ? 1 : Math.Max(1, _maximizedLayout.RowSpan);
+
+            colSpan = Math.Clamp(colSpan, 1, Columns - col);
+            rowSpan = Math.Clamp(rowSpan, 1, Rows - row);
+
+            card.GridColumn = col;
+            card.GridRow = row;
+            card.GridColumnSpan = colSpan;
+            card.GridRowSpan = rowSpan;
+            card.ExpandedColumnSpan = Math.Max(1, _maximizedLayout.ExpandedColSpan);
+            card.ExpandedRowSpan = Math.Max(1, _maximizedLayout.ExpandedRowSpan);
+            card.IsCollapsed = _maximizedLayout.IsCollapsed;
+        }
+
+        _maximizedCard = null;
+        _maximizedLayout = null;
+        _suppressLayoutSave = false;
+        InvalidateMeasure();
+        InvalidateArrange();
     }
 
     private void UpdateDragPreview(int col, int row, int colSpan, int rowSpan)

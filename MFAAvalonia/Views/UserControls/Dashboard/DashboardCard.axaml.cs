@@ -56,6 +56,15 @@ public partial class DashboardCard : ContentControl
         set => SetValue(IsCollapsedProperty, value);
     }
 
+    public static readonly StyledProperty<bool> IsMaximizedProperty =
+        AvaloniaProperty.Register<DashboardCard, bool>(nameof(IsMaximized), false);
+
+    public bool IsMaximized
+    {
+        get => GetValue(IsMaximizedProperty);
+        set => SetValue(IsMaximizedProperty, value);
+    }
+
     public static readonly StyledProperty<double> CollapsedHeightProperty =
         AvaloniaProperty.Register<DashboardCard, double>(nameof(CollapsedHeight), 55);
 
@@ -138,6 +147,7 @@ public partial class DashboardCard : ContentControl
     }
 
     public event EventHandler<bool>? CollapseStateChanged;
+    public event EventHandler<bool>? MaximizeStateChanged;
     public event EventHandler<PointerPressedEventArgs>? DragStarted;
     public event EventHandler<PointerEventArgs>? DragMoved;
     public event EventHandler<PointerReleasedEventArgs>? DragEnded;
@@ -200,13 +210,19 @@ public partial class DashboardCard : ContentControl
         Tag = IsCollapsed ? "Collapsed" : "Expanded";
         ClearValue(HeightProperty);
     }
-
+    
     private void OnCollapseButtonClick(object? sender, RoutedEventArgs e)
     {
         IsCollapsed = !IsCollapsed;
         CollapseStateChanged?.Invoke(this, IsCollapsed);
     }
 
+    private void OnMaximizeButtonClick(object? sender, RoutedEventArgs e)
+    {
+        IsMaximized = !IsMaximized;
+        MaximizeStateChanged?.Invoke(this, IsMaximized);
+    }
+    
     private void OnHeaderPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (!IsDragEnabled || _dragHandle == null)

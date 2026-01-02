@@ -18,6 +18,11 @@ public partial class DashboardCardLayout : ObservableObject
 
     [ObservableProperty] private bool _isCollapsed;
 
+    [ObservableProperty] private bool _isMaximized;
+
     [ObservableProperty] private int _expandedRowSpan = 1;
     [ObservableProperty] private int _expandedColSpan = 1;
+
+    [ObservableProperty] private int _maximizedRowSpan = 1;
+    [ObservableProperty] private int _maximizedColSpan = 1;
 }

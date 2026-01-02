@@ -261,6 +261,12 @@
     <data name="DebugModeWarning" xml:space="preserve">
         <value>Debug mode has been enabled. This mode will save screenshots, operation data, and image recognition visualization results during operation, which may occupy a large amount of storage space!</value>
     </data>
+    <data name="DashboardCardMaximize" xml:space="preserve">
+        <value>Maximize</value>
+    </data>
+    <data name="DashboardCardRestore" xml:space="preserve">
+        <value>Restore</value>
+    </data>
     <data name="Delete" xml:space="preserve">
         <value>Delete</value>
     </data>

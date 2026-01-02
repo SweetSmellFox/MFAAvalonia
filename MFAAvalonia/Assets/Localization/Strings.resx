@@ -259,7 +259,6 @@
     </data>
     <data name="Cut" xml:space="preserve">
         <value>剪切</value>
-    </data>
     <data name="DarkColor" xml:space="preserve">
         <value>深色</value>
     </data>
@@ -269,8 +268,15 @@
     <data name="DebugModeWarning" xml:space="preserve">
         <value>调试模式已开启。此模式会保存运行期间的截图、操作数据及图像识别可视化结果，可能会占用大量的存储空间！</value>
     </data>
+    <data name="DashboardCardMaximize" xml:space="preserve">
+        <value>最大化</value>
+    </data>
+    <data name="DashboardCardRestore" xml:space="preserve">
+        <value>还原</value>
+    </data>
     <data name="Delete" xml:space="preserve">
         <value>删除</value>
+    </data>
     </data>
     <data name="DeselectAll" xml:space="preserve">
         <value>全部不选</value>

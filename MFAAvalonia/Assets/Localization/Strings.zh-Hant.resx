@@ -261,6 +261,12 @@
     <data name="DebugModeWarning" xml:space="preserve">
         <value>除錯模式已開啟。此模式會保存執行期間的截圖、操作資料及圖像識別可視化結果，可能會佔用大量的儲存空間！</value>
     </data>
+    <data name="DashboardCardMaximize" xml:space="preserve">
+        <value>最大化</value>
+    </data>
+    <data name="DashboardCardRestore" xml:space="preserve">
+        <value>還原</value>
+    </data>
     <data name="Delete" xml:space="preserve">
         <value>刪除</value>
     </data>

@@ -92,6 +92,8 @@ public static class LangKeys
 	public static readonly string DarkColor = "DarkColor";
 	public static readonly string DebugMode = "DebugMode";
 	public static readonly string DebugModeWarning = "DebugModeWarning";
+	public static readonly string DashboardCardMaximize = "DashboardCardMaximize";
+	public static readonly string DashboardCardRestore = "DashboardCardRestore";
 	public static readonly string Delete = "Delete";
 	public static readonly string DeselectAll = "DeselectAll";
 	public static readonly string DingTalk = "DingTalk";
