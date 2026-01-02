@@ -1462,5 +1462,11 @@
     <data name="Reconnect" xml:space="preserve">
         <value>重新连接</value>
     </data>
+    <data name="DashboardCardMaximize" xml:space="preserve">
+        <value>最大化</value>
+    </data>
+    <data name="DashboardCardRestore" xml:space="preserve">
+        <value>还原</value>
+    </data>
 </root>
 

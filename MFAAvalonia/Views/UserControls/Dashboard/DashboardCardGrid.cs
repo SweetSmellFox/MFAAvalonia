@@ -127,6 +127,7 @@ public sealed class DashboardCardGrid : Panel
         base.OnLoaded(e);
         AttachToAllCards();
         EnsureLayoutsLoaded();
+        EnsureMaximizedCardState();
         EnsureDragPreviewHost();
         EnsureSplitters();
         EnsureRowSplitters();
@@ -1153,6 +1154,14 @@ public sealed class DashboardCardGrid : Panel
                     continue;
                 }
 
+                if (card.IsMaximized)
+                {
+                    var maxWidth = Math.Max(0, sizeForMetrics.Width - Padding.Left - Padding.Right);
+                    var maxHeight = Math.Max(0, sizeForMetrics.Height - Padding.Top - Padding.Bottom);
+                    c.Measure(new Size(maxWidth, maxHeight));
+                    continue;
+                }
+
                 var colSpan = Math.Max(1, card.GridColumnSpan);
                 var rowSpan = Math.Max(1, card.IsCollapsed ? 1 : card.GridRowSpan);
                 colSpan = Math.Clamp(colSpan, 1, columns);
@@ -1203,6 +1212,14 @@ public sealed class DashboardCardGrid : Panel
             if (!card.IsVisible)
             {
                 child.Arrange(new Rect(0, 0, 0, 0));
+                continue;
+            }
+
+            if (card.IsMaximized)
+            {
+                var maxWidth = Math.Max(0, finalSize.Width - Padding.Left - Padding.Right);
+                var maxHeight = Math.Max(0, finalSize.Height - Padding.Top - Padding.Bottom);
+                child.Arrange(new Rect(Padding.Left, Padding.Top, maxWidth, maxHeight));
                 continue;
             }
 
@@ -1395,6 +1412,23 @@ public sealed class DashboardCardGrid : Panel
         }
     }
 
+    private void EnsureMaximizedCardState()
+    {
+        if (_maximizedCard != null)
+        {
+            return;
+        }
+
+        var maximized = Children.OfType<DashboardCard>()
+            .FirstOrDefault(card => card.IsMaximized);
+
+        if (maximized != null)
+        {
+            ApplyMaximize(maximized);
+        }
+    }
+
+
     private void ApplyMaximize(DashboardCard card)
     {
         if (_maximizedCard != null && !ReferenceEquals(_maximizedCard, card))
@@ -1423,12 +1457,6 @@ public sealed class DashboardCardGrid : Panel
         }
 
         card.IsCollapsed = false;
-        card.GridColumn = 0;
-        card.GridRow = 0;
-        card.GridColumnSpan = Math.Max(1, Columns);
-        card.GridRowSpan = Math.Max(1, Rows);
-        card.ExpandedColumnSpan = card.GridColumnSpan;
-        card.ExpandedRowSpan = card.GridRowSpan;
 
         _suppressLayoutSave = false;
         InvalidateMeasure();
@@ -1451,18 +1479,6 @@ public sealed class DashboardCardGrid : Panel
 
         if (_maximizedLayout != null)
         {
-            var col = ClampIndex(_maximizedLayout.Col, Columns);
-            var row = ClampIndex(_maximizedLayout.Row, Rows);
-            var colSpan = Math.Max(1, _maximizedLayout.ColSpan);
-            var rowSpan = _maximizedLayout.IsCollapsed ? 1 : Math.Max(1, _maximizedLayout.RowSpan);
-
-            colSpan = Math.Clamp(colSpan, 1, Columns - col);
-            rowSpan = Math.Clamp(rowSpan, 1, Rows - row);
-
-            card.GridColumn = col;
-            card.GridRow = row;
-            card.GridColumnSpan = colSpan;
-            card.GridRowSpan = rowSpan;
             card.ExpandedColumnSpan = Math.Max(1, _maximizedLayout.ExpandedColSpan);
             card.ExpandedRowSpan = Math.Max(1, _maximizedLayout.ExpandedRowSpan);
             card.IsCollapsed = _maximizedLayout.IsCollapsed;
