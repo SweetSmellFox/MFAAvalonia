@@ -1,6 +1,5 @@
 ﻿using Avalonia;
 using Avalonia.Collections;
-using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
@@ -18,16 +17,13 @@ using MFAAvalonia.Helper.ValueType;
 using MFAAvalonia.ViewModels.Other;
 using MFAAvalonia.ViewModels.UsersControls;
 using MFAAvalonia.ViewModels.UsersControls.Settings;
-using MFAAvalonia.Views.Windows;
 using Newtonsoft.Json;
 using SukiUI.Dialogs;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -1532,6 +1528,16 @@ public partial class TaskQueueViewModel : ViewModelBase
     private int _liveViewFrameCount;
     [ObservableProperty] private string _currentTaskName = "";
 
+    private int _liveViewImageCount;
+    private int _liveViewImageNewestCount;
+
+    private static int _liveViewSemaphoreCurrentCount = 2;
+    private const int LiveViewSemaphoreMaxCount = 5;
+    private static int _liveViewSemaphoreFailCount = 0;
+    private static readonly SemaphoreSlim _liveViewSemaphore = new(_liveViewSemaphoreCurrentCount, LiveViewSemaphoreMaxCount);
+
+    private readonly WriteableBitmap?[] _liveViewImageCache = new WriteableBitmap?[LiveViewSemaphoreMaxCount];
+
     /// <summary>
     /// Live View 是否可见（已连接且有图像）
     /// </summary>
@@ -1562,203 +1568,163 @@ public partial class TaskQueueViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// 更新 Live View 图像
+    /// 更新 Live View 图像（仿 WPF：直接写入缓冲）
     /// </summary>
-    public void UpdateLiveViewImage(Bitmap? bitmap)
+    public async Task UpdateLiveViewImageAsync(MaaImageBuffer? buffer)
     {
-        if (bitmap == null)
+        if (!await _liveViewSemaphore.WaitAsync(0))
         {
-            DispatcherHelper.PostOnMainThread(() =>
+            if (++_liveViewSemaphoreFailCount < 3)
             {
-                LiveViewImage = null;
-                // _liveViewWriteableBitmap?.Dispose();
-                // _liveViewWriteableBitmap = null;
-                LiveViewFps = 0;
-                _liveViewFrameCount = 0;
-                _liveViewFpsWindowStart = DateTime.UtcNow;
-            });
-            return;
-        }
-
-
-        DispatcherHelper.PostOnMainThread(() =>
-        {
-            try
-            {
-                LiveViewImage?.Dispose();
-                LiveViewImage = bitmap;
-                _liveViewFrameCount++;
-                var elapsed = (DateTime.UtcNow - _liveViewFpsWindowStart).TotalSeconds;
-                if (elapsed >= 1)
-                {
-                    LiveViewFps = _liveViewFrameCount / elapsed;
-                    _liveViewFrameCount = 0;
-                    _liveViewFpsWindowStart = DateTime.UtcNow;
-                }
-            }
-            catch
-            {
-                // 忽略解码失败
-            }
-        });
-    }
-    public void UpdateLiveViewImage(MaaImageBuffer? buffer)
-    {
-        if (buffer == null)
-        {
-            DispatcherHelper.PostOnMainThread(() =>
-            {
-                LiveViewImage = null;
-                _liveViewWriteableBitmap?.Dispose();
-                _liveViewWriteableBitmap = null;
-                LiveViewFps = 0;
-                _liveViewFrameCount = 0;
-                _liveViewFpsWindowStart = DateTime.UtcNow;
-            });
-            return;
-        }
-
-        if (Interlocked.Exchange(ref _liveViewProcessing, 1) == 1)
-        {
-            buffer.Dispose();
-            return;
-        }
-        if (!buffer.TryGetRawData(out var rawData, out var width, out var height, out _))
-        {
-            buffer.Dispose();
-            Interlocked.Exchange(ref _liveViewProcessing, 0);
-            return;
-        }
-
-        var channels = buffer.Channels;
-        if (channels != 4)
-        {
-            if (!buffer.TryGetEncodedData(out Stream encodedDataStream))
-            {
-                buffer.Dispose();
-                Interlocked.Exchange(ref _liveViewProcessing, 0);
+                buffer?.Dispose();
                 return;
             }
-    
-            Task.Run(() =>
+
+            _liveViewSemaphoreFailCount = 0;
+
+            if (_liveViewSemaphoreCurrentCount < LiveViewSemaphoreMaxCount)
             {
-                Bitmap? decodedBitmap = null;
-                try
-                {
-                    using var decodeStream = encodedDataStream;
-                    decodedBitmap = new Bitmap(decodeStream);
-                }
-                catch
-                {
-                    decodedBitmap?.Dispose();
-                    decodedBitmap = null;
-                }
-    
-                if (decodedBitmap != null)
-                {
-                    DispatcherHelper.PostOnMainThread(() =>
-                    {
-                        try
-                        {
-                            if (_liveViewWriteableBitmap == null
-                                || _liveViewWriteableBitmap.PixelSize != decodedBitmap.PixelSize)
-                            {
-                                _liveViewWriteableBitmap?.Dispose();
-                                _liveViewWriteableBitmap = new WriteableBitmap(
-                                    decodedBitmap.PixelSize,
-                                    decodedBitmap.Dpi,
-                                    PixelFormat.Bgra8888,
-                                    AlphaFormat.Premul);
-    
-                                LiveViewImage = _liveViewWriteableBitmap;
-                            }
-    
-                            using var framebuffer = _liveViewWriteableBitmap!.Lock();
-                            decodedBitmap.CopyPixels(framebuffer, AlphaFormat.Premul);
-    
-                            _liveViewFrameCount++;
-                            var elapsed = (DateTime.UtcNow - _liveViewFpsWindowStart).TotalSeconds;
-                            if (elapsed >= 1)
-                            {
-                                LiveViewFps = _liveViewFrameCount / elapsed;
-                                _liveViewFrameCount = 0;
-                                _liveViewFpsWindowStart = DateTime.UtcNow;
-                            }
-                        }
-                        finally
-                        {
-                            decodedBitmap.Dispose();
-                            buffer.Dispose();
-                            Interlocked.Exchange(ref _liveViewProcessing, 0);
-                        }
-                    });
-                }
-                else
-                {
-                    buffer.Dispose();
-                    Interlocked.Exchange(ref _liveViewProcessing, 0);
-                }
-            });
+                _liveViewSemaphoreCurrentCount++;
+                _liveViewSemaphore.Release();
+                LoggerHelper.Info($"LiveView Semaphore Full, increase semaphore count to {_liveViewSemaphoreCurrentCount}");
+            }
+
+            buffer?.Dispose();
             return;
         }
 
-        var pixelFormat = PixelFormat.Bgra8888;
-
-        DispatcherHelper.PostOnMainThread(() =>
+        try
         {
-            try
+            var count = Interlocked.Increment(ref _liveViewImageCount);
+            var index = count % _liveViewImageCache.Length;
+
+            if (buffer == null)
             {
-                if (width <= 0 || height <= 0)
-                    return;
-
-                if (_liveViewWriteableBitmap == null
-                    || _liveViewWriteableBitmap.PixelSize.Width != width
-                    || _liveViewWriteableBitmap.PixelSize.Height != height
-                    || _liveViewWriteableBitmap.Format != pixelFormat)
+                await Dispatcher.UIThread.InvokeAsync(() =>
                 {
+                    LiveViewImage = null;
                     _liveViewWriteableBitmap?.Dispose();
-                    _liveViewWriteableBitmap = new WriteableBitmap(
-                        new PixelSize(width, height),
-                        new Vector(96, 96),
-                        pixelFormat,
-                        AlphaFormat.Premul);
+                    _liveViewWriteableBitmap = null;
+                    Array.Fill(_liveViewImageCache, null);
+                    _liveViewImageNewestCount = 0;
+                    _liveViewImageCount = 0;
+                });
+                return;
+            }
 
-                    LiveViewImage = _liveViewWriteableBitmap;
+            if (!buffer.TryGetRawData(out var rawData, out var width, out var height, out _))
+            {
+                return;
+            }
+
+            if (width <= 0 || height <= 0)
+            {
+                return;
+            }
+
+            if (count <= _liveViewImageNewestCount)
+            {
+                return;
+            }
+
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                _liveViewImageCache[index] = WriteBgrToBitmap(rawData, width, height, buffer.Channels, _liveViewImageCache[index]);
+                LiveViewImage = _liveViewImageCache[index];
+            });
+
+            Interlocked.Exchange(ref _liveViewImageNewestCount, count);
+            _liveViewSemaphoreFailCount = 0;
+
+            var now = DateTime.UtcNow;
+            Interlocked.Increment(ref _liveViewFrameCount);
+            var totalSeconds = (now - _liveViewFpsWindowStart).TotalSeconds;
+            if (totalSeconds >= 1)
+            {
+                var frameCount = Interlocked.Exchange(ref _liveViewFrameCount, 0);
+                _liveViewFpsWindowStart = now;
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    LiveViewFps = frameCount / totalSeconds;
+                });
+            }
+        }
+        finally
+        {
+            buffer?.Dispose();
+            _liveViewSemaphore.Release();
+        }
+    }
+
+    private static WriteableBitmap WriteBgrToBitmap(IntPtr bgrData, int width, int height, int channels, WriteableBitmap? targetBitmap)
+    {
+        const int dstBytesPerPixel = 4;
+
+        targetBitmap ??= new WriteableBitmap(
+            new PixelSize(width, height),
+            new Vector(96, 96),
+            PixelFormat.Bgra8888,
+            AlphaFormat.Premul);
+
+        using var framebuffer = targetBitmap.Lock();
+        unsafe
+        {
+            var dstStride = framebuffer.RowBytes;
+            var dstPtr = (byte*)framebuffer.Address;
+
+            if (channels == 4)
+            {
+                var srcStride = width * dstBytesPerPixel;
+                var rowCopy = Math.Min(srcStride, dstStride);
+                var srcPtr = (byte*)bgrData;
+                for (var y = 0; y < height; y++)
+                {
+                    Buffer.MemoryCopy(srcPtr + y * srcStride, dstPtr + y * dstStride, dstStride, rowCopy);
                 }
 
-                unsafe
+                return targetBitmap;
+            }
+
+            if (channels == 3)
+            {
+                var srcStride = width * 3;
+                var rowBuffer = ArrayPool<byte>.Shared.Rent(width * dstBytesPerPixel);
+                try
                 {
-                    using var framebuffer = _liveViewWriteableBitmap!.Lock();
-                    var src = (byte*)rawData;
-                    var dst = (byte*)framebuffer.Address;
-                    var srcStride = width * channels;
-                    var dstStride = framebuffer.RowBytes;
-                    var rowCopy = Math.Min(srcStride, dstStride);
+                    var srcPtr = (byte*)bgrData;
                     for (var y = 0; y < height; y++)
                     {
-                        Buffer.MemoryCopy(src + y * srcStride, dst + y * dstStride, dstStride, rowCopy);
+                        var srcRow = srcPtr + y * srcStride;
+                        for (var x = 0; x < width; x++)
+                        {
+                            var srcIndex = x * 3;
+                            var dstIndex = x * dstBytesPerPixel;
+                            rowBuffer[dstIndex] = srcRow[srcIndex];
+                            rowBuffer[dstIndex + 1] = srcRow[srcIndex + 1];
+                            rowBuffer[dstIndex + 2] = srcRow[srcIndex + 2];
+                            rowBuffer[dstIndex + 3] = 255;
+                        }
+
+                        fixed (byte* rowPtr = rowBuffer)
+                        {
+                            Buffer.MemoryCopy(rowPtr, dstPtr + y * dstStride, dstStride, width * dstBytesPerPixel);
+                        }
                     }
                 }
-
-                _liveViewFrameCount++;
-                var elapsed = (DateTime.UtcNow - _liveViewFpsWindowStart).TotalSeconds;
-                if (elapsed >= 1)
+                finally
                 {
-                    LiveViewFps = _liveViewFrameCount / elapsed;
-                    _liveViewFrameCount = 0;
-                    _liveViewFpsWindowStart = DateTime.UtcNow;
+                    ArrayPool<byte>.Shared.Return(rowBuffer);
                 }
+
+                return targetBitmap;
             }
-            finally
-            {
-                buffer.Dispose();
-                Interlocked.Exchange(ref _liveViewProcessing, 0);
-            }
-        });
+        }
+
+        return targetBitmap;
     }
 
     #endregion
-
+    
     #region 配置切换
 
     /// <summary>

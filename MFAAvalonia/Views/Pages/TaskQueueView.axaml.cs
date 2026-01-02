@@ -1,20 +1,12 @@
 ﻿using Avalonia;
-using Avalonia.Animation;
-using Avalonia.Animation.Easings;
 using Avalonia.Controls;
-using Avalonia.Controls.Presenters;
-using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
 using Avalonia.Data.Converters;
-using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
-using Avalonia.Media.Imaging;
-using Avalonia.Styling;
-using Avalonia.VisualTree;
 using MFAAvalonia.Configuration;
 using MFAAvalonia.Extensions;
 using MFAAvalonia.Extensions.MaaFW;
@@ -22,24 +14,20 @@ using MFAAvalonia.Helper;
 using MFAAvalonia.Helper.ValueType;
 using MFAAvalonia.ViewModels.Pages;
 using MFAAvalonia.Views.UserControls;
-using SukiUI;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Linq;
 using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
 using FontWeight = Avalonia.Media.FontWeight;
 using HorizontalAlignment = Avalonia.Layout.HorizontalAlignment;
 using VerticalAlignment = Avalonia.Layout.VerticalAlignment;
 using Avalonia.Threading;
 using Avalonia.Xaml.Interactivity;
 using Lang.Avalonia.MarkupExtensions;
-using MaaFramework.Binding.Buffers;
 using Newtonsoft.Json.Linq;
+using Timer = System.Timers.Timer;
 
 namespace MFAAvalonia.Views.Pages;
 
@@ -2180,9 +2168,8 @@ public partial class TaskQueueView : UserControl
 
     #region 实时图像
 
-    private CancellationTokenSource? _liveViewCts;
-    private Task? _liveViewTask;
-    private Task? _liveViewCaptureTask;
+    private readonly Timer _liveViewTimer = new();
+    private bool _liveViewTimerStarted;
 
     private void OnTaskQueueViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -2252,90 +2239,53 @@ public partial class TaskQueueView : UserControl
 
     private void StartLiveViewLoop()
     {
-        _liveViewCts?.Cancel();
-        _liveViewCts = new CancellationTokenSource();
-        _liveViewCaptureTask = Task.Run(() => LiveViewCaptureLoopAsync(_liveViewCts.Token));
-        _liveViewTask = Task.Run(() => LiveViewLoopAsync(_liveViewCts.Token));
+        if (_liveViewTimerStarted)
+            return;
+
+        _liveViewTimer.Elapsed += OnLiveViewTimerElapsed;
+        UpdateLiveViewTimerInterval();
+        _liveViewTimer.Start();
+        _liveViewTimerStarted = true;
     }
 
     private void StopLiveViewLoop()
     {
-        _liveViewCts?.Cancel();
-        _liveViewCts = null;
-        _liveViewTask = null;
-        _liveViewCaptureTask = null;
+        if (!_liveViewTimerStarted)
+            return;
+
+        _liveViewTimer.Stop();
+        _liveViewTimer.Elapsed -= OnLiveViewTimerElapsed;
+        _liveViewTimerStarted = false;
     }
 
-    private async Task LiveViewLoopAsync(CancellationToken token)
+    private void UpdateLiveViewTimerInterval()
     {
-        while (!token.IsCancellationRequested)
-        {
-            var interval = Instances.TaskQueueViewModel.GetLiveViewRefreshInterval();
-            var stopwatch = Stopwatch.StartNew();
-            try
-            {
-                if (Instances.TaskQueueViewModel.EnableLiveView && Instances.TaskQueueViewModel.IsConnected)
-                {
-                    var bitmap = MaaProcessor.Instance.GetLiveViewCached();
-                    Instances.TaskQueueViewModel.UpdateLiveViewImage(bitmap);
-                }
-                else
-                {
-                    DispatcherHelper.PostOnMainThread(() =>
-                    {
-                        Instances.TaskQueueViewModel.UpdateLiveViewImage((Bitmap?)null);
-                    });
-                }
-            }
-            catch
-            {
-                // 忽略截图失败
-            }
-            finally
-            {
-                stopwatch.Stop();
-            }
-
-            var remaining = TimeSpan.FromSeconds(interval) - stopwatch.Elapsed;
-            if (remaining < TimeSpan.Zero)
-                remaining = TimeSpan.Zero;
-
-            await Task.Delay(remaining, token);
-        }
+        var interval = Instances.TaskQueueViewModel.GetLiveViewRefreshInterval();
+        _liveViewTimer.Interval = Math.Max(1, interval * 1000);
     }
 
-    private async Task LiveViewCaptureLoopAsync(CancellationToken token)
+    private void OnLiveViewTimerElapsed(object? sender, EventArgs e)
     {
-        while (!token.IsCancellationRequested)
+        try
         {
-            try
+            if (Instances.TaskQueueViewModel.EnableLiveView && Instances.TaskQueueViewModel.IsConnected)
             {
-                if (Instances.TaskQueueViewModel.EnableLiveView && Instances.TaskQueueViewModel.IsConnected && !MaaProcessor.Instance.MaaTasker!.IsRunning)
-                {
-                    var interval = Instances.TaskQueueViewModel.GetLiveViewRefreshInterval();
-                    var stopwatch = Stopwatch.StartNew();
-
+                if (!MaaProcessor.Instance.MaaTasker!.IsRunning)
                     MaaProcessor.Instance.PostScreencap();
-
-                    stopwatch.Stop();
-                    var remaining = TimeSpan.FromSeconds(interval) - stopwatch.Elapsed;
-                    if (remaining < TimeSpan.Zero)
-                        remaining = TimeSpan.Zero;
-
-                    await Task.Delay(remaining, token);
-                }
-                else
-                {
-                    await Task.Delay(TimeSpan.FromMilliseconds(1000), token);
-                }
+                var buffer = MaaProcessor.Instance.GetLiveViewBuffer(false);
+                _ = Instances.TaskQueueViewModel.UpdateLiveViewImageAsync(buffer);
             }
-            catch
+            else
             {
-                // 忽略截图失败
+                _ = Instances.TaskQueueViewModel.UpdateLiveViewImageAsync(null);
             }
         }
+        catch
+        {
+            // ignored
+        }
     }
-
+    
     private void OnLoaded(object? sender, RoutedEventArgs e)
     {
         StartLiveViewLoop();
@@ -2348,6 +2298,8 @@ public partial class TaskQueueView : UserControl
         {
             Instances.TaskQueueViewModel.PropertyChanged -= OnTaskQueueViewModelPropertyChanged;
             Instances.TaskQueueViewModel.PropertyChanged += OnTaskQueueViewModelPropertyChanged;
+            Instances.TaskQueueViewModel.LiveViewRefreshRateChanged -= OnLiveViewRefreshRateChanged;
+            Instances.TaskQueueViewModel.LiveViewRefreshRateChanged += OnLiveViewRefreshRateChanged;
         }
     }
 
@@ -2357,6 +2309,12 @@ public partial class TaskQueueView : UserControl
         StopLiveViewLoop();
         TopToolbar.SizeChanged -= OnTopToolbarSizeChanged;
         Instances.TaskQueueViewModel.PropertyChanged -= OnTaskQueueViewModelPropertyChanged;
+        Instances.TaskQueueViewModel.LiveViewRefreshRateChanged -= OnLiveViewRefreshRateChanged;
+    }
+
+    private void OnLiveViewRefreshRateChanged(double interval)
+    {
+        _liveViewTimer.Interval = Math.Max(1, interval * 1000);
     }
 
     #endregion
