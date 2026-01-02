@@ -983,7 +983,7 @@
     <data name="TooltipRefresh" xml:space="preserve">
         <value>刷新</value>
     </data>
-    <data name="TryToReconnectByAdb" xml:space="preserve">
+    <data name="TryToReconnect" xml:space="preserve">
         <value>正在尝试重连</value>
     </data>
     <data name="TryToStartEmulator" xml:space="preserve">
@@ -1452,6 +1452,9 @@
     </data>
     <data name="PlayCoverBundleIdentifier" xml:space="preserve">
         <value>应用标识符</value>
+    </data>
+    <data name="Reconnect" xml:space="preserve">
+        <value>重新连接</value>
     </data>
 </root>
 

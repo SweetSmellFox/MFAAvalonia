@@ -975,7 +975,7 @@
     <data name="TooltipRefresh" xml:space="preserve">
         <value>Refresh</value>
     </data>
-    <data name="TryToReconnectByAdb" xml:space="preserve">
+    <data name="TryToReconnect" xml:space="preserve">
         <value>Attempting to reconnect</value>
     </data>
     <data name="TryToStartEmulator" xml:space="preserve">
@@ -1446,6 +1446,9 @@
     </data>
     <data name="PlayCoverBundleIdentifier" xml:space="preserve">
         <value>Bundle Identifier</value>
+    </data>
+    <data name="Reconnect" xml:space="preserve">
+        <value>Reconnect</value>
     </data>
 </root>
 

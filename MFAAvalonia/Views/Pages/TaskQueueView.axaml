@@ -497,6 +497,22 @@
                         <avalonia1:FluentIcon Height="18" Icon="DesktopEdit" IconSize="Size16"
                                               IconVariant="Regular" />
                     </Button>
+                    <Button Classes="BasicTight TaskQueueBasicTight"
+                            Command="{Binding ReconnectCommand}"
+                            IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
+                            Padding="0"
+                            Width="24"
+                            Height="24"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
+                            ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.Reconnect}}"
+                            VerticalAlignment="Center">
+                        <Path Data="{StaticResource LinkGeometry}"
+                              Width="16"
+                              Height="16"
+                              Stretch="Uniform"
+                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                    </Button>
                     <Button Classes="BasicTight TaskQueueBasicTight SyncButton"
                             ClipToBounds="False"
                             Command="{Binding RefreshCommand}"
@@ -775,6 +791,7 @@
                              ex:DragDropExtensions.EnableDragDrop="True"
                              ex:DragDropExtensions.DragStartThreshold="2"
                              ex:DragDropExtensions.EnableAnimation="True"
+                             ex:ScrollViewerExtensions.EnableEdgeFade="True"
                              ItemsSource="{Binding Path=TaskItemViewModels}"
                              Margin="0,3,0,0"
                              MinHeight="150"

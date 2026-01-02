@@ -299,11 +299,33 @@ public class MaaProcessor
         return buffer?.ToBitmap();
     }
 
+    public Bitmap? GetLiveViewCached()
+    {
+        using var buffer = GetImage(MaaTasker?.Controller, false);
+        return buffer?.ToBitmap();
+    }
+
+    public void PostScreencap()
+    {
+        var controller = MaaTasker?.Controller;
+        if (controller == null)
+            return;
+
+        try
+        {
+            controller.Screencap().Wait();
+        }
+        catch (Exception ex)
+        {
+            LoggerHelper.Warning($"PostScreencap failed: {ex.Message}");
+        }
+    }
+
     public MaaImageBuffer? GetLiveViewBuffer(bool test = true)
     {
         if (test)
             TryConnectAsync(CancellationToken.None);
-        return GetImage(MaaTasker?.Controller, MaaTasker?.IsRunning != true);
+        return GetImage(MaaTasker?.Controller, false);
     }
 
     /// <summary>
@@ -1816,6 +1838,11 @@ public class MaaProcessor
         Instances.TaskQueueViewModel.SetConnected(task?.Status == MaaJobStatus.Succeeded);
     }
 
+    public async Task ReconnectAsync(CancellationToken token = default, bool showMessage = true)
+    {
+        await HandleDeviceConnectionAsync(token, showMessage);
+    }
+
     public void Start(bool onlyStart = false, bool checkUpdate = false)
     {
         // 保存当前的任务列表，以便在重新加载时保留用户调整的顺序和 check 状态
@@ -2189,7 +2216,7 @@ public class MaaProcessor
                 {
                     if (Instances.ConnectSettingsUserControlModel.AutoDetectOnConnectionFailed) Instances.TaskQueueViewModel.TryReadAdbDeviceFromConfig(false, true);
                 }),
-            async t => await RetryConnectionAsync(t, showMessage, ReconnectByAdb, LangKeys.TryToReconnectByAdb),
+            async t => await RetryConnectionAsync(t, showMessage, ReconnectByAdb, LangKeys.TryToReconnect),
             async t => await RetryConnectionAsync(t, showMessage, RestartAdb, LangKeys.RestartAdb, Instances.ConnectSettingsUserControlModel.AllowAdbRestart),
             async t => await RetryConnectionAsync(t, showMessage, HardRestartAdb, LangKeys.HardRestartAdb, Instances.ConnectSettingsUserControlModel.AllowAdbHardRestart)
         };

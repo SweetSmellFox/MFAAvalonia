@@ -24,6 +24,7 @@ using SukiUI.Dialogs;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -774,8 +775,30 @@ public partial class TaskQueueViewModel : ViewModelBase
             .Dismiss().ByClickingBackground().TryShow();
     }
 
-
     private CancellationTokenSource? _refreshCancellationTokenSource;
+
+    [RelayCommand]
+    private async Task Reconnect()
+    {
+        if (CurrentResources.Count == 0 || string.IsNullOrWhiteSpace(CurrentResource) || CurrentResources.All(r => r.Name != CurrentResource))
+        {
+            ToastHelper.Warn(LangKeys.CannotStart.ToLocalization(), "ResourceNotSelected".ToLocalization());
+            LoggerHelper.Warning(LangKeys.CannotStart.ToLocalization());
+            return;
+        }
+
+        if (CurrentController != MaaControllerTypes.PlayCover && CurrentDevice == null)
+        {
+            ToastHelper.Warn(LangKeys.CannotStart.ToLocalization(), "DeviceNotSelected".ToLocalization());
+            LoggerHelper.Warning(LangKeys.CannotStart.ToLocalization());
+            return;
+        }
+
+        using var tokenSource = new CancellationTokenSource();
+        await MaaProcessor.Instance.ReconnectAsync(tokenSource.Token);
+        await MaaProcessor.Instance.TestConnecting();
+    }
+
     [RelayCommand]
     private void Refresh()
     {
@@ -791,7 +814,6 @@ public partial class TaskQueueViewModel : ViewModelBase
         TaskManager.RunTask(() => AutoDetectDevice(_refreshCancellationTokenSource.Token), _refreshCancellationTokenSource.Token, name: "刷新", handleError: (e) => HandleDetectionError(e, controllerType),
             catchException: true, shouldLog: true);
     }
-
 
     [RelayCommand]
     private void CloseE()
@@ -1504,6 +1526,7 @@ public partial class TaskQueueViewModel : ViewModelBase
     [ObservableProperty] private Bitmap? _liveViewImage;
     [ObservableProperty] private bool _isLiveViewExpanded = true;
     private WriteableBitmap? _liveViewWriteableBitmap;
+    private int _liveViewProcessing;
     [ObservableProperty] private double _liveViewFps;
     private DateTime _liveViewFpsWindowStart = DateTime.UtcNow;
     private int _liveViewFrameCount;
@@ -1562,11 +1585,8 @@ public partial class TaskQueueViewModel : ViewModelBase
         {
             try
             {
-
                 LiveViewImage?.Dispose();
-
                 LiveViewImage = bitmap;
-
                 _liveViewFrameCount++;
                 var elapsed = (DateTime.UtcNow - _liveViewFpsWindowStart).TotalSeconds;
                 if (elapsed >= 1)
@@ -1582,7 +1602,6 @@ public partial class TaskQueueViewModel : ViewModelBase
             }
         });
     }
-
     public void UpdateLiveViewImage(MaaImageBuffer? buffer)
     {
         if (buffer == null)
@@ -1598,34 +1617,128 @@ public partial class TaskQueueViewModel : ViewModelBase
             });
             return;
         }
-        if (!buffer.TryGetEncodedData(out Stream encodedDataStream))
+
+        if (Interlocked.Exchange(ref _liveViewProcessing, 1) == 1)
         {
             buffer.Dispose();
             return;
         }
+        if (!buffer.TryGetRawData(out var rawData, out var width, out var height, out _))
+        {
+            buffer.Dispose();
+            Interlocked.Exchange(ref _liveViewProcessing, 0);
+            return;
+        }
+
+        var channels = buffer.Channels;
+        if (channels != 4)
+        {
+            if (!buffer.TryGetEncodedData(out Stream encodedDataStream))
+            {
+                buffer.Dispose();
+                Interlocked.Exchange(ref _liveViewProcessing, 0);
+                return;
+            }
+    
+            Task.Run(() =>
+            {
+                Bitmap? decodedBitmap = null;
+                try
+                {
+                    using var decodeStream = encodedDataStream;
+                    decodedBitmap = new Bitmap(decodeStream);
+                }
+                catch
+                {
+                    decodedBitmap?.Dispose();
+                    decodedBitmap = null;
+                }
+    
+                if (decodedBitmap != null)
+                {
+                    DispatcherHelper.PostOnMainThread(() =>
+                    {
+                        try
+                        {
+                            if (_liveViewWriteableBitmap == null
+                                || _liveViewWriteableBitmap.PixelSize != decodedBitmap.PixelSize)
+                            {
+                                _liveViewWriteableBitmap?.Dispose();
+                                _liveViewWriteableBitmap = new WriteableBitmap(
+                                    decodedBitmap.PixelSize,
+                                    decodedBitmap.Dpi,
+                                    PixelFormat.Bgra8888,
+                                    AlphaFormat.Premul);
+    
+                                LiveViewImage = _liveViewWriteableBitmap;
+                            }
+    
+                            using var framebuffer = _liveViewWriteableBitmap!.Lock();
+                            decodedBitmap.CopyPixels(framebuffer, AlphaFormat.Premul);
+    
+                            _liveViewFrameCount++;
+                            var elapsed = (DateTime.UtcNow - _liveViewFpsWindowStart).TotalSeconds;
+                            if (elapsed >= 1)
+                            {
+                                LiveViewFps = _liveViewFrameCount / elapsed;
+                                _liveViewFrameCount = 0;
+                                _liveViewFpsWindowStart = DateTime.UtcNow;
+                            }
+                        }
+                        finally
+                        {
+                            decodedBitmap.Dispose();
+                            buffer.Dispose();
+                            Interlocked.Exchange(ref _liveViewProcessing, 0);
+                        }
+                    });
+                }
+                else
+                {
+                    buffer.Dispose();
+                    Interlocked.Exchange(ref _liveViewProcessing, 0);
+                }
+            });
+            return;
+        }
+
+        var pixelFormat = PixelFormat.Bgra8888;
 
         DispatcherHelper.PostOnMainThread(() =>
         {
             try
             {
-                encodedDataStream.Seek(0, SeekOrigin.Begin);
-                using var decodedBitmap = new Bitmap(encodedDataStream);
+                if (width <= 0 || height <= 0)
+                    return;
 
                 if (_liveViewWriteableBitmap == null
-                    || _liveViewWriteableBitmap.PixelSize != decodedBitmap.PixelSize)
+                    || _liveViewWriteableBitmap.PixelSize.Width != width
+                    || _liveViewWriteableBitmap.PixelSize.Height != height
+                    || _liveViewWriteableBitmap.Format != pixelFormat)
                 {
                     _liveViewWriteableBitmap?.Dispose();
                     _liveViewWriteableBitmap = new WriteableBitmap(
-                        decodedBitmap.PixelSize,
-                        decodedBitmap.Dpi,
-                        PixelFormat.Bgra8888,
+                        new PixelSize(width, height),
+                        new Vector(96, 96),
+                        pixelFormat,
                         AlphaFormat.Premul);
 
                     LiveViewImage = _liveViewWriteableBitmap;
                 }
 
-                using var framebuffer = _liveViewWriteableBitmap!.Lock();
-                decodedBitmap.CopyPixels(framebuffer, AlphaFormat.Premul);
+                unsafe
+                {
+                    using var framebuffer = _liveViewWriteableBitmap!.Lock();
+                    var src = (byte*)rawData;
+                    var dst = (byte*)framebuffer.Address;
+                    var srcStride = width * channels;
+                    var dstStride = framebuffer.RowBytes;
+                    var rowCopy = Math.Min(srcStride, dstStride);
+                    for (var y = 0; y < height; y++)
+                    {
+                        Buffer.MemoryCopy(src + y * srcStride, dst + y * dstStride, dstStride, rowCopy);
+                    }
+                }
 
                 _liveViewFrameCount++;
                 var elapsed = (DateTime.UtcNow - _liveViewFpsWindowStart).TotalSeconds;
@@ -1636,14 +1749,10 @@ public partial class TaskQueueViewModel : ViewModelBase
                     _liveViewFpsWindowStart = DateTime.UtcNow;
                 }
             }
-            catch
-            {
-                // 忽略解码失败
-            }
             finally
             {
-                encodedDataStream.Dispose();
                 buffer.Dispose();
+                Interlocked.Exchange(ref _liveViewProcessing, 0);
             }
         });
     }

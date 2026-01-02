@@ -330,7 +330,7 @@ public static class LangKeys
 	public static readonly string Tip = "Tip";
 	public static readonly string TooltipDragLabel = "TooltipDragLabel";
 	public static readonly string TooltipRefresh = "TooltipRefresh";
-	public static readonly string TryToReconnectByAdb = "TryToReconnectByAdb";
+	public static readonly string TryToReconnect = "TryToReconnect";
 	public static readonly string TryToStartEmulator = "TryToStartEmulator";
 	public static readonly string UiSettings = "UiSettings";
 	public static readonly string Unconnected = "Unconnected";
@@ -476,6 +476,8 @@ public static class LangKeys
 	public static readonly string FontScaleValue = "FontScaleValue";
 	public static readonly string ResourceAutoSwitched = "ResourceAutoSwitched";
 	public static readonly string ResourceNotSupportController = "ResourceNotSupportController";
+	public static readonly string ResourceNotSelected = "ResourceNotSelected";
+	public static readonly string DeviceNotSelected = "DeviceNotSelected";
 	public static readonly string ResourcePresetConfig = "ResourcePresetConfig";
 	public static readonly string UseFingerprintMatching = "UseFingerprintMatching";
 	public static readonly string LiveView = "LiveView";
@@ -484,4 +486,5 @@ public static class LangKeys
 	public static readonly string LiveViewRefreshRate = "LiveViewRefreshRate";
 	public static readonly string PlayCoverAddress = "PlayCoverAddress";
 	public static readonly string PlayCoverBundleIdentifier = "PlayCoverBundleIdentifier";
+	public static readonly string Reconnect = "Reconnect";
 }

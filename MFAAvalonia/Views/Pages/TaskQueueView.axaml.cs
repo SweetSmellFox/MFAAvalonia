@@ -27,6 +27,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -56,7 +57,7 @@ public partial class TaskQueueView : UserControl
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
     }
-    
+
 // private void UpdateDeviceSelectorLayout()
 // {
 //     // 只有在三行布局模式（_currentLayoutMode == 2）时才使用垂直布局
@@ -103,8 +104,6 @@ public partial class TaskQueueView : UserControl
 // }
 
     #region UI
-
-
 
     private void SelectingItemsControl_OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
@@ -170,8 +169,9 @@ public partial class TaskQueueView : UserControl
             }
         }
     }
+
     #endregion
-    
+
     #region 任务选项
 
     private static readonly ConcurrentDictionary<string, Control> CommonPanelCache = new();
@@ -2172,13 +2172,14 @@ public partial class TaskQueueView : UserControl
         //
         // return string.Join("\n", lines);
     }
-    
+
     #endregion
 
     #region 实时图像
-    
+
     private CancellationTokenSource? _liveViewCts;
     private Task? _liveViewTask;
+    private Task? _liveViewCaptureTask;
 
     private void OnTaskQueueViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -2244,6 +2245,7 @@ public partial class TaskQueueView : UserControl
     {
         _liveViewCts?.Cancel();
         _liveViewCts = new CancellationTokenSource();
+        _liveViewCaptureTask = Task.Run(() => LiveViewCaptureLoopAsync(_liveViewCts.Token));
         _liveViewTask = Task.Run(() => LiveViewLoopAsync(_liveViewCts.Token));
     }
 
@@ -2252,6 +2254,7 @@ public partial class TaskQueueView : UserControl
         _liveViewCts?.Cancel();
         _liveViewCts = null;
         _liveViewTask = null;
+        _liveViewCaptureTask = null;
     }
 
     private async Task LiveViewLoopAsync(CancellationToken token)
@@ -2259,19 +2262,17 @@ public partial class TaskQueueView : UserControl
         while (!token.IsCancellationRequested)
         {
             var interval = Instances.TaskQueueViewModel.GetLiveViewRefreshInterval();
+            var stopwatch = Stopwatch.StartNew();
             try
             {
                 if (Instances.TaskQueueViewModel.EnableLiveView && Instances.TaskQueueViewModel.IsConnected)
                 {
-                    var bitmap = MaaProcessor.Instance.GetLiveView(false);
-                    Dispatcher.UIThread.Post(() =>
-                    {
-                        Instances.TaskQueueViewModel.UpdateLiveViewImage(bitmap);
-                    });
+                    var bitmap = MaaProcessor.Instance.GetLiveViewCached();
+                    Instances.TaskQueueViewModel.UpdateLiveViewImage(bitmap);
                 }
                 else
                 {
-                    Dispatcher.UIThread.Post(() =>
+                    DispatcherHelper.PostOnMainThread(() =>
                     {
                         Instances.TaskQueueViewModel.UpdateLiveViewImage((Bitmap?)null);
                     });
@@ -2281,8 +2282,48 @@ public partial class TaskQueueView : UserControl
             {
                 // 忽略截图失败
             }
+            finally
+            {
+                stopwatch.Stop();
+            }
 
-            await Task.Delay(TimeSpan.FromSeconds(interval), token);
+            var remaining = TimeSpan.FromSeconds(interval) - stopwatch.Elapsed;
+            if (remaining < TimeSpan.Zero)
+                remaining = TimeSpan.Zero;
+
+            await Task.Delay(remaining, token);
+        }
+    }
+
+    private async Task LiveViewCaptureLoopAsync(CancellationToken token)
+    {
+        while (!token.IsCancellationRequested)
+        {
+            try
+            {
+                if (Instances.TaskQueueViewModel.EnableLiveView && Instances.TaskQueueViewModel.IsConnected && !MaaProcessor.Instance.MaaTasker!.IsRunning)
+                {
+                    var interval = Instances.TaskQueueViewModel.GetLiveViewRefreshInterval();
+                    var stopwatch = Stopwatch.StartNew();
+
+                    MaaProcessor.Instance.PostScreencap();
+
+                    stopwatch.Stop();
+                    var remaining = TimeSpan.FromSeconds(interval) - stopwatch.Elapsed;
+                    if (remaining < TimeSpan.Zero)
+                        remaining = TimeSpan.Zero;
+
+                    await Task.Delay(remaining, token);
+                }
+                else
+                {
+                    await Task.Delay(TimeSpan.FromMilliseconds(1000), token);
+                }
+            }
+            catch
+            {
+                // 忽略截图失败
+            }
         }
     }
 
