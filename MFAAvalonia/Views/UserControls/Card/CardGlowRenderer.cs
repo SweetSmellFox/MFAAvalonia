@@ -36,9 +36,9 @@ public class CardGlowRenderer : Control
     /// <summary>
     /// 降采样因子 (0.1 ~ 1.0)
     /// 降低渲染分辨率以提高性能。例如 0.5 表示长宽各减半，像素数减少75%。
-    /// 默认值: 0.1
+    /// 默认值: 0.5
     /// </summary>
-    public static double DownsampleFactor { get; set; } = 0.5;
+    public static double DownsampleFactor { get; set; } = 0.7;
     // ==========================================
 
     #region 依赖属性
@@ -159,8 +159,9 @@ public class CardGlowRenderer : Control
     /// - SkiaSharp的shader.eval()需要使用像素坐标，而不是归一化坐标
     /// - 需要根据图像实际尺寸进行缩放采样
     /// </summary>
-    private const string GlowShaderCode = @"
+    public const string GlowShaderCode = @"
 // === 自定义Uniform变量 ===
+uniform float iRenderGlowOnly;      // 是否仅渲染流光通道 (1.0=是, 0.0=否)
 uniform shader iImage;              // 卡牌原始图像
 uniform shader iMask;               // 流光遮罩图像
 
@@ -267,6 +268,14 @@ vec4 main(vec2 fragCoord) {
         totalGlow *= mix(1.0, sparkle, iSparkleIntensity);
     }
     
+    // === 分离通道渲染支持 ===
+    if (iRenderGlowOnly > 0.5) {
+        // 仅输出流光颜色 (预乘Alpha)
+        // 必须保留原始Alpha通道信息，否则透明区域会变成黑色不透明
+        // 注意：必须乘以 iAlpha，否则透明度变化时流光亮度不会随之减弱
+        return vec4(totalGlow * originalColor.a * iAlpha, originalColor.a * iAlpha);
+    }
+
     vec3 finalColor = blendColors(color, totalGlow, iBlendMode);
     return vec4(clamp(finalColor, 0.0, 1.0), originalColor.a * iAlpha);
 }
@@ -770,9 +779,10 @@ vec4 main(vec2 fragCoord) {
         private float _lastMaskWidth = -1;
         private float _lastMaskHeight = -1;
         private float _alpha = 1.0f;
+        private float _renderGlowOnly = 0.0f;
 
         // 降帧：大量卡片同时发光时 60fps 会让 CPU 爆炸，这里默认限制到 20fps
-        private const double TargetFps = 20;
+        private const double TargetFps = 60;
         private double _lastInvalidateSeconds;
 
         // Uniform数组预分配，避免每帧GC
@@ -1066,32 +1076,80 @@ uniform vec3 iResolution;
                     if (w < 1) w = 1;
                     if (h < 1) h = 1;
 
-                    // 检查缓冲区是否需要重建
-                    if (_offscreenBitmap == null || _offscreenBitmap.Width != w || _offscreenBitmap.Height != h)
+                    // 尝试使用预渲染缓存
+                    // 只有当遮罩是共享资源（通常是默认遮罩）时才使用缓存，避免自定义遮罩导致内存爆炸
+                    SKImage[]? cachedFrames = null;
+                    if (_maskBitmapShared)
                     {
-                        _offscreenCanvas?.Dispose();
-                        _offscreenBitmap?.Dispose();
-                        
-                        _offscreenBitmap = new SKBitmap(w, h);
-                        _offscreenCanvas = new SKCanvas(_offscreenBitmap);
+                        cachedFrames = GlowAnimationCache.GetOrStartPreRender(_config, w, h, _maskBitmap);
                     }
 
-                    // 清空缓冲区
-                    _offscreenCanvas.Clear(SKColors.Transparent);
+                    if (cachedFrames != null && cachedFrames.Length > 0)
+                    {
+                        // === 使用预渲染帧 ===
+                        // 2.1 先画高清原图 (底图)
+                        lease.SkCanvas.DrawBitmap(_sourceBitmap, rect);
 
-                    // 在小画布上渲染
-                    // 注意：这里传入的 rect 必须是 (0, 0, w, h)，因为 offscreenCanvas 是从 0,0 开始的
-                    var smallRect = SKRect.Create(0, 0, w, h);
-                    Render(_offscreenCanvas, smallRect);
+                        // 计算当前帧索引
+                        float speed = Math.Max(0.01f, _config.FlowSpeed);
+                        float duration = 5.5f / speed;
+                        float time = (float)_animationTick.Elapsed.TotalSeconds;
+                        
+                        int totalFrames = cachedFrames.Length;
+                        float frameTime = time % duration;
+                        int frameIndex = (int)((frameTime / duration) * totalFrames) % totalFrames;
+                        if (frameIndex < 0) frameIndex = 0;
+                        
+                        var frame = cachedFrames[frameIndex];
+                        
+                        // 2.2 再画预渲染的流光帧
+                        var blendMode = (int)_config.BlendMode == 0 ? SKBlendMode.Plus : SKBlendMode.Screen;
+                        using var paint = new SKPaint 
+                        { 
+                            FilterQuality = SKFilterQuality.Low,
+                            IsAntialias = false,
+                            BlendMode = blendMode,
+                            Color = new SKColor(255, 255, 255, (byte)(255 * _alpha)) // 应用整体透明度
+                        };
+                        
+                        lease.SkCanvas.DrawImage(frame, rect, paint);
+                    }
+                    else
+                    {
+                        // === 实时渲染回退 (未命中缓存或正在生成) ===
 
-                    // 将小图绘制到主画布，并拉伸到原始 rect
-                    // 使用低质量采样以获得那种“像素风”或者“模糊”效果，同时性能最好
-                    using var paint = new SKPaint 
-                    { 
-                        FilterQuality = SKFilterQuality.Low,
-                        IsAntialias = false
-                    };
-                    lease.SkCanvas.DrawBitmap(_offscreenBitmap, rect, paint);
+                        // 检查缓冲区是否需要重建
+                        if (_offscreenBitmap == null || _offscreenBitmap.Width != w || _offscreenBitmap.Height != h)
+                        {
+                            _offscreenCanvas?.Dispose();
+                            _offscreenBitmap?.Dispose();
+                            
+                            _offscreenBitmap = new SKBitmap(w, h);
+                            _offscreenCanvas = new SKCanvas(_offscreenBitmap);
+                        }
+
+                        // 清空缓冲区
+                        _offscreenCanvas.Clear(SKColors.Transparent);
+
+                        // === Pass 1: 渲染流光到低分辨率缓冲区 ===
+                        _renderGlowOnly = 1.0f;
+                        var smallRect = SKRect.Create(0, 0, w, h);
+                        Render(_offscreenCanvas, smallRect);
+                        _renderGlowOnly = 0.0f;
+
+                        // === Pass 2: 组合渲染 ===
+                        lease.SkCanvas.DrawBitmap(_sourceBitmap, rect);
+
+                        var blendMode = (int)_config.BlendMode == 0 ? SKBlendMode.Plus : SKBlendMode.Screen;
+                        
+                        using var paint = new SKPaint 
+                        { 
+                            FilterQuality = SKFilterQuality.Low,
+                            IsAntialias = false,
+                            BlendMode = blendMode
+                        };
+                        lease.SkCanvas.DrawBitmap(_offscreenBitmap, rect, paint);
+                    }
                 }
             }
         }
@@ -1132,6 +1190,7 @@ uniform vec3 iResolution;
                         // 基础参数
                         { "iTime", time },
                         { "iAlpha", _alpha },
+                        { "iRenderGlowOnly", _renderGlowOnly },
                         { "iResolution", _resolutionAlloc },
                         
                         // 图像尺寸

@@ -379,7 +379,6 @@ uniform vec3 iResolution;
                 if (_renderCount >= 20)
                 {
                     var avgTime = _totalRenderTime / _renderCount;
-                    Console.WriteLine($"[CardBorder Perf] Avg Render: {avgTime:F3} ms | FPS: {1000.0 / avgTime:F1} (Theoretical) | Size: {_width:F0}x{_height:F0}");
                     _renderCount = 0;
                     _totalRenderTime = 0;
                 }
