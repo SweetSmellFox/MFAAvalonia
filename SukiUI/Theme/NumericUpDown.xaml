@@ -1,0 +1,237 @@
+﻿<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:suki="https://github.com/kikipoulet/SukiUI"
+                    xmlns:system="clr-namespace:System;assembly=netstandard">
+    <!--  Add Resources Here  -->
+    <Design.PreviewWith>
+        <Border Padding="20">
+            <Border.Styles>
+                <Style Selector="NumericUpDown">
+                    <Setter Property="Width" Value="300" />
+                </Style>
+            </Border.Styles>
+            <StackPanel Orientation="Vertical" Spacing="5">
+
+                <NumericUpDown IsReadOnly="True"
+                               ShowButtonSpinner="False"
+                               Value="120" />
+                <NumericUpDown IsEnabled="False" Value="120" />
+                <NumericUpDown AllowSpin="False" Value="120" />
+                <NumericUpDown Height="64"
+                               suki:NumericUpDownExtensions.UseFloatingWatermark="True"
+                               Increment="0.05"
+                               Watermark="Large height"
+                               Value="120" />
+                <NumericUpDown suki:NumericUpDownExtensions.Unit="mm"
+                               FormatString="F0"
+                               Value="120" />
+                <NumericUpDown suki:NumericUpDownExtensions.Unit="mm"
+                               ButtonSpinnerLocation="Left"
+                               FormatString="F0"
+                               Value="120" />
+                <NumericUpDown FormatString="F0"
+                               InnerLeftContent="[L]"
+                               InnerRightContent="[R]"
+                               Value="120" />
+                <NumericUpDown suki:NumericUpDownExtensions.Unit="mm"
+                               FormatString="F0"
+                               InnerLeftContent="[L]"
+                               InnerRightContent="[R]"
+                               Watermark="Validation"
+                               Value="120">
+                    <DataValidationErrors.Error>
+                        <system:Exception>
+                            <x:Arguments>
+                                <x:String>Validation error</x:String>
+                            </x:Arguments>
+                        </system:Exception>
+                    </DataValidationErrors.Error>
+                </NumericUpDown>
+                <NumericUpDown suki:NumericUpDownExtensions.Unit="mm"
+                               suki:NumericUpDownExtensions.UseFloatingWatermark="True"
+                               FormatString="F0"
+                               InnerLeftContent="[L]"
+                               InnerRightContent="[R]"
+                               Watermark="Validation"
+                               Value="120">
+                    <DataValidationErrors.Error>
+                        <system:Exception>
+                            <x:Arguments>
+                                <x:String>Validation error</x:String>
+                            </x:Arguments>
+                        </system:Exception>
+                    </DataValidationErrors.Error>
+                </NumericUpDown>
+            </StackPanel>
+        </Border>
+    </Design.PreviewWith>
+
+    <ControlTheme x:Key="SukiNumericUpDownButtonSpinner" TargetType="ButtonSpinner">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SukiControlBorderBrush}" />
+        <Setter Property="BorderThickness" Value="{DynamicResource ThemeBorderThickness}" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Focusable" Value="True" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Name="border"
+                        Margin="{TemplateBinding Padding}"
+                        HorizontalAlignment="{TemplateBinding HorizontalAlignment}"
+                        VerticalAlignment="{TemplateBinding VerticalAlignment}"
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="{TemplateBinding CornerRadius}">
+                    <DockPanel>
+                        <UniformGrid Name="PART_SpinnerPanel"
+                                     DockPanel.Dock="Right"
+                                     IsVisible="{TemplateBinding ShowButtonSpinner}"
+                                     Rows="2">
+                            <RepeatButton Name="PART_IncreaseButton"
+                                          BorderThickness="0"
+                                          Theme="{StaticResource SimpleButtonSpinnerRepeatButton}">
+                                <Path Width="8"
+                                      Height="4"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"
+                                      Data="M0,5 L4.5,.5 9,5 6,5 4.5,3.5 3,5 z"
+                                      Fill="{DynamicResource SukiText}"
+                                      Stretch="Uniform" />
+                            </RepeatButton>
+                            <RepeatButton Name="PART_DecreaseButton"
+                                          BorderThickness="0"
+                                          Theme="{StaticResource SimpleButtonSpinnerRepeatButton}">
+                                <Path Width="8"
+                                      Height="4"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"
+                                      Data="M0,0 L3,0 4.5,1.5 6,0 9,0 4.5,4.5 z"
+                                      Fill="{DynamicResource SukiText}"
+                                      Stretch="Uniform" />
+                            </RepeatButton>
+                        </UniformGrid>
+                        <ContentPresenter Name="PART_ContentPresenter"
+                                          Padding="{TemplateBinding Padding}"
+                                          HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                                          Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}" />
+                    </DockPanel>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+
+        <Style Selector="^:left">
+            <Style Selector="^ /template/ UniformGrid#PART_SpinnerPanel">
+                <Setter Property="DockPanel.Dock" Value="Left" />
+            </Style>
+        </Style>
+
+        <Style Selector="^:pointerover /template/ Border#border">
+            <Setter Property="BorderBrush" Value="{DynamicResource SukiBorderBrush}" />
+        </Style>
+        <Style Selector="^:focus /template/ Border#border">
+            <Setter Property="BorderBrush" Value="{DynamicResource SukiBorderBrush}" />
+        </Style>
+        <Style Selector="^:error /template/ Border#border">
+            <Setter Property="BorderBrush" Value="{DynamicResource SukiBorderBrush}" />
+        </Style>
+    </ControlTheme>
+
+    <ControlTheme x:Key="SukiNumericUpDown" TargetType="NumericUpDown">
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Foreground" Value="{DynamicResource SukiText}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SukiControlBorderBrush}" />
+        <Setter Property="CornerRadius" Value="{DynamicResource SmallCornerRadius}" />
+        <Setter Property="Background" Value="{DynamicResource SukiGlassCardBackground}" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Padding" Value="5,5,0,5" />
+        <Setter Property="MinHeight" Value="36" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <suki:GlassCard Name="PART_GlassCard"
+                                Padding="0"
+                                HorizontalAlignment="{TemplateBinding HorizontalAlignment}"
+                                VerticalAlignment="{TemplateBinding VerticalAlignment}"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{TemplateBinding CornerRadius}">
+                    <suki:GlassCard.Transitions>
+                        <Transitions>
+                            <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                        </Transitions>
+                    </suki:GlassCard.Transitions>
+                    <ButtonSpinner Name="PART_Spinner"
+                                   Margin="5,0"
+                                   HorizontalContentAlignment="Stretch"
+                                   VerticalContentAlignment="Stretch"
+                                   AllowSpin="{TemplateBinding AllowSpin}"
+                                   Background="Transparent"
+                                   BorderThickness="0"
+                                   ButtonSpinnerLocation="{TemplateBinding ButtonSpinnerLocation}"
+                                   CornerRadius="{TemplateBinding CornerRadius}"
+                                   ShowButtonSpinner="{TemplateBinding ShowButtonSpinner}"
+                                   Theme="{StaticResource SukiNumericUpDownButtonSpinner}">
+                        <Grid ColumnDefinitions="*,Auto"
+                              ColumnSpacing="5"
+                              RowDefinitions="*">
+                            <DataValidationErrors Grid.Column="0">
+                                <TextBox Name="PART_TextBox"
+                                         MinWidth="20"
+                                         MinHeight="34"
+                                         Padding="{TemplateBinding Padding}"
+                                         HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                         VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                                         AcceptsReturn="False"
+                                         Background="Transparent"
+                                         BorderBrush="Transparent"
+                                         BorderThickness="0"
+                                         CornerRadius="0"
+                                         FontSize="{TemplateBinding FontSize}"
+                                         FontWeight="{TemplateBinding FontWeight}"
+                                         Foreground="{TemplateBinding Foreground}"
+                                         InnerLeftContent="{TemplateBinding InnerLeftContent}"
+                                         InnerRightContent="{TemplateBinding InnerRightContent}"
+                                         IsReadOnly="{TemplateBinding IsReadOnly}"
+                                         Text="{TemplateBinding Text}"
+                                         TextWrapping="NoWrap"
+                                         UseFloatingWatermark="{TemplateBinding suki:NumericUpDownExtensions.UseFloatingWatermark}"
+                                         Watermark="{TemplateBinding Watermark}" />
+                            </DataValidationErrors>
+                            <ContentPresenter Grid.Column="1"
+                                              Margin="0,0,5,0"
+                                              VerticalAlignment="Center"
+                                              Content="{TemplateBinding suki:NumericUpDownExtensions.Unit}"
+                                              FontSize="{TemplateBinding FontSize}"
+                                              Foreground="{DynamicResource SukiLowText}"
+                                              IsVisible="{TemplateBinding suki:NumericUpDownExtensions.Unit, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                        </Grid>
+
+                    </ButtonSpinner>
+                </suki:GlassCard>
+            </ControlTemplate>
+        </Setter>
+
+        <Style Selector="^:disabled">
+            <Setter Property="Opacity" Value="{DynamicResource ThemeDisabledOpacity}" />
+        </Style>
+
+        <Style Selector="^:pointerover, ^:focus">
+            <Setter Property="BorderBrush" Value="{DynamicResource SukiPrimaryColor}" />
+        </Style>
+
+        <Style Selector="^:error">
+            <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}" />
+        </Style>
+
+    </ControlTheme>
+
+    <ControlTheme x:Key="{x:Type NumericUpDown}"
+                  BasedOn="{StaticResource SukiNumericUpDown}"
+                  TargetType="NumericUpDown" />
+
+</ResourceDictionary>

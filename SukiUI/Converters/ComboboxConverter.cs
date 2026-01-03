@@ -3,7 +3,7 @@ using System;
 using System.Collections;
 using System.Globalization;
 
-namespace SukiUI.Theme
+namespace SukiUI.Converters
 {
     public class PlusNineConverter : IValueConverter
     {

@@ -149,6 +149,10 @@
         <HintPath>..\..\..\nuget\packages\calcbindingava\2.5.3\lib\net6.0\CalcBindingAva.dll</HintPath>
       </Reference>
     </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Controls\Gauges\" />
+    </ItemGroup>
     
     <PropertyGroup>
         <!-- 禁用所有编译器警告 -->

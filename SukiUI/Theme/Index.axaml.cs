@@ -79,7 +79,6 @@ public partial class SukiTheme : Styles
     private readonly HashSet<SukiColorTheme> _colorThemeHashset = new();
     private readonly AvaloniaList<SukiColorTheme> _allThemes = new();
 
-
     public SukiTheme()
     {
         AvaloniaXamlLoader.Load(this);
@@ -144,7 +143,8 @@ public partial class SukiTheme : Styles
         _colorThemeHashset.Add(sukiColorTheme);
         _allThemes.Add(sukiColorTheme);
     }
-    
+
+        
     public void RemoveColorTheme(SukiColorTheme sukiColorTheme)
     {
         if (!_colorThemeHashset.Contains(sukiColorTheme))
@@ -152,7 +152,7 @@ public partial class SukiTheme : Styles
         _colorThemeHashset.Remove(sukiColorTheme);
         _allThemes.Remove(sukiColorTheme);
     }
-    
+
     /// <summary>
     /// Adds multiple new <see cref="SukiColorTheme"/> to the ones available, without making any active.
     /// </summary>
@@ -171,6 +171,8 @@ public partial class SukiTheme : Styles
     {
         if (_app.ActualThemeVariant == baseTheme) return;
         _app.RequestedThemeVariant = baseTheme;
+        
+        SetColorThemeResourcesOnColorThemeChanged();
     }
 
     /// <summary>
@@ -183,6 +185,8 @@ public partial class SukiTheme : Styles
             ? ThemeVariant.Light
             : ThemeVariant.Dark;
         Application.Current.RequestedThemeVariant = newBase;
+        
+        SetColorThemeResourcesOnColorThemeChanged();
     }
 
     private void UpdateFlowDirectionResources(bool rightToLeft)
@@ -229,6 +233,45 @@ public partial class SukiTheme : Styles
         SetResource($"{baseName}3", baseColor.WithAlpha(0.03));
         SetResource($"{baseName}1", baseColor.WithAlpha(0.005));
         SetResource($"{baseName}0", baseColor.WithAlpha(0.00));
+
+        if (ActiveBaseTheme == ThemeVariant.Dark)
+        {
+            SetResource($"{baseName}120", Lighten(baseColor,0.7));
+            SetResource($"{baseName}150",  Lighten(baseColor,1));
+        }
+        else
+        {
+            SetResource($"{baseName}120", baseColor);
+            SetResource($"{baseName}150", baseColor);
+        }
+    }
+    
+    public static Color Lighten(Color color, double amount)
+    {
+        amount = Clamp(amount, 0.0, 1.0);
+
+        byte lighten(byte component)
+        {
+            int result = (int)(component + (255 - component) * amount);
+            return (byte)Clamp(result, 0, 255);
+        }
+
+        return Color.FromArgb(
+            color.A,
+            lighten(color.R),
+            lighten(color.G),
+            lighten(color.B)
+        );
+    }
+
+    public static double Clamp(double value, double min, double max)
+    {
+        return value < min ? min : (value > max ? max : value);
+    }
+
+    private static int Clamp(int value, int min, int max)
+    {
+        return value < min ? min : (value > max ? max : value);
     }
 
     private void SetResource(string name, Color color) =>
@@ -289,7 +332,7 @@ public partial class SukiTheme : Styles
         }
     };
 
-    private static readonly ResourceDictionary DefaultResource = new en_us();
+    private static readonly ResourceDictionary DefaultResource = new zh_hans();
 
     private CultureInfo? _locale;
 
@@ -307,8 +350,6 @@ public partial class SukiTheme : Styles
                 }
                 else
                 {
-                    Console.WriteLine("Locale not found, setting to default.");
-
                     _locale = new CultureInfo("en-US");
                     foreach (var keyValue in DefaultResource) Resources[keyValue.Key] = keyValue.Value;
                 }
@@ -320,21 +361,21 @@ public partial class SukiTheme : Styles
         }
     }
 
-    private static bool TryGetLocaleResource(CultureInfo? info, out ResourceDictionary? resourceDictionary)
+    private static bool TryGetLocaleResource(CultureInfo? locale, out ResourceDictionary? resourceDictionary)
     {
-        if (Equals(info, CultureInfo.InvariantCulture))
+        if (Equals(locale, CultureInfo.InvariantCulture))
         {
             resourceDictionary = DefaultResource;
             return true;
         }
 
-        if (info?.Name is null)
+        if (locale is null)
         {
             resourceDictionary = DefaultResource;
             return false;
         }
 
-        if (LocaleToResource.TryGetValue(info.Name, out var resource))
+        if (LocaleToResource.TryGetValue(locale.Name, out var resource))
         {
             resourceDictionary = resource;
             return true;

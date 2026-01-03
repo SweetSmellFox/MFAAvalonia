@@ -457,10 +457,9 @@ public class TaskLoader(MaaInterface? maaInterface)
 
         // 创建最终的任务列表
         var finalItems = new List<DragItemViewModel>();
-
-        LoggerHelper.Info("drag:" +JsonConvert.SerializeObject(drags));
+        
         // 如果当前资源有 option 配置，在最前面添加资源设置项
-        if (currentResource?.Option != null && currentResource.Option.Count > 0)
+        if (currentResource?.Option is {Count: > 0})
         {
             var resourceOptionItem = CreateResourceOptionItem(currentResource, drags);
             if (resourceOptionItem != null)

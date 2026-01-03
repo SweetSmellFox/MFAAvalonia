@@ -42,6 +42,9 @@
     <data name="AdbSerial" xml:space="preserve">
         <value>Adb位址</value>
     </data>
+    <data name="AdbAddressEmpty" xml:space="preserve">
+        <value>Adb 位址不能為空</value>
+    </data>
     <data name="AddAbove" xml:space="preserve">
         <value>新增至上方</value>
     </data>

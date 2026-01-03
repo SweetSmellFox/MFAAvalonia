@@ -26,7 +26,7 @@
         </StackPanel>
     </Design.PreviewWith>
     <Style
-        Selector="TextBlock, SelectableTextBlock, TextBox, Button, RepeatButton, ToggleButton, RadioButton, SplitButton, DropDownButton">
+        Selector="TextBlock, SelectableTextBlock, TextBox, Button, RepeatButton, ToggleButton, RadioButton, SplitButton, ToggleSplitButton, DropDownButton, NumericUpDown">
         <Setter Property="TextElement.FontFamily" Value="{DynamicResource DefaultFontFamily}" />
     </Style>
 

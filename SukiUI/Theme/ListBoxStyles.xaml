@@ -1,6 +1,7 @@
 ﻿<Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:theme="clr-namespace:SukiUI.Theme">
+        xmlns:theme="clr-namespace:SukiUI.Theme"
+        xmlns:suki="https://github.com/kikipoulet/SukiUI">
     <Design.PreviewWith>
         <Border Padding="20" Background="{DynamicResource SukiBackground}">
             <StackPanel Orientation="Horizontal">
@@ -42,7 +43,7 @@
                         ClipToBounds="{TemplateBinding ClipToBounds}"
                         CornerRadius="{TemplateBinding CornerRadius}">
                     <Border.Resources>
-                        <theme:BiggestItemListBoxConverter x:Key="BiggestListItem" />
+                        <suki:BiggestItemListBoxConverter x:Key="BiggestListItem" />
                     </Border.Resources>
                     <Panel>
                         <ListBoxItem Margin="0,0,32,0"
@@ -83,7 +84,7 @@
                         ClipToBounds="{TemplateBinding ClipToBounds}"
                         CornerRadius="{TemplateBinding CornerRadius}">
                     <Border.Resources>
-                        <theme:BiggestItemListBoxConverter x:Key="BiggestListItem" />
+                        <suki:BiggestItemListBoxConverter x:Key="BiggestListItem" />
                     </Border.Resources>
                     <Panel>
                         <ListBoxItem Margin="0,0,32,0"

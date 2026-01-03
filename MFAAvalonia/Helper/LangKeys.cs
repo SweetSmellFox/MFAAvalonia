@@ -19,6 +19,7 @@ public static class LangKeys
 	public static readonly string AdbName = "AdbName";
 	public static readonly string AdbPath = "AdbPath";
 	public static readonly string AdbSerial = "AdbSerial";
+	public static readonly string AdbAddressEmpty = "AdbAddressEmpty";
 	public static readonly string AddAbove = "AddAbove";
 	public static readonly string AddBelow = "AddBelow";
 	public static readonly string AddConfiguration = "AddConfiguration";

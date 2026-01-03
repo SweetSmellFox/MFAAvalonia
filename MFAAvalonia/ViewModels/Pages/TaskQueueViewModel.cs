@@ -214,6 +214,15 @@ public partial class TaskQueueViewModel : ViewModelBase
             return;
         }
 
+        if (CurrentController == MaaControllerTypes.Adb
+            && CurrentDevice is AdbDeviceInfo adbInfo
+            && string.IsNullOrWhiteSpace(adbInfo.AdbSerial))
+        {
+            ToastHelper.Warn(LangKeys.CannotStart.ToLocalization(), LangKeys.AdbAddressEmpty.ToLocalization());
+            LoggerHelper.Warning(LangKeys.CannotStart.ToLocalization());
+            return;
+        }
+
         if (CurrentController == MaaControllerTypes.PlayCover
             && string.IsNullOrWhiteSpace(MaaProcessor.Config.PlayCover.PlayCoverAddress))
         {
@@ -794,6 +803,15 @@ public partial class TaskQueueViewModel : ViewModelBase
         if (CurrentController != MaaControllerTypes.PlayCover && CurrentDevice == null)
         {
             ToastHelper.Warn(LangKeys.CannotStart.ToLocalization(), "DeviceNotSelected".ToLocalization());
+            LoggerHelper.Warning(LangKeys.CannotStart.ToLocalization());
+            return;
+        }
+
+        if (CurrentController == MaaControllerTypes.Adb
+            && CurrentDevice is AdbDeviceInfo adbInfo
+            && string.IsNullOrWhiteSpace(adbInfo.AdbSerial))
+        {
+            ToastHelper.Warn(LangKeys.CannotStart.ToLocalization(), LangKeys.AdbAddressEmpty.ToLocalization());
             LoggerHelper.Warning(LangKeys.CannotStart.ToLocalization());
             return;
         }

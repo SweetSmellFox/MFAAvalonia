@@ -42,6 +42,9 @@
     <data name="AdbSerial" xml:space="preserve">
         <value>Adb Address</value>
     </data>
+    <data name="AdbAddressEmpty" xml:space="preserve">
+        <value>Adb address cannot be empty</value>
+    </data>
     <data name="AddAbove" xml:space="preserve">
         <value>Add Above</value>
     </data>

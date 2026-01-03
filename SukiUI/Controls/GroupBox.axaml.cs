@@ -1,37 +1,15 @@
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Markup.Xaml;
+using Avalonia.Controls.Metadata;
+using Avalonia.Controls.Presenters;
+using Avalonia.Controls.Primitives;
 
 namespace SukiUI.Controls
 {
-    public partial class GroupBox : UserControl
+    [TemplatePart("PART_HeaderPresenter", typeof(ContentPresenter), IsRequired = true)]
+    [TemplatePart("PART_ContentPresenter", typeof(ContentPresenter), IsRequired = true)]
+    public class GroupBox : HeaderedContentControl
     {
         public GroupBox()
         {
-            InitializeComponent();
-        }
-
-        private void InitializeComponent()
-        {
-            AvaloniaXamlLoader.Load(this);
-        }
-
-        public static readonly StyledProperty<object?> HeaderProperty =
-            AvaloniaProperty.Register<GroupBox, object?>(nameof(Header), defaultValue: "Header");
-
-
-        public object? Header
-        {
-            get => GetValue(HeaderProperty);
-            set => SetValue(HeaderProperty, value);
-        }
-
-        public static readonly StyledProperty<Thickness> SeparatorMarginProperty = AvaloniaProperty.Register<GroupBox, Thickness>(nameof(SeparatorMargin), defaultValue: new Thickness(0, 10, 0, 10));
-
-        public Thickness SeparatorMargin
-        {
-            get => this.GetValue<Thickness>(SeparatorMarginProperty);
-            set => this.SetValue<Thickness>(SeparatorMarginProperty, value);
         }
     }
 }

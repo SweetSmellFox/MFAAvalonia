@@ -87,7 +87,7 @@
                         </suki:GlassCard.Transitions>
                         <Grid ColumnDefinitions="*,Auto">
                             <Grid.Resources>
-                                <theme:BiggestItemConverter x:Key="BigItem" />
+                                <suki:BiggestItemConverter x:Key="BigItem" />
                             </Grid.Resources>
                             <TextBlock Name="PlaceholderTextBlock"
                                        Grid.Column="0"

@@ -22,7 +22,6 @@
     <StyleInclude Source="avares://SukiUI/Theme/ToolTipStyles.axaml" />
     <StyleInclude Source="avares://SukiUI/Theme/RadioButtonStyles.xaml" />
     <StyleInclude Source="avares://SukiUI/Theme/SliderStyles.xaml" />
-    <StyleInclude Source="avares://SukiUI/Theme/NumericUpDownStyles.xaml" />
     <StyleInclude Source="avares://SukiUI/Theme/DataGridStyle.axaml" />
     <StyleInclude Source="avares://SukiUI/Theme/ListBoxItemStyle.axaml" />
     <StyleInclude Source="avares://SukiUI/Theme/ComboBoxItemStyle.axaml" />
@@ -34,6 +33,10 @@
     <StyleInclude Source="avares://SukiUI/Theme/ButtonLoadingStyles.axaml" />
     <StyleInclude Source="avares://sukiUI/Theme/AutoCompleteBoxStyles.axaml" />
     <StyleInclude Source="avares://SukiUI/Controls/PasswordBox.axaml" />
+    <StyleInclude Source="avares://SukiUI/Theme/GridSplitterStyles.axaml"/>
+    <StyleInclude Source="avares://SukiUI/Controls/Gauges/HorizontalBarMeter/HorizontalBarMeterStyles.axaml"/>
+    <StyleInclude Source="avares://SukiUI/Controls/Gauges/VerticalBarMeter/VerticalBarMeterStyles.axaml"/>
+    <StyleInclude Source="avares://SukiUI/Controls/Gauges/RadialGauge/RadialGaugeStyles.axaml"/>
 
     <Styles.Resources>
         <ResourceDictionary>
@@ -85,7 +88,8 @@
                 <ResourceInclude Source="avares://sukiUI/Theme/Calendar/CalendarButton.axaml" />
                 <ResourceInclude Source="avares://sukiUI/Theme/Calendar/CalendarDayButton.axaml" />
                 <ResourceInclude Source="avares://sukiUI/Theme/Calendar/CalendarItem.axaml" />
-
+                <ResourceInclude Source="avares://SukiUI/Theme/NumericUpDown.xaml" />
+                
                 <ResourceInclude Source="avares://sukiUI/Controls/SukiImageViewer.axaml"/>
                 <ResourceInclude Source="avares://sukiUI/Controls/SukiMainHost.axaml" />
                 <ResourceInclude Source="avares://sukiUI/Controls/SukiWindow.axaml" />
@@ -93,6 +97,7 @@
                 <ResourceInclude Source="avares://sukiUI/Controls/Hosts/SukiToastHost.axaml" />
                 <ResourceInclude Source="avares://sukiUI/Controls/Hosts/SukiDialogHost.axaml" />
                 <ResourceInclude Source="avares://sukiUI/Controls/Hosts/SukiMessageBoxHost.axaml" />
+                <ResourceInclude Source="avares://sukiUI/Controls/GroupBox.axaml" />
                 <ResourceInclude Source="avares://sukiUI/Controls/SukiDialog.axaml" />
                 <ResourceInclude Source="avares://sukiUI/Controls/SukiSideMenu.axaml" />
                 <ResourceInclude Source="avares://sukiUI/Controls/SukiStackPage.axaml" />
@@ -103,7 +108,7 @@
                 <ResourceInclude Source="avares://sukiUI/Controls/InfoBar.axaml" />
                 <ResourceInclude Source="avares://sukiUI/Controls/GlassMorphism/GlassCard.axaml" />
                 <ResourceInclude Source="avares://sukiUI/Controls/ContentExpandControl.axaml" />
-
+                
                 <ResourceInclude Source="avares://SukiUI/Locale/en-US.axaml" />
             </ResourceDictionary.MergedDictionaries>
 
