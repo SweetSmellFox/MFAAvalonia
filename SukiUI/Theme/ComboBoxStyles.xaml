@@ -252,9 +252,6 @@
     <Style Selector="ComboBox.LimitWidth /template/ Popup#PART_Popup">
         <Setter Property="MinWidth"
                 Value="{calcBinding:Binding 'Bounds.Width + 30', RelativeSource={RelativeSource TemplatedParent}}" />
-
-        <Setter Property="MaxWidth"
-                Value="{calcBinding:Binding 'Bounds.Width + 30', RelativeSource={RelativeSource TemplatedParent}}" />
     </Style>
 
     <Style Selector="ComboBox:pointerover /template/ suki|GlassCard#border">
