@@ -78,7 +78,8 @@
                                     BorderBrush="{TemplateBinding BorderBrush}"
                                     BorderThickness="{TemplateBinding BorderThickness}"
                                     Classes="Discrete"
-                                    CornerRadius="{TemplateBinding CornerRadius}">
+                                    CornerRadius="{TemplateBinding CornerRadius}"
+                                    IsAnimated="False">
                         <suki:GlassCard.Transitions>
                             <Transitions>
                                 <BrushTransition Property="BorderBrush" Duration="0:0:0.2" />
@@ -157,7 +158,8 @@
                                                     CornerRadius="{DynamicResource SmallCornerRadius}">
                                                 <Panel Background="{DynamicResource PopupGradientBrush}">
                                                     <suki:GlassCard Margin="-1"
-                                                                    CornerRadius="{DynamicResource SmallCornerRadius}" />
+                                                                    CornerRadius="{DynamicResource SmallCornerRadius}"
+                                                                    IsAnimated="False" />
                                                     <ScrollViewer
                                                         HorizontalScrollBarVisibility="{TemplateBinding ScrollViewer.HorizontalScrollBarVisibility}"
                                                         VerticalScrollBarVisibility="{TemplateBinding ScrollViewer.VerticalScrollBarVisibility}">

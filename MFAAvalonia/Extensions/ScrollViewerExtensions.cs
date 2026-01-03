@@ -104,6 +104,10 @@ public static class ScrollViewerExtensions
         if (control is ScrollViewer sv)
             return sv;
 
+        var scrollViewerProperty = control.GetType().GetProperty("ScrollViewer");
+        if (scrollViewerProperty?.GetValue(control) is ScrollViewer attachedScrollViewer)
+            return attachedScrollViewer;
+
         // 对于 ListBox、DataGrid 等控件，查找内部的 ScrollViewer
         return control.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
     }
@@ -137,6 +141,12 @@ public static class ScrollViewerExtensions
             control.AttachedToVisualTree -= OnAttachedToVisualTree;
             // 使用 Post 确保模板已完全应用
             Dispatcher.UIThread.Post(TryGetScrollViewer, DispatcherPriority.Loaded);
+        }
+
+        if (control.IsAttachedToVisualTree())
+        {
+            Dispatcher.UIThread.Post(TryGetScrollViewer, DispatcherPriority.Loaded);
+            return;
         }
 
         if (control is TemplatedControl templatedControl)
@@ -438,7 +448,7 @@ public static class ScrollViewerExtensions
 
         SetShowTopFade(target, showTop);
         SetShowBottomFade(target, showBottom);
-        SetEdgeFadeMask(target, CreateEdgeFadeMask(showTop, showBottom));
+        SetEdgeFadeMask(target, CreateEdgeFadeMask(showTop, showBottom, target.Bounds.Height));
 
         if (target is ListBox listBoxTarget)
         {
@@ -470,10 +480,15 @@ public static class ScrollViewerExtensions
         public EventHandler<ScrollChangedEventArgs>? Handler { get; set; }
     }
 
-    private static IBrush? CreateEdgeFadeMask(bool showTop, bool showBottom)
+    private static IBrush? CreateEdgeFadeMask(bool showTop, bool showBottom, double height)
     {
         if (!showTop && !showBottom)
             return null;
+
+        if (height <= 0)
+            return null;
+
+        const double maxFadePx = 50;
 
         var brush = new LinearGradientBrush
         {
@@ -483,29 +498,32 @@ public static class ScrollViewerExtensions
 
         if (showTop && showBottom)
         {
+            var fade = Math.Min(0.15, maxFadePx / height);
             brush.GradientStops = new GradientStops
             {
                 new GradientStop(Colors.Transparent, 0.0),
-                new GradientStop(Colors.Black, 0.15),
-                new GradientStop(Colors.Black, 0.85),
+                new GradientStop(Colors.Black, fade),
+                new GradientStop(Colors.Black, 1.0 - fade),
                 new GradientStop(Colors.Transparent, 1.0)
             };
         }
         else if (showTop)
         {
+            var fade = Math.Min(0.2, maxFadePx / height);
             brush.GradientStops = new GradientStops
             {
                 new GradientStop(Colors.Transparent, 0.0),
-                new GradientStop(Colors.Black, 0.2),
+                new GradientStop(Colors.Black, fade),
                 new GradientStop(Colors.Black, 1.0)
             };
         }
         else
         {
+            var fade = Math.Min(0.2, maxFadePx / height);
             brush.GradientStops = new GradientStops
             {
                 new GradientStop(Colors.Black, 0.0),
-                new GradientStop(Colors.Black, 0.8),
+                new GradientStop(Colors.Black, 1.0 - fade),
                 new GradientStop(Colors.Transparent, 1.0)
             };
         }
