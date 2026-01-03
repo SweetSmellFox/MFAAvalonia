@@ -4,10 +4,12 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using System.Threading.Tasks;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.DependencyInjection;
 using CommunityToolkit.Mvvm.Input;
@@ -37,6 +39,11 @@ namespace MFAAvalonia.ViewModels.Pages;
         private IImage? selectImage;
 
         [ObservableProperty]
+        /** 放大面板中选中的卡片模型 */
+        private CardViewModel? selectedCard;
+
+
+        [ObservableProperty]
         private CardViewModel? _pulledCard;
 
         [RelayCommand]
@@ -44,7 +51,7 @@ namespace MFAAvalonia.ViewModels.Pages;
         {
             try
             {
-                var card = CCMgr.Instance.PullOne();
+                var card = CCMgr.Instance.GetRandomCardBase();
                 PulledCard = new CardViewModel(card);
             }
             catch (Exception ex)
@@ -57,28 +64,52 @@ namespace MFAAvalonia.ViewModels.Pages;
         
         public CardCollectionViewModel()
         {
-            LoadPlayerCards();
+            // 重要：不要在构造函数里同步加载并解码大量图片（会直接卡住“打开页面”）
+            _ = LoadPlayerCardsAsync();
+
             CCMgrInstance =  CCMgr.Instance;
             CCMgrInstance.SetCCVM(this);
             CCMgrInstance.OnStart();
             LoggerHelper.Info("01:CardCollectionViewModel, 构造");
         }
-    
-    private void LoadPlayerCards()
+
+    private async Task LoadPlayerCardsAsync()
     {
-        PlayerDataHandler = new PlayerDataHandler();
-        PlayerDataHandler.ReadLocal();
-        var playerData = PlayerDataHandler.GetData();
-        PlayerCards.Clear();
-        int i = 0;
-        foreach (CardBase cardbase in playerData)
+        try
         {
-            Console.WriteLine("path = " + cardbase.ImagePath);
-            var vm = new CardViewModel(cardbase);
-            vm.Index = i++;
-            PlayerCards.Add(vm);
+            // 后台线程做IO+图片解码
+            var list = await Task.Run(() =>
+            {
+                var handler = new PlayerDataHandler();
+                handler.ReadLocal();
+                var playerData = handler.GetData();
+
+                var result = new List<CardViewModel>();
+                int i = 0;
+                foreach (CardBase cardbase in playerData)
+                {
+                    var vm = new CardViewModel(cardbase);
+                    vm.Index = i++;
+                    result.Add(vm);
+                }
+
+                return (handler, result);
+            });
+
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                PlayerDataHandler = list.handler;
+                PlayerCards.Clear();
+                foreach (var vm in list.result)
+                    PlayerCards.Add(vm);
+
+                LoggerHelper.Info("008:LoadPlayerCardsAsync, 加载玩家数据");
+            });
         }
-            LoggerHelper.Info("008:LoadPlayerCards, 加载玩家数据");
+        catch (Exception ex)
+        {
+            LoggerHelper.Error($"LoadPlayerCardsAsync failed: {ex.Message}");
+        }
     }
     
     public void SwapCard(int index1, int index2)
@@ -106,13 +137,14 @@ namespace MFAAvalonia.ViewModels.Pages;
             {
                 Name = cvm.Name,
                 ImagePath = cvm.ImagePath,
-                Index = cvm.Index
+                Index = cvm.Index,
+                Rarity = cvm.Rarity,
+                EnableGlow = cvm.EnableGlow
             });
         }
         PlayerDataHandler.SaveLocal(cardBaseList);
             LoggerHelper.Info("999:SavePlayerData, 保存玩家数据");
     }
-
 }
 
 

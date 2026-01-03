@@ -2,6 +2,50 @@
 
 ## 卡牌系统
 
+### 卡牌集合页面打开慢（首屏阻塞）优化总结
+
+**问题**
+- 进入 CardCollection 页面时，首屏会卡住/白屏约 4–5 秒。
+- 根因：`CardCollectionViewModel` 构造函数里同步执行 `LoadPlayerCards()`，包含本地读取/解析与对象构建，阻塞 UI 线程。
+
+**回答**
+- 将加载流程改为**后台线程执行**，并在**UI 线程回填**到 `ObservableCollection`，避免阻塞首帧渲染。
+- 涉及文件：`MFAAvalonia/ViewModels/Pages/CardCollectionViewModel.cs`
+- 核心改动点：
+  - 构造函数里不再直接调用同步加载，而是 fire-and-forget 异步加载：
+    ```csharp
+    public CardCollectionViewModel()
+    {
+        _ = LoadPlayerCardsAsync();
+        CCMgrInstance = CCMgr.Instance;
+        CCMgrInstance.SetCCVM(this);
+        CCMgrInstance.OnStart();
+    }
+    ```
+  - 在后台线程读取并组装数据：`await Task.Run(() => ...)`
+  - 在 UI 线程更新集合：`await Dispatcher.UIThread.InvokeAsync(() => { PlayerCards.Clear(); ... });`
+
+### 拖拽交换卡顿（Glow 渲染/动画）优化总结
+
+**问题**
+- 卡牌拖拽交换时出现明显卡顿/掉帧。
+- 根因集中在 `CardGlowRenderer` 的渲染链路：
+  - glow 动画导致大量 `SKCanvas.DrawRect` 触发（CPU profile 热点）。
+  - 频繁 Bitmap→SKBitmap 转换与资源生命周期处理带来额外开销。
+  - 滚动列表中不可见卡片仍在持续动画与重绘。
+
+**回答**
+- 渲染侧削峰 + 资源缓存 + 视口裁剪：
+  1) **共享缓存 Bitmap→SKBitmap**（进程级），避免重复转换：
+     - 文件：`MFAAvalonia/Views/UserControls/Card/CardGlowRenderer.cs`
+     - 使用 `ConditionalWeakTable<Bitmap, SKBitmap>` 做共享缓存。
+  2) **资源所有权标记**，避免误 Dispose 共享位图：
+     - 扩展 handler message（示例）：`SourceBitmapMessage(SKBitmap Bitmap, bool IsShared)` / `MaskBitmapMessage(...)`
+     - Dispose 时仅在 `!IsShared` 才释放。
+  3) **降帧**：将动画刷新频率限制到约 20fps，减少无效重绘。
+  4) **仅视口内动画**：监听 `EffectiveViewportChanged`，滚出 `ScrollViewer` 视口即停止动画；回到视口再恢复。
+  5) **减少默认负载**：`MFAAvalonia/Views/Pages/CardCollection.axaml` 中将流光测试面板默认 `IsVisible="False"`。
+
 ### 自动抽卡触发机制
 
 在任务完成时添加了自动抽卡功能，当任务执行时间超过2分钟时自动触发抽卡奖励。
@@ -155,67 +199,72 @@ protected override void RenderSoftware(SKCanvas canvas, SKRect rect)
 3. **Uniform传递**：CPU侧准备数据，通过`SKRuntimeEffectUniforms`传入GPU
 4. **合成视觉系统**：Avalonia的`CompositionCustomVisual`实现高效渲染管线
 
-### 卡牌纹路流光特效方案
+### 基于遮罩的高性能流光技术方案
 
-实现类似《游戏王 Master Duel》的卡片流光效果，核心是识别发光区域并施加动态流光。
+重新设计的卡牌流光方案，彻底移除了基于像素亮度的实时检测，转而使用预定义的遮罩纹理（Mask Texture）实现更加艺术化且高性能的流动效果。
 
-#### 整体架构
+#### 技术演进
 
-```
-原始卡图 ──┬──> [遮罩生成] ──> 发光区域遮罩
-           │                        │
-           │                        ▼
-           └──────────────> [Shader混合] ──> 最终效果
-                                    ▲
-                                    │
-                           [流光动画参数]
-```
+| 特性 | 旧方案 (像素检测) | 新方案 (遮罩滚动) |
+|------|-----------------|-----------------|
+| **核心原理** | 逐像素分析亮度/饱和度/色相生成遮罩 | 对遮罩纹理进行双层 UV 滚动并混合 |
+| **艺术效果** | 较生硬，受限于原图亮度分布 | 如丝绸、烟雾般灵动，效果可完全自定义 |
+| **GPU 负载** | 高 (包含 HSV 转换、多层噪声计算) | 极低 (仅两次纹理采样与简单乘法) |
+| **灵活性** | 固定算法，难以调整形状 | 更换 `MaskSource` 即可获得完全不同的流向 |
 
-#### 纹路识别方案
+#### 实现原理
 
-| 方案 | 原理 | 优点 | 缺点 |
-|------|------|------|------|
-| **预制遮罩图** | 为每张卡制作发光区域遮罩（白=发光，黑=不变） | 效果精确可控 | 工作量大 |
-| **亮度检测** | Shader实时分析像素亮度+饱和度自动判断 | 全自动 | 可能误判 |
-| **混合方案（推荐）** | 重要卡用遮罩图，普通卡用自动检测 | 平衡效果与成本 | 需两套逻辑 |
+1. **双层遮罩混合**: 在 Shader 中将同一张遮罩图以不同的缩放 (`iFlowWidth`)、角度 (`iFlowAngle`) 和速度滚动两层。通过 `mask1 * mask2` 的方式产生非周期性的、深浅交替的动态视觉感。
+2. **异步纹理加载**: 当 `MaskSource` 属性改变时，UI 线程将图像转换为 `SKBitmap` 并通过消息传递给渲染线程。渲染线程接收后立即更新 GPU 纹理 Shader，确保切换过程无卡顿。
+3. **TileMode.Repeat**: 遮罩 Shader 强制开启 `Repeat` 模式，支持 UV 坐标无限滚动，适合各种循环流光效果。
 
-**自动检测判断逻辑**：
-- 高亮度 (>0.7) + 高饱和度 = 发光物体
-- 特定色相（黄/橙/蓝/紫）加权
+#### 核心代码逻辑 (Shader)
 
-#### 流光实现技术
+```glsl
+// 计算两层反向滚动的 UV
+vec2 maskUv1 = uv * scale + dir1 * (iTime * iFlowSpeed);
+vec2 maskUv2 = uv * scale * 1.2 + dir2 * (iTime * iFlowSpeed * iSecFlowSpeedMult);
 
-**多层叠加结构**：
-| 层级 | 效果 | 特点 |
-|------|------|------|
-| 第1层 | 主流光带 | 斜向移动，较宽 |
-| 第2层 | 细流光线 | 快速移动，较窄 |
-| 第3层 | 闪烁点 | 随机位置，脉冲效果 |
-| 第4层 | 边缘辉光 | 发光区域边缘柔和光晕 |
+// 采样遮罩纹理
+float maskValue1 = iMask.eval(maskUv1 * iMaskSize).r;
+float maskValue2 = iMask.eval(maskUv2 * iMaskSize).r;
 
-**Shader核心逻辑**：
-```
-1. 采样原始颜色
-2. 获取遮罩值（该像素是否需要发光）
-3. 计算流光强度 = f(位置, 时间)
-4. 最终颜色 = 原始颜色 + 流光颜色 × 遮罩值 × 流光强度
+// 混合并应用颜色
+float combinedMask = maskValue1 * maskValue2 * 2.0;
+vec3 totalGlow = (iFlowColor * maskValue1 * iFlowIntensity + iSecFlowColor * maskValue2 * iSecFlowIntensity) * combinedMask;
 ```
 
-#### 融合技巧
+#### 优化点
 
-| 混合模式 | 效果 | 适用场景 |
-|---------|------|---------|
-| Add | 直接加亮 | 火焰、闪电 |
-| Screen | 柔和提亮 | 魔法光效 |
-| Overlay | 保留细节 | 金属反光 |
+- **零 GC 渲染**: 预分配了 Uniform 变量所需的 `float[]` 数组，避免在每秒 60 帧的渲染循环中产生任何内存分配。
+- **即时适配**: 系统支持在运行时动态切换遮罩。例如，更换为 `mark5.jpeg` 后，流光会立即呈现出烟雾般的丝滑质感。
+- **精简指令**: 移除了原有的 FBM 噪声、感知亮度计算等指令，大幅降低了移动端或低端 GPU 的发热量。
 
-**边缘处理**：使用 `smoothstep` 实现软边缘过渡，避免生硬切割
+### 卡牌集合页渲染线程高负载（FPS低）优化总结
 
-#### 实现路径
+**问题**
+- `CardCollection` 页面 FPS 仅 10-15 帧，Render 线程耗时高达 60ms。
+- 根因：`CardBorderRenderer` 对所有卡牌（包括不可见）进行全帧率（60FPS+）Shader 渲染，且每个实例重复编译 Shader，导致 GPU 提交和执行瓶颈。
 
-1. **第一阶段**：基础流光 - 扩展CardBorderRenderer，实现亮度检测+单层流光
-2. **第二阶段**：遮罩系统 - 支持外部遮罩图加载，无遮罩时fallback自动检测
-3. **第三阶段**：效果丰富化 - 多层流光、稀有度预设、可配置参数
+**回答**
+- 重构 `CardBorderRenderer` 实现高性能渲染：
+  1. **Shader 静态复用**：将 Shader 编译改为 `static readonly Lazy<SKRuntimeEffect>`，全局仅编译一次，消除数百次重复编译开销。
+  2. **视口裁剪 (Viewport Culling)**：监听 `EffectiveViewportChanged`，当卡牌滚出可视区域时完全停止动画循环。
+  3. **降帧 (FPS Throttling)**：在渲染循环中限制刷新率为 **20 FPS**，大幅降低 GPU 负载（对于装饰性边框肉眼难以察觉差异）。
+  4. **零 GC 优化**：预分配 Uniform 数组，避免每帧内存分配。
+  5. **性能诊断开关**：添加 `UseSimpleRender` 静态属性，可一键关闭 Shader 渲染以排查 GPU 瓶颈。
+
+### 性能分析日志解读 (2026-01-02)
+
+**现象**
+- `OnRender` CPU 耗时极低（约 0.01ms），理论 FPS > 100k。
+- 实际界面 FPS 低（10-15帧），Render 线程负载高。
+- 开启 `UseSimpleRender` (关闭 Shader) 后，FPS 仅提升至 ~30 帧，仍不流畅。
+
+**结论更新**
+- **Shader 计算不是主要瓶颈**：关闭 Shader 后 FPS 依然很低，说明 GPU 填充率不是罪魁祸首。
+- **调度开销嫌疑最大**：5 张卡片即卡顿，且 `OnRender` 耗时极短，说明时间消耗在 `OnRender` 之外的**Avalonia 合成框架调度**或**Skia 上下文切换**上。
+- **下一步**：测试完全停止动画更新（不调用 `Invalidate`），排查是否是高频的 Visual 提交导致了 Render 线程过载。
 
 ## 类说明
 
@@ -231,7 +280,7 @@ protected override void RenderSoftware(SKCanvas canvas, SKRect rect)
 |------|------|------|
 | `Instance` | 静态属性 | 单例访问入口 |
 | `CCVM` | CardCollectionViewModel | 卡牌集合视图模型引用 |
-| `CardData` | List\<CardBase\> | 从CSV加载的全部卡牌数据 |
+| `CardData` | List<CardBase> | 从CSV加载的全部卡牌数据 |
 | `undefine` | const int (-1) | 未定义索引常量 |
 
 #### 生命周期方法
@@ -303,7 +352,7 @@ protected override void RenderSoftware(SKCanvas canvas, SKRect rect)
 
 | 属性 | 类型 | 说明 |
 |------|------|------|
-| `PlayerCards` | ObservableCollection\<CardViewModel\> | 玩家拥有的卡牌集合，支持UI自动刷新 |
+| `PlayerCards` | ObservableCollection<CardViewModel> | 玩家拥有的卡牌集合，支持UI自动刷新 |
 | `IsOpenDetail` | bool | 放大面板是否打开 |
 | `Hori` | HorizontalAlignment | 放大面板水平对齐方向 |
 | `SelectImage` | IImage? | 放大面板中显示的卡片图片 |
@@ -748,7 +797,7 @@ renderer.ApplyPreset(GlowPreset.GoldRare);
 | 4 | RainbowHolo |
 | 5 | Subtle |
 
-#### 公共方法
+#### 公开方法
 
 | 方法 | 参数 | 返回值 | 功能 |
 |------|------|--------|------|
@@ -896,3 +945,44 @@ borderRenderer.SetEffect(customEffect);
 - **位置参数化**：将边框位置映射到0~1循环值，便于流光动画
 - **双层流光**：主流光+次流光拖尾，增加层次感
 - **软件回退**：GPU不可用时绘制简单静态边框
+
+### 基于遮罩的高性能流光技术方案
+
+重新设计的卡牌流光方案，彻底移除了基于像素亮度的实时检测，转而使用预定义的遮罩纹理（Mask Texture）实现更加艺术化且高性能的流动效果。
+
+#### 技术演进
+
+| 特性 | 旧方案 (像素检测) | 新方案 (遮罩滚动) |
+|------|-----------------|-----------------|
+| **核心原理** | 逐像素分析亮度/饱和度/色相生成遮罩 | 对遮罩纹理进行双层 UV 滚动并混合 |
+| **艺术效果** | 较生硬，受限于原图亮度分布 | 如丝绸、烟雾般灵动，效果可完全自定义 |
+| **GPU 负载** | 高 (包含 HSV 转换、多层噪声计算) | 极低 (仅两次纹理采样与简单乘法) |
+| **灵活性** | 固定算法，难以调整形状 | 更换 `MaskSource` 即可获得完全不同的流向 |
+
+#### 实现原理
+
+1. **双层遮罩混合**: 在 Shader 中将同一张遮罩图以不同的缩放 (`iFlowWidth`)、角度 (`iFlowAngle`) 和速度滚动两层。通过 `mask1 * mask2` 的方式产生非周期性的、深浅交替的动态视觉感。
+2. **异步纹理加载**: 当 `MaskSource` 属性改变时，UI 线程将图像转换为 `SKBitmap` 并通过消息传递给渲染线程。渲染线程接收后立即更新 GPU 纹理 Shader，确保切换过程无卡顿。
+3. **TileMode.Repeat**: 遮罩 Shader 强制开启 `Repeat` 模式，支持 UV 坐标无限滚动，适合各种循环流光效果。
+
+#### 核心代码逻辑 (Shader)
+
+```glsl
+// 计算两层反向滚动的 UV
+vec2 maskUv1 = uv * scale + dir1 * (iTime * iFlowSpeed);
+vec2 maskUv2 = uv * scale * 1.2 + dir2 * (iTime * iFlowSpeed * iSecFlowSpeedMult);
+
+// 采样遮罩纹理
+float maskValue1 = iMask.eval(maskUv1 * iMaskSize).r;
+float maskValue2 = iMask.eval(maskUv2 * iMaskSize).r;
+
+// 混合并应用颜色
+float combinedMask = maskValue1 * maskValue2 * 2.0;
+vec3 totalGlow = (iFlowColor * maskValue1 * iFlowIntensity + iSecFlowColor * maskValue2 * iSecFlowIntensity) * combinedMask;
+```
+
+#### 优化点
+
+- **零 GC 渲染**: 预分配了 Uniform 变量所需的 `float[]` 数组，避免在每秒 60 帧的渲染循环中产生任何内存分配。
+- **即时适配**: 系统支持在运行时动态切换遮罩。例如，更换为 `mark5.jpeg` 后，流光会立即呈现出烟雾般的丝滑质感。
+- **精简指令**: 移除了原有的 FBM 噪声、感知亮度计算等指令，大幅降低了移动端或低端 GPU 的发热量。

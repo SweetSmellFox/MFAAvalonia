@@ -31,10 +31,11 @@ public sealed class CCMgr
 
     public void PostLoading()
     {
-        PullOne_real();
+        _ = PullOne();
         LoggerHelper.Info("0099 pullOnre_real");
         
     }
+
 
     private bool btest = false;
     public void addCard_test()
@@ -62,10 +63,9 @@ public sealed class CCMgr
         CCVM.IsOpenDetail = isOpen;
     }
 
-    public CardBase PullOne()
+    public CardBase GetRandomCardBase()
     {
         var cb = PullExecuter.PullOne(CardData);
-        CCVM.addcard(new CardViewModel(cb));
         return cb;
     }
 
@@ -76,7 +76,7 @@ public sealed class CCMgr
     /// 3) 弹出 PullResult 窗口展示结果（或失败信息）
     /// 4) 异常时同时尝试弹出 ErrorView
     /// </summary>
-    public async Task PullOne_real()
+    public async Task PullOne()
     {
         try
         {
@@ -84,9 +84,11 @@ public sealed class CCMgr
                 throw new InvalidOperationException("CCMgr.CCVM 尚未初始化（未调用 SetCCVM），无法抽卡。");
 
             // 1) 卡片数据获取逻辑：调用 CCMgr.PullOne()
-            var cardBase = PullOne();
+            var cardBase = GetRandomCardBase();
+            cardBase.Rarity = PullExecuter.GetRandomRarity();
+            if (cardBase.Rarity != CardRarity.None) cardBase.EnableGlow = true;
             var cardVm = new CardViewModel(cardBase);
-
+            CCVM.addcard(cardVm);
             // 2) UI状态更新：同步更新 PulledCard
             CCVM.PulledCard = cardVm;
 
@@ -99,8 +101,7 @@ public sealed class CCMgr
                 await window.ShowDialog(owner);
             else
                 window.Show();
-            LoggerHelper.Info("PullOne_real()");
-            AddGlowingCard();
+            LoggerHelper.Info("PullOne()");
         }
         catch (Exception ex)
         {
@@ -126,19 +127,21 @@ public sealed class CCMgr
             catch
             {
                 // 最后兜底：避免任何UI弹窗失败导致崩溃
-                Console.WriteLine($"PullOne_real Error: {ex}");
+                Console.WriteLine($"PullOne Error: {ex}");
             }
         }
     }
     
     /** 设置选中的卡片 */
-    public void SetSelectedCard(IImage cardImage, int region)
+    public void SetSelectedCard(CardViewModel cardVm, int region)
     {
         if (region == 1) CCVM.Hori = HorizontalAlignment.Left;
         if (region == -1) CCVM.Hori = HorizontalAlignment.Right;
         CCVM.IsOpenDetail = true;
-        CCVM.SelectImage = cardImage;
+        CCVM.SelectedCard = cardVm;
+        CCVM.SelectImage = cardVm.CardImage;
     }
+
 
     public void SwapCard(int in_cur_idx1, int in_hov_indx2)
     {
@@ -148,14 +151,29 @@ public sealed class CCMgr
 
     public const int undefine = -1;
     
+    private static readonly Dictionary<string, Bitmap> AssetBitmapCache = new(StringComparer.OrdinalIgnoreCase);
+
     public static IImage? LoadImageFromAssets(string path)
     {
         try
         {
-            var uri = new Uri($"avares://MFAAvalonia{path}");
-            return new Bitmap(AssetLoader.Open(uri));
+            // 绝大多数卡牌图片/遮罩都是重复引用，频繁 new Bitmap(AssetLoader.Open) 会导致解码+内存分配抖动。
+            // 这里做一个进程级缓存：同一路径只解码一次。
+            lock (AssetBitmapCache)
+            {
+                if (AssetBitmapCache.TryGetValue(path, out var cached))
+                    return cached;
+
+                var uri = new Uri($"avares://MFAAvalonia{path}");
+                var bmp = new Bitmap(AssetLoader.Open(uri));
+                AssetBitmapCache[path] = bmp;
+                return bmp;
+            }
         }
-        catch { return null; }
+        catch
+        {
+            return null;
+        }
     }
     
     #region 发光卡片接口
@@ -167,24 +185,7 @@ public sealed class CCMgr
     /// <returns>添加的CardViewModel</returns>
     public CardViewModel AddGlowingCard()
     {
-        if (CCVM is null)
-            throw new InvalidOperationException("CCMgr.CCVM 尚未初始化（未调用 SetCCVM），无法添加卡片。");
-        
-        // 硬编码数据：金色传说卡
-        var cardBase = new CardBase
-        {
-            Name = "金色传说卡",
-            ImagePath = "/Assets/CardImg/aa.jpg",
-            Index = 0,
-            Rarity = CardRarity.Legendary,  // 金色传说级别
-            EnableGlow = true               // 启用发光效果
-        };
-        
-        var cardVm = new CardViewModel(cardBase);
-        CCVM.addcard(cardVm);
-        
-        LoggerHelper.Info($"AddGlowingCard: 添加金色传说卡，路径={cardBase.ImagePath}");
-        return cardVm;
+        return AddCardWithGlow("/Assets/CardImg/aa.jpg", "金色传说卡", CardRarity.Legendary, true);
     }
     
     /// <summary>
@@ -194,24 +195,23 @@ public sealed class CCMgr
     /// <returns>添加的CardViewModel</returns>
     public CardViewModel AddNormalCard()
     {
-        if (CCVM is null)
-            throw new InvalidOperationException("CCMgr.CCVM 尚未初始化（未调用 SetCCVM），无法添加卡片。");
-        
-        // 硬编码数据：普通卡
-        var cardBase = new CardBase
-        {
-            Name = "普通卡",
-            ImagePath = "/Assets/CardImg/aa.jpg",
-            Index = 0,
-            Rarity = CardRarity.Normal,     // 普通级别
-            EnableGlow = false              // 不启用发光效果
-        };
-        
-        var cardVm = new CardViewModel(cardBase);
-        CCVM.addcard(cardVm);
-        
-        LoggerHelper.Info($"AddNormalCard: 添加普通卡，路径={cardBase.ImagePath}");
-        return cardVm;
+        return AddCardWithGlow("/Assets/CardImg/aa.jpg", "普通卡", CardRarity.Normal, false);
+    }
+
+    /// <summary>
+    /// 添加史诗卡片到CardCollection（紫色发光）
+    /// </summary>
+    public CardViewModel AddEpicCard()
+    {
+        return AddCardWithGlow("/Assets/CardImg/aa.jpg", "史诗紫色卡", CardRarity.Epic, true);
+    }
+
+    /// <summary>
+    /// 添加稀有卡片到CardCollection（蓝色发光）
+    /// </summary>
+    public CardViewModel AddRareCard()
+    {
+        return AddCardWithGlow("/Assets/CardImg/aa.jpg", "稀有蓝色卡", CardRarity.Rare, true);
     }
     
     /// <summary>

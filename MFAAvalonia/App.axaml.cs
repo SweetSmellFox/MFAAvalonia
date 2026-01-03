@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
+using Avalonia.Diagnostics;
 using MFAAvalonia.Configuration;
 using MFAAvalonia.Extensions.MaaFW;
 using MFAAvalonia.Helper;
@@ -46,13 +47,10 @@ public partial class App : Application
         base.Initialize();
         LoggerHelper.InitializeLogger();
         AvaloniaXamlLoader.Load(this);
+
         LanguageHelper.Initialize();
         ConfigurationManager.Initialize();
         FontService.Initialize();
-
-        // 保存引用以便在退出时正确释放
-        _memoryCracker = new AvaloniaMemoryCracker();
-        _memoryCracker.Cracker();
 
         GlobalHotkeyService.Initialize();
         TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException; //Task线程内未捕获异常处理事件
@@ -82,6 +80,17 @@ public partial class App : Application
             desktop.MainWindow = window;
 
             TrayIconManager.InitializeTrayIcon(this, Instances.RootView, Instances.RootViewModel);
+            
+            // 在应用完全启动并展示后，再安全地初始化并启动内存优化器
+            Dispatcher.UIThread.Post(() => {
+                try {
+                    _memoryCracker = new AvaloniaMemoryCracker();
+                    _memoryCracker.Cracker(30);
+                    LoggerHelper.Info("[内存管理]内存优化器已在后台启动");
+                } catch (Exception ex) {
+                    LoggerHelper.Warning($"[内存管理]启动失败: {ex.Message}");
+                }
+            }, DispatcherPriority.Background);
         }
 
         base.OnFrameworkInitializationCompleted();

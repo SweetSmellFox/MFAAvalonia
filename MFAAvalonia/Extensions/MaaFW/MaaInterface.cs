@@ -12,7 +12,8 @@ using System.Text.RegularExpressions;
 
 namespace MFAAvalonia.Extensions.MaaFW;
 
-public partial class MaaInterface
+public partial class 
+    MaaInterface
 {
     /// <summary>
     /// Option 配置项的选项（用于 select/switch 类型）

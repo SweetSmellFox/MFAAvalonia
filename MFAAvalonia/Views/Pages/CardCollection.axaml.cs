@@ -78,9 +78,7 @@ public partial class CardCollection : UserControl
             e.Handled = true;  // 点击卡片时才阻止事件传播
             DraggingCard.RenderTransform = transform;
             IsDragging = true;
-            var Zparent = DraggingCard.Parent as Control;
-            if (Zparent == null) return;
-            Zparent.ZIndex += 1;
+            DraggingCard.ZIndex += 1;
             var parent = Parent as Control;
             if (parent == null) return;
             DragStartPoint = e.GetPosition(parent);
@@ -91,7 +89,8 @@ public partial class CardCollection : UserControl
             var vm = (DraggingCard.DataContext) as CardViewModel;
             cur_index = vm.Index;  // 记录当前拖拽卡片的索引
             int clickRegion = GetClickRegion(e);  // 右30%=1, 左30%=-1, 中间=0
-            mgr.SetSelectedCard(vm.CardImage, clickRegion);
+            mgr.SetSelectedCard(vm, clickRegion);
+
         }
     }
 
@@ -120,7 +119,6 @@ public partial class CardCollection : UserControl
             {
                 var vm = (newTargetCard.DataContext) as CardViewModel;  // 获取目标卡片的索引
                 hov_index = vm.Index;
-                Console.WriteLine("Find It In Move, INDEX = " + hov_index);
             }   
             DraggingCard.IsHitTestVisible = true;
         }
@@ -138,10 +136,7 @@ public partial class CardCollection : UserControl
             this.DragStartPoint = new Point(0, 0);
             transform.X = 0;
             transform.Y = 0;
-            var Zparent = DraggingCard.Parent as Control;
-            if(Zparent != null) Zparent.ZIndex -= 1;
-            Console.WriteLine("cur_index = " + cur_index);
-            Console.WriteLine("hov_index = " + hov_index);
+            DraggingCard.ZIndex -= 1;
             if (cur_index != undefine && hov_index != undefine)
             {
                 mgr.SwapCard(cur_index, hov_index);
@@ -157,8 +152,7 @@ public partial class CardCollection : UserControl
             transform.X = 0;
             transform.Y = 0;
             e.Pointer.Capture(null);
-            var Zparent = DraggingCard?.Parent as Control;
-            if(Zparent != null) Zparent.ZIndex -= 1;
+            DraggingCard.ZIndex -= 1;
             cur_index = undefine;
             hov_index = undefine;
         }
@@ -181,11 +175,11 @@ public partial class CardCollection : UserControl
 
     private async void PullButton_OnClick(object? sender, RoutedEventArgs e)
     {
-        // 逻辑已迁移到 CCMgr.PullOne_real()，这里仅负责转发，保持按钮响应性
+        // 逻辑已迁移到 CCMgr.PullOne()，这里仅负责转发，保持按钮响应性
         if (mgr == null)
             mgr = CCMgr.Instance;
 
-        await mgr.PullOne_real();
+        await mgr.PullOne();
     }
     
     public CardCollection()
@@ -200,7 +194,8 @@ public partial class CardCollection : UserControl
         BindEvent();
         
         // 初始化流光预览 - 加载默认测试图片
-        InitializeGlowPreview();
+        //CardBorderRenderer.UseSimpleRender = true;
+        //CardGlowRenderer.UseSimpleRender = true;
     }
 
     #region 流光效果测试
@@ -254,6 +249,37 @@ public partial class CardCollection : UserControl
     }
 
     /// <summary>
+    /// 稀有度预览按钮点击事件
+    /// </summary>
+    private void OnRarityPreviewClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Button button && button.Tag is string rarityName)
+        {
+            if (Enum.TryParse<CardRarity>(rarityName, out var rarity))
+            {
+                // 创建一个临时的 CardViewModel 来获取对应稀有度的配置
+                var tempBase = new CardBase { Rarity = rarity, EnableGlow = rarity != CardRarity.None && rarity != CardRarity.Normal };
+                var tempVm = new CardViewModel(tempBase);
+                
+                if (tempVm.GlowConfig != null)
+                {
+                    GlowPreviewRenderer.Config = tempVm.GlowConfig;
+                    GlowPreviewRenderer.IsGlowEnabled = true;
+                    // 强制刷新渲染以确保配置立即生效
+                    GlowPreviewRenderer.ForceRefresh();
+                }
+                else
+                {
+                    GlowPreviewRenderer.IsGlowEnabled = false;
+                }
+                
+                CurrentPresetText.Text = $"当前稀有度: {rarityName}";
+                Console.WriteLine($"[CardCollection] Previewed rarity: {rarityName}");
+            }
+        }
+    }
+
+    /// <summary>
     /// 预设按钮点击事件
     /// </summary>
     private void OnPresetClick(object? sender, RoutedEventArgs e)
@@ -266,8 +292,6 @@ public partial class CardCollection : UserControl
                 "GoldRare" => GlowPreset.GoldRare,
                 "BlueRare" => GlowPreset.BlueRare,
                 "PurpleLegend" => GlowPreset.PurpleLegend,
-                "RainbowHolo" => GlowPreset.RainbowHolo,
-                "Subtle" => GlowPreset.Subtle,
                 _ => GlowPreset.Default
             };
 

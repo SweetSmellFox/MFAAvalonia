@@ -1,214 +1,58 @@
 // ============================================================================
-// 卡牌流光特效Shader - 基于亮度检测
-// 实现类似《游戏王 Master Duel》的卡片流光效果
+// 卡牌流光特效Shader - 基于遮罩纹理
+// 实现高性能的纹理滚动流光效果
 // ============================================================================
 
-// === 自定义Uniform变量 (由CPU传入) ===
+// === 自定义Uniform变量 ===
 uniform shader iImage;              // 卡牌原始图像
+uniform shader iMask;               // 流光遮罩图像
 
-// 亮度检测参数
-uniform float iBrightnessThreshold; // 亮度阈值
-uniform float iSaturationThreshold; // 饱和度阈值
-uniform float iBrightnessWeight;    // 亮度权重
-uniform float iSaturationWeight;    // 饱和度权重
+// 图像尺寸
+uniform vec2 iImageSize;            // 原始图像的实际尺寸
+uniform vec2 iMaskSize;             // 遮罩图像的实际尺寸
 
 // 流光效果参数
-uniform float iFlowSpeed;           // 主流光速度
-uniform float iFlowWidth;           // 主流光宽度
-uniform float iFlowAngle;           // 主流光角度
-uniform float iFlowIntensity;       // 主流光强度
-uniform float iSecFlowSpeedMult;    // 次流光速度倍率
-uniform float iSecFlowWidthMult;    // 次流光宽度倍率
-uniform float iSecFlowIntensity;    // 次流光强度
+uniform float iFlowSpeed;
+uniform float iFlowWidth;           // 遮罩缩放倍率
+uniform float iFlowAngle;
+uniform float iFlowIntensity;
+uniform float iSecFlowSpeedMult;
+uniform float iSecFlowIntensity;
 
 // 闪烁效果参数
-uniform float iEnableSparkle;       // 是否启用闪烁 (0或1)
-uniform float iSparkleFreq;         // 闪烁频率
-uniform float iSparkleIntensity;    // 闪烁强度
-uniform float iSparkleDensity;      // 闪烁密度
+uniform float iEnableSparkle;
+uniform float iSparkleFreq;
+uniform float iSparkleIntensity;
 
-// 边缘辉光参数
-uniform float iEnableEdgeGlow;      // 是否启用边缘辉光 (0或1)
-uniform float iEdgeGlowWidth;       // 边缘辉光宽度
-uniform float iEdgeGlowIntensity;   // 边缘辉光强度
-
-// 颜色参数 (RGB, 0-1范围)
-uniform vec3 iFlowColor;            // 主流光颜色
-uniform vec3 iSecFlowColor;         // 次流光颜色
-uniform vec3 iSparkleColor;         // 闪烁颜色
-uniform vec3 iEdgeGlowColor;        // 边缘辉光颜色
+// 颜色参数
+uniform vec3 iFlowColor;
+uniform vec3 iSecFlowColor;
+uniform vec3 iSparkleColor;
 
 // 混合参数
-uniform float iBlendMode;           // 混合模式 (0=Add, 1=Screen, 2=Overlay)
-uniform float iOverallIntensity;    // 整体效果强度
-
-// 色相加权参数
-uniform float iEnableHueWeight;     // 是否启用色相加权
-uniform float iGoldHueWeight;       // 金色色相权重
-uniform float iBlueHueWeight;       // 蓝色色相权重
+uniform float iBlendMode;
+uniform float iOverallIntensity;
 
 // ============================================================================
 // 辅助函数
 // ============================================================================
 
-// RGB转HSV
-vec3 rgb2hsv(vec3 c) {
-    vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
-    vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
-    vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
-    
-    float d = q.x - min(q.w, q.y);
-    float e = 1.0e-10;
-    return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
-}
-
-// 计算像素亮度 (使用感知亮度公式)
+// 计算感知亮度
 float getLuminance(vec3 color) {
     return dot(color, vec3(0.299, 0.587, 0.114));
-}
-
-// 伪随机数生成器
-float random(vec2 st) {
-    return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
-}
-
-// 2D噪声函数
-float noise(vec2 st) {
-    vec2 i = floor(st);
-    vec2 f = fract(st);
-    
-    float a = random(i);
-    float b = random(i + vec2(1.0, 0.0));
-    float c = random(i + vec2(0.0, 1.0));
-    float d = random(i + vec2(1.0, 1.0));
-    
-    vec2 u = f * f * (3.0 - 2.0 * f);
-    
-    return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
-}
-
-// 计算发光遮罩值 (基于亮度检测)
-float calculateGlowMask(vec3 color) {
-    // 转换到HSV空间
-    vec3 hsv = rgb2hsv(color);
-    float hue = hsv.x;
-    float saturation = hsv.y;
-    float value = hsv.z;
-    
-    // 计算感知亮度
-    float luminance = getLuminance(color);
-    
-    // 基础发光判断: 亮度和饱和度的加权组合
-    float brightnessScore = smoothstep(iBrightnessThreshold - 0.1, iBrightnessThreshold + 0.1, luminance);
-    float saturationScore = smoothstep(iSaturationThreshold - 0.1, iSaturationThreshold + 0.1, saturation);
-    
-    float baseScore = brightnessScore * iBrightnessWeight + saturationScore * iSaturationWeight;
-    
-    // 特殊色相加权
-    float hueBonus = 0.0;
-    if (iEnableHueWeight > 0.5) {
-        // 金色/黄色区域 (hue约0.1-0.2)
-        float goldHue = smoothstep(0.05, 0.1, hue) * smoothstep(0.25, 0.15, hue);
-        hueBonus += goldHue * iGoldHueWeight * saturation;
-        
-        // 橙色区域 (hue约0.0-0.1)
-        float orangeHue = smoothstep(0.0, 0.05, hue) * smoothstep(0.12, 0.08, hue);
-        hueBonus += orangeHue * iGoldHueWeight * 0.8 * saturation;
-        
-        // 蓝色区域 (hue约0.55-0.7)
-        float blueHue = smoothstep(0.5, 0.55, hue) * smoothstep(0.75, 0.7, hue);
-        hueBonus += blueHue * iBlueHueWeight * saturation;
-        
-        // 紫色区域 (hue约0.7-0.85)
-        float purpleHue = smoothstep(0.65, 0.7, hue) * smoothstep(0.9, 0.85, hue);
-        hueBonus += purpleHue * iBlueHueWeight * 0.9 * saturation;
-    }
-    
-    // 最终遮罩值
-    float mask = clamp(baseScore + hueBonus, 0.0, 1.0);
-    
-    // 对高亮度区域额外加权
-    if (luminance > 0.85) {
-        mask = max(mask, luminance * 0.8);
-    }
-    
-    return mask;
-}
-
-// 计算流光强度
-float calculateFlowIntensity(vec2 uv, float speed, float width, float angle) {
-    // 计算沿流光方向的位置
-    float cosA = cos(angle);
-    float sinA = sin(angle);
-    float flowPos = uv.x * cosA + uv.y * sinA;
-    
-    // 流光位置随时间移动
-    float flowCenter = fract(iTime * speed);
-    
-    // 扩展流光范围以实现循环
-    float dist1 = abs(flowPos - flowCenter);
-    float dist2 = abs(flowPos - flowCenter + 1.0);
-    float dist3 = abs(flowPos - flowCenter - 1.0);
-    float dist = min(min(dist1, dist2), dist3);
-    
-    // 高斯衰减
-    float intensity = exp(-dist * dist / (width * width * 0.5));
-    
-    return intensity;
-}
-
-// 计算闪烁效果
-float calculateSparkle(vec2 uv, float mask) {
-    if (iEnableSparkle < 0.5 || mask < 0.1) return 0.0;
-    
-    // 使用噪声生成闪烁位置
-    float sparkleNoise = noise(uv * 20.0 + iTime * 0.5);
-    
-    // 时间变化的闪烁
-    float sparkleTime = sin(iTime * iSparkleFreq + sparkleNoise * 6.28) * 0.5 + 0.5;
-    
-    // 根据密度决定是否显示闪烁
-    float sparkleMask = step(1.0 - iSparkleDensity, random(floor(uv * 30.0) + floor(iTime * 2.0)));
-    
-    return sparkleTime * sparkleMask * mask * iSparkleIntensity;
-}
-
-// 计算边缘辉光 (基于遮罩边缘)
-float calculateEdgeGlow(vec2 uv, float mask, vec2 texelSize) {
-    if (iEnableEdgeGlow < 0.5) return 0.0;
-    
-    // 采样周围像素的遮罩值
-    float maskL = calculateGlowMask(iImage.eval(uv + vec2(-texelSize.x, 0.0) * iEdgeGlowWidth * 10.0).rgb);
-    float maskR = calculateGlowMask(iImage.eval(uv + vec2(texelSize.x, 0.0) * iEdgeGlowWidth * 10.0).rgb);
-    float maskT = calculateGlowMask(iImage.eval(uv + vec2(0.0, -texelSize.y) * iEdgeGlowWidth * 10.0).rgb);
-    float maskB = calculateGlowMask(iImage.eval(uv + vec2(0.0, texelSize.y) * iEdgeGlowWidth * 10.0).rgb);
-    
-    // 计算梯度 (边缘检测)
-    float gradX = abs(maskR - maskL);
-    float gradY = abs(maskB - maskT);
-    float edge = sqrt(gradX * gradX + gradY * gradY);
-    
-    return edge * iEdgeGlowIntensity * mask;
 }
 
 // 混合模式实现
 vec3 blendColors(vec3 base, vec3 glow, float mode) {
     if (mode < 0.5) {
-        // Add模式: 直接相加
         return base + glow;
     } else if (mode < 1.5) {
-        // Screen模式: 1 - (1-a)(1-b)
         return 1.0 - (1.0 - base) * (1.0 - glow);
     } else {
-        // Overlay模式: 根据底色亮度选择multiply或screen
         vec3 result;
-        for (int i = 0; i < 3; i++) {
-            if (base[i] < 0.5) {
-                result[i] = 2.0 * base[i] * glow[i];
-            } else {
-                result[i] = 1.0 - 2.0 * (1.0 - base[i]) * (1.0 - glow[i]);
-            }
-        }
+        if (base.r < 0.5) result.r = 2.0 * base.r * glow.r; else result.r = 1.0 - 2.0 * (1.0 - base.r) * (1.0 - glow.r);
+        if (base.g < 0.5) result.g = 2.0 * base.g * glow.g; else result.g = 1.0 - 2.0 * (1.0 - base.g) * (1.0 - glow.g);
+        if (base.b < 0.5) result.b = 2.0 * base.b * glow.b; else result.b = 1.0 - 2.0 * (1.0 - base.b) * (1.0 - glow.b);
         return result;
     }
 }
@@ -217,53 +61,45 @@ vec3 blendColors(vec3 base, vec3 glow, float mode) {
 // 主函数
 // ============================================================================
 vec4 main(vec2 fragCoord) {
-    // 归一化坐标
     vec2 uv = fragCoord / iResolution.xy;
-    vec2 texelSize = 1.0 / iResolution.xy;
     
     // 采样原始图像
-    vec4 originalColor = iImage.eval(uv);
+    vec4 originalColor = iImage.eval(fragCoord);
     vec3 color = originalColor.rgb;
     
-    // 计算发光遮罩
-    float glowMask = calculateGlowMask(color);
+    // 计算流光遮罩
+    float angle = iFlowAngle;
+    vec2 dir1 = vec2(cos(angle), sin(angle));
+    vec2 dir2 = vec2(cos(angle + 1.57), sin(angle + 1.57));
     
-    // 如果遮罩值太低，直接返回原色
-    if (glowMask < 0.01) {
-        return vec4(color, originalColor.a * iAlpha);
+    // 遮罩采样坐标 (使用 fract 实现 TileMode.Repeat 的模拟，虽然 shader 外部已设置)
+    float scale = 1.0 / max(0.1, iFlowWidth);
+    vec2 maskUv1 = uv * scale + dir1 * (iTime * iFlowSpeed);
+    vec2 maskUv2 = uv * scale * 1.2 + dir2 * (iTime * iFlowSpeed * iSecFlowSpeedMult);
+    
+    vec2 maskCoord1 = fract(maskUv1) * iMaskSize;
+    vec2 maskCoord2 = fract(maskUv2) * iMaskSize;
+    
+    float maskValue1 = iMask.eval(maskCoord1).r;
+    float maskValue2 = iMask.eval(maskCoord2).r;
+    
+    // 组合遮罩
+    float combinedMask = maskValue1 * maskValue2 * 2.0;
+    
+    // 闪烁效果
+    if (iEnableSparkle > 0.5) {
+        float sparkle = sin(iTime * iSparkleFreq + combinedMask * 10.0) * 0.5 + 0.5;
+        combinedMask *= mix(1.0, sparkle, iSparkleIntensity);
     }
     
-    // === 计算各层流光效果 ===
+    // 计算最终流光颜色
+    vec3 glowColor = iFlowColor * maskValue1 * iFlowIntensity + 
+                     iSecFlowColor * maskValue2 * iSecFlowIntensity;
+                     
+    vec3 totalGlow = glowColor * combinedMask * iOverallIntensity;
     
-    // 第1层: 主流光
-    float mainFlow = calculateFlowIntensity(uv, iFlowSpeed, iFlowWidth, iFlowAngle);
-    vec3 mainFlowColor = iFlowColor * mainFlow * iFlowIntensity;
-    
-    // 第2层: 次流光 (不同方向，更快更窄)
-    float secFlow = calculateFlowIntensity(uv, 
-        iFlowSpeed * iSecFlowSpeedMult, 
-        iFlowWidth * iSecFlowWidthMult, 
-        iFlowAngle + 1.57); // 垂直于主流光
-    vec3 secFlowColor = iSecFlowColor * secFlow * iSecFlowIntensity;
-    
-    // 第3层: 闪烁效果
-    float sparkle = calculateSparkle(uv, glowMask);
-    vec3 sparkleColor = iSparkleColor * sparkle;
-    
-    // 第4层: 边缘辉光
-    float edgeGlow = calculateEdgeGlow(uv, glowMask, texelSize);
-    vec3 edgeGlowColor = iEdgeGlowColor * edgeGlow;
-    
-    // === 合成所有流光效果 ===
-    vec3 totalGlow = (mainFlowColor + secFlowColor + sparkleColor + edgeGlowColor) * glowMask;
-    
-    // 应用整体强度
-    totalGlow *= iOverallIntensity;
-    
-    // 使用选定的混合模式
+    // 应用到原图
     vec3 finalColor = blendColors(color, totalGlow, iBlendMode);
-    
-    // 确保颜色不会过曝
     finalColor = clamp(finalColor, 0.0, 1.0);
     
     return vec4(finalColor, originalColor.a * iAlpha);

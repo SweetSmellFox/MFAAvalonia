@@ -35,6 +35,7 @@
             <!-- 流光特效渲染器 -->
             <card:CardGlowRenderer x:Name="GlowRenderer"
                                    Source="{Binding CardImage, ElementName=Root}"
+                                   MaskSource="F:/Epic/ueProject/Other/MFA-for-MBCC/MFAAvalonia/Assets/CardImg/mark5.jpeg" 
                                    IsGlowEnabled="{Binding IsGlowEnabled, ElementName=Root}"/>
             
             <!-- 边框装饰 (可选) -->
