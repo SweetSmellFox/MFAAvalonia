@@ -13,10 +13,12 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <Folder Include="Assets\CardImg\" />
         <Folder Include="Assets\Sound\"/>
         <Folder Include="Img\"/>
         <Folder Include="Models\"/>
         <AvaloniaResource Include="Assets\**"/>
+        <AvaloniaResource Include="Assets\CardImg\CardTable.csv" />
     </ItemGroup>
 
 
@@ -65,6 +67,17 @@
         <!-- Files to hide from end users (e.g., runtime or config files). Only supported on Windows. -->
         <!-- <BeautyHiddens>hostfxr;hostpolicy;*.deps.json;*.runtimeconfig*.json</BeautyHiddens> -->
         <BeautyOnPublishOnly>True</BeautyOnPublishOnly>
+    </PropertyGroup>
+
+    <!-- Debug symbols (for Rider/VS breakpoints) -->
+    <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+        <DebugType>portable</DebugType>
+        <DebugSymbols>true</DebugSymbols>
+        <Optimize>false</Optimize>
+    </PropertyGroup>
+
+    <!-- Keep Release output clean (publish target also deletes PDBs) -->
+    <PropertyGroup Condition="'$(Configuration)' == 'Release'">
         <DebugType>none</DebugType>
         <DebugSymbols>false</DebugSymbols>
     </PropertyGroup>

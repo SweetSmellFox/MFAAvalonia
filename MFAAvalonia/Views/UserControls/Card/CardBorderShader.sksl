@@ -1,0 +1,32 @@
+// 简单的边框亮度变化shader
+// 使用正弦波实现亮度脉动效果
+vec4 main(vec2 fragCoord) {
+    // 归一化坐标
+    vec2 uv = fragCoord / iResolution.xy;
+    
+    // 边框宽度 (归一化)
+    float borderWidth = 0.05;
+    
+    // 计算到边缘的距离
+    float distToLeft = uv.x;
+    float distToRight = 1.0 - uv.x;
+    float distToTop = uv.y;
+    float distToBottom = 1.0 - uv.y;
+    
+    // 最小距离
+    float minDist = min(min(distToLeft, distToRight), min(distToTop, distToBottom));
+    
+    // 判断是否在边框区域
+    float inBorder = step(minDist, borderWidth);
+    
+    // 亮度脉动 (0.5 到 1.0 之间变化)
+    float pulse = 0.75 + 0.25 * sin(iTime * 2.0);
+    
+    // 基础边框颜色 (绿色)
+    vec3 borderColor = vec3(0.0, 1.0, 0.0) * pulse;
+    
+    // 如果在边框区域则显示边框颜色，否则透明
+    float alpha = inBorder * iAlpha;
+    
+    return vec4(borderColor, alpha);
+}
