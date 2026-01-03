@@ -6,6 +6,7 @@ using MFAAvalonia.Extensions.MaaFW;
 using MFAAvalonia.Helper;
 using MFAAvalonia.Helper.Converters;
 using MFAAvalonia.ViewModels.Other;
+using MFAAvalonia.ViewModels.Windows;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -19,9 +20,14 @@ namespace MFAAvalonia.ViewModels.UsersControls.Settings;
 
 public partial class PerformanceUserControlModel : ViewModelBase
 {
+    private bool _gpuInitCompleted;
+
     protected override void Initialize()
     {
-        GpuOption = GpuOptions[GpuIndex].Other;
+        _gpuInitCompleted = false;
+        _gpuOption = GpuOptions[GpuIndex].Other;
+        OnPropertyChanged(nameof(GpuOption));
+        _gpuInitCompleted = true;
         base.Initialize();
     }
     //禁用切换GPU
@@ -177,6 +183,24 @@ public partial class PerformanceUserControlModel : ViewModelBase
 
     partial void OnGpuOptionChanged(GpuDeviceOption? value)
     {
+        if (!_gpuInitCompleted)
+        {
+            return;
+        }
+
+        if (!Instances.IsResolved<RootViewModel>())
+        {
+            DispatcherHelper.PostOnMainThread(() =>
+            {
+                if (_gpuInitCompleted && Instances.IsResolved<RootViewModel>())
+                {
+                    ChangeGpuOption(MaaProcessor.Instance.MaaTasker?.Resource, value);
+                    MaaProcessor.Instance.SetTasker();
+                }
+            });
+            return;
+        }
+
         ChangeGpuOption(MaaProcessor.Instance.MaaTasker?.Resource, value);
         MaaProcessor.Instance.SetTasker();
     }

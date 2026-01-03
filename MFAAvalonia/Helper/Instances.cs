@@ -107,6 +107,12 @@ public static partial class Instances
         return (T)lazy.Value;
     }
 
+    public static bool IsResolved<T>() where T : class
+    {
+        var serviceType = typeof(T);
+        return ServiceCache.TryGetValue(serviceType, out var lazy) && lazy.IsValueCreated;
+    }
+
     /// <summary>
     /// 从接口类型创建实现类实例（设计时专用）
     /// 规则：去掉接口的"I"前缀，查找同一命名空间下的实现类
