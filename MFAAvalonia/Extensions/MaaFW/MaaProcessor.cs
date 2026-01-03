@@ -529,6 +529,7 @@ public class MaaProcessor
             {
                 LoggerHelper.Error(e);
             }
+            
             // 注册内置的自定义 Action（用于内存泄漏测试）
             //tasker.Resource.Register(new Custom.MemoryLeakTestAction());
             // 获取代理配置（假设Interface在UI线程中访问）
@@ -871,7 +872,6 @@ public class MaaProcessor
             tasker.Global.SetOption_SaveDraw(ConfigurationManager.Maa.GetValue(ConfigurationKeys.SaveDraw, false));
             tasker.Global.SetOption(GlobalOption.SaveOnError, ConfigurationManager.Maa.GetValue(ConfigurationKeys.SaveOnError, true));
             tasker.Global.SetOption_DebugMode(ConfigurationManager.Maa.GetValue(ConfigurationKeys.ShowHitDraw, false));
-
             LoggerHelper.Info("Maafw debug mode: " + ConfigurationManager.Maa.GetValue(ConfigurationKeys.ShowHitDraw, false));
             // 注意：只订阅一次回调，避免嵌套订阅导致内存泄漏
             tasker.Callback += HandleCallBack;
@@ -2418,7 +2418,6 @@ public class MaaProcessor
                             }
 
                         }
-
                         HandleStopResult(status, stopResult, onlyStart, action, isUpdateRelated);
                         DispatcherHelper.PostOnMainThread(() => Instances.TaskQueueViewModel.ToggleEnable = true);
                     });
