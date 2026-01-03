@@ -456,7 +456,7 @@ public class MaaProcessor
             {
                 token.ThrowIfCancellationRequested();
                 return new MaaResource(resources);
-            }, token: token, name: "截图资源检测", catchException: true, shouldLog: false);
+            }, token: token, name: "截图资源检测", catchException: true, shouldLog: false, noMessage: true);
         }
         catch (Exception ex)
         {
@@ -471,7 +471,7 @@ public class MaaProcessor
             {
                 token.ThrowIfCancellationRequested();
                 return InitializeController(Instances.TaskQueueViewModel.CurrentController);
-            }, token: token, name: "截图控制器检测", catchException: true, shouldLog: false);
+            }, token: token, name: "截图控制器检测", catchException: true, shouldLog: false, noMessage: true);
 
             var displayShortSide = Interface?.Controller?.Find(c => c.Type != null && c.Type.Equals(Instances.TaskQueueViewModel.CurrentController.ToJsonKey(), StringComparison.OrdinalIgnoreCase))?.DisplayShortSide;
             var displayLongSide = Interface?.Controller?.Find(c => c.Type != null && c.Type.Equals(Instances.TaskQueueViewModel.CurrentController.ToJsonKey(), StringComparison.OrdinalIgnoreCase))?.DisplayLongSide;
@@ -1776,7 +1776,7 @@ public class MaaProcessor
 
     async static Task MeasureExecutionTimeAsync(Func<Task> methodToMeasure)
     {
-        const int sampleCount = 4;
+        const int sampleCount = 2;
         long totalElapsed = 0;
 
         long min = 10000;
@@ -2321,8 +2321,15 @@ public class MaaProcessor
 
     public async Task MeasureScreencapPerformanceAsync(CancellationToken token)
     {
-        token.ThrowIfCancellationRequested();
-        await MeasureExecutionTimeAsync(async () => await TaskManager.RunTaskAsync(() => MaaTasker?.Controller.Screencap().Wait(), token: token, name: "截图测试"));
+        await TaskManager.RunTaskAsync(async () =>
+        {
+            token.ThrowIfCancellationRequested();
+            await MeasureExecutionTimeAsync(async () =>
+            {
+                token.ThrowIfCancellationRequested();
+                MaaTasker?.Controller.Screencap().Wait();
+            });
+        }, token: token, name: "截图测试");
     }
 
     async private Task HandleDeviceConnectionAsync(CancellationToken token, bool showMessage = true)

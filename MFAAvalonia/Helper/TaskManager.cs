@@ -24,7 +24,7 @@ public static class TaskManager
     {
         if (!noMessage)
             LoggerHelper.Info($"{prompt}任务 {name} 开始.");
-        
+
         if (catchException)
         {
             try
@@ -151,9 +151,11 @@ public static class TaskManager
         Action<Exception>? handleError = null,
         string name = nameof(Action),
         bool catchException = true,
-        bool shouldLog = true)
+        bool shouldLog = true,
+        bool noMessage = false)
     {
-        LoggerHelper.Info($"MFA异步任务 {name} 开始.");
+        if (!noMessage)
+            LoggerHelper.Info($"MFA异步任务 {name} 开始.");
         try
         {
             return await Task.Run(() =>
@@ -175,7 +177,8 @@ public static class TaskManager
         }
         finally
         {
-            LoggerHelper.Info($">>> MFA异步任务 {name} 已完成.");
+            if (!noMessage)
+                LoggerHelper.Info($">>> MFA异步任务 {name} 已完成.");
         }
     }
 }
