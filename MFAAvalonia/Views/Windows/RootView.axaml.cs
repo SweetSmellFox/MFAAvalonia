@@ -56,7 +56,7 @@ public partial class RootView : SukiWindow
             LoggerHelper.Info("UI initialization started");
 
             // 确保在UI线程上执行
-            DispatcherHelper.PostOnMainThread(() =>
+            DispatcherHelper.PostOnMainThread(async () =>
             {
                 // 初始化完成
                 _isInitializing = false;
@@ -64,7 +64,7 @@ public partial class RootView : SukiWindow
                 // 加载UI
                 LoadUI();
 
-                CCMgr.Instance.PullOne_real();
+                await CCMgr.Instance.PullOne_real();
             });
         };
         if (Program.IsNewInstance)

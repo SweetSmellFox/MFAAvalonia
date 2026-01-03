@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Avalonia.Layout;
@@ -31,7 +31,7 @@ public sealed class CCMgr
 
     public void PostLoading()
     {
-        PullOne_real();
+        _ = PullOne_real();
         LoggerHelper.Info("0099 pullOnre_real");
         
     }
