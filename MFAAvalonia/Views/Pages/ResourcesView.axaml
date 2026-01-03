@@ -8,12 +8,21 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:pages="clr-namespace:MFAAvalonia.ViewModels.Pages"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:suki="https://github.com/kikipoulet/SukiUI"
+    xmlns:dashboard="clr-namespace:MFAAvalonia.Views.UserControls.Dashboard"
+    xmlns:avalonia1="clr-namespace:FluentIcons.Avalonia;assembly=FluentIcons.Avalonia"
+    xmlns:markup="https://codewf.com"
+    xmlns:helper="clr-namespace:MFAAvalonia.Helper">
+
     <Design.DataContext>
         <pages:ResourcesViewModel />
     </Design.DataContext>
-    <Grid
-        ClipToBounds="False"
-        ColumnDefinitions="*,*"
-        Margin="0,0,0,0" />
+
+    <Grid ClipToBounds="False"
+          RowDefinitions="Auto,*"
+          Margin="0">
+
+      
+    </Grid>
 </UserControl>

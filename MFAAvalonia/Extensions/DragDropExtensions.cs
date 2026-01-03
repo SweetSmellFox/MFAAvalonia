@@ -716,18 +716,15 @@ public class DragDropExtensions
         if (end && container != null)
             absolutePos += new Point(0, container.Bounds.Height);
 
-        // 计算ListBox相对于adornerLayer的左侧位置，考虑可能的菜单展开
-        var listBoxLeftPos = GetAbsolutePosition(listBox, adornerLayer);
-
-        // 获取ListBox的实际可见宽度
-        double effectiveWidth = GetListBoxEffectiveWidth(listBox);
+        // 使用当前可见容器的实际位置与宽度，避免与ListBox左边距偏差
+        var containerWidth = container.Bounds.Width > 0 ? container.Bounds.Width : GetListBoxEffectiveWidth(listBox);
 
         // 创建或更新adorner
         if (listBox.GetValue(DragAdornerProperty) is not DragAdorner adorner)
         {
             adorner = new DragAdorner(
-                listBoxLeftPos.X, // 使用ListBox的左侧实际位置
-                effectiveWidth,
+                absolutePos.X,
+                containerWidth,
                 SukiTheme.GetInstance().ActiveColorTheme.PrimaryBrush
             );
             listBox.SetValue(DragAdornerProperty, adorner);
@@ -735,8 +732,8 @@ public class DragDropExtensions
         else
         {
             // 确保已有adorner的X位置和宽度也会更新
-            adorner.UpdateXPosition(listBoxLeftPos.X);
-            adorner.UpdateWidth(effectiveWidth);
+            adorner.UpdateXPosition(absolutePos.X);
+            adorner.UpdateWidth(containerWidth);
         }
 
         // 确保adorner已添加到层
