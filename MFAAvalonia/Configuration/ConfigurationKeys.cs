@@ -72,6 +72,7 @@ public static class ConfigurationKeys
     public const string Prescript = "Prescript";
     public const string Postscript = "Post-script";
     public const string ContinueRunningWhenError = "ContinueRunningWhenError";
+    public const string UseSeparateScreenshotTasker = "UseSeparateScreenshotTasker";
 
     #endregion
 
