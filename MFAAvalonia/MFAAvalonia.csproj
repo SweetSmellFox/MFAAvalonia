@@ -35,10 +35,10 @@
     <!-- Version -->
     <PropertyGroup>
         <ApplicationRevision>0</ApplicationRevision>
-        <ApplicationVersion>2.2.7</ApplicationVersion>
+        <ApplicationVersion>2.4.0</ApplicationVersion>
         <Version>1.1</Version>
-        <FileVersion>2.2.8</FileVersion>
-        <AssemblyVersion>2.2.8</AssemblyVersion>
+        <FileVersion>2.4.1</FileVersion>
+        <AssemblyVersion>2.4.1</AssemblyVersion>
         <InformationalVersion>0.0.1</InformationalVersion>
     </PropertyGroup>
 
@@ -88,11 +88,11 @@
         <PackageReference Include="FluentIcons.Avalonia.Fluent" Version="2.0.316.1"/>
         <PackageReference Include="Lang.Avalonia" Version="11.3.9"/>
         <PackageReference Include="Maa.AgentBinary" Version="1.2.0"/>
-        <PackageReference Include="Maa.Framework" Version="5.1.0-preview.3"/>
-        <PackageReference Include="Maa.Framework.Binding.Extensions" Version="5.1.0-preview.3" />
-        <PackageReference Include="Maa.Framework.Binding.Native" Version="5.1.0-preview.3"/>
-        <PackageReference Include="Maa.Framework.Native" Version="5.1.0-preview.3"/>
-        <PackageReference Include="Maa.Framework.Runtimes" Version="5.3.0-beta.6" />
+        <PackageReference Include="Maa.Framework" Version="5.3.0-preview.1" />
+        <PackageReference Include="Maa.Framework.Binding.Extensions" Version="5.3.0-preview.1" />
+        <PackageReference Include="Maa.Framework.Binding.Native" Version="5.3.0-preview.1" />
+        <PackageReference Include="Maa.Framework.Native" Version="5.3.0-preview.1" />
+        <PackageReference Include="Maa.Framework.Runtimes" Version="5.3.0" />
         <PackageReference Include="MailKit" Version="4.14.1"/>
         <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="5.0.0"/>
         <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0"/>
@@ -114,7 +114,7 @@
         <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1"/>
         <PackageReference Include="Serilog.Sinks.File" Version="7.0.0"/>
         <PackageReference Include="SharpCompress" Version="0.42.1"/>
-        <PackageReference Include="SharpHook" Version="7.1.0"/>
+        <PackageReference Include="SharpHook" Version="7.1.1" />
         <PackageReference Include="SkiaSharp" Version="3.119.1"/>
         <PackageReference Include="SoundFlow" Version="1.3.0"/>
         <PackageReference Include="System.Linq.Dynamic.Core" Version="1.7.1"/>

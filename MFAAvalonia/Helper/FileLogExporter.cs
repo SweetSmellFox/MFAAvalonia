@@ -85,14 +85,14 @@ public static class FileLogExporter
                     else
                     {
                         // 日志文件：按行数限制处理
-                        if (file.LineCount > MAX_LINES)
-                        {
-                            ExtractLastLines(file.FullName, destPath, MAX_LINES);
-                        }
-                        else
-                        {
+                        // if (file.LineCount > MAX_LINES)
+                        // {
+                        //     ExtractLastLines(file.FullName, destPath, MAX_LINES);
+                        // }
+                        // else
+                        // {
                             File.Copy(file.FullName ?? string.Empty, destPath);
-                        }
+                        // }
                     }
                 }
 

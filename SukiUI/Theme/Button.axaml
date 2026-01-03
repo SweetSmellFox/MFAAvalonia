@@ -371,6 +371,19 @@
             </Style>
         </Style>
 
+        <Style Selector="^.BasicTight">
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="5" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource SukiPrimaryColor}" />
+            <!--  Events  -->
+            <Style Selector="^:pointerover, ^:flyout-open">
+                <Setter Property="RenderTransform" Value="scale(1.03)" />
+            </Style>
+        </Style>
+        
         <Style Selector="^.Outlined">
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="BorderBrush" Value="{DynamicResource SukiPrimaryColor}" />

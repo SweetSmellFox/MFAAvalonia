@@ -244,16 +244,40 @@ public partial class RootView : SukiWindow
                             }
                             // StartupScriptOnly 或 StartupSoftwareAndScript 时启动脚本 (onlyStart = false)
                             // StartupSoftware 时只启动游戏不启动脚本 (onlyStart = true)
+                            var controllerType = Instances.TaskQueueViewModel.CurrentController;
+                            if (controllerType == MaaControllerTypes.PlayCover)
+                            {
+                                Instances.TaskQueueViewModel.TryReadPlayCoverConfig();
+                            }
+                            else if (ConfigurationManager.Current.GetValue(ConfigurationKeys.RememberAdb, true))
+                            {
+                                Instances.TaskQueueViewModel.TryReadAdbDeviceFromConfig(false, false);
+                            }
                             var onlyStart = beforeTask.Equals("StartupSoftware", StringComparison.OrdinalIgnoreCase);
                             MaaProcessor.Instance.Start(onlyStart, checkUpdate: true);
                         }
                         else
                         {
-                            var isAdb = Instances.TaskQueueViewModel.CurrentController == MaaControllerTypes.Adb;
+                            var controllerType = Instances.TaskQueueViewModel.CurrentController;
+                            var controllerKey = controllerType switch
+                            {
+                                MaaControllerTypes.Adb => "Emulator",
+                                MaaControllerTypes.Win32 => "Window",
+                                MaaControllerTypes.PlayCover => "TabPlayCover",
+                                _ => "Window"
+                            };
 
-                            AddLogByKey("ConnectingTo", null, true, true, isAdb ? "Emulator" : "Window");
+                            AddLogByKey("ConnectingTo", null, true, true, controllerKey);
 
-                            Instances.TaskQueueViewModel.TryReadAdbDeviceFromConfig();
+                            if (controllerType == MaaControllerTypes.PlayCover)
+                            {
+                                Instances.TaskQueueViewModel.TryReadPlayCoverConfig();
+                            }
+                            else
+                            {
+                                Instances.TaskQueueViewModel.TryReadAdbDeviceFromConfig();
+                            }
+
                             MaaProcessor.Instance.TaskQueue.Enqueue(new MFATask
                             {
                                 Name = "连接检测",
@@ -310,6 +334,7 @@ public partial class RootView : SukiWindow
                     {
                         DispatcherHelper.RunOnMainThread(VersionChecker.CheckMinVersion);
                         AnnouncementViewModel.CheckAnnouncement();
+
                         if (ConfigurationManager.Current.GetValue(ConfigurationKeys.AutoMinimize, false))
                         {
                             WindowState = WindowState.Minimized;
@@ -616,9 +641,9 @@ public partial class RootView : SukiWindow
         UpdateCachedWindowState();
         ExecuteActualSave();
     }
-    
+
     private void ResourceInfo_OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-       Instances.RootViewModel.TempResourceUpdateAction?.Invoke();
+        Instances.RootViewModel.TempResourceUpdateAction?.Invoke();
     }
 }
