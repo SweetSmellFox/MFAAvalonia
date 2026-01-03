@@ -7,6 +7,7 @@
              xmlns:vm="clr-namespace:MFAAvalonia.ViewModels.Pages"
              xmlns:i="using:Avalonia.Xaml.Interactivity"
              xmlns:cardClass="clr-namespace:MFAAvalonia.Utilities.CardClass"
+             xmlns:conv="using:MFAAvalonia.Helper.Converters"
              x:DataType="vm:CardCollectionViewModel"
              x:Name="PageRoot"
              x:Class="MFAAvalonia.Views.Pages.CardCollection">
@@ -19,7 +20,6 @@
         
         <!-- 主内容区域 -->
         <Grid Grid.Row="0">
-            <TextBlock  Width="500" Height="500" ZIndex="2" Text="" FontSize="50"/>
             <ScrollViewer x:Name="CardScrollViewer"
                           Background="Transparent"
                           PointerReleased="ClickBlankSpace">
@@ -65,21 +65,16 @@
                     </Style>
                 </Grid.Styles>
 
-                <!-- 选中状态的高亮背景/阴影效果 -->
-                <Border Classes="glowPulse"
-                        CornerRadius="12"
-                        Margin="15">
-                    <local:CardSample 
-                        DataContext="{Binding SelectedCard}"
-                        CardWith="500"
-                        CardHeight="750"
-                        mImage="{Binding CardImage}" 
-                        IsGlowEnabled="True"
-                        IsNormalMode="False"
-                        IsHitTestVisible="False"
-                        IsDragbility="False"
-                        Margin="0"/>
-                </Border>
+                <local:CardSample 
+                    DataContext="{Binding SelectedCard}"
+                    CardHeight="{Binding #CardScrollViewer.Bounds.Height, Converter={conv:MathMultiplyConverter}, ConverterParameter=0.85}"
+                    CardWith="{Binding #CardScrollViewer.Bounds.Height, Converter={conv:MathMultiplyConverter}, ConverterParameter=0.5666666666666667}"
+                    mImage="{Binding CardImage}" 
+                    IsGlowEnabled="True"
+                    IsNormalMode="False"
+                    IsHitTestVisible="False"
+                    IsDragbility="False"
+                    Margin="0"/>
             </Grid>
 
 

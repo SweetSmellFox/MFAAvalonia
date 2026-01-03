@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -17,9 +17,9 @@ public partial class CardSample : UserControl
         AvaloniaProperty.Register<CardSample, IImage?>(nameof(mImage));
     public static readonly StyledProperty<bool> IsDragbilityProperty = 
         AvaloniaProperty.Register<CardSample, bool>(nameof(IsDragbility));
-    public static readonly StyledProperty<double> CardWidthProperty =
+    public static readonly StyledProperty<double> CardWithProperty =
         AvaloniaProperty.Register<CardSample, double>(nameof(CardWith));
-    public static readonly StyledProperty<double> CardHightProperty =
+    public static readonly StyledProperty<double> CardHeightProperty =
         AvaloniaProperty.Register<CardSample, double>(nameof(CardHeight));
     
     /// <summary>
@@ -70,14 +70,14 @@ public partial class CardSample : UserControl
 
     public double CardWith
     {
-        get => GetValue(CardWidthProperty);
-        set => SetValue(CardWidthProperty, value);
+        get => GetValue(CardWithProperty);
+        set => SetValue(CardWithProperty, value);
     }
 
     public double CardHeight
     {
-        get => GetValue(CardHightProperty);
-        set => SetValue(CardHightProperty, value);
+        get => GetValue(CardHeightProperty);
+        set => SetValue(CardHeightProperty, value);
     }
     public bool IsDragbility
     {
