@@ -1030,7 +1030,6 @@ uniform vec3 iResolution;
             RegisterForNextAnimationFrameUpdate();
         }
 
-        [Obsolete]
         public override void OnRender(ImmediateDrawingContext context)
         {
             var leaseFeature = context.TryGetFeature<ISkiaSharpApiLeaseFeature>();
@@ -1107,13 +1106,12 @@ uniform vec3 iResolution;
                         var blendMode = (int)_config.BlendMode == 0 ? SKBlendMode.Plus : SKBlendMode.Screen;
                         using var paint = new SKPaint 
                         { 
-                            FilterQuality = SKFilterQuality.Low,
                             IsAntialias = false,
                             BlendMode = blendMode,
                             Color = new SKColor(255, 255, 255, (byte)(255 * _alpha)) // 应用整体透明度
                         };
                         
-                        lease.SkCanvas.DrawImage(frame, rect, paint);
+                        lease.SkCanvas.DrawImage(frame, rect, new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.None), paint);
                     }
                     else
                     {
@@ -1145,11 +1143,11 @@ uniform vec3 iResolution;
                         
                         using var paint = new SKPaint 
                         { 
-                            FilterQuality = SKFilterQuality.Low,
                             IsAntialias = false,
                             BlendMode = blendMode
                         };
-                        lease.SkCanvas.DrawBitmap(_offscreenBitmap, rect, paint);
+                        using var offscreenImage = SKImage.FromBitmap(_offscreenBitmap);
+                        lease.SkCanvas.DrawImage(offscreenImage, rect, new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.None), paint);
                     }
                 }
             }
