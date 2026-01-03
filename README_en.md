@@ -320,6 +320,18 @@ lang/
 └── en-us.json  # English
 ```
 
+Also add the multi-language field in `interface.json` (paths are relative to `interface.json`):
+
+```jsonc
+{
+  "languages": {
+    "zh-cn": "lang/zh-cn.json",
+    "zh-tw": "lang/zh-tw.json",
+    "en-us": "lang/en-us.json"
+  }
+}
+```
+
 Task names and documentation can use keys for reference, and MFAAvalonia will automatically load the corresponding
 translations based on language settings.
 

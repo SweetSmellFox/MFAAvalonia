@@ -323,6 +323,18 @@ lang/
 └── en-us.json  # English
 ```
 
+同时需要在 `interface.json` 中新增多语言字段（路径相对于 `interface.json`）：
+
+```jsonc
+{
+  "languages": {
+    "zh-cn": "lang/zh-cn.json",
+    "zh-tw": "lang/zh-tw.json",
+    "en-us": "lang/en-us.json"
+  }
+}
+```
+
 任务名称和文档可使用 key 引用，MFAAvalonia 会根据语言设置自动加载对应翻译。
 
 ### 公告系统
