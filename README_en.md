@@ -18,4 +18,3 @@ with [Avalonia UI](https://github.com/AvaloniaUI/Avalonia)_
 ---
 
 **English** | [简体中文](./README.md)
-
