@@ -1503,7 +1503,7 @@ public partial class TaskQueueViewModel : ViewModelBase
     /// Live View 刷新率（FPS），范围 1-60，默认 10
     /// </summary>
     [ObservableProperty] private double _liveViewRefreshRate =
-        ConfigurationManager.Current.GetValue(ConfigurationKeys.LiveViewRefreshRate, 10.0);
+        ConfigurationManager.Current.GetValue(ConfigurationKeys.LiveViewRefreshRate, 30.0);
 
     partial void OnEnableLiveViewChanged(bool value)
     {
