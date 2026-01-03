@@ -1508,6 +1508,7 @@ public partial class TaskQueueViewModel : ViewModelBase
     partial void OnEnableLiveViewChanged(bool value)
     {
         OnPropertyChanged(nameof(IsLiveViewVisible));
+        ConfigurationManager.Current.SetValue(ConfigurationKeys.EnableLiveView, value);
     }
 
     partial void OnLiveViewRefreshRateChanged(double value)
