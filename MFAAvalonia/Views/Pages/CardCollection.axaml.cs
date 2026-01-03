@@ -78,9 +78,7 @@ public partial class CardCollection : UserControl
             e.Handled = true;  // 点击卡片时才阻止事件传播
             DraggingCard.RenderTransform = transform;
             IsDragging = true;
-            var Zparent = DraggingCard.Parent as Control;
-            if (Zparent == null) return;
-            Zparent.ZIndex += 1;
+            DraggingCard.ZIndex += 1;
             var parent = Parent as Control;
             if (parent == null) return;
             DragStartPoint = e.GetPosition(parent);
@@ -138,8 +136,7 @@ public partial class CardCollection : UserControl
             this.DragStartPoint = new Point(0, 0);
             transform.X = 0;
             transform.Y = 0;
-            var Zparent = DraggingCard.Parent as Control;
-            if(Zparent != null) Zparent.ZIndex -= 1;
+            DraggingCard.ZIndex -= 1;
             if (cur_index != undefine && hov_index != undefine)
             {
                 mgr.SwapCard(cur_index, hov_index);
@@ -155,8 +152,7 @@ public partial class CardCollection : UserControl
             transform.X = 0;
             transform.Y = 0;
             e.Pointer.Capture(null);
-            var Zparent = DraggingCard?.Parent as Control;
-            if(Zparent != null) Zparent.ZIndex -= 1;
+            DraggingCard.ZIndex -= 1;
             cur_index = undefine;
             hov_index = undefine;
         }

@@ -79,11 +79,15 @@
 
 
             <Button Height="50" Width="50" Background="Red"
-                    VerticalAlignment="Bottom" HorizontalAlignment="Center"
+                    VerticalAlignment="Bottom" 
+                    HorizontalAlignment="Center"
+                    IsVisible="False"
                     Click="PullButton_OnClick"/>
             
             <!-- 测试发光卡片按钮 -->
-            <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="10" Orientation="Horizontal">
+            <StackPanel VerticalAlignment="Bottom" 
+                    IsVisible="False"
+                    HorizontalAlignment="Right" Margin="10" Orientation="Horizontal">
                 <Button Content="添加金色卡" 
                         Background="#FFD700" 
                         Foreground="Black"
