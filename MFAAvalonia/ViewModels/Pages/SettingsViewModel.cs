@@ -19,10 +19,30 @@ namespace MFAAvalonia.ViewModels.Pages;
 
 public partial class SettingsViewModel : ViewModelBase
 {
+    private bool _hotkeysInitialized;
+
     protected override void Initialize()
     {
-        HotKeyShowGui = MFAHotKey.Parse(GlobalConfiguration.GetValue(ConfigurationKeys.ShowGui, ""));
-        HotKeyLinkStart = MFAHotKey.Parse(GlobalConfiguration.GetValue(ConfigurationKeys.LinkStart, ""));
+        _hotKeyShowGui = MFAHotKey.Parse(GlobalConfiguration.GetValue(ConfigurationKeys.ShowGui, ""));
+        _hotKeyLinkStart = MFAHotKey.Parse(GlobalConfiguration.GetValue(ConfigurationKeys.LinkStart, ""));
+
+        DispatcherHelper.PostOnMainThread(InitializeHotkeysAfterStartup);
+    }
+
+    private void InitializeHotkeysAfterStartup()
+    {
+        if (_hotkeysInitialized)
+        {
+            return;
+        }
+
+        _hotkeysInitialized = true;
+
+        SetHotKey(ref _hotKeyShowGui, _hotKeyShowGui, ConfigurationKeys.ShowGui,
+            Instances.RootViewModel.ToggleVisibleCommand);
+
+        SetHotKey(ref _hotKeyLinkStart, _hotKeyLinkStart, ConfigurationKeys.LinkStart,
+            Instances.TaskQueueViewModel.ToggleCommand);
     }
 
     #region 配置
