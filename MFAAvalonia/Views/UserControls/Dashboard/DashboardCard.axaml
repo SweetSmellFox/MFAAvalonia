@@ -182,7 +182,7 @@
                                     Background="Transparent"
                                     MinHeight="36" MaxHeight="36"
                                     Padding="12,6">
-                                <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+                                <Grid ColumnDefinitions="Auto,*,Auto,Auto" ClipToBounds="True">
                                     <Border x:Name="DragHandle"
                                             Grid.Column="0"
                                             Grid.ColumnSpan="2"
@@ -206,13 +206,19 @@
                                                IsVisible="{Binding TitleContent, RelativeSource={RelativeSource TemplatedParent}, Converter={x:Static converters:ObjectConverters.IsNull}}" />
 
                                     <!-- Actions (hidden when collapsed) -->
-                                    <ContentPresenter x:Name="HeaderActionsPresenter"
-                                                      Grid.Column="2"
-                                                      Content="{TemplateBinding HeaderActions}"
-                                                      HorizontalAlignment="Right"
-                                                      VerticalAlignment="Center" />
+                                    <ScrollViewer Grid.Column="1"
+                                                  x:Name="HeaderActionsScrollViewer"
+                                                  HorizontalScrollBarVisibility="Hidden"
+                                                  VerticalScrollBarVisibility="Disabled"
+                                                  HorizontalAlignment="Right"
+                                                  VerticalAlignment="Center">
+                                        <ContentPresenter x:Name="HeaderActionsPresenter"
+                                                          Content="{TemplateBinding HeaderActions}"
+                                                          HorizontalAlignment="Right"
+                                                          VerticalAlignment="Center" />
+                                    </ScrollViewer>
 
-                                    <Button Grid.Column="3"
+                                    <Button Grid.Column="2"
                                             x:Name="MaximizeButton"
                                             Classes="BasicTight" Margin="4 4"
                                             Foreground="{DynamicResource SukiPrimaryColor}"
@@ -249,7 +255,7 @@
 
                                     <!-- Collapse button (always visible, fixed to the right) -->
 
-                                    <Button Grid.Column="4"
+                                    <Button Grid.Column="3"
                                             x:Name="CollapseButton"
                                             Classes="BasicTight" Margin="4 4"
                                             Foreground="{DynamicResource SukiPrimaryColor}"

@@ -156,6 +156,7 @@ public partial class DashboardCard : ContentControl
     public event EventHandler<DashboardCardResizeEventArgs>? ResizeCompleted;
 
     private Border? _dragHandle;
+    private ScrollViewer? _headerActionsScrollViewer;
     private bool _isDragging;
 
     public DashboardCard()
@@ -194,7 +195,19 @@ public partial class DashboardCard : ContentControl
             _dragHandle.PointerReleased -= OnHeaderPointerReleased;
         }
 
+        if (_headerActionsScrollViewer != null)
+        {
+            _headerActionsScrollViewer.PointerWheelChanged -= OnHeaderActionsWheelChanged;
+        }
+
         _dragHandle = e.NameScope.Find<Border>("DragHandle");
+        _headerActionsScrollViewer = e.NameScope.Find<ScrollViewer>("HeaderActionsScrollViewer");
+
+        if (_headerActionsScrollViewer != null)
+        {
+            _headerActionsScrollViewer.PointerWheelChanged += OnHeaderActionsWheelChanged;
+        }
+
         if (_dragHandle == null)
         {
             return;
@@ -261,6 +274,29 @@ public partial class DashboardCard : ContentControl
         _isDragging = false;
         e.Pointer.Capture(null);
         DragEnded?.Invoke(this, e);
+    }
+
+    private void OnHeaderActionsWheelChanged(object? sender, PointerWheelEventArgs e)
+    {
+        if (_headerActionsScrollViewer == null)
+        {
+            return;
+        }
+
+        var delta = e.Delta.Y;
+        if (Math.Abs(delta) < 0.01)
+        {
+            return;
+        }
+
+        var offset = _headerActionsScrollViewer.Offset;
+        var step = 30.0;
+        var nextX = offset.X - Math.Sign(delta) * step;
+        var maxX = _headerActionsScrollViewer.ScrollBarMaximum.X;
+        nextX = Math.Clamp(nextX, 0, maxX);
+
+        _headerActionsScrollViewer.Offset = offset.WithX(nextX);
+        e.Handled = true;
     }
 
     private void OnResizeDragDelta(object? sender, VectorEventArgs e)
