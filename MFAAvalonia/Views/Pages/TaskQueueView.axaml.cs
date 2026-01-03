@@ -629,7 +629,7 @@ public partial class TaskQueueView : UserControl
         UpdateConnectionLayout();
         UpdateThreeColumnLayout();
     }
-    private double _lastThreeColumnGridWidth = 0;
+    //private double _lastThreeColumnGridWidth = 0;
     //
     // /// <summary>
     // /// 当窗口大小缩小时，调整列宽度以保持右边距

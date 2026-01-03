@@ -1030,6 +1030,7 @@ uniform vec3 iResolution;
             RegisterForNextAnimationFrameUpdate();
         }
 
+        [Obsolete]
         public override void OnRender(ImmediateDrawingContext context)
         {
             var leaseFeature = context.TryGetFeature<ISkiaSharpApiLeaseFeature>();
