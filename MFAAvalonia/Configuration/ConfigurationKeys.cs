@@ -43,11 +43,11 @@ public static class ConfigurationKeys
 
     #endregion
 
-        #region 连接设置
-    
-        public const string RememberAdb = "RememberAdb";
-        public const string UseFingerprintMatching = "UseFingerprintMatching";
-        public const string AdbControlScreenCapType = "AdbControlScreenCapType";
+    #region 连接设置
+
+    public const string RememberAdb = "RememberAdb";
+    public const string UseFingerprintMatching = "UseFingerprintMatching";
+    public const string AdbControlScreenCapType = "AdbControlScreenCapType";
     public const string AdbControlInputType = "AdbControlInputType";
     public const string Win32ControlScreenCapType = "Win32ControlScreenCapType";
     public const string Win32ControlMouseType = "Win32ControlMouseType";
@@ -57,6 +57,7 @@ public static class ConfigurationKeys
     public const string RetryOnDisconnected = "RetryOnDisconnected";
     public const string AutoDetectOnConnectionFailed = "AutoDetectOnConnectionFailed";
     public const string AdbDevice = "AdbDevice";
+    public const string PlayCoverConfig = "PlayCoverConfig";
     public const string CurrentController = "CurrentController";
 
     #endregion
@@ -153,18 +154,22 @@ public static class ConfigurationKeys
 
     #endregion
 
-        #region UI设置
-    
-        public const string TaskQueueColumn1Width = "UI.TaskQueue.Column1Width";
-        public const string TaskQueueColumn2Width = "UI.TaskQueue.Column2Width";
-        public const string TaskQueueColumn3Width = "UI.TaskQueue.Column3Width";
-        public const string TaskQueueLeftPanelCollapsed = "UI.TaskQueue.LeftPanelCollapsed";
-        public const string TaskQueueRightPanelCollapsed = "UI.TaskQueue.RightPanelCollapsed";
-        public const string MainWindowWidth = "UI.MainWindow.Width";
-        public const string MainWindowHeight = "UI.MainWindow.Height";
-        public const string MainWindowPositionX = "UI.MainWindow.PositionX";
-        public const string MainWindowPositionY = "UI.MainWindow.PositionY";
-        public const string MainWindowMaximized = "UI.MainWindow.Maximized";
-    
-        #endregion
-    }
+    #region UI设置
+
+    public const string TaskQueueColumn1Width = "UI.TaskQueue.Column1Width";
+    public const string TaskQueueColumn2Width = "UI.TaskQueue.Column2Width";
+    public const string TaskQueueColumn3Width = "UI.TaskQueue.Column3Width";
+    public const string TaskQueueLeftPanelCollapsed = "UI.TaskQueue.LeftPanelCollapsed";
+    public const string TaskQueueRightPanelCollapsed = "UI.TaskQueue.RightPanelCollapsed";
+    public const string TaskQueueDashboardLayout = "UI.TaskQueue.DashboardLayout";
+    public const string DashboardCardGridLayout = "UI.DashboardCardGrid.Layout";
+    public const string EnableLiveView = "UI.LiveView.EnableLiveView";
+    public const string LiveViewRefreshRate = "UI.LiveView.RefreshRate";
+    public const string MainWindowWidth = "UI.MainWindow.Width";
+    public const string MainWindowHeight = "UI.MainWindow.Height";
+    public const string MainWindowPositionX = "UI.MainWindow.PositionX";
+    public const string MainWindowPositionY = "UI.MainWindow.PositionY";
+    public const string MainWindowMaximized = "UI.MainWindow.Maximized";
+
+    #endregion
+}

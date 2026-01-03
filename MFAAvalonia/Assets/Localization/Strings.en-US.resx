@@ -261,6 +261,12 @@
     <data name="DebugModeWarning" xml:space="preserve">
         <value>Debug mode has been enabled. This mode will save screenshots, operation data, and image recognition visualization results during operation, which may occupy a large amount of storage space!</value>
     </data>
+    <data name="DashboardCardMaximize" xml:space="preserve">
+        <value>Maximize</value>
+    </data>
+    <data name="DashboardCardRestore" xml:space="preserve">
+        <value>Restore</value>
+    </data>
     <data name="Delete" xml:space="preserve">
         <value>Delete</value>
     </data>
@@ -882,13 +888,13 @@
     <data name="StartupSoftware" xml:space="preserve">
         <value>Startup game</value>
     </data>
-        <data name="StartupSoftwareAndScript" xml:space="preserve">
+    <data name="StartupSoftwareAndScript" xml:space="preserve">
             <value>Startup game and script</value>
         </data>
-        <data name="StartupScriptOnly" xml:space="preserve">
+    <data name="StartupScriptOnly" xml:space="preserve">
             <value>Startup script only</value>
         </data>
-        <data name="Stopping" xml:space="preserve">
+    <data name="Stopping" xml:space="preserve">
             <value>Stopping......</value>
         </data>
     <data name="StoppingFailed" xml:space="preserve">
@@ -908,6 +914,9 @@
     </data>
     <data name="TabWin32" xml:space="preserve">
         <value>Win32</value>
+    </data>
+    <data name="TabPlayCover" xml:space="preserve">
+        <value>PlayCover</value>
     </data>
     <data name="Task" xml:space="preserve">
         <value>Tasks</value>
@@ -972,7 +981,7 @@
     <data name="TooltipRefresh" xml:space="preserve">
         <value>Refresh</value>
     </data>
-    <data name="TryToReconnectByAdb" xml:space="preserve">
+    <data name="TryToReconnect" xml:space="preserve">
         <value>Attempting to reconnect</value>
     </data>
     <data name="TryToStartEmulator" xml:space="preserve">
@@ -1412,6 +1421,12 @@
     <data name="ResourceNotSupportController" xml:space="preserve">
         <value>Current controller {1} does not support resource {0}, auto-switched to {2}. Please check resource settings.</value>
     </data>
+    <data name="ResourceNotSelected" xml:space="preserve">
+        <value>No resource selected. Please select a resource first.</value>
+    </data>
+    <data name="DeviceNotSelected" xml:space="preserve">
+        <value>No device selected. Please select a device first.</value>
+    </data>
 
 
     <data name="ResourcePresetConfig" xml:space="preserve">
@@ -1427,7 +1442,22 @@
         <value>Running</value>
     </data>
     <data name="CurrentTask" xml:space="preserve">
-        <value>Task: {0}</value>
+            <value>Task: {0}</value>
+        </data>
+    <data name="LiveViewRefreshRate" xml:space="preserve">
+        <value>Live View Max Refresh Rate (FPS)</value>
+    </data>
+    <data name="PlayCoverAddress" xml:space="preserve">
+        <value>Address</value>
+    </data>
+    <data name="PlayCoverBundleIdentifier" xml:space="preserve">
+        <value>Bundle Identifier</value>
+    </data>
+    <data name="PlayCoverAddressEmpty" xml:space="preserve">
+        <value>PlayCover address cannot be empty</value>
+    </data>
+    <data name="Reconnect" xml:space="preserve">
+        <value>Reconnect</value>
     </data>
 </root>
 
