@@ -14,8 +14,12 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Avalonia.Threading;
 
 namespace MFAAvalonia.Views.UserControls.Dashboard;
 
@@ -76,6 +80,11 @@ public sealed class DashboardCardGrid : Panel
     private HiddenLayout? _maximizedLayout;
     private bool _isApplyingMaximize;
     private Point _dragStartPosition;
+    private readonly Dictionary<DashboardCard, Rect> _lastArranged = new();
+    private readonly Dictionary<DashboardCard, Rect> _pendingTransitions = new();
+    private readonly Dictionary<DashboardCard, Rect> _activeRectAnimations = new();
+    private readonly Dictionary<DashboardCard, CancellationTokenSource> _transitionTokens = new();
+    private const int LayoutTransitionDurationMs = 250;
     private int _dragStartCol;
     private int _dragStartRow;
     private Rect? _dragPreviewRect;
@@ -281,6 +290,13 @@ public sealed class DashboardCardGrid : Panel
             return;
         }
 
+        var col = ClampIndex(card.GridColumn, Columns);
+        var row = ClampIndex(card.GridRow, Rows);
+        var colSpan = Math.Max(1, card.GridColumnSpan);
+        var rowSpan = Math.Max(1, card.GridRowSpan);
+
+        var fromRect = GetRectFromGrid(col, row, colSpan, rowSpan);
+
         if (card.IsCollapsed)
         {
             card.ExpandedRowSpan = Math.Max(1, card.GridRowSpan);
@@ -290,18 +306,17 @@ public sealed class DashboardCardGrid : Panel
         else
         {
             var desiredRowSpan = Math.Max(1, card.ExpandedRowSpan);
-            var colSpan = Math.Max(1, card.GridColumnSpan);
-            var col = ClampIndex(card.GridColumn, Columns);
-            var row = ClampIndex(card.GridRow, Rows);
-
             var maxRowSpan = GetMaxAvailableRowSpan(card, col, row, colSpan);
             card.GridRowSpan = Math.Clamp(desiredRowSpan, 1, Math.Max(1, maxRowSpan));
         }
 
         InvalidateMeasure();
         InvalidateArrange();
-        SaveLayouts();
+
+        var toRect = GetRectFromGrid(col, row, colSpan, card.GridRowSpan);
+        StartRectTransition(card, fromRect, toRect, SaveLayouts);
     }
+
 
     private int GetMaxAvailableRowSpan(DashboardCard card, int col, int row, int colSpan)
     {
@@ -1219,7 +1234,11 @@ public sealed class DashboardCardGrid : Panel
             {
                 var maxWidth = Math.Max(0, finalSize.Width - Padding.Left - Padding.Right);
                 var maxHeight = Math.Max(0, finalSize.Height - Padding.Top - Padding.Bottom);
-                child.Arrange(new Rect(Padding.Left, Padding.Top, maxWidth, maxHeight));
+                var rect1 = new Rect(Padding.Left, Padding.Top, maxWidth, maxHeight);
+                var arranged1 = _activeRectAnimations.GetValueOrDefault(card, rect1);
+                child.Arrange(arranged1);
+                UpdateLastArranged(card, rect1);
+                HandlePendingTransition(card, rect1);
                 continue;
             }
 
@@ -1243,7 +1262,11 @@ public sealed class DashboardCardGrid : Panel
             card.GridColumnSpan = colSpan;
             card.GridRowSpan = rowSpan;
 
-            child.Arrange(new Rect(x, y, Math.Max(0, w), Math.Max(0, h)));
+            var rect = new Rect(x, y, Math.Max(0, w), Math.Max(0, h));
+            var arranged = _activeRectAnimations.GetValueOrDefault(card, rect);
+            child.Arrange(arranged);
+            UpdateLastArranged(card, rect);
+            HandlePendingTransition(card, rect);
         }
 
         ArrangeDragPreview();
@@ -1458,7 +1481,22 @@ public sealed class DashboardCardGrid : Panel
 
         card.IsCollapsed = false;
 
+        var fromRect = _lastArranged.TryGetValue(card, out var last)
+            ? last
+            : GetRectFromGrid(
+                ClampIndex(card.GridColumn, Columns),
+                ClampIndex(card.GridRow, Rows),
+                Math.Max(1, card.GridColumnSpan),
+                Math.Max(1, card.GridRowSpan));
+
+        var toRect = new Rect(
+            Padding.Left,
+            Padding.Top,
+            Math.Max(0, Bounds.Width - Padding.Left - Padding.Right),
+            Math.Max(0, Bounds.Height - Padding.Top - Padding.Bottom));
+
         _suppressLayoutSave = false;
+        StartRectTransition(card, fromRect, toRect);
         InvalidateMeasure();
         InvalidateArrange();
     }
@@ -1472,11 +1510,6 @@ public sealed class DashboardCardGrid : Panel
 
         _suppressLayoutSave = true;
 
-        foreach (var other in Children.OfType<DashboardCard>())
-        {
-            other.IsVisible = true;
-        }
-
         if (_maximizedLayout != null)
         {
             card.ExpandedColumnSpan = Math.Max(1, _maximizedLayout.ExpandedColSpan);
@@ -1484,11 +1517,33 @@ public sealed class DashboardCardGrid : Panel
             card.IsCollapsed = _maximizedLayout.IsCollapsed;
         }
 
-        _maximizedCard = null;
-        _maximizedLayout = null;
-        _suppressLayoutSave = false;
-        InvalidateMeasure();
-        InvalidateArrange();
+        var fromRect = _lastArranged.TryGetValue(card, out var last)
+            ? last
+            : new Rect(
+                Padding.Left,
+                Padding.Top,
+                Math.Max(0, Bounds.Width - Padding.Left - Padding.Right),
+                Math.Max(0, Bounds.Height - Padding.Top - Padding.Bottom));
+
+        var toRect = GetRectFromGrid(
+            ClampIndex(card.GridColumn, Columns),
+            ClampIndex(card.GridRow, Rows),
+            Math.Max(1, card.GridColumnSpan),
+            Math.Max(1, card.GridRowSpan));
+
+        StartRectTransition(card, fromRect, toRect, () =>
+        {
+            foreach (var other in Children.OfType<DashboardCard>())
+            {
+                other.IsVisible = true;
+            }
+
+            _maximizedCard = null;
+            _maximizedLayout = null;
+            _suppressLayoutSave = false;
+            InvalidateMeasure();
+            InvalidateArrange();
+        });
     }
 
     private void UpdateDragPreview(int col, int row, int colSpan, int rowSpan)
@@ -1595,6 +1650,136 @@ public sealed class DashboardCardGrid : Panel
             _dragPreviewBorder.Arrange(new Rect(0, 0, 0, 0));
         }
     }
+
+    private void QueueTransitionFromLastRect(DashboardCard card)
+    {
+        if (_lastArranged.TryGetValue(card, out var rect)
+            && rect.Width > 0
+            && rect.Height > 0)
+        {
+            _pendingTransitions[card] = rect;
+        }
+    }
+
+    private void UpdateLastArranged(DashboardCard card, Rect rect)
+    {
+        if (rect.Width <= 0 || rect.Height <= 0)
+        {
+            return;
+        }
+
+        _lastArranged[card] = rect;
+    }
+    private void HandlePendingTransition(DashboardCard card, Rect rect)
+    {
+        if (!_pendingTransitions.TryGetValue(card, out var from))
+        {
+            return;
+        }
+
+        _pendingTransitions.Remove(card);
+        StartRectTransition(card, from, rect);
+    }
+
+    private void StartRectTransition(DashboardCard card, Rect from, Rect to, Action? onCompleted = null)
+    {
+        if (from.Width <= 0 || from.Height <= 0 || to.Width <= 0 || to.Height <= 0)
+        {
+            return;
+        }
+
+        if (from == to)
+        {
+            return;
+        }
+
+        if (_transitionTokens.TryGetValue(card, out var previous))
+        {
+            previous.Cancel();
+            previous.Dispose();
+            _transitionTokens.Remove(card);
+        }
+
+        var cts = new CancellationTokenSource();
+        _transitionTokens[card] = cts;
+
+        _activeRectAnimations[card] = from;
+
+        var duration = TimeSpan.FromMilliseconds(LayoutTransitionDurationMs);
+        var stopwatch = Stopwatch.StartNew();
+        var token = cts.Token;
+
+        var timer = new DispatcherTimer(DispatcherPriority.Render)
+        {
+            Interval = TimeSpan.FromMilliseconds(16)
+        };
+        timer.Tick += (_, _) =>
+        {
+            try
+            {
+                if (token.IsCancellationRequested)
+                {
+                    timer.Stop();
+                    CleanupTransition(card, token);
+                    return;
+                }
+
+                var progress = Math.Clamp(stopwatch.Elapsed.TotalMilliseconds / duration.TotalMilliseconds, 0, 1);
+                _activeRectAnimations[card] = LerpRect(from, to, progress);
+                InvalidateArrange();
+
+                if (progress >= 1d)
+                {
+                    timer.Stop();
+                    _activeRectAnimations.Remove(card);
+                    CleanupTransition(card, token);
+                    try
+                    {
+                        onCompleted?.Invoke();
+                    }
+                    catch (Exception ex)
+                    {
+                        LoggerHelper.Error($"DashboardCardGrid animation completion failed: {ex.Message}", ex);
+                    }
+                    InvalidateArrange();
+                }
+            }
+            catch (Exception ex)
+            {
+                timer.Stop();
+                _activeRectAnimations.Remove(card);
+                CleanupTransition(card, token);
+                LoggerHelper.Error($"DashboardCardGrid animation tick failed: {ex.Message}", ex);
+            }
+        };
+
+        token.Register(() => timer.Stop());
+        timer.Start();
+    }
+
+    private static double Lerp(double from, double to, double progress)
+    {
+        return from + (to - from) * progress;
+    }
+
+    private static Rect LerpRect(Rect from, Rect to, double progress)
+    {
+        return new Rect(
+            Lerp(from.X, to.X, progress),
+            Lerp(from.Y, to.Y, progress),
+            Lerp(from.Width, to.Width, progress),
+            Lerp(from.Height, to.Height, progress));
+    }
+
+    private void CleanupTransition(DashboardCard card, CancellationToken token)
+    {
+        if (_transitionTokens.TryGetValue(card, out var cts) && cts.Token == token)
+        {
+            cts.Dispose();
+            _transitionTokens.Remove(card);
+        }
+    }
+
 
     private void EnsureDragPreviewHost()
     {
