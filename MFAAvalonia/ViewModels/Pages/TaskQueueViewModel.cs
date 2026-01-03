@@ -1687,6 +1687,11 @@ public partial class TaskQueueViewModel : ViewModelBase
         unsafe
         {
             var dstStride = framebuffer.RowBytes;
+            if (dstStride <= 0)
+            {
+                return targetBitmap;
+            }
+
             var dstPtr = (byte*)framebuffer.Address;
 
             if (channels == 4)
@@ -1709,6 +1714,7 @@ public partial class TaskQueueViewModel : ViewModelBase
                 try
                 {
                     var srcPtr = (byte*)bgrData;
+                    var rowCopy = Math.Min(width * dstBytesPerPixel, dstStride);
                     for (var y = 0; y < height; y++)
                     {
                         var srcRow = srcPtr + y * srcStride;
@@ -1724,7 +1730,7 @@ public partial class TaskQueueViewModel : ViewModelBase
 
                         fixed (byte* rowPtr = rowBuffer)
                         {
-                            Buffer.MemoryCopy(rowPtr, dstPtr + y * dstStride, dstStride, width * dstBytesPerPixel);
+                            Buffer.MemoryCopy(rowPtr, dstPtr + y * dstStride, dstStride, rowCopy);
                         }
                     }
                 }
