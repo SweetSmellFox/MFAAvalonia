@@ -227,7 +227,7 @@ MaaFramework 项目模板已内置 MFAAvalonia，创建项目时自动配置完�
 ```jsonc
 {
   "focus": {
-    "start": ["[color:cyan]开始执行[/color]：{task_name}"],
+    "start": ["[color:cyan]开始执行[/color]"],
     "succeeded": ["[color:green]任务完成[/color]"],
     "failed": ["[color:red]任务失败[/color]"],
     "toast": ["提示标题", "提示内容"],
@@ -244,9 +244,9 @@ MaaFramework 项目模板已内置 MFAAvalonia，创建项目时自动配置完�
 ```jsonc
 {
   "focus": {
-    "Node.Action.Starting": "开始：{task_name}",
-    "Node.Action.Succeeded": "完成: {task_name}, [color:green]耗时: {cost}ms[/color]",
-    "Node.Action.Failed": "失败原因：{reason}"
+    "Node.Action.Starting": "开始：{name}",
+    "Node.Action.Succeeded": "完成: {name}",
+    "Node.Action.Failed": "失败ID：{action_id}"
   }
 }
 ```

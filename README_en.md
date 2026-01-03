@@ -225,7 +225,7 @@ The new protocol matches by message type and renders to logs.
 ```jsonc
 {
   "focus": {
-    "start": ["[color:cyan]Start[/color]: {task_name}"],
+    "start": ["[color:cyan]Start[/color]"],
     "succeeded": ["[color:green]Done[/color]"],
     "failed": ["[color:red]Failed[/color]"],
     "toast": ["Title", "Content"],
@@ -242,9 +242,9 @@ The new protocol matches by message type and renders to logs.
 ```jsonc
 {
   "focus": {
-    "Node.Action.Starting": "Start: {task_name}",
-    "Node.Action.Succeeded": "Done: {task_name}, [color:green]Cost: {cost}ms[/color]",
-    "Node.Action.Failed": "Reason: {reason}"
+    "Node.Action.Starting": "Start: {name}",
+    "Node.Action.Succeeded": "Done: {name}, [color:green]",
+    "Node.Action.Failed": "Failed ID: {action_id}"
   }
 }
 ```
