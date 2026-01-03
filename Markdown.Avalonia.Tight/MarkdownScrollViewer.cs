@@ -1019,8 +1019,14 @@ namespace Markdown.Avalonia
                             {
                                 // 增量模式：只解析新增的部分
                                 string incrementalContent = string.Join("\n", lines.Skip(currentLine).Take(endLine - currentLine));
-                                var incrementalElements = _engine.ParseGamutElement(incrementalContent, new Parsers.ParseStatus(true));
+                                var incrementalElements = _engine.ParseGamutElement(incrementalContent, new Parsers.ParseStatus(true)).ToList();
                                 rootElement.AppendElements(incrementalElements);
+
+                                if (_wrapper.UseVirtualization && _wrapper.VirtualizingPanel != null)
+                                {
+                                    _wrapper.VirtualizingPanel.AppendElements(incrementalElements);
+                                }
+
                                 _renderedLineCount = endLine;
                             }
                             else
@@ -1589,7 +1595,7 @@ namespace Markdown.Avalonia
             }
         }
 
-        class Wrapper : Control, ISelectionRenderHelper
+        class Wrapper : Control, ISelectionRenderHelper, ILogicalScrollable
         {
             private MarkdownScrollViewer? _viewer;
             private readonly Canvas _canvas;
@@ -1597,6 +1603,8 @@ namespace Markdown.Avalonia
             private DocumentElement? _document;
             private VirtualizingMarkdownPanel? _virtualizingPanel;
             private bool _useVirtualization;
+
+            public event EventHandler? ScrollInvalidated;
 
             /// <summary>
             /// 是否使用虚拟化模式
@@ -1631,6 +1639,7 @@ namespace Markdown.Avalonia
                         if (_useVirtualization && _virtualizingPanel != null)
                         {
                             // 虚拟化模式：清理虚拟化面板
+                            _virtualizingPanel.ScrollInvalidated -= OnVirtualizingPanelScrollInvalidated;
                             _virtualizingPanel.Clear();
                             VisualChildren.Remove(_virtualizingPanel);
                             LogicalChildren.Remove(_virtualizingPanel);
@@ -1657,6 +1666,7 @@ namespace Markdown.Avalonia
                             {
                                 SelectionHelper = this
                             };
+                            _virtualizingPanel.ScrollInvalidated += OnVirtualizingPanelScrollInvalidated;
                             _virtualizingPanel.SetElements(rootElement.Children);
                             _virtualizingPanel.Classes.Add("Markdown_Avalonia_MarkdownViewer");
 
@@ -1722,6 +1732,7 @@ namespace Markdown.Avalonia
                 {
                     if (_useVirtualization && _virtualizingPanel != null)
                     {
+                        _virtualizingPanel.ScrollInvalidated -= OnVirtualizingPanelScrollInvalidated;
                         _virtualizingPanel.Clear();
                         VisualChildren.Remove(_virtualizingPanel);
                         LogicalChildren.Remove(_virtualizingPanel);
@@ -1746,6 +1757,72 @@ namespace Markdown.Avalonia
 
                 // 断开对 viewer 的引用
                 _viewer = null;
+            }
+
+            private void OnVirtualizingPanelScrollInvalidated(object? sender, EventArgs e)
+            {
+                ScrollInvalidated?.Invoke(this, e);
+            }
+
+            public bool CanHorizontallyScroll
+            {
+                get => _virtualizingPanel?.CanHorizontallyScroll ?? false;
+                set
+                {
+                    if (_virtualizingPanel != null)
+                    {
+                        _virtualizingPanel.CanHorizontallyScroll = value;
+                    }
+                }
+            }
+
+            public bool CanVerticallyScroll
+            {
+                get => _virtualizingPanel?.CanVerticallyScroll ?? false;
+                set
+                {
+                    if (_virtualizingPanel != null)
+                    {
+                        _virtualizingPanel.CanVerticallyScroll = value;
+                    }
+                }
+            }
+
+            public bool IsLogicalScrollEnabled => _useVirtualization && _virtualizingPanel?.IsLogicalScrollEnabled == true;
+
+            public Size ScrollSize => _virtualizingPanel?.ScrollSize ?? default;
+
+            public Size PageScrollSize => _virtualizingPanel?.PageScrollSize ?? default;
+
+            public Size Extent => _virtualizingPanel?.Extent ?? default;
+
+            public Vector Offset
+            {
+                get => _virtualizingPanel?.Offset ?? default;
+                set
+                {
+                    if (_virtualizingPanel != null)
+                    {
+                        _virtualizingPanel.Offset = value;
+                    }
+                }
+            }
+
+            public Size Viewport => _virtualizingPanel?.Viewport ?? default;
+
+            public bool BringIntoView(Control target, Rect targetRect)
+            {
+                return _virtualizingPanel?.BringIntoView(target, targetRect) ?? false;
+            }
+
+            public Control? GetControlInDirection(NavigationDirection direction, Control? from)
+            {
+                return _virtualizingPanel?.GetControlInDirection(direction, from);
+            }
+
+            public void RaiseScrollInvalidated(EventArgs e)
+            {
+                _virtualizingPanel?.RaiseScrollInvalidated(e);
             }
 
 

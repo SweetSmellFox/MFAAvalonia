@@ -18,6 +18,7 @@ namespace Markdown.Avalonia
     {
         private readonly List<DocumentElement> _allElements = new();
         private readonly Dictionary<int, Control> _realizedElements = new();
+        private readonly Dictionary<Control, int> _controlIndexMap = new();
         private readonly List<double> _elementHeights = new();
         private readonly List<double> _elementOffsets = new();
         private readonly HashSet<int> _measuredElements = new();
@@ -168,9 +169,11 @@ namespace Markdown.Avalonia
             foreach (var kvp in _realizedElements)
             {
                 var control = kvp.Value;
+                control.SizeChanged -= OnElementSizeChanged;
                 Children.Remove(control);
             }
             _realizedElements.Clear();
+            _controlIndexMap.Clear();
         }
 
         /// <summary>
@@ -396,6 +399,9 @@ namespace Markdown.Avalonia
             }
 
             _realizedElements[index] = control;
+            _controlIndexMap[control] = index;
+            control.SizeChanged -= OnElementSizeChanged;
+            control.SizeChanged += OnElementSizeChanged;
             return control;
         }
 
@@ -406,9 +412,43 @@ namespace Markdown.Avalonia
         {
             if (_realizedElements.TryGetValue(index, out var control))
             {
+                control.SizeChanged -= OnElementSizeChanged;
                 Children.Remove(control);
                 _realizedElements.Remove(index);
+                _controlIndexMap.Remove(control);
             }
+        }
+
+        private void OnElementSizeChanged(object? sender, SizeChangedEventArgs e)
+        {
+            if (sender is not Control control)
+                return;
+
+            if (!_controlIndexMap.TryGetValue(control, out var index))
+                return;
+
+            if (index < 0 || index >= _elementHeights.Count)
+                return;
+
+            var newHeight = control.Bounds.Height;
+            if (double.IsNaN(newHeight) || newHeight <= 0)
+                return;
+
+            var oldHeight = _elementHeights[index];
+            if (Math.Abs(oldHeight - newHeight) <= 0.5)
+                return;
+
+            if (!_measuredElements.Contains(index))
+            {
+                _measuredElements.Add(index);
+                UpdateEstimatedHeight(newHeight);
+            }
+
+            _elementHeights[index] = newHeight;
+            RecalculateOffsets();
+            UpdateExtent();
+            InvalidateMeasure();
+            InvalidateArrange();
         }
 
         /// <summary>
