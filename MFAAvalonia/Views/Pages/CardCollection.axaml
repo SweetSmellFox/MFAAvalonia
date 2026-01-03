@@ -81,7 +81,7 @@
             <Button Height="50" Width="50" Background="Red"
                     VerticalAlignment="Bottom" 
                     HorizontalAlignment="Center"
-                    IsVisible="False"
+                    IsVisible="True"
                     Click="PullButton_OnClick"/>
             
             <!-- 测试发光卡片按钮 -->
