@@ -147,40 +147,6 @@ MaaFramework project templates come with MFAAvalonia pre-configured.
 }
 ```
 
-### Controller Configuration Details
-
-`controller` is an array of objects for preset controllers:
-
-| Field | Type | Description |
-|:--|:--|:--|
-| `name` | string | Unique identifier, used as controller ID |
-| `label` | string | Display name, supports i18n (prefixed with `$`). Falls back to `name` |
-| `description` | string | Detailed description, supports file path/URL/inline Markdown, supports i18n |
-| `icon` | string | Icon path relative to project root, supports i18n |
-| `type` | `'Adb' \| 'Win32' \| 'PlayCover'` | Controller type |
-| `display_short_side` | number | Target short side, default 720. Mutually exclusive with `display_long_side` / `display_raw` |
-| `display_long_side` | number | Target long side. Mutually exclusive with `display_short_side` / `display_raw` |
-| `display_raw` | boolean | Use raw resolution. Mutually exclusive with scaled options |
-| `adb` | object | Adb controller settings (input/screencap auto-detected in V2) |
-| `win32` | object | Win32 controller settings |
-| `playcover` | object | PlayCover controller settings (macOS only) |
-
-`win32` fields:
-
-| Field | Type | Description |
-|:--|:--|:--|
-| `class_regex` | string | Optional. Window class regex |
-| `window_regex` | string | Optional. Window title regex |
-| `mouse` | string | Optional. Mouse control method |
-| `keyboard` | string | Optional. Keyboard control method |
-| `screencap` | string | Optional. Screenshot method |
-
-`playcover` fields:
-
-| Field | Type | Description |
-|:--|:--|:--|
-| `uuid` | string | Optional. Target app bundle identifier, default `maa.playcover` |
-
 ### Task Configuration Details
 
 | Field           |  Type   | Default | Description                             |
@@ -207,51 +173,6 @@ Task documentation (`doc`) supports the following formats:
 | `[i]...[/i]`              | *Italic*          | `[i]Italic text[/i]`          |
 | `[u]...[/u]`              | <u>Underline</u>  | `[u]Underlined text[/u]`      |
 | `[s]...[/s]`              | ~~Strikethrough~~ | `[s]Strikethrough text[/s]`   |
-
-### 🎯 Focus Protocol
-
-`focus` is used to output key tips, toast, or logs during task execution. Both **legacy** and **new** protocols are supported in a node:
-
-- **Legacy**: fields `start / succeeded / failed / toast / aborted`
-- **New**: keys are **message types**, values are string or string array
-
-Message types follow MaaFramework node event constants, for example:
-- Recognition: `Node.Recognition.Starting` / `Node.Recognition.Succeeded` / `Node.Recognition.Failed`
-- Action: `Node.Action.Starting` / `Node.Action.Succeeded` / `Node.Action.Failed`
-
-The new protocol matches by message type and renders to logs.
-
-**Legacy example:**
-```jsonc
-{
-  "focus": {
-    "start": ["[color:cyan]Start[/color]"],
-    "succeeded": ["[color:green]Done[/color]"],
-    "failed": ["[color:red]Failed[/color]"],
-    "toast": ["Title", "Content"],
-    "aborted": true
-  }
-}
-```
-
-**Legacy field notes:**
-- `toast`: shows a Toast when array length >= 1; item 1 is title, item 2 is content (optional)
-- `aborted`: when `true`, triggers abort callback at `Starting` stage (used to interrupt task)
-
-**New protocol example:**
-```jsonc
-{
-  "focus": {
-    "Node.Action.Starting": "Start: {name}",
-    "Node.Action.Succeeded": "Done: {name}, [color:green]",
-    "Node.Action.Failed": "Failed ID: {action_id}"
-  }
-}
-```
-
-**Placeholders & variables:**
-- `{key}` is replaced from `details`
-- Legacy logs/toast support counter variables like `{count}`, `{++count}`, `{count++}`, `{count+1}`
 
 ## 🧪 Advanced Features
 
@@ -318,18 +239,6 @@ lang/
 ├── zh-cn.json  # Simplified Chinese
 ├── zh-tw.json  # Traditional Chinese
 └── en-us.json  # English
-```
-
-Also add the multi-language field in `interface.json` (paths are relative to `interface.json`):
-
-```jsonc
-{
-  "languages": {
-    "zh-cn": "lang/zh-cn.json",
-    "zh-tw": "lang/zh-tw.json",
-    "en-us": "lang/en-us.json"
-  }
-}
 ```
 
 Task names and documentation can use keys for reference, and MFAAvalonia will automatically load the corresponding

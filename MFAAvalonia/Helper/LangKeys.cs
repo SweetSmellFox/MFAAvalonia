@@ -92,8 +92,6 @@ public static class LangKeys
 	public static readonly string DarkColor = "DarkColor";
 	public static readonly string DebugMode = "DebugMode";
 	public static readonly string DebugModeWarning = "DebugModeWarning";
-	public static readonly string DashboardCardMaximize = "DashboardCardMaximize";
-	public static readonly string DashboardCardRestore = "DashboardCardRestore";
 	public static readonly string Delete = "Delete";
 	public static readonly string DeselectAll = "DeselectAll";
 	public static readonly string DingTalk = "DingTalk";
@@ -310,7 +308,6 @@ public static class LangKeys
 	public static readonly string SwitchLanguage = "SwitchLanguage";
 	public static readonly string TabADB = "TabADB";
 	public static readonly string TabWin32 = "TabWin32";
-	public static readonly string TabPlayCover = "TabPlayCover";
 	public static readonly string Task = "Task";
 	public static readonly string TaskAbandoned = "TaskAbandoned";
 	public static readonly string TaskAllCompleted = "TaskAllCompleted";
@@ -332,7 +329,7 @@ public static class LangKeys
 	public static readonly string Tip = "Tip";
 	public static readonly string TooltipDragLabel = "TooltipDragLabel";
 	public static readonly string TooltipRefresh = "TooltipRefresh";
-	public static readonly string TryToReconnect = "TryToReconnect";
+	public static readonly string TryToReconnectByAdb = "TryToReconnectByAdb";
 	public static readonly string TryToStartEmulator = "TryToStartEmulator";
 	public static readonly string UiSettings = "UiSettings";
 	public static readonly string Unconnected = "Unconnected";
@@ -478,16 +475,9 @@ public static class LangKeys
 	public static readonly string FontScaleValue = "FontScaleValue";
 	public static readonly string ResourceAutoSwitched = "ResourceAutoSwitched";
 	public static readonly string ResourceNotSupportController = "ResourceNotSupportController";
-	public static readonly string ResourceNotSelected = "ResourceNotSelected";
-	public static readonly string DeviceNotSelected = "DeviceNotSelected";
 	public static readonly string ResourcePresetConfig = "ResourcePresetConfig";
 	public static readonly string UseFingerprintMatching = "UseFingerprintMatching";
 	public static readonly string LiveView = "LiveView";
 	public static readonly string Running = "Running";
 	public static readonly string CurrentTask = "CurrentTask";
-	public static readonly string LiveViewRefreshRate = "LiveViewRefreshRate";
-	public static readonly string PlayCoverAddress = "PlayCoverAddress";
-	public static readonly string PlayCoverBundleIdentifier = "PlayCoverBundleIdentifier";
-	public static readonly string PlayCoverAddressEmpty = "PlayCoverAddressEmpty";
-	public static readonly string Reconnect = "Reconnect";
 }

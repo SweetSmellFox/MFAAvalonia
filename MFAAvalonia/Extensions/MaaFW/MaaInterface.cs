@@ -752,12 +752,6 @@ public partial class MaaInterface
         public object? Adb { get; set; }
     }
 
-    public class MaaResourceControllerPlayCover
-    {
-        [JsonProperty("uuid")]
-        public string? Uuid { get; set; }
-    }
-
     public class MaaResourceControllerWin32
     {
         [JsonProperty("class_regex")]
@@ -796,9 +790,6 @@ public partial class MaaInterface
         [JsonProperty("label")]
         public string? Label { get; set; }
 
-        [JsonProperty("description")]
-        public string? Description { get; set; }
-
         [JsonProperty("type")]
         public string? Type { get; set; }
 
@@ -818,15 +809,9 @@ public partial class MaaInterface
         public MaaResourceControllerAdb? Adb { get; set; }
         [JsonProperty("win32")]
         public MaaResourceControllerWin32? Win32 { get; set; }
-        [JsonProperty("playcover")]
-        public MaaResourceControllerPlayCover? PlayCover { get; set; }
 
         /// <summary>显示名称（用于 UI 绑定）</summary>
         [ObservableProperty] [JsonIgnore] private string _displayName = string.Empty;
-
-        [ObservableProperty] [JsonIgnore] private bool _hasDescription;
-
-        [ObservableProperty] [JsonIgnore] private string _displayDescription = string.Empty;
 
         /// <summary>解析后的图标路径（用于 UI 绑定）</summary>
         [ObservableProperty] [JsonIgnore] private string? _resolvedIcon;
@@ -868,10 +853,6 @@ public partial class MaaInterface
                 // 使用默认的控制器类型名称
                 DisplayName = ControllerType.ToResourceKey().ToLocalization();
             }
-
-            DisplayDescription = LanguageHelper.GetLocalizedString(Description.ResolveContentAsync().Result);
-            HasDescription = !string.IsNullOrWhiteSpace(DisplayDescription);
-
             UpdateIcon();
         }
 

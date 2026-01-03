@@ -261,12 +261,6 @@
     <data name="DebugModeWarning" xml:space="preserve">
         <value>除錯模式已開啟。此模式會保存執行期間的截圖、操作資料及圖像識別可視化結果，可能會佔用大量的儲存空間！</value>
     </data>
-    <data name="DashboardCardMaximize" xml:space="preserve">
-        <value>最大化</value>
-    </data>
-    <data name="DashboardCardRestore" xml:space="preserve">
-        <value>還原</value>
-    </data>
     <data name="Delete" xml:space="preserve">
         <value>刪除</value>
     </data>
@@ -915,9 +909,6 @@
     <data name="TabWin32" xml:space="preserve">
         <value>桌面應用</value>
     </data>
-    <data name="TabPlayCover" xml:space="preserve">
-        <value>PlayCover</value>
-    </data>
     <data name="Task" xml:space="preserve">
         <value>任務</value>
     </data>
@@ -981,7 +972,7 @@
     <data name="TooltipRefresh" xml:space="preserve">
         <value>刷新</value>
     </data>
-    <data name="TryToReconnect" xml:space="preserve">
+    <data name="TryToReconnectByAdb" xml:space="preserve">
         <value>正在嘗試重連</value>
     </data>
     <data name="TryToStartEmulator" xml:space="preserve">
@@ -1413,12 +1404,6 @@
     <data name="ResourceNotSupportController" xml:space="preserve">
         <value>當前控制器 {1} 不支援資源 {0}，已自動切換為 {2}，請檢查資源設定</value>
     </data>
-    <data name="ResourceNotSelected" xml:space="preserve">
-        <value>未選擇資源，請先選擇資源</value>
-    </data>
-    <data name="DeviceNotSelected" xml:space="preserve">
-        <value>未選擇裝置，請先選擇裝置</value>
-    </data>
 
     <data name="ResourcePresetConfig" xml:space="preserve">
         <value>資源預設配置</value>
@@ -1433,21 +1418,6 @@
         <value>任務: {0}</value>
     </data>
     <data name="LiveView" xml:space="preserve">
-        <value>即時視圖</value>
-    </data>
-    <data name="LiveViewRefreshRate" xml:space="preserve">
-        <value>即時視圖最大刷新率 (FPS)</value>
-    </data>
-    <data name="PlayCoverAddress" xml:space="preserve">
-        <value>位址</value>
-    </data>
-    <data name="PlayCoverBundleIdentifier" xml:space="preserve">
-        <value>應用識別碼</value>
-    </data>
-    <data name="PlayCoverAddressEmpty" xml:space="preserve">
-        <value>PlayCover 位址不能為空</value>
-    </data>
-    <data name="Reconnect" xml:space="preserve">
-        <value>重新連接</value>
+        <value>實時畫面</value>
     </data>
 </root>

@@ -1,12 +1,16 @@
 ﻿using Avalonia;
+using Avalonia.Animation;
+using Avalonia.Animation.Easings;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
 using Avalonia.Data.Converters;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
+using Avalonia.Styling;
 using MFAAvalonia.Configuration;
 using MFAAvalonia.Extensions;
 using MFAAvalonia.Extensions.MaaFW;
@@ -14,12 +18,14 @@ using MFAAvalonia.Helper;
 using MFAAvalonia.Helper.ValueType;
 using MFAAvalonia.ViewModels.Pages;
 using MFAAvalonia.Views.UserControls;
+using SukiUI;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using FontWeight = Avalonia.Media.FontWeight;
 using HorizontalAlignment = Avalonia.Layout.HorizontalAlignment;
 using VerticalAlignment = Avalonia.Layout.VerticalAlignment;
@@ -27,7 +33,6 @@ using Avalonia.Threading;
 using Avalonia.Xaml.Interactivity;
 using Lang.Avalonia.MarkupExtensions;
 using Newtonsoft.Json.Linq;
-using Timer = System.Timers.Timer;
 
 namespace MFAAvalonia.Views.Pages;
 
@@ -36,65 +41,1084 @@ public partial class TaskQueueView : UserControl
     // 动画持续时间
     private static readonly TimeSpan AnimationDuration = TimeSpan.FromMilliseconds(250);
 
-    private const double TopToolbarCompactWidthThreshold = 980;
-    private bool _isTopToolbarCompact;
-
+    // 用于跟踪动画状态
+    private bool _isLeftPanelAnimating = false;
+    private bool _isRightPanelAnimating = false;
 
     public TaskQueueView()
     {
         DataContext = Instances.TaskQueueViewModel;
         InitializeComponent();
+        MaaProcessor.Instance.InitializeData();
+        InitializeDeviceSelectorLayout();
+        InitializePanelAnimations();
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
     }
 
-// private void UpdateDeviceSelectorLayout()
-// {
-//     // 只有在三行布局模式（_currentLayoutMode == 2）时才使用垂直布局
-//     // 其他情况都使用水平布局
-//     int newMode = _currentLayoutMode == 2 ? 1 : 0;
-//
-//     if (newMode == _currentSelectorMode) return;
-//     _currentSelectorMode = newMode;
-//
-//     DeviceSelectorPanel.ColumnDefinitions.Clear();
-//     DeviceSelectorPanel.RowDefinitions.Clear();
-//
-//     switch (newMode)
-//     {
-//         case 0: // 水平布局：[Label][ComboBox────────]
-//             DeviceSelectorPanel.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
-//             DeviceSelectorPanel.ColumnDefinitions.Add(new ColumnDefinition(1, GridUnitType.Star));
-//
-//             Grid.SetColumn(DeviceSelectorLabel, 0);
-//             Grid.SetRow(DeviceSelectorLabel, 0);
-//             Grid.SetColumn(DeviceComboBox, 1);
-//             Grid.SetRow(DeviceComboBox, 0);
-//
-//             // 水平布局：恢复原始 margin（左侧无边距，右侧8px）
-//             DeviceSelectorLabel.Margin = new Thickness(0, 2, 8, 0);
-//             DeviceComboBox.HorizontalAlignment = HorizontalAlignment.Stretch;
-//             break;
-//
-//         case 1: // 垂直布局：Label在上，ComboBox在下（仅在三行模式）
-//             DeviceSelectorPanel.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-//             DeviceSelectorPanel.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-//             DeviceSelectorPanel.ColumnDefinitions.Add(new ColumnDefinition(1, GridUnitType.Star));
-//
-//             Grid.SetColumn(DeviceSelectorLabel, 0);
-//             Grid.SetRow(DeviceSelectorLabel, 0);
-//             Grid.SetColumn(DeviceComboBox, 0);
-//             Grid.SetRow(DeviceComboBox, 1);
-//
-//             // 垂直布局：Label 左侧边距增加，与 ComboBox 对齐
-//             DeviceSelectorLabel.Margin = new Thickness(5, 0, 0, 5);
-//             DeviceComboBox.HorizontalAlignment = HorizontalAlignment.Stretch;
-//             break;
-//     }
-// }
+    /// <summary>
+    /// 初始化面板动画，订阅 ViewModel 的属性变化
+    /// </summary>
+    private void InitializePanelAnimations()
+    {
+        var viewModel = Instances.TaskQueueViewModel;
+        if (viewModel == null) return;
+
+        // 订阅属性变化事件
+        viewModel.PropertyChanged += ViewModel_PropertyChanged;
+
+        // 初始化展开按钮的透明度（根据当前状态）
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (LeftExpandButton != null)
+            {
+                LeftExpandButton.Opacity = viewModel.IsLeftPanelCollapsed ? 1 : 0;
+            }
+            if (RightExpandButton != null)
+            {
+                RightExpandButton.Opacity = viewModel.IsRightPanelCollapsed ? 1 : 0;
+            }
+        }, DispatcherPriority.Loaded);
+    }
+
+    private async void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(TaskQueueViewModel.IsLeftPanelCollapsed))
+        {
+            await AnimateLeftPanelAsync(Instances.TaskQueueViewModel.IsLeftPanelCollapsed);
+        }
+        else if (e.PropertyName == nameof(TaskQueueViewModel.IsRightPanelCollapsed))
+        {
+            await AnimateRightPanelAsync(Instances.TaskQueueViewModel.IsRightPanelCollapsed);
+        }
+    }
+
+    /// <summary>
+    /// 左侧面板折叠/展开动画
+    /// </summary>
+    private async Task AnimateLeftPanelAsync(bool isCollapsing)
+    {
+        if (_isLeftPanelAnimating) return;
+        _isLeftPanelAnimating = true;
+
+        try
+        {
+            var viewModel = Instances.TaskQueueViewModel;
+            var panelContent = LeftPanelContent;
+            var expandButton = LeftExpandButton;
+            var transform = LeftPanelContent?.RenderTransform as TranslateTransform;
+
+            if (panelContent == null || expandButton == null || transform == null || viewModel == null) return;
+
+            var panelWidth = SettingCard?.Bounds.Width ?? 300;
+            var collapsedWidth = TaskQueueViewModel.GetCollapsedPanelWidth();
+
+            if (isCollapsing)
+            {
+                // 折叠动画：面板内容向左滑出，同时列宽逐渐变小
+                panelContent.IsVisible = true;
+
+                // 获取当前列宽和目标列宽
+                var startWidth = viewModel.Column1Width.Value;
+                var endWidth = collapsedWidth;
+
+                // 启动列宽动画
+                _ = AnimateColumnWidthAsync(startWidth, endWidth, true, true);
+
+                // 面板内容滑出动画
+                var slideOutAnimation = new Animation
+                {
+                    Duration = AnimationDuration,
+                    Easing = new CubicEaseIn(),
+                    FillMode = FillMode.Forward,
+                    Children =
+                    {
+                        new KeyFrame
+                        {
+                            Cue = new Cue(0),
+                            Setters =
+                            {
+                                new Setter(TranslateTransform.XProperty, 0.0)
+                            }
+                        },
+                        new KeyFrame
+                        {
+                            Cue = new Cue(1),
+                            Setters =
+                            {
+                                new Setter(TranslateTransform.XProperty, -panelWidth)
+                            }
+                        }
+                    }
+                };
+
+                // 面板内容淡出
+                var fadeOutAnimation = new Animation
+                {
+                    Duration = AnimationDuration,
+                    Easing = new CubicEaseIn(),
+                    FillMode = FillMode.Forward,
+                    Children =
+                    {
+                        new KeyFrame
+                        {
+                            Cue = new Cue(0),
+                            Setters =
+                            {
+                                new Setter(OpacityProperty, 1.0)
+                            }
+                        },
+                        new KeyFrame
+                        {
+                            Cue = new Cue(1),
+                            Setters =
+                            {
+                                new Setter(OpacityProperty, 0.0)
+                            }
+                        }
+                    }
+                };
+
+                await Task.WhenAll(
+                    slideOutAnimation.RunAsync(LeftPanelContent),
+                    fadeOutAnimation.RunAsync(panelContent)
+                );
+
+                // 动画完成后隐藏面板内容，显示展开按钮
+                panelContent.IsVisible = false;
+                transform.X = 0; // 重置位置
+                panelContent.Opacity = 1; // 重置透明度
+
+                // 确保列宽设置为折叠宽度
+                viewModel.SetLeftPanelWidth(new GridLength(collapsedWidth));
+
+                // 展开按钮淡入动画
+                expandButton.IsVisible = true;
+                var buttonFadeIn = new Animation
+                {
+                    Duration = TimeSpan.FromMilliseconds(150),
+                    Easing = new CubicEaseOut(),
+                    FillMode = FillMode.Forward,
+                    Children =
+                    {
+                        new KeyFrame
+                        {
+                            Cue = new Cue(0),
+                            Setters =
+                            {
+                                new Setter(OpacityProperty, 0.0)
+                            }
+                        },
+                        new KeyFrame
+                        {
+                            Cue = new Cue(1),
+                            Setters =
+                            {
+                                new Setter(OpacityProperty, 1.0)
+                            }
+                        }
+                    }
+                };
+                await buttonFadeIn.RunAsync(expandButton);
+            }
+            else
+            {
+                // 展开动画：面板内容从左滑入，同时列宽逐渐变大
+
+                // 先隐藏展开按钮
+                var buttonFadeOut = new Animation
+                {
+                    Duration = TimeSpan.FromMilliseconds(100),
+                    Easing = new CubicEaseIn(),
+                    FillMode = FillMode.Forward,
+                    Children =
+                    {
+                        new KeyFrame
+                        {
+                            Cue = new Cue(0),
+                            Setters =
+                            {
+                                new Setter(OpacityProperty, 1.0)
+                            }
+                        },
+                        new KeyFrame
+                        {
+                            Cue = new Cue(1),
+                            Setters =
+                            {
+                                new Setter(OpacityProperty, 0.0)
+                            }
+                        }
+                    }
+                };
+                await buttonFadeOut.RunAsync(expandButton);
+                expandButton.IsVisible = false;
+
+                // 获取目标列宽
+                var targetWidth = viewModel.GetSavedLeftPanelWidth();
+                var startWidth = collapsedWidth;
+                var endWidth = targetWidth.Value;
+
+                // 准备面板内容滑入
+                transform.X = -panelWidth;
+                panelContent.Opacity = 0;
+                panelContent.IsVisible = true;
+
+                // 启动列宽动画
+                _ = AnimateColumnWidthAsync(startWidth, endWidth, true, false);
+
+                // 面板内容滑入动画
+                var slideInAnimation = new Animation
+                {
+                    Duration = AnimationDuration,
+                    Easing = new CubicEaseOut(),
+                    FillMode = FillMode.Forward,
+                    Children =
+                    {
+                        new KeyFrame
+                        {
+                            Cue = new Cue(0),
+                            Setters =
+                            {
+                                new Setter(TranslateTransform.XProperty, -panelWidth)
+                            }
+                        },
+                        new KeyFrame
+                        {
+                            Cue = new Cue(1),
+                            Setters =
+                            {
+                                new Setter(TranslateTransform.XProperty, 0.0)
+                            }
+                        }
+                    }
+                };
+
+                // 面板内容淡入
+                var fadeInAnimation = new Animation
+                {
+                    Duration = AnimationDuration,
+                    Easing = new CubicEaseOut(),
+                    FillMode = FillMode.Forward,
+                    Children =
+                    {
+                        new KeyFrame
+                        {
+                            Cue = new Cue(0),
+                            Setters =
+                            {
+                                new Setter(OpacityProperty, 0.0)
+                            }
+                        },
+                        new KeyFrame
+                        {
+                            Cue = new Cue(1),
+                            Setters =
+                            {
+                                new Setter(OpacityProperty, 1.0)
+                            }
+                        }
+                    }
+                };
+
+                await Task.WhenAll(
+                    slideInAnimation.RunAsync(LeftPanelContent),
+                    fadeInAnimation.RunAsync(panelContent)
+                );
+
+                // 确保最终状态正确
+                transform.X = 0;
+                panelContent.Opacity = 1;
+                viewModel.SetLeftPanelWidth(targetWidth);
+            }
+        }
+        finally
+        {
+            _isLeftPanelAnimating = false;
+        }
+    }
+
+    /// <summary>
+    /// 列宽动画辅助方法
+    /// </summary>
+    private async Task AnimateColumnWidthAsync(double startWidth, double endWidth, bool isLeftPanel, bool isCollapsing)
+    {
+        var viewModel = Instances.TaskQueueViewModel;
+        if (viewModel == null) return;
+
+        var animationSteps = 15;
+        var stepDuration = AnimationDuration.TotalMilliseconds / animationSteps;
+
+        for (int i = 1; i <= animationSteps; i++)
+        {
+            var progress = (double)i / animationSteps;
+            // 根据折叠/展开使用不同的缓动函数
+            var easedProgress = isCollapsing
+                ? progress * progress // CubicEaseIn
+                : 1 - Math.Pow(1 - progress, 3); // CubicEaseOut
+            var newWidth = startWidth + (endWidth - startWidth) * easedProgress;
+
+            if (isLeftPanel)
+                viewModel.SetLeftPanelWidth(new GridLength(newWidth));
+            else
+                viewModel.SetRightPanelWidth(new GridLength(newWidth));
+
+            await Task.Delay(TimeSpan.FromMilliseconds(stepDuration));
+        }
+    }
+
+
+    /// <summary>
+    /// 右侧面板折叠/展开动画
+    /// </summary>
+    private async Task AnimateRightPanelAsync(bool isCollapsing)
+    {
+        if (_isRightPanelAnimating) return;
+        _isRightPanelAnimating = true;
+
+        try
+        {
+            var viewModel = Instances.TaskQueueViewModel;
+            var panelContent = RightPanelContent;
+            var expandButton = RightExpandButton;
+            var transform = RightPanelContent?.RenderTransform as TranslateTransform;
+
+            if (panelContent == null || expandButton == null || transform == null || viewModel == null) return;
+
+            var panelWidth = LogCard?.Bounds.Width ?? 300;
+            var collapsedWidth = TaskQueueViewModel.GetCollapsedPanelWidth();
+
+            if (isCollapsing)
+            {
+                // 折叠动画：面板内容向右滑出，同时列宽逐渐变小
+                panelContent.IsVisible = true;
+
+                // 获取当前列宽和目标列宽
+                var startWidth = viewModel.Column3Width.Value;
+                var endWidth = collapsedWidth;
+
+                // 启动列宽动画
+                _ = AnimateColumnWidthAsync(startWidth, endWidth, false, true);
+
+                // 面板内容滑出动画
+                var slideOutAnimation = new Animation
+                {
+                    Duration = AnimationDuration,
+                    Easing = new CubicEaseIn(),
+                    FillMode = FillMode.Forward,
+                    Children =
+                    {
+                        new KeyFrame
+                        {
+                            Cue = new Cue(0),
+                            Setters =
+                            {
+                                new Setter(TranslateTransform.XProperty, 0.0)
+                            }
+                        },
+                        new KeyFrame
+                        {
+                            Cue = new Cue(1),
+                            Setters =
+                            {
+                                new Setter(TranslateTransform.XProperty, panelWidth)
+                            }
+                        }
+                    }
+                };
+
+                // 面板内容淡出
+                var fadeOutAnimation = new Animation
+                {
+                    Duration = AnimationDuration,
+                    Easing = new CubicEaseIn(),
+                    FillMode = FillMode.Forward,
+                    Children =
+                    {
+                        new KeyFrame
+                        {
+                            Cue = new Cue(0),
+                            Setters =
+                            {
+                                new Setter(OpacityProperty, 1.0)
+                            }
+                        },
+                        new KeyFrame
+                        {
+                            Cue = new Cue(1),
+                            Setters =
+                            {
+                                new Setter(OpacityProperty, 0.0)
+                            }
+                        }
+                    }
+                };
+
+                await Task.WhenAll(
+                    slideOutAnimation.RunAsync(RightPanelContent),
+                    fadeOutAnimation.RunAsync(panelContent)
+                );
+
+                // 动画完成后隐藏面板内容，显示展开按钮
+                panelContent.IsVisible = false;
+                transform.X = 0; // 重置位置
+                panelContent.Opacity = 1; // 重置透明度
+
+                // 确保列宽设置为折叠宽度
+                viewModel.SetRightPanelWidth(new GridLength(collapsedWidth));
+
+                // 展开按钮淡入动画
+                expandButton.IsVisible = true;
+                var buttonFadeIn = new Animation
+                {
+                    Duration = TimeSpan.FromMilliseconds(150),
+                    Easing = new CubicEaseOut(),
+                    FillMode = FillMode.Forward,
+                    Children =
+                    {
+                        new KeyFrame
+                        {
+                            Cue = new Cue(0),
+                            Setters =
+                            {
+                                new Setter(OpacityProperty, 0.0)
+                            }
+                        },
+                        new KeyFrame
+                        {
+                            Cue = new Cue(1),
+                            Setters =
+                            {
+                                new Setter(OpacityProperty, 1.0)
+                            }
+                        }
+                    }
+                };
+                await buttonFadeIn.RunAsync(expandButton);
+            }
+            else
+            {
+                // 展开动画：面板内容从右滑入，同时列宽逐渐变大
+
+                // 先隐藏展开按钮
+                var buttonFadeOut = new Animation
+                {
+                    Duration = TimeSpan.FromMilliseconds(100),
+                    Easing = new CubicEaseIn(),
+                    FillMode = FillMode.Forward,
+                    Children =
+                    {
+                        new KeyFrame
+                        {
+                            Cue = new Cue(0),
+                            Setters =
+                            {
+                                new Setter(OpacityProperty, 1.0)
+                            }
+                        },
+                        new KeyFrame
+                        {
+                            Cue = new Cue(1),
+                            Setters =
+                            {
+                                new Setter(OpacityProperty, 0.0)
+                            }
+                        }
+                    }
+                };
+                await buttonFadeOut.RunAsync(expandButton);
+                expandButton.IsVisible = false;
+
+                // 获取目标列宽
+                var targetWidth = viewModel.GetSavedRightPanelWidth();
+                var startWidth = collapsedWidth;
+                var endWidth = targetWidth.Value;
+
+                // 准备面板内容滑入
+                transform.X = panelWidth;
+                panelContent.Opacity = 0;
+                panelContent.IsVisible = true;
+
+                // 启动列宽动画
+                _ = AnimateColumnWidthAsync(startWidth, endWidth, false, false);
+
+                // 面板内容滑入动画
+                var slideInAnimation = new Animation
+                {
+                    Duration = AnimationDuration,
+                    Easing = new CubicEaseOut(),
+                    FillMode = FillMode.Forward,
+                    Children =
+                    {
+                        new KeyFrame
+                        {
+                            Cue = new Cue(0),
+                            Setters =
+                            {
+                                new Setter(TranslateTransform.XProperty, panelWidth)
+                            }
+                        },
+                        new KeyFrame
+                        {
+                            Cue = new Cue(1),
+                            Setters =
+                            {
+                                new Setter(TranslateTransform.XProperty, 0.0)
+                            }
+                        }
+                    }
+                };
+
+                // 面板内容淡入
+                var fadeInAnimation = new Animation
+                {
+                    Duration = AnimationDuration,
+                    Easing = new CubicEaseOut(),
+                    FillMode = FillMode.Forward,
+                    Children =
+                    {
+                        new KeyFrame
+                        {
+                            Cue = new Cue(0),
+                            Setters =
+                            {
+                                new Setter(OpacityProperty, 0.0)
+                            }
+                        },
+                        new KeyFrame
+                        {
+                            Cue = new Cue(1),
+                            Setters =
+                            {
+                                new Setter(OpacityProperty, 1.0)
+                            }
+                        }
+                    }
+                };
+
+                await Task.WhenAll(
+                    slideInAnimation.RunAsync(RightPanelContent),
+                    fadeInAnimation.RunAsync(panelContent)
+                );
+
+                // 确保最终状态正确
+                transform.X = 0;
+                panelContent.Opacity = 1;
+                viewModel.SetRightPanelWidth(targetWidth);
+            }
+        }
+        finally
+        {
+            _isRightPanelAnimating = false;
+        }
+    }
+
+
+    private int _currentLayoutMode = -1;
+    private int _currentThreeColumnLayoutMode = -1; // 三栏布局模式：0=横向三列，1=纵向三行
+
+    public void InitializeDeviceSelectorLayout()
+    {
+        TopToolbar.SizeChanged += (_, _) => UpdateConnectionLayout();
+        ThreeColumnGrid.SizeChanged += (_, _) =>
+        {
+            UpdateThreeColumnLayout();
+            // AdjustColumnWidthsForAvailableSpace();
+        };
+
+        UpdateConnectionLayout();
+        UpdateThreeColumnLayout();
+    }
+    private double _lastThreeColumnGridWidth = 0;
+    //
+    // /// <summary>
+    // /// 当窗口大小缩小时，调整列宽度以保持右边距
+    // /// 优先级：先减右侧面板，右侧到最小值后再减左侧面板
+    // /// </summary>
+    // private void AdjustColumnWidthsForAvailableSpace()
+    // {
+    //     var viewModel = Instances.TaskQueueViewModel;
+    //     if (viewModel == null || ThreeColumnGrid == null) return;
+    //
+    //     // 只在横向三列模式下处理
+    //     if (_currentThreeColumnLayoutMode != 0) return;
+    //
+    //     var availableWidth = ThreeColumnGrid.Bounds.Width;
+    //     if (availableWidth <= 0) return;
+    //
+    //     // 只在窗口缩小时才触发
+    //     if (availableWidth >= _lastThreeColumnGridWidth)
+    //     {
+    //         _lastThreeColumnGridWidth = availableWidth;
+    //         return;
+    //     }
+    //
+    //     _lastThreeColumnGridWidth = availableWidth;
+    //
+    //     // 计算固定部分的宽度：左边距15+ 右边距15 + 两个分隔符各15
+    //     const double fixedMargins = 15 + 15 + 15 + 15;
+    //     const double minPanelWidth = 40; // 面板最小宽度
+    //
+    //     // 获取当前列宽
+    //     var col1Width = viewModel.Column1Width.IsAbsolute ? viewModel.Column1Width.Value : (ThreeColumnGrid.ColumnDefinitions.Count > 0 ? ThreeColumnGrid.ColumnDefinitions[0].ActualWidth : 350);
+    //     var col2Width = viewModel.Column2Width.IsAbsolute ? viewModel.Column2Width.Value : (ThreeColumnGrid.ColumnDefinitions.Count > 2 ? ThreeColumnGrid.ColumnDefinitions[2].ActualWidth : 200);
+    //     var col3Width = viewModel.Column3Width.IsAbsolute ? viewModel.Column3Width.Value : (ThreeColumnGrid.ColumnDefinitions.Count > 4 ? ThreeColumnGrid.ColumnDefinitions[4].ActualWidth : 350);
+    //
+    //     // 计算当前总宽度
+    //     var totalUsed = col1Width + col2Width + col3Width + fixedMargins;
+    //     // 如果没有超出可用宽度，不需要调整
+    //     if (totalUsed <= availableWidth) return;
+    //
+    //     var overflow = totalUsed - availableWidth;
+    //     var newCol1Width = col1Width;
+    //     var newCol3Width = col3Width;
+    //     var changed = false;
+    //
+    //     // 第一步：先减右侧面板
+    //     if (overflow > 0 && col3Width > minPanelWidth)
+    //     {
+    //         var canReduce = col3Width - minPanelWidth;
+    //         var reduceAmount = Math.Min(canReduce, overflow);
+    //         newCol3Width = col3Width - reduceAmount;
+    //         overflow -= reduceAmount;
+    //         changed = true;
+    //     }
+    //
+    //     // 第二步：右侧已达最小值，减左侧面板
+    //     if (overflow > 0 && col1Width > minPanelWidth)
+    //     {
+    //         var canReduce = col1Width - minPanelWidth;
+    //         var reduceAmount = Math.Min(canReduce, overflow);
+    //         newCol1Width = col1Width - reduceAmount;
+    //         changed = true;
+    //     }
+    //
+    //     // 应用更改
+    //     if (changed)
+    //     {
+    //         viewModel.SuppressPropertyChangedCallbacks = true;
+    //         if (newCol3Width != col3Width)
+    //         {
+    //             viewModel.Column3Width = new GridLength(newCol3Width, GridUnitType.Pixel);
+    //         }
+    //         if (newCol1Width != col1Width)
+    //         {
+    //             viewModel.Column1Width = new GridLength(newCol1Width, GridUnitType.Pixel);
+    //         }
+    //         viewModel.SuppressPropertyChangedCallbacks = false;
+    //     }
+    // }
+
+
+    public void UpdateConnectionLayout(bool forceUpdate = false)
+    {
+        var totalWidth = TopToolbar.Bounds.Width;
+        if (totalWidth <= 0) return;
+
+        // 阶梯式布局阈值计算
+        // 一行布局需要：配置约200+ 资源约250 + 控制器约230 + 设备约300 + 分隔符约80 = ~1060px
+        // 两行布局需要：配置约200 + 资源约250 + 控制器约230 + 分隔符约40 = ~720px
+        // 三行布局：最小宽度
+        const double oneRowMinWidth = 1060; // 一行布局最小宽度
+        const double twoRowMinWidth = 650; // 两行布局最小宽度
+
+        // 决定布局模式：0=一行，1=两行，2=三行
+        int newMode;
+        if (totalWidth >= oneRowMinWidth)
+            newMode = 0; // 一行布局
+        else if (totalWidth >= twoRowMinWidth)
+            newMode = 1; // 两行布局
+        else
+            newMode = 2; // 三行布局（竖屏模式）
+
+        if (newMode == _currentLayoutMode && !forceUpdate) return;
+        _currentLayoutMode = newMode;
+
+        TopToolbar.RowDefinitions.Clear();
+        TopToolbar.ColumnDefinitions.Clear();
+        switch (newMode)
+        {
+            case 0: // 一行布局
+                TopToolbar.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+                TopToolbar.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto)); // 配置切换
+                TopToolbar.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto)); // 分隔符1
+                TopToolbar.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto)); // 资源选择
+                TopToolbar.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto)); // 分隔符2
+                TopToolbar.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto)); // 控制器类型
+                TopToolbar.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star)); // 设备选择
+
+                Grid.SetRow(ConfigSelectorPanel, 0);
+                Grid.SetColumn(ConfigSelectorPanel, 0);
+                Grid.SetColumnSpan(ConfigSelectorPanel, 1);
+                Grid.SetRow(Spliter1, 0);
+                Grid.SetColumn(Spliter1, 1);
+                Grid.SetRow(ResourceSelectorPanel, 0);
+                Grid.SetColumn(ResourceSelectorPanel, 2);
+                Grid.SetColumnSpan(ResourceSelectorPanel, 1);
+                Grid.SetRow(Spliter2, 0);
+                Grid.SetColumn(Spliter2, 3);
+                Grid.SetRow(ControllerSelectorPanel, 0);
+                Grid.SetColumn(ControllerSelectorPanel, 4);
+                Grid.SetColumnSpan(ControllerSelectorPanel, 1);
+                Grid.SetRow(DeviceSelectorPanel, 0);
+                Grid.SetColumn(DeviceSelectorPanel, 5);
+                Grid.SetColumnSpan(DeviceSelectorPanel, 1);
+                Spliter1.IsVisible = true;
+                Spliter2.IsVisible = true;
+                DeviceSelectorLabel.Margin = new Thickness(20, 0, 8, 0);
+                break;
+
+            case 1: // 两行布局（配置+资源+控制器在第一行，设备在第二行）
+                TopToolbar.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+                TopToolbar.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+                TopToolbar.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto)); // 配置切换
+                TopToolbar.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto)); // 分隔符1
+                TopToolbar.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto)); // 资源选择
+                TopToolbar.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto)); // 分隔符2
+                TopToolbar.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star)); // 控制器类型
+
+                // 第一行：配置 + 资源 + 控制器
+                Grid.SetRow(ConfigSelectorPanel, 0);
+                Grid.SetColumn(ConfigSelectorPanel, 0);
+                Grid.SetColumnSpan(ConfigSelectorPanel, 1);
+                Grid.SetRow(Spliter1, 0);
+                Grid.SetColumn(Spliter1, 1);
+                Grid.SetRow(ResourceSelectorPanel, 0);
+                Grid.SetColumn(ResourceSelectorPanel, 2);
+                Grid.SetColumnSpan(ResourceSelectorPanel, 1);
+                Grid.SetRow(Spliter2, 0);
+                Grid.SetColumn(Spliter2, 3);
+                Grid.SetRow(ControllerSelectorPanel, 0);
+                Grid.SetColumn(ControllerSelectorPanel, 4);
+                Grid.SetColumnSpan(ControllerSelectorPanel, 1);
+
+                // 第二行：设备选择（占满整行）
+                Grid.SetRow(DeviceSelectorPanel, 1);
+                Grid.SetColumn(DeviceSelectorPanel, 0);
+                Grid.SetColumnSpan(DeviceSelectorPanel, 5);
+
+                Spliter1.IsVisible = true;
+                Spliter2.IsVisible = true;
+                DeviceSelectorLabel.Margin = new Thickness(0, 8, 8, 0);
+                break;
+
+            case 2: // 三行布局（竖屏模式）
+                TopToolbar.RowDefinitions.Add(new RowDefinition(GridLength.Auto)); // 配置切换
+                TopToolbar.RowDefinitions.Add(new RowDefinition(GridLength.Auto)); // 资源 + 控制器
+                TopToolbar.RowDefinitions.Add(new RowDefinition(GridLength.Auto)); // 设备选择
+                TopToolbar.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
+                TopToolbar.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
+
+                // 第一行：配置切换（占满整行）
+                Grid.SetRow(ConfigSelectorPanel, 0);
+                Grid.SetColumn(ConfigSelectorPanel, 0);
+                Grid.SetColumnSpan(ConfigSelectorPanel, 2);
+
+                // 第二行：资源选择 + 控制器类型
+                Grid.SetRow(ResourceSelectorPanel, 1);
+                Grid.SetColumn(ResourceSelectorPanel, 0);
+                Grid.SetColumnSpan(ResourceSelectorPanel, 1);
+                Grid.SetRow(ControllerSelectorPanel, 1);
+                Grid.SetColumn(ControllerSelectorPanel, 1);
+                Grid.SetColumnSpan(ControllerSelectorPanel, 1);
+
+                // 第三行：设备选择（占满整行）
+                Grid.SetRow(DeviceSelectorPanel, 2);
+                Grid.SetColumn(DeviceSelectorPanel, 0);
+                Grid.SetColumnSpan(DeviceSelectorPanel, 2);
+
+                // 隐藏分隔符
+                Spliter1.IsVisible = false;
+                Spliter2.IsVisible = false;
+                DeviceSelectorLabel.Margin = new Thickness(0, 8, 8, 0);
+                break;
+        }
+        // 强制更新设备选择器内部布局
+        // _currentSelectorMode = -1;
+        // UpdateDeviceSelectorLayout();
+    }
+
+
+    public void UpdateThreeColumnLayout()
+    {
+        var totalWidth = ThreeColumnGrid.Bounds.Width;
+        if (totalWidth <= 0) return;
+
+        const double narrowThreshold = 600;
+        int newMode = totalWidth >= narrowThreshold ? 0 : 1;
+
+        if (newMode == _currentThreeColumnLayoutMode) return;
+        _currentThreeColumnLayoutMode = newMode;
+
+        var settingCard = SettingCard;
+        var grid1 = Grid1;
+        var splitter1 = Splitter1;
+        var splitter2 = Splitter2;
+        var logCard = ThreeColumnGrid.Children[4] as Control;
+
+        if (settingCard == null || grid1 == null || logCard == null) return;
+
+        ThreeColumnGrid.ColumnDefinitions.Clear();
+        ThreeColumnGrid.RowDefinitions.Clear();
+
+        switch (newMode)
+        {
+            case 0: // 横向三列布局
+                var col0 = new ColumnDefinition
+                {
+                    MinWidth = 40
+                };
+                col0.Bind(ColumnDefinition.WidthProperty, new Binding(nameof(TaskQueueViewModel.Column1Width))
+                {
+                    Source = Instances.TaskQueueViewModel,
+                    Mode = BindingMode.TwoWay
+                });
+                ThreeColumnGrid.ColumnDefinitions.Add(col0);
+
+                ThreeColumnGrid.ColumnDefinitions.Add(new ColumnDefinition
+                {
+                    Width = GridLength.Auto
+                });
+
+                var col2 = new ColumnDefinition
+                {
+                    MinWidth = 200
+                };
+                col2.Bind(ColumnDefinition.WidthProperty, new Binding(nameof(TaskQueueViewModel.Column2Width))
+                {
+                    Source = Instances.TaskQueueViewModel,
+                    Mode = BindingMode.TwoWay
+                });
+                ThreeColumnGrid.ColumnDefinitions.Add(col2);
+
+                ThreeColumnGrid.ColumnDefinitions.Add(new ColumnDefinition
+                {
+                    Width = GridLength.Auto
+                });
+
+                var col4 = new ColumnDefinition
+                {
+                    MinWidth = 40
+                };
+                col4.Bind(ColumnDefinition.WidthProperty, new Binding(nameof(TaskQueueViewModel.Column3Width))
+                {
+                    Source = Instances.TaskQueueViewModel,
+                    Mode = BindingMode.TwoWay
+                });
+                ThreeColumnGrid.ColumnDefinitions.Add(col4);
+
+                Grid.SetColumn(settingCard, 0);
+                Grid.SetRow(settingCard, 0);
+                Grid.SetColumn(splitter1, 1);
+                Grid.SetRow(splitter1, 0);
+                Grid.SetColumn(grid1, 2);
+                Grid.SetRow(grid1, 0);
+                Grid.SetColumn(splitter2, 3);
+                Grid.SetRow(splitter2, 0);
+                Grid.SetColumn(logCard, 4);
+                Grid.SetRow(logCard, 0);
+
+                splitter1.IsVisible = true;
+                splitter2.IsVisible = true;
+                settingCard.IsVisible = true;
+                Instances.TaskQueueViewModel.IsCompactMode = false;
+
+                settingCard.Margin = new Thickness(15, 5, 0, 25);
+                grid1.Margin = new Thickness(0);
+                logCard.Margin = new Thickness(0, 5, 15, 25);
+
+                if (ThreeColumnScrollViewer != null)
+                    ThreeColumnScrollViewer.VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled;
+                break;
+
+            case 1: // 纵向三行布局（紧凑模式）
+                ThreeColumnGrid.RowDefinitions.Add(new RowDefinition
+                {
+                    Height = GridLength.Auto,
+                    MinHeight = 150
+                });
+                ThreeColumnGrid.RowDefinitions.Add(new RowDefinition
+                {
+                    Height = GridLength.Auto
+                });
+                ThreeColumnGrid.RowDefinitions.Add(new RowDefinition
+                {
+                    Height = GridLength.Auto
+                });
+                ThreeColumnGrid.ColumnDefinitions.Add(new ColumnDefinition
+                {
+                    Width = GridLength.Star
+                });
+
+                Grid.SetColumn(grid1, 0);
+                Grid.SetRow(grid1, 0); // 中间->第一行
+                Grid.SetColumn(settingCard, 0);
+                Grid.SetRow(settingCard, 1); // 左侧->第二行
+                Grid.SetColumn(logCard, 0);
+                Grid.SetRow(logCard, 2); // 右侧->第三行
+
+                splitter1.IsVisible = false;
+                splitter2.IsVisible = false;
+                settingCard.IsVisible = false;
+                Instances.TaskQueueViewModel.IsCompactMode = true;
+                // 检查是否有任务正在显示设置，如果有则打开 Popup
+                var selectedTask = Instances.TaskQueueViewModel.TaskItemViewModels.FirstOrDefault(t => t.EnableSetting);
+                if (selectedTask != null)
+                {
+                    // 检查任务是否有可显示的选项或介绍
+                    bool hasOptions = selectedTask.InterfaceItem?.Option?.Count > 0
+                        || selectedTask.InterfaceItem?.Advanced?.Count > 0
+                        || (selectedTask.IsResourceOptionItem && selectedTask.ResourceItem?.SelectOptions?.Count > 0);
+
+                    // 获取介绍内容
+                    var cacheKey = selectedTask.IsResourceOptionItem
+                        ? $"ResourceOption_{selectedTask.ResourceItem?.Name}_{selectedTask.ResourceItem?.GetHashCode()}"
+                        : $"{selectedTask.Name}_{selectedTask.InterfaceItem?.Entry}_{selectedTask.InterfaceItem?.GetHashCode()}";
+                    var hasIntroduction = IntroductionsCache.TryGetValue(cacheKey, out var intro) && !string.IsNullOrWhiteSpace(intro);
+
+                    // 只要有选项或介绍就打开 popup
+                    if (hasOptions || hasIntroduction)
+                    {
+                        SetOptionToPopup(selectedTask);
+                        Instances.TaskQueueViewModel.IsSettingsPopupOpen = true;
+                    }
+                }
+
+
+                Instances.TaskQueueViewModel.IsLeftPanelCollapsed = false;
+                Instances.TaskQueueViewModel.IsRightPanelCollapsed = false;
+
+                settingCard.Margin = new Thickness(15, 5, 15, 10);
+                grid1.Margin = new Thickness(15, 0, 15, 0);
+                logCard.Margin = new Thickness(15, 5, 15, 25);
+
+                if (ThreeColumnScrollViewer != null)
+                    ThreeColumnScrollViewer.VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto;
+                break;
+        }
+    }
+
+    // private void UpdateDeviceSelectorLayout()
+    // {
+    //     // 只有在三行布局模式（_currentLayoutMode == 2）时才使用垂直布局
+    //     // 其他情况都使用水平布局
+    //     int newMode = _currentLayoutMode == 2 ? 1 : 0;
+    //
+    //     if (newMode == _currentSelectorMode) return;
+    //     _currentSelectorMode = newMode;
+    //
+    //     DeviceSelectorPanel.ColumnDefinitions.Clear();
+    //     DeviceSelectorPanel.RowDefinitions.Clear();
+    //
+    //     switch (newMode)
+    //     {
+    //         case 0: // 水平布局：[Label][ComboBox────────]
+    //             DeviceSelectorPanel.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
+    //             DeviceSelectorPanel.ColumnDefinitions.Add(new ColumnDefinition(1, GridUnitType.Star));
+    //
+    //             Grid.SetColumn(DeviceSelectorLabel, 0);
+    //             Grid.SetRow(DeviceSelectorLabel, 0);
+    //             Grid.SetColumn(DeviceComboBox, 1);
+    //             Grid.SetRow(DeviceComboBox, 0);
+    //
+    //             // 水平布局：恢复原始 margin（左侧无边距，右侧8px）
+    //             DeviceSelectorLabel.Margin = new Thickness(0, 2, 8, 0);
+    //             DeviceComboBox.HorizontalAlignment = HorizontalAlignment.Stretch;
+    //             break;
+    //
+    //         case 1: // 垂直布局：Label在上，ComboBox在下（仅在三行模式）
+    //             DeviceSelectorPanel.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+    //             DeviceSelectorPanel.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+    //             DeviceSelectorPanel.ColumnDefinitions.Add(new ColumnDefinition(1, GridUnitType.Star));
+    //
+    //             Grid.SetColumn(DeviceSelectorLabel, 0);
+    //             Grid.SetRow(DeviceSelectorLabel, 0);
+    //             Grid.SetColumn(DeviceComboBox, 0);
+    //             Grid.SetRow(DeviceComboBox, 1);
+    //
+    //             // 垂直布局：Label 左侧边距增加，与 ComboBox 对齐
+    //             DeviceSelectorLabel.Margin = new Thickness(5, 0, 0, 5);
+    //             DeviceComboBox.HorizontalAlignment = HorizontalAlignment.Stretch;
+    //             break;
+    //     }
+    // }
 
     #region UI
 
+    private void GridSplitter_DragCompleted(object sender, VectorEventArgs e)
+    {
+        if (ThreeColumnGrid == null)
+        {
+            LoggerHelper.Error("GridSplitter_DragCompleted: ThreeColumnGrid is null");
+            return;
+        }
+
+        // 强制在UI线程上执行
+        DispatcherHelper.PostOnMainThread(() =>
+        {
+            try
+            {
+                // 获取当前Grid的实际列宽
+                var actualCol1Width = ThreeColumnGrid.ColumnDefinitions[0].ActualWidth;
+                // var actualCol2Width = ThreeColumnGrid.ColumnDefinitions[2].ActualWidth;
+                var actualCol3Width = ThreeColumnGrid.ColumnDefinitions[4].ActualWidth;
+
+                // 获取当前列定义中的Width属性
+                var col1Width = ThreeColumnGrid.ColumnDefinitions[0].Width;
+                var col2Width = ThreeColumnGrid.ColumnDefinitions[2].Width;
+                var col3Width = ThreeColumnGrid.ColumnDefinitions[4].Width;
+
+                // 更新ViewModel中的列宽值
+                var viewModel = Instances.TaskQueueViewModel;
+                if (viewModel != null)
+                {
+                    // 更新ViewModel中的列宽值
+                    // 临时禁用回调以避免循环更新
+                    viewModel.SuppressPropertyChangedCallbacks = true;
+
+                    // 对于第一列，使用像素值
+                    if (col1Width is { IsStar: true, Value: 0 } && actualCol1Width > 0)
+                    {
+                        // 如果是自动或星号但实际有宽度，使用像素值
+                        viewModel.Column1Width = new GridLength(actualCol1Width, GridUnitType.Pixel);
+                    }
+                    else
+                    {
+                        viewModel.Column1Width = col1Width;
+                    }
+
+                    // 其他列保持原来的类型
+                    viewModel.Column2Width = col2Width;
+                    viewModel.Column3Width = col3Width;
+
+                    viewModel.SuppressPropertyChangedCallbacks = false;
+
+                    // 手动保存配置
+                    viewModel.SaveColumnWidths();
+                    // 检测是否需要自动折叠（宽度 <= 50 时自动折叠）
+                    var collapsedWidth = TaskQueueViewModel.GetCollapsedPanelWidth();
+                    if (!viewModel.IsLeftPanelCollapsed && actualCol1Width <= collapsedWidth)
+                    {
+                        viewModel.ToggleLeftPanel();
+                    }
+                    if (!viewModel.IsRightPanelCollapsed && actualCol3Width <= collapsedWidth)
+                    {
+                        viewModel.ToggleRightPanel();
+                    }
+                }
+                else
+                {
+                    LoggerHelper.Error("GridSplitter_DragCompleted: ViewModel is null");
+                }
+            }
+            catch (Exception ex)
+            {
+                LoggerHelper.Error($"更新列宽失败: {ex.Message}");
+            }
+        });
+    }
+
+    #endregion
     private void SelectingItemsControl_OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (sender is ListBox { SelectedItem: DragItemViewModel itemViewModel })
@@ -160,8 +1184,6 @@ public partial class TaskQueueView : UserControl
         }
     }
 
-    #endregion
-
     #region 任务选项
 
     private static readonly ConcurrentDictionary<string, Control> CommonPanelCache = new();
@@ -173,20 +1195,33 @@ public partial class TaskQueueView : UserControl
     {
         Introduction.Markdown = markDown;
     }
+    /// <summary>
+    /// 设置仅显示 IntroductionCard 的模式（在新布局中，SettingCard始终可见，只调整IntroductionCard）
+    /// </summary>
+    private void SetIntroductionOnlyMode()
+    {
+        _maxHeightBindingActive = false;
+        // 在新布局中，SettingCard在左侧面板始终可见，但内容为空时可以隐藏其内部Instances.TaskQueueViewModel.ShowSettings = false;
+        IntroductionCard.IsVisible = true;
+        IntroductionCard.Margin = new Thickness(0, 5, 0, 25);
+        IntroductionCard.ClearValue(MaxHeightProperty);
+        IntroductionCard.MaxHeight = double.PositiveInfinity;
+    }
 
     /// <summary>
-    /// 设置仅显示 SettingCard 的模式（折叠 IntroductionCard）
+    /// 设置仅显示 SettingCard 的模式（隐藏 IntroductionCard）
     /// </summary>
     private void SetSettingOnlyMode()
     {
-        IntroductionCard.IsVisible = true;
-        if (TaskQueueDashboardGrid?.HasSavedLayout() == true)
-        {
-            return;
-        }
-        TaskListCard.GridRowSpan = 8;
-        TaskListCard.ExpandedRowSpan = 8;
+        _maxHeightBindingActive = false;
+        // Instances.TaskQueueViewModel.ShowSettings = true;
+        IntroductionCard.IsVisible = false;
+        IntroductionCard.Margin = new Thickness(0, 5, 0, 25);
+        Grid.SetRowSpan(StartButtonPanel, 1);
+        Grid.SetRowSpan(TaskListCard, 3); // 占据所有3行，让TaskListCard延伸到底部
     }
+
+    private bool _maxHeightBindingActive = false;
 
     /// <summary>
     /// 设置正常模式（SettingCard 和 IntroductionCard 都显示）
@@ -194,20 +1229,43 @@ public partial class TaskQueueView : UserControl
     private void SetNormalMode()
     {
         IntroductionCard.IsVisible = true;
-        if (TaskQueueDashboardGrid?.HasSavedLayout() == true)
+        IntroductionCard.Margin = new Thickness(0, -15, 0, 25);
+        Grid.SetRowSpan(StartButtonPanel, 2);
+        Grid.SetRowSpan(TaskListCard, 1);
+        // 恢复 MaxHeight 绑定（使用父 Grid 高度的一半）
+        if (!_maxHeightBindingActive && Grid1 != null)
         {
-            return;
+            _maxHeightBindingActive = true;
+            UpdateIntroductionCardMaxHeight();
+            Grid1.PropertyChanged += (_, e) =>
+            {
+                if (e.Property.Name == nameof(Grid1.Bounds) && _maxHeightBindingActive)
+                {
+                    UpdateIntroductionCardMaxHeight();
+                }
+            };
         }
-        TaskListCard.GridRowSpan = 8;
-        TaskListCard.ExpandedRowSpan = 8;
+        else
+        {
+            UpdateIntroductionCardMaxHeight();
+        }
+    }
+
+    private void UpdateIntroductionCardMaxHeight()
+    {
+        if (Grid1 != null && _maxHeightBindingActive)
+        {
+            IntroductionCard.MaxHeight = Grid1.Bounds.Height / 2;
+        }
     }
 
     /// <summary>
-    /// 设置隐藏模式（IntroductionCard 折叠）
+    /// 设置隐藏模式（IntroductionCard 隐藏）
     /// </summary>
     private void SetHiddenMode()
     {
-        IntroductionCard.IsVisible = true;
+        IntroductionCard.IsVisible = false;
+        IntroductionCard.Margin = new Thickness(0, 5, 0, 25);
     }
 
 
@@ -345,56 +1403,56 @@ public partial class TaskQueueView : UserControl
     /// </summary>
     private void SetOptionToPopup(DragItemViewModel dragItem)
     {
-        // // 清空 Popup 中的内容
-        // PopupCommonOptionSettings.Children.Clear();
-        // PopupAdvancedOptionSettings.Children.Clear();
-        //
-        // var cacheKey = dragItem.IsResourceOptionItem
-        //     ? $"ResourceOption_{dragItem.ResourceItem?.Name}_{dragItem.ResourceItem?.GetHashCode()}"
-        //     : $"{dragItem.Name}_{dragItem.InterfaceItem?.Entry}_{dragItem.InterfaceItem?.GetHashCode()}";
-        //
-        // var juggle = dragItem.InterfaceItem is { Advanced: { Count: > 0 }, Option: { Count: > 0 } };
-        // Instances.TaskQueueViewModel.ShowSettings = juggle;
-        //
-        // // 处理资源设置项的选项
-        // if (dragItem.IsResourceOptionItem)
-        // {
-        //     var hasOptions = dragItem.ResourceItem?.SelectOptions != null && dragItem.ResourceItem.SelectOptions.Count > 0;
-        //     if (hasOptions)
-        //     {
-        //         GenerateResourceOptionPanelContent(PopupCommonOptionSettings, dragItem);
-        //     }
-        // }
-        // else
-        // {
-        //     if (juggle)
-        //     {
-        //         GeneratePanelContent(PopupCommonOptionSettings, dragItem);
-        //     }
-        //     else
-        //     {
-        //         GenerateCommonPanelContent(PopupCommonOptionSettings, dragItem);
-        //         GenerateAdvancedPanelContent(PopupAdvancedOptionSettings, dragItem);
-        //     }
-        // }
-        //
-        // var introduction = IntroductionsCache.GetOrAdd(cacheKey, key =>
-        // {
-        //     if (dragItem.IsResourceOptionItem)
-        //     {
-        //         return ConvertCustomMarkup(dragItem.ResourceItem?.Description ?? string.Empty);
-        //     }
-        //     var input = GetTooltipText(dragItem.InterfaceItem?.Description, dragItem.InterfaceItem?.Document);
-        //     return ConvertCustomMarkup(input ?? string.Empty);
-        // });
+        // 清空 Popup 中的内容
+        PopupCommonOptionSettings.Children.Clear();
+        PopupAdvancedOptionSettings.Children.Clear();
 
-        // Instances.TaskQueueViewModel.HasPopupIntroduction = !string.IsNullOrWhiteSpace(introduction);
-        // Instances.TaskQueueViewModel.PopupIntroductionContent = introduction;
-        //
-        // // 检查是否有设置选项
-        // bool hasSettings = PopupCommonOptionSettings.Children.Count > 0
-        //     || PopupAdvancedOptionSettings.Children.Count > 0;
-        // Instances.TaskQueueViewModel.HasPopupSettings = hasSettings;
+        var cacheKey = dragItem.IsResourceOptionItem
+            ? $"ResourceOption_{dragItem.ResourceItem?.Name}_{dragItem.ResourceItem?.GetHashCode()}"
+            : $"{dragItem.Name}_{dragItem.InterfaceItem?.Entry}_{dragItem.InterfaceItem?.GetHashCode()}";
+
+        var juggle = dragItem.InterfaceItem is { Advanced: { Count: > 0 }, Option: { Count: > 0 } };
+        Instances.TaskQueueViewModel.ShowSettings = juggle;
+
+        // 处理资源设置项的选项
+        if (dragItem.IsResourceOptionItem)
+        {
+            var hasOptions = dragItem.ResourceItem?.SelectOptions != null && dragItem.ResourceItem.SelectOptions.Count > 0;
+            if (hasOptions)
+            {
+                GenerateResourceOptionPanelContent(PopupCommonOptionSettings, dragItem);
+            }
+        }
+        else
+        {
+            if (juggle)
+            {
+                GeneratePanelContent(PopupCommonOptionSettings, dragItem);
+            }
+            else
+            {
+                GenerateCommonPanelContent(PopupCommonOptionSettings, dragItem);
+                GenerateAdvancedPanelContent(PopupAdvancedOptionSettings, dragItem);
+            }
+        }
+
+        var introduction = IntroductionsCache.GetOrAdd(cacheKey, key =>
+        {
+            if (dragItem.IsResourceOptionItem)
+            {
+                return ConvertCustomMarkup(dragItem.ResourceItem?.Description ?? string.Empty);
+            }
+            var input = GetTooltipText(dragItem.InterfaceItem?.Description, dragItem.InterfaceItem?.Document);
+            return ConvertCustomMarkup(input ?? string.Empty);
+        });
+
+        Instances.TaskQueueViewModel.HasPopupIntroduction = !string.IsNullOrWhiteSpace(introduction);
+        Instances.TaskQueueViewModel.PopupIntroductionContent = introduction;
+
+        // 检查是否有设置选项
+        bool hasSettings = PopupCommonOptionSettings.Children.Count > 0
+            || PopupAdvancedOptionSettings.Children.Count > 0;
+        Instances.TaskQueueViewModel.HasPopupSettings = hasSettings;
 
     }
 
@@ -2163,220 +3221,226 @@ public partial class TaskQueueView : UserControl
         // return string.Join("\n", lines);
     }
 
+
+// private static List<TextStyleMetadata> _currentStyles = new();
+//
+// private class RichTextLineTransformer : DocumentColorizingTransformer
+// {
+//     protected override void ColorizeLine(DocumentLine line)
+//     {
+//         _currentStyles = _currentStyles.OrderByDescending(s => s.EndOffset).ToList();
+//         int lineStart = line.Offset;
+//         int lineEnd = line.Offset + line.Length;
+//
+//         foreach (var style in _currentStyles)
+//         {
+//             if (style.EndOffset <= lineStart || style.StartOffset >= lineEnd)
+//                 continue;
+//
+//             int start = Math.Max(style.StartOffset, lineStart);
+//             int end = Math.Min(style.EndOffset, lineEnd);
+//             ApplyStyle(start, end, style.Tag, style.Value);
+//         }
+//     }
+//
+//
+//     /// <summary>
+//     /// 应用样式到指定范围的文本
+//     /// </summary>
+//     /// <param name="startOffset">起始偏移量</param>
+//     /// <param name="endOffset">结束偏移量</param>
+//     /// <param name="tag">标记名称</param>
+//     /// <param name="value">标记值</param>
+//     private void ApplyStyle(int startOffset, int endOffset, string tag, string value)
+//     {
+//         switch (tag)
+//         {
+//             case "color":
+//                 ChangeLinePart(startOffset, endOffset, element => element.TextRunProperties.SetForegroundBrush(new SolidColorBrush(Color.Parse(value))));
+//                 break;
+//             case "size":
+//                 if (double.TryParse(value, out var size))
+//                 {
+//                     ChangeLinePart(startOffset, endOffset, element => element.TextRunProperties.SetFontRenderingEmSize(size));
+//                 }
+//                 break;
+//             case "b":
+//                 ChangeLinePart(startOffset, endOffset, element =>
+//                 {
+//                     var typeface = new Typeface(
+//                         element.TextRunProperties.Typeface.FontFamily,
+//                         element.TextRunProperties.Typeface.Style, FontWeight.Bold, // 设置粗体
+//                         element.TextRunProperties.Typeface.Stretch
+//                     );
+//                     element.TextRunProperties.SetTypeface(typeface);
+//                 });
+//                 break;
+//             case "i":
+//                 ChangeLinePart(startOffset, endOffset, element =>
+//                 {
+//                     var typeface = new Typeface(
+//                         element.TextRunProperties.Typeface.FontFamily,
+//                         FontStyle.Italic, // 设置斜体
+//                         element.TextRunProperties.Typeface.Weight,
+//                         element.TextRunProperties.Typeface.Stretch
+//                     );
+//                     element.TextRunProperties.SetTypeface(typeface);
+//                 });
+//                 break;
+//             case "u":
+//                 ChangeLinePart(startOffset, endOffset, element => element.TextRunProperties.SetTextDecorations(TextDecorations.Underline));
+//                 break;
+//             case "s":
+//                 ChangeLinePart(startOffset, endOffset, element => element.TextRunProperties.SetTextDecorations(TextDecorations.Strikethrough));
+//                 break;
+//         }
+//     }
+// }
+//
+// public class TextStyleMetadata
+// {
+//     public int StartOffset { get; set; }
+//     public int EndOffset { get; set; }
+//     public string Tag { get; set; }
+//     public string Value { get; set; }
+//
+//     // 新增字段存储标签部分的长度
+//     public int OriginalLength { get; set; }
+// }
+//
+// private (string CleanText, List<TextStyleMetadata> Styles) ProcessRichTextTags(string input)
+// {
+//     var styles = new List<TextStyleMetadata>();
+//     var cleanText = new StringBuilder();
+//     ProcessNestedContent(input, cleanText, styles, new Stack<(string Tag, string Value, int CleanStart)>());
+//     return (cleanText.ToString(), styles);
+// }
+//
+// private void ProcessNestedContent(string input, StringBuilder cleanText, List<TextStyleMetadata> styles, Stack<(string Tag, string Value, int CleanStart)> stack)
+// {
+//     var matches = Regex.Matches(input, @"\[(?<tag>[^\]]+):?(?<value>[^\]]*)\](?<content>.*?)\[/\k<tag>\]");
+//     int lastPos = 0;
+//
+//     foreach (Match match in matches.Cast<Match>())
+//     {
+//         // 添加非标签内容
+//         if (match.Index > lastPos)
+//         {
+//             cleanText.Append(input.Substring(lastPos, match.Index - lastPos));
+//         }
+//
+//         string tag = match.Groups["tag"].Value.ToLower();
+//         string value = match.Groups["value"].Value;
+//         string content = match.Groups["content"].Value;
+//
+//         // 记录开始位置
+//         int contentStart = cleanText.Length;
+//         stack.Push((tag, value, contentStart));
+//
+//         // 递归解析嵌套内容
+//         var nestedCleanText = new StringBuilder();
+//         ProcessNestedContent(content, nestedCleanText, styles, new Stack<(string Tag, string Value, int CleanStart)>(stack));
+//         cleanText.Append(nestedCleanText);
+//
+//         // 记录样式元数据
+//         if (stack.Count > 0 && stack.Peek().Tag == tag)
+//         {
+//             var (openTag, openValue, cleanStart) = stack.Pop();
+//             styles.Add(new TextStyleMetadata
+//             {
+//                 StartOffset = cleanStart,
+//                 EndOffset = cleanText.Length,
+//                 Tag = openTag,
+//                 Value = openValue
+//             });
+//         }
+//         lastPos = match.Index + match.Length;
+//     }
+//
+//     // 添加剩余文本
+//     if (lastPos < input.Length)
+//     {
+//         cleanText.Append(input.Substring(lastPos));
+//     }
+// }
+//
+// // 使用 MatchEvaluator 的独立方法
+//
+
+    /// <summary>
+    /// 左侧 SettingCard 点击事件处理 - 折叠状态下点击整个卡片展开
+    /// </summary>
+    private void SettingCard_PointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        var viewModel = Instances.TaskQueueViewModel;
+        if (viewModel?.IsLeftPanelCollapsed == true)
+        {
+            viewModel.ToggleLeftPanel();
+            e.Handled = true; // 防止事件继续传播
+        }
+    }
+
+    /// <summary>
+    /// 右侧 LogCard 点击事件处理 - 折叠状态下点击整个卡片展开
+    /// </summary>
+    private void LogCard_PointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        var viewModel = Instances.TaskQueueViewModel;
+        if (viewModel?.IsRightPanelCollapsed == true)
+        {
+            viewModel.ToggleRightPanel();
+            e.Handled = true; // 防止事件继续传播
+        }
+    }
+
     #endregion
 
     #region 实时图像
 
-    private readonly Timer _liveViewTimer = new();
-    private bool _liveViewTimerStarted;
+    private DispatcherTimer? _liveViewTimer;
 
-    private void OnTaskQueueViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    private void InitializeLiveViewTimer()
     {
-        if (e.PropertyName == nameof(TaskQueueViewModel.IsLiveViewVisible))
+        _liveViewTimer = new DispatcherTimer
         {
-            // ApplyLiveViewCardState();
-            return;
-        }
+            Interval = TimeSpan.FromSeconds(1)
+        };
+        _liveViewTimer.Tick += OnLiveViewTimerTick;
+    }
 
-        if (e.PropertyName == nameof(TaskQueueViewModel.CurrentController))
+    private void OnLiveViewTimerTick(object? sender, EventArgs e)
+    {
+        if (Instances.TaskQueueViewModel.IsConnected)
         {
-            UpdateDeviceColumns();
-        }
-    }
-
-    // private void ApplyLiveViewCardState()
-    // {
-    //     if (LiveViewCard == null || LogCard == null)
-    //     {
-    //         return;
-    //     }
-    //
-    //     var viewModel = Instances.TaskQueueViewModel;
-    //     if (viewModel == null)
-    //     {
-    //         return;
-    //     }
-    //
-    //     var grid = TaskQueueDashboardGrid;
-    //     if (grid != null && grid.HasSavedLayout())
-    //     {
-    //         return;
-    //     }
-    //
-    //     var rows = grid?.Rows ?? 6;
-    //
-    //     if (!viewModel.IsLiveViewVisible)
-    //     {
-    //         LiveViewCard.IsCollapsed = true;
-    //         LiveViewCard.IsDragEnabled = true;
-    //         LiveViewCard.IsResizeEnabled = true;
-    //
-    //         LogCard.GridRow = 3;
-    //         LogCard.GridRowSpan = 3;
-    //         LogCard.ExpandedRowSpan = 3;
-    //         return;
-    //     }
-    //
-    //     LiveViewCard.IsDragEnabled = true;
-    //     LiveViewCard.IsResizeEnabled = true;
-    //
-    //     var desiredRowSpan = Math.Max(1, LiveViewCard.ExpandedRowSpan);
-    //     var maxRowSpan = Math.Max(1, rows - LiveViewCard.GridRow);
-    //     var newRowSpan = Math.Min(desiredRowSpan, maxRowSpan);
-    //
-    //     LiveViewCard.GridRowSpan = newRowSpan;
-    //     LiveViewCard.ExpandedRowSpan = newRowSpan;
-    //
-    //     var logRow = LiveViewCard.GridRow + LiveViewCard.GridRowSpan;
-    //     if (logRow < rows)
-    //     {
-    //         LogCard.GridRow = logRow;
-    //         LogCard.GridRowSpan = Math.Max(1, rows - logRow);
-    //         LogCard.ExpandedRowSpan = LogCard.GridRowSpan;
-    //     }
-    // }
-
-    private void StartLiveViewLoop()
-    {
-        if (_liveViewTimerStarted)
-            return;
-
-        _liveViewTimer.Elapsed += OnLiveViewTimerElapsed;
-        UpdateLiveViewTimerInterval();
-        _liveViewTimer.Start();
-        _liveViewTimerStarted = true;
-    }
-
-    private void StopLiveViewLoop()
-    {
-        if (!_liveViewTimerStarted)
-            return;
-
-        _liveViewTimer.Stop();
-        _liveViewTimer.Elapsed -= OnLiveViewTimerElapsed;
-        _liveViewTimerStarted = false;
-    }
-
-    private void UpdateLiveViewTimerInterval()
-    {
-        var interval = Instances.TaskQueueViewModel.GetLiveViewRefreshInterval();
-        _liveViewTimer.Interval = Math.Max(1, interval * 1000);
-    }
-
-    private void OnLiveViewTimerElapsed(object? sender, EventArgs e)
-    {
-        try
-        {
-            if (Instances.TaskQueueViewModel.EnableLiveView && Instances.TaskQueueViewModel.IsConnected)
+            try
             {
-                if (!MaaProcessor.Instance.MaaTasker!.IsRunning)
-                    MaaProcessor.Instance.PostScreencap();
-                var buffer = MaaProcessor.Instance.GetLiveViewBuffer(false);
-                _ = Instances.TaskQueueViewModel.UpdateLiveViewImageAsync(buffer);
+                var bitmap = MaaProcessor.Instance.GetBitmapImage(false);
+                Instances.TaskQueueViewModel.LiveViewImage = bitmap;
             }
-            else
+            catch
             {
-                _ = Instances.TaskQueueViewModel.UpdateLiveViewImageAsync(null);
+                // 忽略截图失败
             }
         }
-        catch
+        else
         {
-            // ignored
+            Instances.TaskQueueViewModel.LiveViewImage = null;
         }
     }
-    
+
+// 在 UserControl 加载时启动定时器
     private void OnLoaded(object? sender, RoutedEventArgs e)
     {
-        StartLiveViewLoop();
-        // ApplyLiveViewCardState();
-
-        TopToolbar.SizeChanged += OnTopToolbarSizeChanged;
-        Dispatcher.UIThread.Post(() => UpdateTopToolbarLayout(true), DispatcherPriority.Render);
-
-        if (Instances.TaskQueueViewModel != null)
-        {
-            Instances.TaskQueueViewModel.PropertyChanged -= OnTaskQueueViewModelPropertyChanged;
-            Instances.TaskQueueViewModel.PropertyChanged += OnTaskQueueViewModelPropertyChanged;
-            Instances.TaskQueueViewModel.LiveViewRefreshRateChanged -= OnLiveViewRefreshRateChanged;
-            Instances.TaskQueueViewModel.LiveViewRefreshRateChanged += OnLiveViewRefreshRateChanged;
-        }
+        InitializeLiveViewTimer();
+        _liveViewTimer?.Start();
     }
 
 // 在 UserControl 卸载时停止定时器
     private void OnUnloaded(object? sender, RoutedEventArgs e)
     {
-        StopLiveViewLoop();
-        TopToolbar.SizeChanged -= OnTopToolbarSizeChanged;
-        Instances.TaskQueueViewModel.PropertyChanged -= OnTaskQueueViewModelPropertyChanged;
-        Instances.TaskQueueViewModel.LiveViewRefreshRateChanged -= OnLiveViewRefreshRateChanged;
-    }
-
-    private void OnLiveViewRefreshRateChanged(double interval)
-    {
-        _liveViewTimer.Interval = Math.Max(1, interval * 1000);
+        _liveViewTimer?.Stop();
+        _liveViewTimer = null;
     }
 
     #endregion
-
-    private void OnTopToolbarSizeChanged(object? sender, SizeChangedEventArgs e)
-    {
-        UpdateTopToolbarLayout();
-    }
-
-    private void UpdateTopToolbarLayout(bool force = false)
-    {
-        if (TopToolbarWide == null || TopToolbarCompact == null)
-        {
-            return;
-        }
-
-        var width = TopToolbar.Bounds.Width;
-        if (width <= 0)
-        {
-            return;
-        }
-
-        var shouldCompact = width < TopToolbarCompactWidthThreshold;
-        if (!force && shouldCompact == _isTopToolbarCompact)
-        {
-            return;
-        }
-
-        _isTopToolbarCompact = shouldCompact;
-        TopToolbarWide.IsVisible = !shouldCompact;
-        TopToolbarWide.IsHitTestVisible = !shouldCompact;
-        TopToolbarCompact.IsVisible = shouldCompact;
-        TopToolbarCompact.IsHitTestVisible = shouldCompact;
-
-        UpdateDeviceColumns();
-    }
-
-    private void UpdateDeviceColumns()
-    {
-        var deviceVisible = DeviceSelectorPanel?.IsVisible == true || DeviceSelectorPanelCompact?.IsVisible == true;
-
-        if (TopToolbarWide?.ColumnDefinitions.Count >= 6)
-        {
-            TopToolbarWide.ColumnDefinitions[3].Width = deviceVisible ? GridLength.Auto : new GridLength(0);
-            TopToolbarWide.ColumnDefinitions[5].Width = deviceVisible ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
-            TopToolbarWide.ColumnDefinitions[4].Width = deviceVisible ? GridLength.Auto : new GridLength(1, GridUnitType.Star);
-        }
-
-        if (Spliter2 != null)
-        {
-            Spliter2.IsVisible = deviceVisible;
-        }
-
-        if (TopToolbarCompactRow2?.ColumnDefinitions.Count >= 3)
-        {
-            TopToolbarCompactRow2.ColumnDefinitions[1].Width = deviceVisible ? GridLength.Auto : new GridLength(0);
-            TopToolbarCompactRow2.ColumnDefinitions[2].Width = deviceVisible ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
-            TopToolbarCompactRow2.ColumnDefinitions[0].Width = deviceVisible ? GridLength.Auto : new GridLength(1, GridUnitType.Star);
-        }
-
-        if (Spliter2Compact != null)
-        {
-            Spliter2Compact.IsVisible = deviceVisible;
-        }
-    }
 }

@@ -130,17 +130,15 @@ public partial class SettingsLayout : ItemsControl, ISukiStackPageTitleProvider
         if (Items is null || !Items.Any()) return;
 
         var stackSummaryScroll = this.GetTemplateChildren().First(n => n.Name == "StackSummaryScroll") as ScrollViewer;
-        var stackSummaryScrollTop = this.GetTemplateChildren().First(n => n.Name == "StackSummaryScrollTop") as ScrollViewer;
-        if (stackSummaryScroll is not ScrollViewer || stackSummaryScrollTop is not ScrollViewer)
+        if (stackSummaryScroll is not ScrollViewer)
             return;
-        var stackSummary = stackSummaryScroll.Content as StackPanel;
-        var stackSummaryTop = stackSummaryScrollTop.Content as StackPanel;
+        var stackSummary = stackSummaryScroll?.Content as StackPanel;
         var myScroll = this.GetTemplateChildren().First(n => n.Name == "MyScroll") as ScrollViewer;
 
         if (myScroll?.Content is not StackPanel stackItems)
             return;
 
-        if (stackSummary is not StackPanel || stackSummaryTop is not StackPanel)
+        if (stackSummary is not StackPanel)
             return;
 
         var radios = new List<RadioButton>();
@@ -161,19 +159,11 @@ public partial class SettingsLayout : ItemsControl, ISukiStackPageTitleProvider
             {
                 FontSize = 17
             };
-            var contentTop = new TextBlock
-            {
-                FontSize = 14
-            };
             header.Bind(TextBlock.TextProperty, new Binding(nameof(SettingsLayoutItem.Header))
             {
                 Source = item
             });
             content.Bind(TextBlock.TextProperty, new Binding(nameof(SettingsLayoutItem.Header))
-            {
-                Source = item
-            });
-            contentTop.Bind(TextBlock.TextProperty, new Binding(nameof(SettingsLayoutItem.Header))
             {
                 Source = item
             });
@@ -203,15 +193,6 @@ public partial class SettingsLayout : ItemsControl, ISukiStackPageTitleProvider
                 }
             };
 
-            var summaryButtonTop = new RadioButton
-            {
-                Content = contentTop,
-                Classes =
-                {
-                    "MenuChipTop"
-                }
-            };
-
             summaryButton.Click += async (sender, args) =>
             {
                 if (isAnimatingScroll)
@@ -219,22 +200,10 @@ public partial class SettingsLayout : ItemsControl, ISukiStackPageTitleProvider
                 var x = border.TranslatePoint(new Point(), stackItems);
 
                 if (x.HasValue)
-                    await AnimateScroll(x.Value.Y);
+                    await AnimateScroll(x.Value.Y); // myScroll.Offset = new Vector(0, x.Value.Y);
             };
-
-            summaryButtonTop.Click += async (sender, args) =>
-            {
-                if (isAnimatingScroll)
-                    return;
-                var x = border.TranslatePoint(new Point(), stackItems);
-
-                if (x.HasValue)
-                    await AnimateScroll(x.Value.Y);
-            };
-
             radios.Add(summaryButton);
             stackSummary.Children.Add(summaryButton);
-            stackSummaryTop.Children.Add(summaryButtonTop);
         }
 
         myScroll.ScrollChanged += (sender, args) =>
@@ -242,27 +211,27 @@ public partial class SettingsLayout : ItemsControl, ISukiStackPageTitleProvider
             if (isAnimatingScroll)
                 return;
 
+            // 空集合保护
             if (borders.Count == 0 || radios.Count == 0)
                 return;
 
             var OffsetY = myScroll.Offset.Y;
 
+            // 安全转换点访问 + 处理无效值
             var l = borders.Select(b =>
             {
                 var point = b.TranslatePoint(new Point(), stackItems);
                 return point.HasValue ? Math.Abs(point.Value.Y - OffsetY) : double.MaxValue;
             }).ToList();
 
+            // 获取最小值索引
             var minValue = l.Min();
             var minIndex = l.IndexOf(minValue);
 
+            // 索引有效性验证
             if (minIndex >= 0 && minIndex < radios.Count)
             {
                 radios[minIndex].IsChecked = true;
-                if (stackSummaryTop.Children.Count > minIndex && stackSummaryTop.Children[minIndex] is RadioButton topRadio)
-                {
-                    topRadio.IsChecked = true;
-                }
             }
         };
     }
@@ -272,14 +241,12 @@ public partial class SettingsLayout : ItemsControl, ISukiStackPageTitleProvider
     private void DockPanel_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         var stack = this.GetTemplateChildren().First(n => n.Name == "StackSummaryScroll");
-        var stackTop = this.GetTemplateChildren().First(n => n.Name == "StackSummaryScrollTop");
+        // var scroll = this.GetTemplateChildren().First(n => n.Name == "MyScroll");
         var desiredSize = e.NewSize.Width > MinWidthWhetherStackSummaryShow ? StackSummaryWidth : 0;
-
-        if (stackTop is ScrollViewer topScroll)
-        {
-            topScroll.IsVisible = desiredSize == 0;
-        }
-
+        // Console.WriteLine(stack.GetType());
+        // if (scroll is ScrollViewer scrollViewer)
+        //     scrollViewer.VerticalScrollBarVisibility = desiredSize != 0 ? ScrollBarVisibility.Hidden : ScrollBarVisibility.Visible;
+        //
         if (LastDesiredSize == desiredSize)
             return;
 

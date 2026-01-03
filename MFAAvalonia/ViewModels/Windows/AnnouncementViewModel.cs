@@ -25,7 +25,7 @@ public class AnnouncementItem
 
 public partial class AnnouncementViewModel : ViewModelBase
 {
-    public static readonly string AnnouncementFolder = "announcement";
+    public static readonly string AnnouncementFolder = "Announcement";
     private static List<AnnouncementItem> _publicAnnouncementItems = new();
 
     [ObservableProperty] private AvaloniaList<AnnouncementItem> _announcementItems = new();

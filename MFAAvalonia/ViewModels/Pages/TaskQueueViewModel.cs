@@ -1,13 +1,11 @@
-﻿using Avalonia;
-using Avalonia.Collections;
+﻿using Avalonia.Collections;
+using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
-using Avalonia.Platform;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MaaFramework.Binding;
-using MaaFramework.Binding.Buffers;
 using MFAAvalonia.Configuration;
 using MFAAvalonia.Extensions;
 using MFAAvalonia.Extensions.MaaFW;
@@ -17,13 +15,15 @@ using MFAAvalonia.Helper.ValueType;
 using MFAAvalonia.ViewModels.Other;
 using MFAAvalonia.ViewModels.UsersControls;
 using MFAAvalonia.ViewModels.UsersControls.Settings;
+using MFAAvalonia.Views.Windows;
 using Newtonsoft.Json;
 using SukiUI.Dialogs;
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -33,7 +33,7 @@ namespace MFAAvalonia.ViewModels.Pages;
 public partial class TaskQueueViewModel : ViewModelBase
 {
     [ObservableProperty] private bool _isCompactMode = false;
-
+    
     // 竖屏模式下的设置弹窗状态
     [ObservableProperty] private bool _isSettingsPopupOpen = false;
 
@@ -42,7 +42,7 @@ public partial class TaskQueueViewModel : ViewModelBase
         if (!value && IsSettingsPopupOpen)
             IsSettingsPopupOpen = false;
     }
-
+    
     [RelayCommand]
     private void CloseSettingsPopup()
     {
@@ -85,7 +85,7 @@ public partial class TaskQueueViewModel : ViewModelBase
         try
         {
             var controllers = MaaProcessor.Interface?.Controller;
-            if (controllers is { Count: > 0 })
+            if (controllers != null && controllers.Count > 0)
             {
                 // 从interface配置中加载控制器列表
                 foreach (var controller in controllers)
@@ -126,28 +126,15 @@ public partial class TaskQueueViewModel : ViewModelBase
             Type = MaaControllerTypes.Adb.ToJsonKey()
         };
         adbController.InitializeDisplayName();
-        List<MaaInterface.MaaResourceController> controllers = [adbController];
-        if (OperatingSystem.IsWindows())
+
+        var win32Controller = new MaaInterface.MaaResourceController
         {
-            var win32Controller = new MaaInterface.MaaResourceController
-            {
-                Name = "Win32",
-                Type = MaaControllerTypes.Win32.ToJsonKey()
-            };
-            win32Controller.InitializeDisplayName();
-            controllers.Add(win32Controller);
-        }
-        if (OperatingSystem.IsMacOS())
-        {
-            var playCoverController = new MaaInterface.MaaResourceController
-            {
-                Name = "PlayCover",
-                Type = MaaControllerTypes.PlayCover.ToJsonKey()
-            };
-            playCoverController.InitializeDisplayName();
-            controllers.Add(playCoverController);
-        }
-        return controllers;
+            Name = "Win32",
+            Type = MaaControllerTypes.Win32.ToJsonKey()
+        };
+        win32Controller.InitializeDisplayName();
+
+        return [adbController, win32Controller];
     }
 
     protected override void Initialize()
@@ -159,6 +146,45 @@ public partial class TaskQueueViewModel : ViewModelBase
         catch (Exception e)
         {
             LoggerHelper.Error(e);
+        }
+        try
+        {
+            var col1Str = ConfigurationManager.Current.GetValue(ConfigurationKeys.TaskQueueColumn1Width, DefaultColumn1Width);
+            var col2Str = ConfigurationManager.Current.GetValue(ConfigurationKeys.TaskQueueColumn2Width, DefaultColumn2Width);
+            var col3Str = ConfigurationManager.Current.GetValue(ConfigurationKeys.TaskQueueColumn3Width, DefaultColumn3Width);
+
+            SuppressPropertyChangedCallbacks = true;
+
+            // 保存原始列宽（用于展开时恢复）
+            _savedColumn1Width = GridLength.Parse(col1Str);
+            _savedColumn3Width = GridLength.Parse(col3Str);
+
+            // 如果面板已折叠，设置列宽为折叠宽度，否则使用保存的列宽
+            Column1Width = IsLeftPanelCollapsed ? new GridLength(CollapsedPanelWidth) : _savedColumn1Width;
+            Column2Width = GridLength.Parse(col2Str);
+            Column3Width = IsRightPanelCollapsed ? new GridLength(CollapsedPanelWidth) : _savedColumn3Width;
+
+                        SuppressPropertyChangedCallbacks = false;
+            
+                        // 初始化时检测是否需要自动折叠（宽度 <= 50 时自动折叠）
+                        if (Column1Width.Value <= CollapsedPanelWidth && !IsLeftPanelCollapsed)
+                        {
+                            _savedColumn1Width = GridLength.Parse(DefaultColumn1Width);
+                            IsLeftPanelCollapsed = true;
+                        }
+                        if (Column3Width.Value <= CollapsedPanelWidth && !IsRightPanelCollapsed)
+                        {
+                            _savedColumn3Width = GridLength.Parse(DefaultColumn3Width);
+                            IsRightPanelCollapsed = true;
+                        }
+            
+                        LoggerHelper.Info("Column width set successfully in the constructor");
+                    }
+            
+                    catch (Exception ex)
+        {
+            LoggerHelper.Error($"Failed to set column width in the constructor: {ex.Message}");
+            SetDefaultColumnWidths();
         }
     }
 
@@ -199,29 +225,6 @@ public partial class TaskQueueViewModel : ViewModelBase
             LoggerHelper.Warning(LangKeys.ConfirmExitTitle.ToLocalization());
             return;
         }
-
-        if (CurrentResources.Count == 0 || string.IsNullOrWhiteSpace(CurrentResource) || CurrentResources.All(r => r.Name != CurrentResource))
-        {
-            ToastHelper.Warn(LangKeys.CannotStart.ToLocalization(), "ResourceNotSelected".ToLocalization());
-            LoggerHelper.Warning(LangKeys.CannotStart.ToLocalization());
-            return;
-        }
-
-        if (CurrentController != MaaControllerTypes.PlayCover && CurrentDevice == null)
-        {
-            ToastHelper.Warn(LangKeys.CannotStart.ToLocalization(), "DeviceNotSelected".ToLocalization());
-            LoggerHelper.Warning(LangKeys.CannotStart.ToLocalization());
-            return;
-        }
-
-        if (CurrentController == MaaControllerTypes.PlayCover
-            && string.IsNullOrWhiteSpace(MaaProcessor.Config.PlayCover.PlayCoverAddress))
-        {
-            ToastHelper.Warn(LangKeys.CannotStart.ToLocalization(), LangKeys.PlayCoverAddressEmpty.ToLocalization());
-            LoggerHelper.Warning(LangKeys.CannotStart.ToLocalization());
-            return;
-        }
-
         MaaProcessor.Instance.Start();
     }
 
@@ -673,10 +676,6 @@ public partial class TaskQueueViewModel : ViewModelBase
     {
         ConfigurationManager.Current.SetValue(ConfigurationKeys.CurrentController, value.ToString());
         UpdateResourcesForController();
-        if (value == MaaControllerTypes.PlayCover)
-        {
-            TryReadPlayCoverConfig();
-        }
         Refresh();
     }
 
@@ -711,14 +710,8 @@ public partial class TaskQueueViewModel : ViewModelBase
         // 更新资源列表
         CurrentResources = new ObservableCollection<MaaInterface.MaaInterfaceResource>(filteredResources);
 
-        if (CurrentResources.Count == 0)
-        {
-            CurrentResource = string.Empty;
-            return;
-        }
-
-        // 当前资源为空或不在列表时，选择第一个
-        if (string.IsNullOrWhiteSpace(CurrentResource) || CurrentResources.All(r => r.Name != CurrentResource))
+        // 如果当前选中的资源不在过滤后的列表中，则选择第一个并提示用户
+        if (CurrentResources.Count > 0 && CurrentResources.All(r => r.Name != CurrentResource))
         {
             var oldResource = CurrentResource;
             var newResource = CurrentResources[0].Name ?? "Default";
@@ -734,12 +727,7 @@ public partial class TaskQueueViewModel : ViewModelBase
                         false, oldResource, controllerDisplayName, newResource),
                     6);
             }
-
-            return;
         }
-
-        // 资源仍然有效时，强制刷新绑定以更新下拉框显示
-        OnPropertyChanged(nameof(CurrentResource));
     }
 
     /// <summary>
@@ -771,59 +759,15 @@ public partial class TaskQueueViewModel : ViewModelBase
         Instances.DialogManager.CreateDialog().WithTitle("AdbEditor").WithViewModel(dialog => new AdbEditorDialogViewModel(deviceInfo, dialog)).Dismiss().ByClickingBackground().TryShow();
     }
 
-    [RelayCommand]
-    private void EditPlayCover()
-    {
-        Instances.DialogManager.CreateDialog().WithTitle("PlayCoverEditor")
-            .WithViewModel(dialog => new PlayCoverEditorDialogViewModel(MaaProcessor.Config.PlayCover, dialog))
-            .Dismiss().ByClickingBackground().TryShow();
-    }
 
     private CancellationTokenSource? _refreshCancellationTokenSource;
 
     [RelayCommand]
-    private async Task Reconnect()
-    {
-        if (CurrentResources.Count == 0 || string.IsNullOrWhiteSpace(CurrentResource) || CurrentResources.All(r => r.Name != CurrentResource))
-        {
-            ToastHelper.Warn(LangKeys.CannotStart.ToLocalization(), "ResourceNotSelected".ToLocalization());
-            LoggerHelper.Warning(LangKeys.CannotStart.ToLocalization());
-            return;
-        }
-
-        if (CurrentController != MaaControllerTypes.PlayCover && CurrentDevice == null)
-        {
-            ToastHelper.Warn(LangKeys.CannotStart.ToLocalization(), "DeviceNotSelected".ToLocalization());
-            LoggerHelper.Warning(LangKeys.CannotStart.ToLocalization());
-            return;
-        }
-
-        if (CurrentController == MaaControllerTypes.PlayCover
-            && string.IsNullOrWhiteSpace(MaaProcessor.Config.PlayCover.PlayCoverAddress))
-        {
-            ToastHelper.Warn(LangKeys.CannotStart.ToLocalization(), LangKeys.PlayCoverAddressEmpty.ToLocalization());
-            LoggerHelper.Warning(LangKeys.CannotStart.ToLocalization());
-            return;
-        }
-
-        using var tokenSource = new CancellationTokenSource();
-        await MaaProcessor.Instance.ReconnectAsync(tokenSource.Token);
-        await MaaProcessor.Instance.TestConnecting();
-    }
-
-    [RelayCommand]
     private void Refresh()
     {
-        if (CurrentController == MaaControllerTypes.PlayCover)
-        {
-            SetConnected(false);
-            return;
-        }
-
         _refreshCancellationTokenSource?.Cancel();
         _refreshCancellationTokenSource = new CancellationTokenSource();
-        var controllerType = CurrentController;
-        TaskManager.RunTask(() => AutoDetectDevice(_refreshCancellationTokenSource.Token), _refreshCancellationTokenSource.Token, name: "刷新", handleError: (e) => HandleDetectionError(e, controllerType),
+        TaskManager.RunTask(() => AutoDetectDevice(_refreshCancellationTokenSource.Token), _refreshCancellationTokenSource.Token, name: "刷新", handleError: (e) => HandleDetectionError(e, CurrentController == MaaControllerTypes.Adb),
             catchException: true, shouldLog: true);
     }
 
@@ -849,36 +793,23 @@ public partial class TaskQueueViewModel : ViewModelBase
 
     public void AutoDetectDevice(CancellationToken token = default)
     {
-        if (CurrentController == MaaControllerTypes.PlayCover)
-        {
-            DispatcherHelper.RunOnMainThread(() =>
-            {
-                Devices = [];
-                CurrentDevice = null;
-            });
-            SetConnected(false);
-            return;
-        }
+        var isAdb = CurrentController == MaaControllerTypes.Adb;
 
-        var controllerType = CurrentController;
-        var isAdb = controllerType == MaaControllerTypes.Adb;
-
-        ToastHelper.Info(GetDetectionMessage(controllerType));
+        ToastHelper.Info(GetDetectionMessage(isAdb));
         SetConnected(false);
         token.ThrowIfCancellationRequested();
         var (devices, index) = isAdb ? DetectAdbDevices() : DetectWin32Windows();
         token.ThrowIfCancellationRequested();
         UpdateDeviceList(devices, index);
         token.ThrowIfCancellationRequested();
-        HandleControllerSettings(controllerType);
+        HandleControllerSettings(isAdb);
         token.ThrowIfCancellationRequested();
-        UpdateConnectionStatus(devices.Count > 0, controllerType);
+        UpdateConnectionStatus(devices.Count > 0, isAdb);
+
     }
 
-    private string GetDetectionMessage(MaaControllerTypes controllerType) =>
-        controllerType == MaaControllerTypes.Adb
-            ? "EmulatorDetectionStarted".ToLocalization()
-            : "WindowDetectionStarted".ToLocalization();
+    private string GetDetectionMessage(bool isAdb) =>
+        (isAdb ? "EmulatorDetectionStarted" : "WindowDetectionStarted").ToLocalization();
 
     private (ObservableCollection<object> devices, int index) DetectAdbDevices()
     {
@@ -998,22 +929,16 @@ public partial class TaskQueueViewModel : ViewModelBase
             Devices = devices;
             if (devices.Count > index)
                 CurrentDevice = devices[index];
-            else
-                CurrentDevice = null;
         });
     }
 
-    private void HandleControllerSettings(MaaControllerTypes controllerType)
+    private void HandleControllerSettings(bool isAdb)
     {
-        if (controllerType == MaaControllerTypes.PlayCover)
-            return;
-
         var controller = MaaProcessor.Interface?.Controller?
-            .FirstOrDefault(c => c.Type?.Equals(controllerType.ToJsonKey(), StringComparison.OrdinalIgnoreCase) == true);
+            .FirstOrDefault(c => c.Type?.Equals(isAdb ? "adb" : "win32", StringComparison.OrdinalIgnoreCase) == true);
 
         if (controller == null) return;
 
-        var isAdb = controllerType == MaaControllerTypes.Adb;
         HandleInputSettings(controller, isAdb);
         HandleScreenCapSettings(controller, isAdb);
     }
@@ -1149,50 +1074,30 @@ public partial class TaskQueueViewModel : ViewModelBase
         }
     }
 
-    private void UpdateConnectionStatus(bool hasDevices, MaaControllerTypes controllerType)
+    private void UpdateConnectionStatus(bool hasDevices, bool isAdb)
     {
         if (!hasDevices)
         {
-            var isAdb = controllerType == MaaControllerTypes.Adb;
             ToastHelper.Info((
                 isAdb ? LangKeys.NoEmulatorFound : LangKeys.NoWindowFound).ToLocalization(), (
                 isAdb ? LangKeys.NoEmulatorFoundDetail : "").ToLocalization());
+
         }
     }
 
-    public void TryReadPlayCoverConfig()
+    private void HandleDetectionError(Exception ex, bool isAdb)
     {
-        if (ConfigurationManager.Current.TryGetValue(ConfigurationKeys.PlayCoverConfig, out PlayCoverCoreConfig savedConfig))
-        {
-            MaaProcessor.Config.PlayCover = savedConfig;
-        }
-    }
-
-    private void HandleDetectionError(Exception ex, MaaControllerTypes controllerType)
-    {
-        var targetKey = controllerType switch
-        {
-            MaaControllerTypes.Adb => LangKeys.Emulator,
-            MaaControllerTypes.Win32 => LangKeys.Window,
-            MaaControllerTypes.PlayCover => LangKeys.TabPlayCover,
-            _ => LangKeys.Window
-        };
+        var targetType = isAdb ? LangKeys.Emulator : LangKeys.Window;
         ToastHelper.Warn(string.Format(
             LangKeys.TaskStackError.ToLocalization(),
-            targetKey.ToLocalization(),
+            targetType.ToLocalization(),
             ex.Message));
 
         LoggerHelper.Error(ex);
     }
 
-    public void TryReadAdbDeviceFromConfig(bool inTask = true, bool refresh = false)
+    public void TryReadAdbDeviceFromConfig(bool InTask = true, bool refresh = false)
     {
-        if (CurrentController == MaaControllerTypes.PlayCover)
-        {
-            SetConnected(false);
-            return;
-        }
-
         if (refresh
             || CurrentController != MaaControllerTypes.Adb
             || !ConfigurationManager.Current.GetValue(ConfigurationKeys.RememberAdb, true)
@@ -1202,7 +1107,7 @@ public partial class TaskQueueViewModel : ViewModelBase
         {
             _refreshCancellationTokenSource?.Cancel();
             _refreshCancellationTokenSource = new CancellationTokenSource();
-            if (inTask)
+            if (InTask)
                 TaskManager.RunTask(() => AutoDetectDevice(_refreshCancellationTokenSource.Token), name: "刷新设备");
             else
                 AutoDetectDevice(_refreshCancellationTokenSource.Token);
@@ -1249,7 +1154,7 @@ public partial class TaskQueueViewModel : ViewModelBase
                 LoggerHelper.Info("No matching device found by fingerprint, performing auto detection.");
                 _refreshCancellationTokenSource?.Cancel();
                 _refreshCancellationTokenSource = new CancellationTokenSource();
-                if (inTask)
+                if (InTask)
                     TaskManager.RunTask(() => AutoDetectDevice(_refreshCancellationTokenSource.Token), name: "刷新设备");
                 else
                     AutoDetectDevice(_refreshCancellationTokenSource.Token);
@@ -1269,37 +1174,22 @@ public partial class TaskQueueViewModel : ViewModelBase
     }
 
     #endregion
-
+    
     #region 资源
 
     [ObservableProperty] private ObservableCollection<MaaInterface.MaaInterfaceResource> _currentResources = [];
-    private string _currentResource = string.Empty;
 
     public string CurrentResource
     {
-        get => _currentResource;
+        get => field;
         set
         {
-            if (string.Equals(_currentResource, value, StringComparison.Ordinal))
-            {
-                return;
-            }
-
             if (!string.IsNullOrWhiteSpace(value))
             {
                 MaaProcessor.Instance.SetTasker();
-            }
-
-            SetNewProperty(ref _currentResource, value);
-            HandlePropertyChanged(ConfigurationKeys.Resource, value);
-
-            if (!string.IsNullOrWhiteSpace(value))
-            {
+                SetNewProperty(ref field, value);
+                HandlePropertyChanged(ConfigurationKeys.Resource, value);
                 UpdateTasksForResource(value);
-            }
-            else
-            {
-                UpdateTasksForResource(null);
             }
         }
     }
@@ -1485,80 +1375,368 @@ public partial class TaskQueueViewModel : ViewModelBase
     }
 
     #endregion
+    
+    #region 面板折叠
+
+    // 折叠时的最小宽度
+    private const double CollapsedPanelWidth = 50;
+
+    // 左侧面板折叠状态
+    [ObservableProperty] private bool _isLeftPanelCollapsed =
+        ConfigurationManager.Current.GetValue(ConfigurationKeys.TaskQueueLeftPanelCollapsed, false);
+
+    // 右侧面板折叠状态
+    [ObservableProperty] private bool _isRightPanelCollapsed =
+        ConfigurationManager.Current.GetValue(ConfigurationKeys.TaskQueueRightPanelCollapsed, false);
+
+    // 保存折叠前的列宽，用于恢复
+    private GridLength _savedColumn1Width;
+    private GridLength _savedColumn3Width;
+
+    partial void OnIsLeftPanelCollapsedChanged(bool value)
+    {
+        if (SuppressPropertyChangedCallbacks) return;
+        ConfigurationManager.Current.SetValue(ConfigurationKeys.TaskQueueLeftPanelCollapsed, value);
+    }
+
+    partial void OnIsRightPanelCollapsedChanged(bool value)
+    {
+        if (SuppressPropertyChangedCallbacks) return;
+        ConfigurationManager.Current.SetValue(ConfigurationKeys.TaskQueueRightPanelCollapsed, value);
+    }
+
+        [RelayCommand]
+        public void ToggleLeftPanel()
+        {
+            if (!IsLeftPanelCollapsed)
+            {
+                // 折叠前保存当前宽度
+                _savedColumn1Width = Column1Width;
+            }
+            // 只切换状态，列宽变化由 View 的动画控制
+            IsLeftPanelCollapsed = !IsLeftPanelCollapsed;
+        }
+    
+        [RelayCommand]
+        public void ToggleRightPanel()
+        {
+            if (!IsRightPanelCollapsed)
+            {
+                // 折叠前保存当前宽度
+                _savedColumn3Width = Column3Width;
+            }
+            // 只切换状态，列宽变化由 View 的动画控制
+            IsRightPanelCollapsed = !IsRightPanelCollapsed;
+        }
+        
+        /// <summary>
+        /// 设置左侧面板列宽（由 View 动画调用）
+        /// </summary>
+        public void SetLeftPanelWidth(GridLength width)
+        {
+            SuppressPropertyChangedCallbacks = true;
+            Column1Width = width;
+            SuppressPropertyChangedCallbacks = false;
+        }
+        
+        /// <summary>
+        /// 设置右侧面板列宽（由 View 动画调用）
+        /// </summary>
+        public void SetRightPanelWidth(GridLength width)
+        {
+            SuppressPropertyChangedCallbacks = true;
+            Column3Width = width;
+            SuppressPropertyChangedCallbacks = false;
+        }
+        
+// 展开时的最小宽度（当保存的宽度太小时使用）
+        private const double MinExpandedPanelWidth = 250;
+
+        public GridLength GetSavedLeftPanelWidth()
+        {
+            return _savedColumn1Width.Value > CollapsedPanelWidth
+                ? _savedColumn1Width
+                : new GridLength(MinExpandedPanelWidth);  // 改为 150
+        }
+
+        public GridLength GetSavedRightPanelWidth()
+        {
+            return _savedColumn3Width.Value > CollapsedPanelWidth
+                ? _savedColumn3Width
+                : new GridLength(MinExpandedPanelWidth);  // 改为 150
+        }
+
+        /// <summary>
+        /// 获取折叠时的面板宽度
+        /// </summary>
+        public static double GetCollapsedPanelWidth() => CollapsedPanelWidth;
+    
+        [ObservableProperty] private bool _hasPopupIntroduction = false;
+        [ObservableProperty] private bool _hasPopupSettings = false;
+        [ObservableProperty] private string _popupIntroductionContent = string.Empty;
+
+    #endregion
+
+    #region 缩放
+
+// 三列宽度配置
+    private const string DefaultColumn1Width = "350";
+    private const string DefaultColumn2Width = "1*";
+    private const string DefaultColumn3Width = "1*";
+
+// 使用属性，标记为可通知属性，确保UI能正确绑定和监听变化
+    [ObservableProperty] private GridLength _column1Width;
+
+    [ObservableProperty] private GridLength _column2Width;
+
+    [ObservableProperty] private GridLength _column3Width;
+
+// 添加记录拖拽开始的状态
+    private GridLength _dragStartCol1Width;
+    private GridLength _dragStartCol2Width;
+    private GridLength _dragStartCol3Width;
+
+    [RelayCommand]
+    public void GridSplitterDragStarted(string splitterName)
+    {
+        try
+        {
+            _dragStartCol1Width = Column1Width;
+            _dragStartCol2Width = Column2Width;
+            _dragStartCol3Width = Column3Width;
+        }
+        catch (Exception ex)
+        {
+            LoggerHelper.Error($"记录拖拽开始状态失败: {ex.Message}");
+        }
+    }
+
+    [RelayCommand]
+    public void GridSplitterDragCompleted(string splitterName)
+    {
+        try
+        {
+            // 记录拖拽完成事件和时间戳，方便分析日志
+            var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
+            // 获取当前列宽
+            var col1 = Column1Width;
+            var col2 = Column2Width;
+            var col3 = Column3Width;
+
+            // 检查是否有变化
+            bool col1Changed = !AreGridLengthsEqual(_dragStartCol1Width, col1);
+            bool col2Changed = !AreGridLengthsEqual(_dragStartCol2Width, col2);
+            bool col3Changed = !AreGridLengthsEqual(_dragStartCol3Width, col3);
+            bool changed = col1Changed || col2Changed || col3Changed;
+
+            var oldCol1Str = ConfigurationManager.Current.GetValue(ConfigurationKeys.TaskQueueColumn1Width, DefaultColumn1Width);
+            var oldCol2Str = ConfigurationManager.Current.GetValue(ConfigurationKeys.TaskQueueColumn2Width, DefaultColumn2Width);
+            var oldCol3Str = ConfigurationManager.Current.GetValue(ConfigurationKeys.TaskQueueColumn3Width, DefaultColumn3Width);
+
+            var newCol1Str = col1.ToString();
+            var newCol2Str = col2.ToString();
+            var newCol3Str = col3.ToString();
+
+            // 始终设置新值
+            ConfigurationManager.Current.SetValue(ConfigurationKeys.TaskQueueColumn1Width, newCol1Str);
+            ConfigurationManager.Current.SetValue(ConfigurationKeys.TaskQueueColumn2Width, newCol2Str);
+            ConfigurationManager.Current.SetValue(ConfigurationKeys.TaskQueueColumn3Width, newCol3Str);
+
+            // 始终保存配置
+            ConfigurationManager.SaveConfiguration(ConfigurationManager.Current.FileName);
+
+        }
+        catch (Exception ex)
+        {
+            LoggerHelper.Error($"保存列宽配置失败: {ex.Message}");
+        }
+    }
+
+// 添加辅助方法用于精确比较两个GridLength
+    private bool AreGridLengthsEqual(GridLength a, GridLength b)
+    {
+        if (a.GridUnitType != b.GridUnitType)
+            return false;
+
+        if (a.GridUnitType == GridUnitType.Auto || b.GridUnitType == GridUnitType.Auto)
+            return a.GridUnitType == b.GridUnitType;
+
+        // 对于像素值，允许0.5像素的误差
+        if (a.GridUnitType == GridUnitType.Pixel)
+            return Math.Abs(a.Value - b.Value) < 0.5;
+
+        // 对于Star值，允许0.01的误差
+        if (a.GridUnitType == GridUnitType.Star)
+            return Math.Abs(a.Value - b.Value) < 0.01;
+
+        return a.Value == b.Value;
+    }
+    partial void OnColumn1WidthChanged(GridLength value)
+    {
+        if (SuppressPropertyChangedCallbacks) return;
+
+        try
+        {
+            // 获取旧值
+            var oldValue = ConfigurationManager.Current.GetValue<string>(ConfigurationKeys.TaskQueueColumn1Width, DefaultColumn1Width);
+            var newValue = value.ToString();
+
+            // 使用改进的比较方法
+            if (CompareGridLength(oldValue, value))
+            {
+                ConfigurationManager.Current.SetValue(ConfigurationKeys.TaskQueueColumn1Width, newValue);
+            }
+        }
+        catch (Exception ex)
+        {
+            LoggerHelper.Error($"保存列宽1失败: {ex.Message}");
+        }
+    }
+    partial void OnColumn2WidthChanged(GridLength value)
+    {
+        if (SuppressPropertyChangedCallbacks) return;
+
+        try
+        {
+            // 获取旧值
+            var oldValue = ConfigurationManager.Current.GetValue<string>(ConfigurationKeys.TaskQueueColumn2Width, DefaultColumn2Width);
+            var newValue = value.ToString();
+
+            // 使用改进的比较方法
+            if (CompareGridLength(oldValue, value))
+            {
+                ConfigurationManager.Current.SetValue(ConfigurationKeys.TaskQueueColumn2Width, newValue);
+            }
+        }
+        catch (Exception ex)
+        {
+            LoggerHelper.Error($"保存列宽2失败: {ex.Message}");
+        }
+    }
+    partial void OnColumn3WidthChanged(GridLength value)
+    {
+        if (SuppressPropertyChangedCallbacks) return;
+
+        try
+        {
+            // 获取旧值
+            var oldValue = ConfigurationManager.Current.GetValue<string>(ConfigurationKeys.TaskQueueColumn3Width, DefaultColumn3Width);
+            var newValue = value.ToString();
+
+            // 使用改进的比较方法
+            if (CompareGridLength(oldValue, value))
+            {
+                ConfigurationManager.Current.SetValue(ConfigurationKeys.TaskQueueColumn3Width, newValue);
+            }
+        }
+        catch (Exception ex)
+        {
+            LoggerHelper.Error($"保存列宽3失败: {ex.Message}");
+        }
+    }
+    public bool SuppressPropertyChangedCallbacks
+    {
+        get;
+        set;
+    }
+
+// 保存列宽配置到磁盘
+    public void SaveColumnWidths()
+    {
+        if (SuppressPropertyChangedCallbacks) return;
+
+        try
+        {
+            ConfigurationManager.Current.SetValue(ConfigurationKeys.TaskQueueColumn1Width, Column1Width.ToString());
+            ConfigurationManager.Current.SetValue(ConfigurationKeys.TaskQueueColumn2Width, Column2Width.ToString());
+            ConfigurationManager.Current.SetValue(ConfigurationKeys.TaskQueueColumn3Width, Column3Width.ToString());
+        }
+        catch (Exception ex)
+        {
+            LoggerHelper.Error($"保存列宽配置失败: {ex.Message}");
+        }
+    }
+
+    private void SetDefaultColumnWidths()
+    {
+        // 设置默认值
+        try
+        {
+            SuppressPropertyChangedCallbacks = true;
+
+            Column1Width = GridLength.Parse(DefaultColumn1Width);
+            Column2Width = GridLength.Parse(DefaultColumn2Width);
+            Column3Width = GridLength.Parse(DefaultColumn3Width);
+
+            // 恢复属性更改通知
+            SuppressPropertyChangedCallbacks = false;
+
+            // 默认值需要保存，但只有在第一次启动时(无配置文件)
+            if (!ConfigurationManager.Current.Config.ContainsKey(ConfigurationKeys.TaskQueueColumn1Width))
+            {
+                SaveColumnWidths();
+            }
+
+            LoggerHelper.Info("默认列宽设置成功");
+        }
+        catch (Exception ex)
+        {
+            LoggerHelper.Error($"设置默认列宽失败: {ex.Message}");
+        }
+    }
+
+// 添加辅助方法用于比较GridLength
+    private bool CompareGridLength(string storedValue, GridLength newValue)
+    {
+        // 先检查字符串是否完全相同
+        var newValueStr = newValue.ToString();
+        if (string.Equals(storedValue, newValueStr, StringComparison.OrdinalIgnoreCase))
+        {
+            return false; // 字符串相同，没有变化
+        }
+
+        try
+        {
+            // 尝试解析存储的值
+            var storedGridLength = GridLength.Parse(storedValue);
+
+            // 对于像素值，比较数值是否有足够的差异
+            if (storedGridLength.GridUnitType == GridUnitType.Pixel && newValue.GridUnitType == GridUnitType.Pixel)
+            {
+                // 如果差异小于0.5像素，认为没有变化
+                return Math.Abs(storedGridLength.Value - newValue.Value) >= 0.5;
+            }
+
+            // 对于Star类型，比较是否有足够的差异
+            if (storedGridLength.GridUnitType == GridUnitType.Star && newValue.GridUnitType == GridUnitType.Star)
+            {
+                // 对于比例值，如果差异小于0.01，认为没有变化
+                return Math.Abs(storedGridLength.Value - newValue.Value) >= 0.01;
+            }
+
+            // 单位类型不同或其他情况，认为有变化
+            return true;
+        }
+        catch
+        {
+            // 如果解析失败，认为有变化
+            return true;
+        }
+    }
+
+    #endregion
 
     #region 实时画面
 
-    /// <summary>
-    /// Live View 刷新率变化事件，参数为计算后的间隔（秒）
-    /// </summary>
-    public event Action<double>? LiveViewRefreshRateChanged;
-
-    /// <summary>
-    /// Live View 是否启用
-    /// </summary>
-    [ObservableProperty] private bool _enableLiveView =
-        ConfigurationManager.Current.GetValue(ConfigurationKeys.EnableLiveView, true);
-
-    /// <summary>
-    /// Live View 刷新率（FPS），范围 1-60，默认 10
-    /// </summary>
-    [ObservableProperty] private double _liveViewRefreshRate =
-        ConfigurationManager.Current.GetValue(ConfigurationKeys.LiveViewRefreshRate, 30.0);
-
-    partial void OnEnableLiveViewChanged(bool value)
-    {
-        OnPropertyChanged(nameof(IsLiveViewVisible));
-        ConfigurationManager.Current.SetValue(ConfigurationKeys.EnableLiveView, value);
-    }
-
-    partial void OnLiveViewRefreshRateChanged(double value)
-    {
-        // 限制范围在 1 到 60 FPS 之间，不允许 0 以防止除零错误
-        if (value < 1)
-        {
-            LiveViewRefreshRate = 1;
-            return;
-        }
-        if (value > 120)
-        {
-            LiveViewRefreshRate = 120;
-            return;
-        }
-
-        ConfigurationManager.Current.SetValue(ConfigurationKeys.LiveViewRefreshRate, value);
-        // 将 FPS 转换为间隔（秒）并触发事件
-        var interval = 1.0 / value;
-        LiveViewRefreshRateChanged?.Invoke(interval);
-    }
-
-    /// <summary>
-    /// 获取当前刷新间隔（秒），用于定时器
-    /// </summary>
-    public double GetLiveViewRefreshInterval() => 1.0 / LiveViewRefreshRate;
 
     [ObservableProperty] private Bitmap? _liveViewImage;
     [ObservableProperty] private bool _isLiveViewExpanded = true;
-    private WriteableBitmap? _liveViewWriteableBitmap;
-    private int _liveViewProcessing;
-    [ObservableProperty] private double _liveViewFps;
-    private DateTime _liveViewFpsWindowStart = DateTime.UtcNow;
-    private int _liveViewFrameCount;
     [ObservableProperty] private string _currentTaskName = "";
-
-    private int _liveViewImageCount;
-    private int _liveViewImageNewestCount;
-
-    private static int _liveViewSemaphoreCurrentCount = 2;
-    private const int LiveViewSemaphoreMaxCount = 5;
-    private static int _liveViewSemaphoreFailCount = 0;
-    private static readonly SemaphoreSlim _liveViewSemaphore = new(_liveViewSemaphoreCurrentCount, LiveViewSemaphoreMaxCount);
-
-    private readonly WriteableBitmap?[] _liveViewImageCache = new WriteableBitmap?[LiveViewSemaphoreMaxCount];
 
     /// <summary>
     /// Live View 是否可见（已连接且有图像）
     /// </summary>
-    public bool IsLiveViewVisible => EnableLiveView && IsConnected && LiveViewImage != null;
+    public bool IsLiveViewVisible => IsConnected && LiveViewImage != null;
 
     partial void OnIsConnectedChanged(bool value)
     {
@@ -1585,165 +1763,11 @@ public partial class TaskQueueViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// 更新 Live View 图像（仿 WPF：直接写入缓冲）
+    /// 更新 Live View 图像
     /// </summary>
-    public async Task UpdateLiveViewImageAsync(MaaImageBuffer? buffer)
+    public void UpdateLiveViewImage(Bitmap? image)
     {
-        if (!await _liveViewSemaphore.WaitAsync(0))
-        {
-            if (++_liveViewSemaphoreFailCount < 3)
-            {
-                buffer?.Dispose();
-                return;
-            }
-
-            _liveViewSemaphoreFailCount = 0;
-
-            if (_liveViewSemaphoreCurrentCount < LiveViewSemaphoreMaxCount)
-            {
-                _liveViewSemaphoreCurrentCount++;
-                _liveViewSemaphore.Release();
-                LoggerHelper.Info($"LiveView Semaphore Full, increase semaphore count to {_liveViewSemaphoreCurrentCount}");
-            }
-
-            buffer?.Dispose();
-            return;
-        }
-
-        try
-        {
-            var count = Interlocked.Increment(ref _liveViewImageCount);
-            var index = count % _liveViewImageCache.Length;
-
-            if (buffer == null)
-            {
-                await Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    LiveViewImage = null;
-                    _liveViewWriteableBitmap?.Dispose();
-                    _liveViewWriteableBitmap = null;
-                    Array.Fill(_liveViewImageCache, null);
-                    _liveViewImageNewestCount = 0;
-                    _liveViewImageCount = 0;
-                });
-                return;
-            }
-
-            if (!buffer.TryGetRawData(out var rawData, out var width, out var height, out _))
-            {
-                return;
-            }
-
-            if (width <= 0 || height <= 0)
-            {
-                return;
-            }
-
-            if (count <= _liveViewImageNewestCount)
-            {
-                return;
-            }
-
-            await Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                _liveViewImageCache[index] = WriteBgrToBitmap(rawData, width, height, buffer.Channels, _liveViewImageCache[index]);
-                LiveViewImage = _liveViewImageCache[index];
-            });
-
-            Interlocked.Exchange(ref _liveViewImageNewestCount, count);
-            _liveViewSemaphoreFailCount = 0;
-
-            var now = DateTime.UtcNow;
-            Interlocked.Increment(ref _liveViewFrameCount);
-            var totalSeconds = (now - _liveViewFpsWindowStart).TotalSeconds;
-            if (totalSeconds >= 1)
-            {
-                var frameCount = Interlocked.Exchange(ref _liveViewFrameCount, 0);
-                _liveViewFpsWindowStart = now;
-                await Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    LiveViewFps = frameCount / totalSeconds;
-                });
-            }
-        }
-        finally
-        {
-            buffer?.Dispose();
-            _liveViewSemaphore.Release();
-        }
-    }
-
-    private static WriteableBitmap WriteBgrToBitmap(IntPtr bgrData, int width, int height, int channels, WriteableBitmap? targetBitmap)
-    {
-        const int dstBytesPerPixel = 4;
-
-        targetBitmap ??= new WriteableBitmap(
-            new PixelSize(width, height),
-            new Vector(96, 96),
-            PixelFormat.Bgra8888,
-            AlphaFormat.Premul);
-
-        using var framebuffer = targetBitmap.Lock();
-        unsafe
-        {
-            var dstStride = framebuffer.RowBytes;
-            if (dstStride <= 0)
-            {
-                return targetBitmap;
-            }
-
-            var dstPtr = (byte*)framebuffer.Address;
-
-            if (channels == 4)
-            {
-                var srcStride = width * dstBytesPerPixel;
-                var rowCopy = Math.Min(srcStride, dstStride);
-                var srcPtr = (byte*)bgrData;
-                for (var y = 0; y < height; y++)
-                {
-                    Buffer.MemoryCopy(srcPtr + y * srcStride, dstPtr + y * dstStride, dstStride, rowCopy);
-                }
-
-                return targetBitmap;
-            }
-
-            if (channels == 3)
-            {
-                var srcStride = width * 3;
-                var rowBuffer = ArrayPool<byte>.Shared.Rent(width * dstBytesPerPixel);
-                try
-                {
-                    var srcPtr = (byte*)bgrData;
-                    var rowCopy = Math.Min(width * dstBytesPerPixel, dstStride);
-                    for (var y = 0; y < height; y++)
-                    {
-                        var srcRow = srcPtr + y * srcStride;
-                        for (var x = 0; x < width; x++)
-                        {
-                            var srcIndex = x * 3;
-                            var dstIndex = x * dstBytesPerPixel;
-                            rowBuffer[dstIndex] = srcRow[srcIndex];
-                            rowBuffer[dstIndex + 1] = srcRow[srcIndex + 1];
-                            rowBuffer[dstIndex + 2] = srcRow[srcIndex + 2];
-                            rowBuffer[dstIndex + 3] = 255;
-                        }
-
-                        fixed (byte* rowPtr = rowBuffer)
-                        {
-                            Buffer.MemoryCopy(rowPtr, dstPtr + y * dstStride, dstStride, rowCopy);
-                        }
-                    }
-                }
-                finally
-                {
-                    ArrayPool<byte>.Shared.Return(rowBuffer);
-                }
-
-                return targetBitmap;
-            }
-        }
-
-        return targetBitmap;
+        DispatcherHelper.PostOnMainThread(() => LiveViewImage = image);
     }
 
     #endregion
@@ -1772,4 +1796,5 @@ public partial class TaskQueueViewModel : ViewModelBase
     }
 
     #endregion
+
 }

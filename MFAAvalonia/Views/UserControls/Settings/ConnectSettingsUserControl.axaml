@@ -1,29 +1,32 @@
-﻿<UserControl d:DesignHeight="450"
-             d:DesignWidth="800"
-             mc:Ignorable="d"
-             x:Class="MFAAvalonia.Views.UserControls.Settings.ConnectSettingsUserControl"
-             x:DataType="settings:ConnectSettingsUserControlModel"
-             xmlns="https://github.com/avaloniaui"
-             xmlns:calcBinding="clr-namespace:CalcBinding;assembly=CalcBindingAva"
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:helper="clr-namespace:MFAAvalonia.Helper"
-             xmlns:maa="clr-namespace:MFAAvalonia.Extensions.MaaFW"
-             xmlns:markup="https://codewf.com"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:settings="clr-namespace:MFAAvalonia.ViewModels.UsersControls.Settings"
-             xmlns:suki="https://github.com/kikipoulet/SukiUI"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+﻿<UserControl
+    d:DesignHeight="450"
+    d:DesignWidth="800"
+    mc:Ignorable="d"
+    x:Class="MFAAvalonia.Views.UserControls.Settings.ConnectSettingsUserControl"
+    x:DataType="settings:ConnectSettingsUserControlModel"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:calcBinding="clr-namespace:CalcBinding;assembly=CalcBindingAva"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:helper="clr-namespace:MFAAvalonia.Helper"
+    xmlns:maa="clr-namespace:MFAAvalonia.Extensions.MaaFW"
+    xmlns:markup="https://codewf.com"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:settings="clr-namespace:MFAAvalonia.ViewModels.UsersControls.Settings"
+    xmlns:suki="https://github.com/kikipoulet/SukiUI"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <StackPanel Spacing="20">
         <suki:GlassCard
-            IsVisible="{calcBinding:Binding 'CurrentController == maa:MaaControllerTypes.Adb', Source={x:Static helper:Instances.TaskQueueViewModel}}"
-            Margin="0,25,0,0" Padding="25,10,25,10">
+            IsVisible="{calcBinding:Binding 'CurrentController == maa:MaaControllerTypes.Adb',
+                                            Source={x:Static helper:Instances.TaskQueueViewModel}}"
+            Margin="0,25,0,0"
+            Padding="25,10,25,10">
             <StackPanel>
                 <DockPanel>
                     <ComboBox
                         DockPanel.Dock="Right"
-                        HorizontalAlignment="Center"
-                        DisplayMemberBinding="{Binding Name}"
-                        IsEnabled="{calcBinding:Binding Idle,Source={x:Static helper:Instances.RootViewModel}}"
+                        HorizontalAlignment="Center" DisplayMemberBinding="{Binding Name}"
+                        IsEnabled="{calcBinding:Binding Idle,
+                                                        Source={x:Static helper:Instances.RootViewModel}}"
                         ItemsSource="{Binding AdbControlScreenCapTypes}"
                         SelectedValue="{Binding AdbControlScreenCapType}"
                         SelectedValueBinding="{Binding Other}"

@@ -22,17 +22,12 @@
         <entry key="MFAAvalonia/Views/UserControls/AdbEditorDialogView.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="MFAAvalonia/Views/UserControls/AddTaskDialogView.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="MFAAvalonia/Views/UserControls/CustomThemeDialogView.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
-        <entry key="MFAAvalonia/Views/UserControls/Dashboard/DashboardCard.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
-        <entry key="MFAAvalonia/Views/UserControls/Dashboard/DashboardPanel.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
-        <entry key="MFAAvalonia/Views/UserControls/Dashboard/DashboardWidgetContainer.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
-        <entry key="MFAAvalonia/Views/UserControls/Dashboard/UserControl1.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="MFAAvalonia/Views/UserControls/DisplayIcon.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="MFAAvalonia/Views/UserControls/HotKeyEditor.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="MFAAvalonia/Views/UserControls/IconDisplay.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="MFAAvalonia/Views/UserControls/MarqueeTextBlock.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="MFAAvalonia/Views/UserControls/MultiInstanceEditorDialogView.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="MFAAvalonia/Views/UserControls/PasswordBox.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
-        <entry key="MFAAvalonia/Views/UserControls/PlayCoverEditorDialog.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="MFAAvalonia/Views/UserControls/SchedulePicker.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="MFAAvalonia/Views/UserControls/Settings/AboutUserControl.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="MFAAvalonia/Views/UserControls/Settings/AdvancedSettings.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />

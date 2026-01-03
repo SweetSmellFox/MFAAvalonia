@@ -259,26 +259,19 @@
     </data>
     <data name="Cut" xml:space="preserve">
         <value>剪切</value>
-        </data>
+    </data>
     <data name="DarkColor" xml:space="preserve">
         <value>深色</value>
     </data>
-        <data name="DebugMode" xml:space="preserve">
+    <data name="DebugMode" xml:space="preserve">
         <value>[调试模式]</value>
     </data>
     <data name="DebugModeWarning" xml:space="preserve">
         <value>调试模式已开启。此模式会保存运行期间的截图、操作数据及图像识别可视化结果，可能会占用大量的存储空间！</value>
     </data>
-    <data name="DashboardCardMaximize" xml:space="preserve">
-        <value>最大化</value>
-    </data>
-    <data name="DashboardCardRestore" xml:space="preserve">
-        <value>还原</value>
-    </data>
     <data name="Delete" xml:space="preserve">
         <value>删除</value>
     </data>
-
     <data name="DeselectAll" xml:space="preserve">
         <value>全部不选</value>
     </data>
@@ -924,9 +917,6 @@
     <data name="TabWin32" xml:space="preserve">
         <value>桌面应用</value>
     </data>
-    <data name="TabPlayCover" xml:space="preserve">
-        <value>PlayCover</value>
-    </data>
     <data name="Task" xml:space="preserve">
         <value>任务</value>
     </data>
@@ -990,7 +980,7 @@
     <data name="TooltipRefresh" xml:space="preserve">
         <value>刷新</value>
     </data>
-    <data name="TryToReconnect" xml:space="preserve">
+    <data name="TryToReconnectByAdb" xml:space="preserve">
         <value>正在尝试重连</value>
     </data>
     <data name="TryToStartEmulator" xml:space="preserve">
@@ -1429,12 +1419,6 @@
     <data name="ResourceNotSupportController" xml:space="preserve">
         <value>当前控制器 {1} 不支持资源 {0}，已自动切换为 {2}，请检查资源设置</value>
     </data>
-    <data name="ResourceNotSelected" xml:space="preserve">
-        <value>未选择资源，请先选择资源</value>
-    </data>
-    <data name="DeviceNotSelected" xml:space="preserve">
-        <value>未选择设备，请先选择设备</value>
-    </data>
 
     <data name="ResourcePresetConfig" xml:space="preserve">
         <value>资源预设配置</value>
@@ -1443,38 +1427,13 @@
         <value>使用指纹匹配设备</value>
     </data>
     <data name="LiveView" xml:space="preserve">
-        <value>实时视图</value>
+        <value>实时画面</value>
     </data>
     <data name="Running" xml:space="preserve">
         <value>运行中</value>
     </data>
-        <data name="CurrentTask" xml:space="preserve">
-            <value>任务: {0}</value>
-        </data>
-    <data name="LiveViewRefreshRate" xml:space="preserve">
-        <value>实时视图最高刷新率 (FPS)</value>
+    <data name="CurrentTask" xml:space="preserve">
+        <value>任务: {0}</value>
     </data>
-    <data name="PlayCoverAddress" xml:space="preserve">
-        <value>地址</value>
-    </data>
-    <data name="PlayCoverBundleIdentifier" xml:space="preserve">
-        <value>应用标识符</value>
-    </data>
-    <data name="PlayCoverAddressEmpty" xml:space="preserve">
-        <value>PlayCover 地址不能为空</value>
-    </data>
-    <data name="Reconnect" xml:space="preserve">
-        <value>重新连接</value>
-    </data>
-    <data name="DashboardCardMaximize" xml:space="preserve">
-        <value>最大化</value>
-    </data>
-    <data name="DashboardCardRestore" xml:space="preserve">
-        <value>还原</value>
-    </data>
-    <data name="Delete" xml:space="preserve">
-        <value>删除</value>
-    </data>
-
 </root>
 

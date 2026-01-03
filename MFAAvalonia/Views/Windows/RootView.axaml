@@ -6,7 +6,7 @@
     BackgroundImageOpacity="{Binding BackgroundImageOpacity, Source={x:Static helper:Instances.GuiSettingsUserControlModel}}"
     IsVisible="{Binding IsWindowVisible}"
     MinHeight="360"
-    MinWidth="700"
+    MinWidth="650"
     d:DesignHeight="450"
     d:DesignWidth="800" ShowTitle="False"
     mc:Ignorable="d"

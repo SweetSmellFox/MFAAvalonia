@@ -1,7 +1,6 @@
 ﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
-using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using System;
@@ -22,36 +21,10 @@ public static class ScrollViewerExtensions
         AvaloniaProperty.RegisterAttached<Control, bool>(
             "AutoScroll", typeof(ScrollViewerExtensions), false);
 
-    // 边缘渐隐控制
-    public static readonly AttachedProperty<bool> EnableEdgeFadeProperty =
-        AvaloniaProperty.RegisterAttached<Control, bool>(
-            "EnableEdgeFade", typeof(ScrollViewerExtensions), false);
-
-    public static readonly AttachedProperty<bool> ShowTopFadeProperty =
-        AvaloniaProperty.RegisterAttached<Control, bool>(
-            "ShowTopFade", typeof(ScrollViewerExtensions), false);
-
-    public static readonly AttachedProperty<bool> ShowBottomFadeProperty =
-        AvaloniaProperty.RegisterAttached<Control, bool>(
-            "ShowBottomFade", typeof(ScrollViewerExtensions), false);
-
-    public static readonly AttachedProperty<IBrush?> EdgeFadeMaskProperty =
-        AvaloniaProperty.RegisterAttached<Control, IBrush?>(
-            "EdgeFadeMask", typeof(ScrollViewerExtensions), null);
-
-    private static readonly AttachedProperty<EdgeFadeState?> EdgeFadeStateProperty =
-        AvaloniaProperty.RegisterAttached<ScrollViewer, EdgeFadeState?>(
-            "EdgeFadeState", typeof(ScrollViewerExtensions), null);
-
-    private static readonly AttachedProperty<ListBoxEdgeFadeState?> ListBoxEdgeFadeStateProperty =
-        AvaloniaProperty.RegisterAttached<ListBox, ListBoxEdgeFadeState?>(
-            "ListBoxEdgeFadeState", typeof(ScrollViewerExtensions), null);
-
     static ScrollViewerExtensions()
     {
         PanningModeProperty.Changed.AddClassHandler<Control>(OnPanningModeChanged);
         AutoScrollProperty.Changed.AddClassHandler<Control>(OnAutoScrollChanged);
-        EnableEdgeFadeProperty.Changed.AddClassHandler<Control>(OnEnableEdgeFadeChanged);
     }
 
     #region 属性设置器
@@ -67,30 +40,6 @@ public static class ScrollViewerExtensions
 
     public static bool GetAutoScroll(Control element) =>
         element.GetValue(AutoScrollProperty);
-
-    public static void SetEnableEdgeFade(Control element, bool value) =>
-        element.SetValue(EnableEdgeFadeProperty, value);
-
-    public static bool GetEnableEdgeFade(Control element) =>
-        element.GetValue(EnableEdgeFadeProperty);
-
-    public static void SetShowTopFade(Control element, bool value) =>
-        element.SetValue(ShowTopFadeProperty, value);
-
-    public static bool GetShowTopFade(Control element) =>
-        element.GetValue(ShowTopFadeProperty);
-
-    public static void SetShowBottomFade(Control element, bool value) =>
-        element.SetValue(ShowBottomFadeProperty, value);
-
-    public static bool GetShowBottomFade(Control element) =>
-        element.GetValue(ShowBottomFadeProperty);
-
-    public static void SetEdgeFadeMask(Control element, IBrush? value) =>
-        element.SetValue(EdgeFadeMaskProperty, value);
-
-    public static IBrush? GetEdgeFadeMask(Control element) =>
-        element.GetValue(EdgeFadeMaskProperty);
 
     #endregion
 
@@ -210,24 +159,6 @@ public static class ScrollViewerExtensions
         }
     }
 
-    private static void OnEnableEdgeFadeChanged(Control control, AvaloniaPropertyChangedEventArgs args)
-    {
-        var enabled = args.NewValue is true;
-
-        if (control is ScrollViewer scrollViewer)
-        {
-            SetupEdgeFade(scrollViewer, enabled);
-        }
-        else if (control is ListBox listBox)
-        {
-            SetupListBoxEdgeFade(listBox, enabled);
-        }
-        else
-        {
-            WithScrollViewer(control, sv => SetupEdgeFade(sv, enabled));
-        }
-    }
-
     private static void SetupScrollViewerAutoScroll(ScrollViewer scrollViewer, bool alwaysScrollToEnd)
     {
         // 获取或创建状态对象
@@ -334,118 +265,6 @@ public static class ScrollViewerExtensions
         }
     }
 
-    private static void SetupListBoxEdgeFade(ListBox listBox, bool enabled)
-    {
-        var state = listBox.GetValue(ListBoxEdgeFadeStateProperty);
-
-        if (enabled)
-        {
-            if (state == null)
-            {
-                state = new ListBoxEdgeFadeState();
-                listBox.SetValue(ListBoxEdgeFadeStateProperty, state);
-            }
-
-            WithScrollViewer(listBox, scrollViewer =>
-            {
-                if (state.ScrollViewer != null && state.Handler != null)
-                {
-                    state.ScrollViewer.ScrollChanged -= state.Handler;
-                }
-
-                state.ScrollViewer = scrollViewer;
-                state.Handler = (_, _) => UpdateEdgeFade(scrollViewer, listBox);
-
-                scrollViewer.ScrollChanged -= state.Handler;
-                scrollViewer.ScrollChanged += state.Handler;
-
-                UpdateEdgeFade(scrollViewer, listBox);
-            });
-        }
-        else
-        {
-            if (state?.ScrollViewer != null && state.Handler != null)
-            {
-                state.ScrollViewer.ScrollChanged -= state.Handler;
-            }
-
-            listBox.SetValue(ListBoxEdgeFadeStateProperty, null);
-            SetShowTopFade(listBox, false);
-            SetShowBottomFade(listBox, false);
-            SetEdgeFadeMask(listBox, null);
-            listBox.OpacityMask = null;
-        }
-    }
-
-    private static void SetupEdgeFade(ScrollViewer scrollViewer, bool enabled)
-    {
-        var state = scrollViewer.GetValue(EdgeFadeStateProperty);
-
-        if (enabled)
-        {
-            if (state == null)
-            {
-                state = new EdgeFadeState();
-                scrollViewer.SetValue(EdgeFadeStateProperty, state);
-            }
-
-            scrollViewer.ScrollChanged -= OnEdgeFadeScrollChanged;
-            scrollViewer.ScrollChanged += OnEdgeFadeScrollChanged;
-            UpdateEdgeFade(scrollViewer);
-        }
-        else
-        {
-            scrollViewer.ScrollChanged -= OnEdgeFadeScrollChanged;
-            scrollViewer.SetValue(EdgeFadeStateProperty, null);
-            SetShowTopFade(scrollViewer, false);
-            SetShowBottomFade(scrollViewer, false);
-            SetEdgeFadeMask(scrollViewer, null);
-        }
-    }
-
-    private static void OnEdgeFadeScrollChanged(object? sender, ScrollChangedEventArgs e)
-    {
-        if (sender is not ScrollViewer scrollViewer)
-            return;
-
-        if (scrollViewer.GetValue(EdgeFadeStateProperty) == null)
-            return;
-
-        UpdateEdgeFade(scrollViewer);
-    }
-
-    private static void UpdateEdgeFade(ScrollViewer scrollViewer, Control? target = null)
-    {
-        target ??= scrollViewer;
-
-        var max = scrollViewer.ScrollBarMaximum.Y;
-        var offset = scrollViewer.Offset.Y;
-
-        if (max <= 0.5)
-        {
-            SetShowTopFade(target, false);
-            SetShowBottomFade(target, false);
-            SetEdgeFadeMask(target, null);
-            if (target is ListBox listBox)
-            {
-                listBox.OpacityMask = null;
-            }
-            return;
-        }
-
-        var showTop = offset > 0.5;
-        var showBottom = offset < max - 0.5;
-
-        SetShowTopFade(target, showTop);
-        SetShowBottomFade(target, showBottom);
-        SetEdgeFadeMask(target, CreateEdgeFadeMask(showTop, showBottom));
-
-        if (target is ListBox listBoxTarget)
-        {
-            listBoxTarget.OpacityMask = GetEdgeFadeMask(listBoxTarget);
-        }
-    }
-
     #endregion
 
     /// <summary>
@@ -462,59 +281,6 @@ public static class ScrollViewerExtensions
     internal class ListBoxAutoScrollState
     {
         public NotifyCollectionChangedEventHandler? Handler { get; set; }
-    }
-
-    internal class ListBoxEdgeFadeState
-    {
-        public ScrollViewer? ScrollViewer { get; set; }
-        public EventHandler<ScrollChangedEventArgs>? Handler { get; set; }
-    }
-
-    private static IBrush? CreateEdgeFadeMask(bool showTop, bool showBottom)
-    {
-        if (!showTop && !showBottom)
-            return null;
-
-        var brush = new LinearGradientBrush
-        {
-            StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
-            EndPoint = new RelativePoint(0, 1, RelativeUnit.Relative)
-        };
-
-        if (showTop && showBottom)
-        {
-            brush.GradientStops = new GradientStops
-            {
-                new GradientStop(Colors.Transparent, 0.0),
-                new GradientStop(Colors.Black, 0.15),
-                new GradientStop(Colors.Black, 0.85),
-                new GradientStop(Colors.Transparent, 1.0)
-            };
-        }
-        else if (showTop)
-        {
-            brush.GradientStops = new GradientStops
-            {
-                new GradientStop(Colors.Transparent, 0.0),
-                new GradientStop(Colors.Black, 0.2),
-                new GradientStop(Colors.Black, 1.0)
-            };
-        }
-        else
-        {
-            brush.GradientStops = new GradientStops
-            {
-                new GradientStop(Colors.Black, 0.0),
-                new GradientStop(Colors.Black, 0.8),
-                new GradientStop(Colors.Transparent, 1.0)
-            };
-        }
-
-        return brush;
-    }
-
-    internal class EdgeFadeState
-    {
     }
 
     public enum PanningMode

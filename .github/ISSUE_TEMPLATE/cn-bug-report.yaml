@@ -1,5 +1,5 @@
 name: Bug 反馈（使用中文）
-description: 运行错误、操作异常、连接错误等
+description: 运行错误、操作异常、连接错误等 
 labels: ["bug"]
 body:
   - type: checkboxes
@@ -9,8 +9,8 @@ body:
       description: |
         请确认自己完成了要求之后再进行勾选
       options:
-        - label: 我不知道这个项目是独立的通用GUI项目，并且认为在这里反馈资源问题(如M9A)可以得到答复
-          required: false
+        - label: 我知道这个项目是独立的通用GUI项目,在这里反馈资源问题(如M9A)并不正确
+          required: true
         - label: 我理解 Issue 是用于反馈和解决问题的，而非吐槽评论区，将尽可能提供更多信息帮助问题解决
           required: true
         - label: 我填写了简短且清晰明确的标题，以便开发者在翻阅 Issue 列表时能快速确定大致问题。而不是“一个建议”、“卡住了”等
