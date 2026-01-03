@@ -790,7 +790,7 @@
             </Grid>
         </suki:GlassCard>
 
-        <dashboard:DashboardCardGrid Grid.Row="1"
+        <dashboard:DashboardCardGrid Grid.Row="1" Margin="-5 -2 -5 -5"
                                      x:Name="TaskQueueDashboardGrid"
                                      GridId="TaskQueueView"
                                      Columns="12"
