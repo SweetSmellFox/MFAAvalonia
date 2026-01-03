@@ -251,19 +251,25 @@ public class TaskLoader(MaaInterface? maaInterface)
                 currentTasks.Select(t => t.Split(NEW_SEPARATOR, 2))
                     .Where(parts => parts.Length == 2)
                     .Select(parts => (parts[0], parts[1])));
-    
+
+            // 原始 currentTasks 用于判断 interface 中新增的任务
+            var originalTaskSet = new HashSet<(string Name, string Entry)>(
+                originalCurrentTasks.Select(t => t.Split(NEW_SEPARATOR, 2))
+                    .Where(parts => parts.Length == 2)
+                    .Select(parts => (parts[0], parts[1])));
+
             var newDict = tasks.GroupBy(t => (t.Name, t.Entry)).ToDictionary(group => group.Key, group => group.Last());
             var removeList = new List<DragItemViewModel>();
             var updateList = new List<DragItemViewModel>();
-    
+
             // 记录已经处理过的任务（用于避免重复添加）
             var processedTasks = new HashSet<(string? Name, string? Entry)>();
-    
+
             // 处理现有的 drags 任务
             foreach (var oldItem in drags)
             {
                 var taskKey = (oldItem.InterfaceItem?.Name, oldItem.InterfaceItem?.Entry);
-    
+
                 if (newDict.TryGetValue((oldItem.InterfaceItem?.Name, oldItem.InterfaceItem?.Entry), out var newItem))
                 {
                     UpdateExistingItem(oldItem, newItem);
@@ -282,27 +288,36 @@ public class TaskLoader(MaaInterface? maaInterface)
                     else removeList.Add(oldItem);
                 }
             }
-    
+
             // 添加 interface 中新增的任务（以当前任务列表为准补齐缺失项）
             foreach (var task in tasks)
             {
                 var taskKey = (task.Name, task.Entry);
-                if (!processedTasks.Contains(taskKey))
+                if (processedTasks.Contains(taskKey))
                 {
-                    var newItem = new DragItemViewModel(task);
-                    // 为新任务设置默认选项值
-                    if (task.Option != null)
-                    {
-                        task.Option.ForEach(option => SetDefaultOptionValue(maaInterface, option));
-                    }
-                    updateList.Add(newItem);
-    
-                    var taskKeyForSet = (task.Name ?? string.Empty, task.Entry ?? string.Empty);
-                    if (!currentTaskSet.Contains(taskKeyForSet))
-                    {
-                        currentTasks.Add($"{task.Name}{NEW_SEPARATOR}{task.Entry}");
-                        currentTaskSet.Add(taskKeyForSet);
-                    }
+                    continue;
+                }
+
+                var taskKeyForSet = (task.Name ?? string.Empty, task.Entry ?? string.Empty);
+                var shouldAdd = currentTaskSet.Contains(taskKeyForSet) || !originalTaskSet.Contains(taskKeyForSet);
+
+                if (!shouldAdd)
+                {
+                    continue;
+                }
+
+                var newItem = new DragItemViewModel(task);
+                // 为新任务设置默认选项值
+                if (task.Option != null)
+                {
+                    task.Option.ForEach(option => SetDefaultOptionValue(maaInterface, option));
+                }
+                updateList.Add(newItem);
+
+                if (!currentTaskSet.Contains(taskKeyForSet))
+                {
+                    currentTasks.Add($"{task.Name}{NEW_SEPARATOR}{task.Entry}");
+                    currentTaskSet.Add(taskKeyForSet);
                 }
             }
             return (updateList, removeList);
