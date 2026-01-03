@@ -44,7 +44,6 @@ public partial class TaskQueueView : UserControl
     {
         DataContext = Instances.TaskQueueViewModel;
         InitializeComponent();
-        MaaProcessor.Instance.InitializeData();
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
     }

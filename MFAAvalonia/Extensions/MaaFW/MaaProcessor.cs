@@ -1869,6 +1869,7 @@ public class MaaProcessor
             StartTask(tasks, onlyStart, checkUpdate);
         }
     }
+    
     public CancellationTokenSource? CancellationTokenSource
     {
         get;

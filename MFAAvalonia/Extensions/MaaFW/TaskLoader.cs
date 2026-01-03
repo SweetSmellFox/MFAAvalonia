@@ -23,52 +23,50 @@ public class TaskLoader(MaaInterface? maaInterface)
     /// <summary>
     /// 加载任务列表
     /// </summary>
-        /// <summary>
-        /// 加载任务列表
-        /// </summary>
-        public void LoadTasks(
-            List<MaaInterface.MaaInterfaceTask> tasks,
-            ObservableCollection<DragItemViewModel> tasksSource,
-            ref bool firstTask,
-            IList<DragItemViewModel>? oldDrags = null)
+    public void LoadTasks(
+        List<MaaInterface.MaaInterfaceTask> tasks,
+        ObservableCollection<DragItemViewModel> tasksSource,
+        ref bool firstTask,
+        IList<DragItemViewModel>? oldDrags = null)
+    {
+        var currentTasks = ConfigurationManager.Current.GetValue(ConfigurationKeys.CurrentTasks, new List<string>());
+        if (currentTasks.Any(t => t.Contains(OLD_SEPARATOR) && !t.Contains(NEW_SEPARATOR)))
         {
-            var currentTasks = ConfigurationManager.Current.GetValue(ConfigurationKeys.CurrentTasks, new List<string>());
-            // 保存原始 currentTasks 副本，用于判断哪些是新任务
-            // 这样即使后面更新了 currentTasks，也能正确识别 interface 中新增的任务
-            var originalCurrentTasks = new List<string>(currentTasks);
-            
-            if (currentTasks.Count <= 0 || currentTasks.Any(t => t.Contains(OLD_SEPARATOR) && !t.Contains(NEW_SEPARATOR)))
-            {
-                currentTasks.Clear();
-                currentTasks.AddRange(tasks.Select(t => $"{t.Name}{NEW_SEPARATOR}{t.Entry}").Distinct().ToList());
-                ConfigurationManager.Current.SetValue(ConfigurationKeys.CurrentTasks, currentTasks);
-            }
-    
-            // 如果传入了 oldDrags（用户当前的任务列表），优先使用它来保留用户的顺序和 check 状态
-            // 只有当 oldDrags 为空时，才从配置中读取
-            List<DragItemViewModel> drags;
-            if (oldDrags != null && oldDrags.Count > 0)
-            {
-                drags = oldDrags.ToList();
-            }
-            else
-            {
-                var items = ConfigurationManager.Current.GetValue(ConfigurationKeys.TaskItems, new List<MaaInterface.MaaInterfaceTask>()) ?? new List<MaaInterface.MaaInterfaceTask>();
-                drags = items.Select(interfaceItem => new DragItemViewModel(interfaceItem)).ToList();
-            }
-    
-            if (firstTask)
-            {
-                InitializeResources();
-                firstTask = false;
-            }
-    
-            var (updateList, removeList) = SynchronizeTaskItems(ref currentTasks, originalCurrentTasks, drags, tasks);
-            ConfigurationManager.Current.SetValue(ConfigurationKeys.CurrentTasks, currentTasks);
-            updateList.RemoveAll(d => removeList.Contains(d));
-    
-            UpdateViewModels(updateList, tasks, tasksSource);
+            currentTasks = currentTasks
+                .Select(item =>
+                {
+                    var parts = item.Split(OLD_SEPARATOR, 2);
+                    return parts.Length == 2 ? $"{parts[0]}{NEW_SEPARATOR}{parts[1]}" : item;
+                })
+                .Distinct()
+                .ToList();
         }
+        // 如果传入了 oldDrags（用户当前的任务列表），优先使用它来保留用户的顺序和 check 状态
+        // 只有当 oldDrags 为空时，才从配置中读取
+        List<DragItemViewModel> drags;
+        if (oldDrags != null && oldDrags.Count > 0)
+        {
+            drags = oldDrags.ToList();
+        }
+        else
+        {
+            var items = ConfigurationManager.Current.GetValue(ConfigurationKeys.TaskItems, new List<MaaInterface.MaaInterfaceTask>()) ?? new List<MaaInterface.MaaInterfaceTask>();
+            drags = items.Select(interfaceItem => new DragItemViewModel(interfaceItem)).ToList();
+        }
+
+        if (firstTask)
+        {
+            InitializeResources();
+            firstTask = false;
+        }
+
+        var (updateList, removeList) = SynchronizeTaskItems(ref currentTasks, drags, tasks);
+        ConfigurationManager.Current.SetValue(ConfigurationKeys.CurrentTasks, currentTasks);
+        
+        updateList.RemoveAll(d => removeList.Contains(d));
+
+        UpdateViewModels(updateList, tasks, tasksSource);
+    }
 
     private void InitializeResources()
     {
@@ -101,104 +99,104 @@ public class TaskLoader(MaaInterface? maaInterface)
             Instances.TaskQueueViewModel.CurrentResource = Instances.TaskQueueViewModel.CurrentResources[0].Name ?? "Default";
     }
 
-        /// <summary>
-        /// 初始化资源的 SelectOptions（从 Option 字符串列表转换为 MaaInterfaceSelectOption 列表）
-        /// 只初始化顶级选项，子选项会在运行时由 UpdateSubOptions 动态创建
-        /// 会保留已有的值并从配置中恢复保存的值
-        /// </summary>
-        private void InitializeResourceSelectOptions(MaaInterface.MaaInterfaceResource resource)
+    /// <summary>
+    /// 初始化资源的 SelectOptions（从 Option 字符串列表转换为 MaaInterfaceSelectOption 列表）
+    /// 只初始化顶级选项，子选项会在运行时由 UpdateSubOptions 动态创建
+    /// 会保留已有的值并从配置中恢复保存的值
+    /// </summary>
+    private void InitializeResourceSelectOptions(MaaInterface.MaaInterfaceResource resource)
+    {
+        if (resource.Option == null || resource.Option.Count == 0)
         {
-            if (resource.Option == null || resource.Option.Count == 0)
+            resource.SelectOptions = null;
+            return;
+        }
+
+        // 收集所有子选项名称（这些选项不应该在顶级初始化）
+        var subOptionNames = new HashSet<string>();
+        foreach (var optionName in resource.Option)
+        {
+            if (maaInterface?.Option?.TryGetValue(optionName, out var interfaceOption) == true)
             {
-                resource.SelectOptions = null;
-                return;
-            }
-    
-            // 收集所有子选项名称（这些选项不应该在顶级初始化）
-            var subOptionNames = new HashSet<string>();
-            foreach (var optionName in resource.Option)
-            {
-                if (maaInterface?.Option?.TryGetValue(optionName, out var interfaceOption) == true)
+                if (interfaceOption.Cases != null)
                 {
-                    if (interfaceOption.Cases != null)
+                    foreach (var caseOption in interfaceOption.Cases)
                     {
-                        foreach (var caseOption in interfaceOption.Cases)
+                        if (caseOption.Option != null)
                         {
-                            if (caseOption.Option != null)
+                            foreach (var subOptionName in caseOption.Option)
                             {
-                                foreach (var subOptionName in caseOption.Option)
-                                {
-                                    subOptionNames.Add(subOptionName);
-                                }
+                                subOptionNames.Add(subOptionName);
                             }
                         }
                     }
                 }
             }
-    
-            // 获取已保存的配置
-            var savedResourceOptions = ConfigurationManager.Current.GetValue(
-                ConfigurationKeys.ResourceOptionItems,
-                new Dictionary<string, List<MaaInterface.MaaInterfaceSelectOption>>());
-    
-            Dictionary<string, MaaInterface.MaaInterfaceSelectOption>? savedDict = null;
-            if (savedResourceOptions.TryGetValue(resource.Name ?? string.Empty, out var savedOptions) && savedOptions != null)
-            {
-                savedDict = savedOptions.ToDictionary(o => o.Name ?? string.Empty);
-            }
-    
-            // 保留已有的 SelectOptions 值
-            var existingDict = resource.SelectOptions?.ToDictionary(o => o.Name ?? string.Empty)
-                ?? new Dictionary<string, MaaInterface.MaaInterfaceSelectOption>();
-    
-            // 只初始化顶级选项（不是子选项的选项）
-            resource.SelectOptions = resource.Option
-                .Where(optionName => !subOptionNames.Contains(optionName))
-                .Select(optionName =>
-                {
-                    // 优先使用已有的值（保留运行时的修改）
-                    if (existingDict.TryGetValue(optionName, out var existingOpt))
-                    {
-                        return existingOpt;
-                    }
-    
-                    // 其次使用配置中保存的值
-                    if (savedDict?.TryGetValue(optionName, out var savedOpt) == true)
-                    {
-                        // 克隆保存的选项，避免引用问题
-                        var clonedOpt = new MaaInterface.MaaInterfaceSelectOption
-                        {
-                            Name = savedOpt.Name,
-                            Index = savedOpt.Index,
-                            Data = savedOpt.Data != null ? new Dictionary<string, string?>(savedOpt.Data) : null,
-                            SubOptions = savedOpt.SubOptions != null ? CloneSubOptions(savedOpt.SubOptions) : null
-                        };
-                        return clonedOpt;
-                    }
-    
-                    // 最后创建新的并设置默认值
-                    var selectOption = new MaaInterface.MaaInterfaceSelectOption
-                    {
-                        Name = optionName
-                    };
-                    SetDefaultOptionValue(maaInterface, selectOption);
-                    return selectOption;
-                }).ToList();
         }
-    
-        /// <summary>
-        /// 克隆子选项列表
-        /// </summary>
-        private static List<MaaInterface.MaaInterfaceSelectOption> CloneSubOptions(List<MaaInterface.MaaInterfaceSelectOption> subOptions)
+
+        // 获取已保存的配置
+        var savedResourceOptions = ConfigurationManager.Current.GetValue(
+            ConfigurationKeys.ResourceOptionItems,
+            new Dictionary<string, List<MaaInterface.MaaInterfaceSelectOption>>());
+
+        Dictionary<string, MaaInterface.MaaInterfaceSelectOption>? savedDict = null;
+        if (savedResourceOptions.TryGetValue(resource.Name ?? string.Empty, out var savedOptions) && savedOptions != null)
         {
-            return subOptions.Select(opt => new MaaInterface.MaaInterfaceSelectOption
-            {
-                Name = opt.Name,
-                Index = opt.Index,
-                Data = opt.Data != null ? new Dictionary<string, string?>(opt.Data) : null,
-                SubOptions = opt.SubOptions != null ? CloneSubOptions(opt.SubOptions) : null
-            }).ToList();
+            savedDict = savedOptions.ToDictionary(o => o.Name ?? string.Empty);
         }
+
+        // 保留已有的 SelectOptions 值
+        var existingDict = resource.SelectOptions?.ToDictionary(o => o.Name ?? string.Empty)
+            ?? new Dictionary<string, MaaInterface.MaaInterfaceSelectOption>();
+
+        // 只初始化顶级选项（不是子选项的选项）
+        resource.SelectOptions = resource.Option
+            .Where(optionName => !subOptionNames.Contains(optionName))
+            .Select(optionName =>
+            {
+                // 优先使用已有的值（保留运行时的修改）
+                if (existingDict.TryGetValue(optionName, out var existingOpt))
+                {
+                    return existingOpt;
+                }
+
+                // 其次使用配置中保存的值
+                if (savedDict?.TryGetValue(optionName, out var savedOpt) == true)
+                {
+                    // 克隆保存的选项，避免引用问题
+                    var clonedOpt = new MaaInterface.MaaInterfaceSelectOption
+                    {
+                        Name = savedOpt.Name,
+                        Index = savedOpt.Index,
+                        Data = savedOpt.Data != null ? new Dictionary<string, string?>(savedOpt.Data) : null,
+                        SubOptions = savedOpt.SubOptions != null ? CloneSubOptions(savedOpt.SubOptions) : null
+                    };
+                    return clonedOpt;
+                }
+
+                // 最后创建新的并设置默认值
+                var selectOption = new MaaInterface.MaaInterfaceSelectOption
+                {
+                    Name = optionName
+                };
+                SetDefaultOptionValue(maaInterface, selectOption);
+                return selectOption;
+            }).ToList();
+    }
+
+    /// <summary>
+    /// 克隆子选项列表
+    /// </summary>
+    private static List<MaaInterface.MaaInterfaceSelectOption> CloneSubOptions(List<MaaInterface.MaaInterfaceSelectOption> subOptions)
+    {
+        return subOptions.Select(opt => new MaaInterface.MaaInterfaceSelectOption
+        {
+            Name = opt.Name,
+            Index = opt.Index,
+            Data = opt.Data != null ? new Dictionary<string, string?>(opt.Data) : null,
+            SubOptions = opt.SubOptions != null ? CloneSubOptions(opt.SubOptions) : null
+        }).ToList();
+    }
     /// <summary>
     /// 获取当前控制器的名称
     /// </summary>
@@ -240,124 +238,114 @@ public class TaskLoader(MaaInterface? maaInterface)
         }).ToList();
     }
 
-        private (List<DragItemViewModel> updateList, List<DragItemViewModel> removeList) SynchronizeTaskItems(
-            ref List<string> currentTasks,
-            List<string> originalCurrentTasks,
-            IList<DragItemViewModel> drags,
-            List<MaaInterface.MaaInterfaceTask> tasks)
+    private (List<DragItemViewModel> updateList, List<DragItemViewModel> removeList) SynchronizeTaskItems(
+        ref List<string> currentTasks,
+        IList<DragItemViewModel> drags,
+        List<MaaInterface.MaaInterfaceTask> tasks)
+    {
+        var currentTaskSet = currentTasks;
+
+        var removeList = new List<DragItemViewModel>();
+        var updateList = new List<DragItemViewModel>();
+
+        var taskDict = tasks
+            .GroupBy(t => (t.Name, t.Entry))
+            .ToDictionary(group => group.Key, group => group.Last());
+
+        var taskByEntry = tasks
+            .Where(t => !string.IsNullOrWhiteSpace(t.Entry))
+            .GroupBy(t => t.Entry!)
+            .ToDictionary(group => group.Key, group => group.Last());
+
+        foreach (var oldItem in drags)
         {
-            // 使用当前 currentTasks 创建 currentTaskSet，用于避免重复写入
-            var currentTaskSet = new HashSet<(string Name, string Entry)>(
-                currentTasks.Select(t => t.Split(NEW_SEPARATOR, 2))
-                    .Where(parts => parts.Length == 2)
-                    .Select(parts => (parts[0], parts[1])));
+            var key = (oldItem.InterfaceItem?.Name, oldItem.InterfaceItem?.Entry);
 
-            // 原始 currentTasks 用于判断 interface 中新增的任务
-            var originalTaskSet = new HashSet<(string Name, string Entry)>(
-                originalCurrentTasks.Select(t => t.Split(NEW_SEPARATOR, 2))
-                    .Where(parts => parts.Length == 2)
-                    .Select(parts => (parts[0], parts[1])));
-
-            var newDict = tasks.GroupBy(t => (t.Name, t.Entry)).ToDictionary(group => group.Key, group => group.Last());
-            var removeList = new List<DragItemViewModel>();
-            var updateList = new List<DragItemViewModel>();
-
-            // 记录已经处理过的任务（用于避免重复添加）
-            var processedTasks = new HashSet<(string? Name, string? Entry)>();
-
-            // 处理现有的 drags 任务
-            foreach (var oldItem in drags)
+            if (taskDict.TryGetValue(key, out var exact))
             {
-                var taskKey = (oldItem.InterfaceItem?.Name, oldItem.InterfaceItem?.Entry);
-
-                if (newDict.TryGetValue((oldItem.InterfaceItem?.Name, oldItem.InterfaceItem?.Entry), out var newItem))
-                {
-                    UpdateExistingItem(oldItem, newItem);
-                    updateList.Add(oldItem);
-                    processedTasks.Add(taskKey);
-                }
-                else
-                {
-                    var sameNameTasks = tasks.Where(t => t.Entry == oldItem.InterfaceItem?.Entry).ToList();
-                    if (sameNameTasks.Any())
-                    {
-                        UpdateExistingItem(oldItem, sameNameTasks.First(), tasks.Any(t => t.Name == sameNameTasks.First().Name));
-                        updateList.Add(oldItem);
-                        processedTasks.Add((sameNameTasks.First().Name, sameNameTasks.First().Entry));
-                    }
-                    else removeList.Add(oldItem);
-                }
+                UpdateExistingItem(oldItem, exact);
+                updateList.Add(oldItem);
+                continue;
             }
 
-            // 添加 interface 中新增的任务（以当前任务列表为准补齐缺失项）
-            foreach (var task in tasks)
+            if (!string.IsNullOrWhiteSpace(oldItem.InterfaceItem?.Entry)
+                && taskByEntry.TryGetValue(oldItem.InterfaceItem.Entry!, out var byEntry))
             {
-                var taskKey = (task.Name, task.Entry);
-                if (processedTasks.Contains(taskKey))
-                {
-                    continue;
-                }
-
-                var taskKeyForSet = (task.Name ?? string.Empty, task.Entry ?? string.Empty);
-                var shouldAdd = currentTaskSet.Contains(taskKeyForSet) || !originalTaskSet.Contains(taskKeyForSet);
-
-                if (!shouldAdd)
-                {
-                    continue;
-                }
-
-                var newItem = new DragItemViewModel(task);
-                // 为新任务设置默认选项值
-                if (task.Option != null)
-                {
-                    task.Option.ForEach(option => SetDefaultOptionValue(maaInterface, option));
-                }
-                updateList.Add(newItem);
-
-                if (!currentTaskSet.Contains(taskKeyForSet))
-                {
-                    currentTasks.Add($"{task.Name}{NEW_SEPARATOR}{task.Entry}");
-                    currentTaskSet.Add(taskKeyForSet);
-                }
+                UpdateExistingItem(oldItem, byEntry, true);
+                updateList.Add(oldItem);
+                continue;
             }
-            return (updateList, removeList);
+
+            removeList.Add(oldItem);
         }
 
+        var existingKeys = new HashSet<string>(
+            updateList.Select(item => $"{item.InterfaceItem?.Name}{NEW_SEPARATOR}{item.InterfaceItem?.Entry}"));
 
-        private void UpdateExistingItem(DragItemViewModel oldItem, MaaInterface.MaaInterfaceTask newItem, bool updateName = false)
+        foreach (var task in tasks)
         {
-            if (oldItem.InterfaceItem == null) return;
-            if (updateName) oldItem.InterfaceItem.Name = newItem.Name;
-            else if (oldItem.InterfaceItem.Name != newItem.Name) return;
-    
-            oldItem.InterfaceItem.Entry = newItem.Entry;
-            oldItem.InterfaceItem.Label = newItem.Label;
-            oldItem.InterfaceItem.PipelineOverride = newItem.PipelineOverride;
-            oldItem.InterfaceItem.Description = newItem.Description;
-            oldItem.InterfaceItem.Document = newItem.Document;
-            oldItem.InterfaceItem.Repeatable = newItem.Repeatable;
-            oldItem.InterfaceItem.Resource = newItem.Resource;
-            oldItem.InterfaceItem.Icon = newItem.Icon;
-    
-            // 更新图标
-            oldItem.InterfaceItem.InitializeIcon();
-            oldItem.ResolvedIcon = oldItem.InterfaceItem.ResolvedIcon;
-            oldItem.HasIcon = oldItem.InterfaceItem.HasIcon;
-    
-            // 更新显示名称
-            oldItem.Name = LanguageHelper.GetLocalizedDisplayName(
-                oldItem.InterfaceItem.DisplayName,
-                oldItem.InterfaceItem.Name ?? LangKeys.Unnamed);
-    
-            UpdateAdvancedOptions(oldItem, newItem);
-            UpdateOptions(oldItem, newItem);
-            
-            // 更新 IsVisible 属性，确保设置图标的可见性正确
-            oldItem.IsVisible = oldItem.InterfaceItem is { Advanced.Count: > 0 } || oldItem.InterfaceItem is { Option.Count: > 0 }
-                                || oldItem.InterfaceItem.Repeatable == true
-                                || !string.IsNullOrWhiteSpace(oldItem.InterfaceItem.Description)
-                                || oldItem.InterfaceItem.Document is { Count: > 0 };
+            var historyKey = $"{task.Name}{NEW_SEPARATOR}{task.Entry}";
+            var isNewTask = !currentTaskSet.Contains(historyKey);
+
+            if (!isNewTask)
+            {
+                continue;
+            }
+
+            if (existingKeys.Contains(historyKey))
+            {
+                continue;
+            }
+
+            var newItem = new DragItemViewModel(task);
+            if (task.Option != null)
+            {
+                task.Option.ForEach(option => SetDefaultOptionValue(maaInterface, option));
+            }
+            updateList.Add(newItem);
+            existingKeys.Add(historyKey);
+            currentTasks.Add(historyKey);
         }
+
+        return (updateList, removeList);
+    }
+
+
+    private void UpdateExistingItem(DragItemViewModel oldItem, MaaInterface.MaaInterfaceTask newItem, bool updateName = false)
+    {
+        if (oldItem.InterfaceItem == null) return;
+        if (updateName) oldItem.InterfaceItem.Name = newItem.Name;
+        else if (oldItem.InterfaceItem.Name != newItem.Name) return;
+
+        oldItem.InterfaceItem.Entry = newItem.Entry;
+        oldItem.InterfaceItem.Label = newItem.Label;
+        oldItem.InterfaceItem.PipelineOverride = newItem.PipelineOverride;
+        oldItem.InterfaceItem.Description = newItem.Description;
+        oldItem.InterfaceItem.Document = newItem.Document;
+        oldItem.InterfaceItem.Repeatable = newItem.Repeatable;
+        oldItem.InterfaceItem.Resource = newItem.Resource;
+        oldItem.InterfaceItem.Icon = newItem.Icon;
+
+        // 更新图标
+        oldItem.InterfaceItem.InitializeIcon();
+        oldItem.ResolvedIcon = oldItem.InterfaceItem.ResolvedIcon;
+        oldItem.HasIcon = oldItem.InterfaceItem.HasIcon;
+
+        // 更新显示名称
+        oldItem.Name = LanguageHelper.GetLocalizedDisplayName(
+            oldItem.InterfaceItem.DisplayName,
+            oldItem.InterfaceItem.Name ?? LangKeys.Unnamed);
+
+        UpdateAdvancedOptions(oldItem, newItem);
+        UpdateOptions(oldItem, newItem);
+
+        // 更新 IsVisible 属性，确保设置图标的可见性正确
+        oldItem.IsVisible = oldItem.InterfaceItem is { Advanced.Count: > 0 }
+            || oldItem.InterfaceItem is { Option.Count: > 0 }
+            || oldItem.InterfaceItem.Repeatable == true
+            || !string.IsNullOrWhiteSpace(oldItem.InterfaceItem.Description)
+            || oldItem.InterfaceItem.Document is { Count: > 0 };
+    }
 
 
     private void UpdateAdvancedOptions(DragItemViewModel oldItem, MaaInterface.MaaInterfaceTask newItem)
@@ -375,51 +363,51 @@ public class TaskLoader(MaaInterface? maaInterface)
         else oldItem.InterfaceItem!.Advanced = null;
     }
 
-        private void UpdateOptions(DragItemViewModel oldItem, MaaInterface.MaaInterfaceTask newItem)
+    private void UpdateOptions(DragItemViewModel oldItem, MaaInterface.MaaInterfaceTask newItem)
+    {
+        if (newItem.Option != null)
         {
-            if (newItem.Option != null)
+            var existingDict = oldItem.InterfaceItem?.Option?.ToDictionary(t => t.Name ?? string.Empty)
+                ?? new Dictionary<string, MaaInterface.MaaInterfaceSelectOption>();
+
+            var newOptions = new List<MaaInterface.MaaInterfaceSelectOption>();
+
+            foreach (var newOpt in newItem.Option)
             {
-                var existingDict = oldItem.InterfaceItem?.Option?.ToDictionary(t => t.Name ?? string.Empty)
-                    ?? new Dictionary<string, MaaInterface.MaaInterfaceSelectOption>();
-                
-                var newOptions = new List<MaaInterface.MaaInterfaceSelectOption>();
-                
-                foreach (var newOpt in newItem.Option)
+                var optName = newOpt.Name ?? string.Empty;
+
+                if (existingDict.TryGetValue(optName, out var existing))
                 {
-                    var optName = newOpt.Name ?? string.Empty;
-                    
-                    if (existingDict.TryGetValue(optName, out var existing))
+                    // 保留原有对象，只更新必要的属性（如果interface 定义变了需要调整）
+                    // 这样 UI 控件的事件处理器仍然引用同一个对象，用户的修改能正确反映
+                    if ((maaInterface?.Option?.TryGetValue(optName, out var io) ?? false) && io.Cases is { Count: > 0 })
                     {
-                        // 保留原有对象，只更新必要的属性（如果interface 定义变了需要调整）
-                        // 这样 UI 控件的事件处理器仍然引用同一个对象，用户的修改能正确反映
-                        if ((maaInterface?.Option?.TryGetValue(optName, out var io) ?? false) && io.Cases is { Count: > 0 })
+                        // 只有当 Index 超出范围时才调整
+                        if (existing.Index.HasValue && existing.Index.Value >= io.Cases.Count)
                         {
-                            // 只有当 Index 超出范围时才调整
-                            if (existing.Index.HasValue && existing.Index.Value >= io.Cases.Count)
-                            {
-                                existing.Index = io.Cases.Count - 1;
-                            }
+                            existing.Index = io.Cases.Count - 1;
                         }
-                        newOptions.Add(existing);
                     }
-                    else
-                    {
-                        // 新增的选项，创建新对象并设置默认值
-                        var opt = new MaaInterface.MaaInterfaceSelectOption
-                        {
-                            Name = newOpt.Name,
-                            Index = newOpt.Index,
-                            Data = newOpt.Data != null ? new Dictionary<string, string?>(newOpt.Data) : null
-                        };
-                        SetDefaultOptionValue(maaInterface, opt);
-                        newOptions.Add(opt);
-                    }
+                    newOptions.Add(existing);
                 }
-                
-                oldItem.InterfaceItem!.Option = newOptions;
+                else
+                {
+                    // 新增的选项，创建新对象并设置默认值
+                    var opt = new MaaInterface.MaaInterfaceSelectOption
+                    {
+                        Name = newOpt.Name,
+                        Index = newOpt.Index,
+                        Data = newOpt.Data != null ? new Dictionary<string, string?>(newOpt.Data) : null
+                    };
+                    SetDefaultOptionValue(maaInterface, opt);
+                    newOptions.Add(opt);
+                }
             }
-            else oldItem.InterfaceItem!.Option = null;
+
+            oldItem.InterfaceItem!.Option = newOptions;
         }
+        else oldItem.InterfaceItem!.Option = null;
+    }
 
     private List<MaaInterface.MaaInterfaceSelectOption> MergeSubOptions(List<MaaInterface.MaaInterfaceSelectOption> existingSubOptions)
     {
@@ -462,9 +450,6 @@ public class TaskLoader(MaaInterface? maaInterface)
                 item.InterfaceItem.Option.ForEach(option => SetDefaultOptionValue(maaInterface, option));
         }
 
-        tasksSource.Clear();
-        foreach (var item in newItems) tasksSource.Add(item);
-
         // 检查当前资源是否有全局选项配置
         var currentResourceName = Instances.TaskQueueViewModel.CurrentResource;
         var currentResource = Instances.TaskQueueViewModel.CurrentResources
@@ -473,6 +458,7 @@ public class TaskLoader(MaaInterface? maaInterface)
         // 创建最终的任务列表
         var finalItems = new List<DragItemViewModel>();
 
+        LoggerHelper.Info("drag:" +JsonConvert.SerializeObject(drags));
         // 如果当前资源有 option 配置，在最前面添加资源设置项
         if (currentResource?.Option != null && currentResource.Option.Count > 0)
         {
@@ -494,15 +480,21 @@ public class TaskLoader(MaaInterface? maaInterface)
             finalItems.AddRange(newItems);
         }
 
-        // 每次都更新 TaskItemViewModels
-        Instances.TaskQueueViewModel.TaskItemViewModels.Clear();
-        foreach (var item in finalItems)
+        // UI 线程更新集合，确保 TaskList 刷新
+        DispatcherHelper.RunOnMainThread(() =>
         {
-            Instances.TaskQueueViewModel.TaskItemViewModels.Add(item);
-        }
+            tasksSource.Clear();
+            foreach (var item in newItems) tasksSource.Add(item);
 
-        // 根据当前资源更新任务的可见性
-        Instances.TaskQueueViewModel.UpdateTasksForResource(currentResourceName);
+            Instances.TaskQueueViewModel.TaskItemViewModels.Clear();
+            foreach (var item in finalItems)
+            {
+                Instances.TaskQueueViewModel.TaskItemViewModels.Add(item);
+            }
+
+            // 根据当前资源更新任务的可见性
+            Instances.TaskQueueViewModel.UpdateTasksForResource(currentResourceName);
+        });
     }
 
     /// <summary>
