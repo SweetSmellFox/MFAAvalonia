@@ -28,5 +28,8 @@
     <x:String x:Key="STRING_PROMPT_CONTINUE">Continue</x:String>
     <x:String x:Key="STRING_PROMPT_CLOSE">Close</x:String>
     
+    <x:String x:Key="STRING_SETTINGS_TOPNAV_SCROLL_LEFT_TIP">Scroll left</x:String>
+    <x:String x:Key="STRING_SETTINGS_TOPNAV_SCROLL_RIGHT_TIP">Scroll right</x:String>
+    
     <x:String x:Key="STRING_IMAGE_VIEWER">Image Viewer</x:String>
 </ResourceDictionary>

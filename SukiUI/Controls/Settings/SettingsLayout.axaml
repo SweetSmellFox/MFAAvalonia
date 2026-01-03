@@ -198,17 +198,38 @@
         <Style Selector="controls|SettingsLayout">
             <Setter Property="Template">
                 <ControlTemplate>
-                    <DockPanel MaxWidth="1400" SizeChanged="DockPanel_SizeChanged">
-                        <ScrollViewer Name="StackSummaryScrollTop"
-                                      DockPanel.Dock="Top"
-                                      Margin="10,10,10,0"
-                                      VerticalScrollBarVisibility="Disabled"
-                                      HorizontalScrollBarVisibility="Auto"
-                                      IsVisible="False">
-                            <StackPanel Name="StackSummaryTop"
-                                        Orientation="Horizontal"
-                                        VerticalAlignment="Center" />
-                        </ScrollViewer>
+                    <DockPanel MaxWidth="1400" SizeChanged="DockPanel_SizeChanged" ClipToBounds="False">
+                        <Grid DockPanel.Dock="Top" ClipToBounds="False"
+                              Margin="2,10,2,0"
+                              IsVisible="False" ColumnDefinitions="Auto,*,Auto"
+                              Name="StackSummaryTopContainer">
+
+                            <Button Grid.Column="0" Name="StackSummaryTopScrollLeftButton"
+                                    Classes="BasicTight"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Center"
+                                    Margin="3,0,5,0"
+                                    Padding="6,2" ToolTip.Tip="{DynamicResource STRING_SETTINGS_TOPNAV_SCROLL_LEFT_TIP}"
+                                    IsVisible="False">
+                                <TextBlock Text="‹" FontSize="26" />
+                            </Button>
+                            <ScrollViewer Grid.Column="1" Name="StackSummaryScrollTop" Margin="5 0"
+                                          VerticalScrollBarVisibility="Disabled"
+                                          HorizontalScrollBarVisibility="Hidden">
+                                <StackPanel Name="StackSummaryTop"
+                                            Orientation="Horizontal"
+                                            VerticalAlignment="Center" />
+                            </ScrollViewer>
+                            <Button Grid.Column="2" Name="StackSummaryTopScrollRightButton"
+                                    Classes="BasicTight"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Center"
+                                    Margin="5,0,3,0"
+                                    Padding="6,2" ToolTip.Tip="{DynamicResource STRING_SETTINGS_TOPNAV_SCROLL_RIGHT_TIP}"
+                                    IsVisible="False">
+                                <TextBlock Text="›" FontSize="26" />
+                            </Button>
+                        </Grid>
 
                         <ScrollViewer Name="StackSummaryScroll" VerticalScrollBarVisibility="Hidden"
                                       Width="{TemplateBinding StackSummaryWidth}"

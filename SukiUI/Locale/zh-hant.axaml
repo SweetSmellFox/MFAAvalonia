@@ -30,5 +30,8 @@
     <x:String x:Key="STRING_PROMPT_CONTINUE">繼續</x:String>
     <x:String x:Key="STRING_PROMPT_CLOSE">關閉</x:String>
     
+    <x:String x:Key="STRING_SETTINGS_TOPNAV_SCROLL_LEFT_TIP">向左捲動</x:String>
+    <x:String x:Key="STRING_SETTINGS_TOPNAV_SCROLL_RIGHT_TIP">向右捲動</x:String>
+    
     <x:String x:Key="STRING_IMAGE_VIEWER">圖片瀏覽器</x:String>
 </ResourceDictionary>

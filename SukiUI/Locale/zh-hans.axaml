@@ -27,5 +27,8 @@
     <x:String x:Key="STRING_PROMPT_CONTINUE">继续</x:String>
     <x:String x:Key="STRING_PROMPT_CLOSE">关闭</x:String>
     
+    <x:String x:Key="STRING_SETTINGS_TOPNAV_SCROLL_LEFT_TIP">向左滚动</x:String>
+    <x:String x:Key="STRING_SETTINGS_TOPNAV_SCROLL_RIGHT_TIP">向右滚动</x:String>
+    
     <x:String x:Key="STRING_IMAGE_VIEWER">图片浏览器</x:String>
 </ResourceDictionary>

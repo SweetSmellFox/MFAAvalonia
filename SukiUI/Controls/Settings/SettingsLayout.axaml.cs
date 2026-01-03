@@ -5,6 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
+using Avalonia.Input;
 using Avalonia.LogicalTree;
 using Avalonia.Markup.Xaml;
 using Avalonia.Metadata;
@@ -53,6 +54,11 @@ public partial class SettingsLayout : ItemsControl, ISukiStackPageTitleProvider
 
     public static readonly StyledProperty<double> StackSummaryWidthProperty =
         AvaloniaProperty.Register<SettingsLayout, double>(nameof(StackSummaryWidth), 400);
+
+    private ScrollViewer? _stackSummaryScrollTop;
+    private Button? _stackSummaryTopScrollLeftButton;
+    private Button? _stackSummaryTopScrollRightButton;
+    private Control? _stackSummaryTopContainer;
 
     public SettingsLayout()
     {
@@ -122,6 +128,45 @@ public partial class SettingsLayout : ItemsControl, ISukiStackPageTitleProvider
     {
         base.OnApplyTemplate(e);
         UpdateItems();
+
+        if (_stackSummaryScrollTop != null)
+        {
+            _stackSummaryScrollTop.PointerWheelChanged -= OnTopSummaryWheelChanged;
+            _stackSummaryScrollTop.ScrollChanged -= OnTopSummaryScrollChanged;
+        }
+
+        if (_stackSummaryTopScrollLeftButton != null)
+        {
+            _stackSummaryTopScrollLeftButton.Click -= OnTopSummaryScrollLeftClick;
+        }
+
+        if (_stackSummaryTopScrollRightButton != null)
+        {
+            _stackSummaryTopScrollRightButton.Click -= OnTopSummaryScrollRightClick;
+        }
+
+        _stackSummaryScrollTop = e.NameScope.Find<ScrollViewer>("StackSummaryScrollTop");
+        _stackSummaryTopScrollLeftButton = e.NameScope.Find<Button>("StackSummaryTopScrollLeftButton");
+        _stackSummaryTopScrollRightButton = e.NameScope.Find<Button>("StackSummaryTopScrollRightButton");
+        _stackSummaryTopContainer = e.NameScope.Find<Control>("StackSummaryTopContainer");
+
+        if (_stackSummaryScrollTop != null)
+        {
+            _stackSummaryScrollTop.PointerWheelChanged += OnTopSummaryWheelChanged;
+            _stackSummaryScrollTop.ScrollChanged += OnTopSummaryScrollChanged;
+        }
+
+        if (_stackSummaryTopScrollLeftButton != null)
+        {
+            _stackSummaryTopScrollLeftButton.Click += OnTopSummaryScrollLeftClick;
+        }
+
+        if (_stackSummaryTopScrollRightButton != null)
+        {
+            _stackSummaryTopScrollRightButton.Click += OnTopSummaryScrollRightClick;
+        }
+
+        UpdateTopSummaryFade();
     }
 
     private void UpdateItems()
@@ -266,17 +311,88 @@ public partial class SettingsLayout : ItemsControl, ISukiStackPageTitleProvider
         };
     }
 
+    private void OnTopSummaryWheelChanged(object? sender, PointerWheelEventArgs e)
+    {
+        if (_stackSummaryScrollTop == null)
+        {
+            return;
+        }
+
+        var delta = e.Delta.Y;
+        if (Math.Abs(delta) < 0.01)
+        {
+            return;
+        }
+
+        ScrollTopSummaryBy(-Math.Sign(delta) * 30.0);
+        e.Handled = true;
+    }
+
+    private void OnTopSummaryScrollChanged(object? sender, ScrollChangedEventArgs e)
+    {
+        UpdateTopSummaryFade();
+    }
+
+    private void OnTopSummaryScrollLeftClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        ScrollTopSummaryBy(-120.0);
+    }
+
+    private void OnTopSummaryScrollRightClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        ScrollTopSummaryBy(120.0);
+    }
+
+    private void ScrollTopSummaryBy(double delta)
+    {
+        if (_stackSummaryScrollTop == null)
+        {
+            return;
+        }
+
+        var offset = _stackSummaryScrollTop.Offset;
+        var maxX = _stackSummaryScrollTop.ScrollBarMaximum.X;
+        var nextX = Math.Clamp(offset.X + delta, 0, maxX);
+        _stackSummaryScrollTop.Offset = offset.WithX(nextX);
+        UpdateTopSummaryFade();
+    }
+
+    private void UpdateTopSummaryFade()
+    {
+        if (_stackSummaryScrollTop == null || _stackSummaryTopScrollLeftButton == null || _stackSummaryTopScrollRightButton == null)
+        {
+            return;
+        }
+
+        if (_stackSummaryTopContainer is { IsVisible: false })
+        {
+            _stackSummaryTopScrollLeftButton.IsVisible = false;
+            _stackSummaryTopScrollRightButton.IsVisible = false;
+            return;
+        }
+
+        var maxX = _stackSummaryScrollTop.ScrollBarMaximum.X;
+        var offsetX = _stackSummaryScrollTop.Offset.X;
+
+        _stackSummaryTopScrollLeftButton.IsVisible = maxX > 0.5 && offsetX > 0.5;
+        _stackSummaryTopScrollRightButton.IsVisible = maxX > 0.5 && offsetX < maxX - 0.5;
+    }
+
     private double LastDesiredSize = -1;
 
     private void DockPanel_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         var stack = this.GetTemplateChildren().First(n => n.Name == "StackSummaryScroll");
-        var stackTop = this.GetTemplateChildren().First(n => n.Name == "StackSummaryScrollTop");
+        var stackTopContainer = this.GetTemplateChildren().First(n => n.Name == "StackSummaryTopContainer");
         var desiredSize = e.NewSize.Width > MinWidthWhetherStackSummaryShow ? StackSummaryWidth : 0;
 
-        if (stackTop is ScrollViewer topScroll)
+        if (stackTopContainer is Control topContainer)
         {
-            topScroll.IsVisible = desiredSize == 0;
+            topContainer.IsVisible = desiredSize == 0;
+            if (topContainer.IsVisible)
+            {
+                UpdateTopSummaryFade();
+            }
         }
 
         if (LastDesiredSize == desiredSize)
