@@ -77,18 +77,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
-            platform: linux
-            arch: x64
-            compress_cmd: "zip -r -9"
-            ext: zip
-
-          - os: ubuntu-latest
-            platform: linux
-            arch: arm64
-            compress_cmd: "zip -r -9"
-            ext: zip
-
           - os: macos-latest
             platform: osx
             arch: x64
