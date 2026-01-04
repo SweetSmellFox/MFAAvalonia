@@ -296,6 +296,10 @@ public class MaaProcessor
 
     private MaaTasker? GetScreenshotTasker(CancellationToken token = default)
     {
+        if (MaaTasker is { IsRunning: true })
+        {
+            return MaaTasker;
+        }
         if (!UseSeparateScreenshotTasker)
         {
             DisposeScreenshotTasker();

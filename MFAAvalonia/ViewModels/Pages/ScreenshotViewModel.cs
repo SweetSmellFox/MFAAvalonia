@@ -45,7 +45,7 @@ public partial class ScreenshotViewModel : ViewModelBase
                     Type = MFATask.MFATaskType.MFA,
                     Action = async () => await TaskManager.RunTaskAsync(() =>
                     {
-                        var bitmap = MaaProcessor.Instance.GetBitmapImage(false);
+                        var bitmap = MaaProcessor.Instance.GetLiveView();
                         if (bitmap == null)
                             ToastHelper.Warn(LangKeys.ScreenshotFailed.ToLocalization());
 
@@ -64,7 +64,7 @@ public partial class ScreenshotViewModel : ViewModelBase
             else
                 TaskManager.RunTaskAsync(() =>
                 {
-                    var bitmap = MaaProcessor.Instance.GetBitmapImage();
+                    var bitmap = MaaProcessor.Instance.GetLiveViewCached();
                     if (bitmap == null)
                         ToastHelper.Warn(LangKeys.ScreenshotFailed.ToLocalization());
 

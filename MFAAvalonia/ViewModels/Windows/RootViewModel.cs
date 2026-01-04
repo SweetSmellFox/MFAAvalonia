@@ -93,7 +93,7 @@ public partial class RootViewModel : ViewModelBase
     {
         IsUpdating = isUpdating;
     }
-
+    
     partial void OnIsDebugModeChanged(bool value)
     {
         if (value)
