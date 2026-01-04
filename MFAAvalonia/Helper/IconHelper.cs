@@ -14,7 +14,7 @@ public static class IconHelper
 {
     private static readonly Lazy<Bitmap> LazyIcon = new(LoadIconWithFallback);
     public static Bitmap Icon => LazyIcon.Value;
-    public static WindowIcon WindowIcon => new WindowIcon(Icon);
+    public static WindowIcon WindowIcon => new (Icon);
 
     private static Bitmap LoadIconWithFallback()
     {
@@ -24,13 +24,13 @@ public static class IconHelper
             var exeDirectory = AppContext.BaseDirectory;
             var iconPath = Path.Combine(exeDirectory, "Assets", "logo.ico");
             if (!File.Exists(iconPath))
-                 iconPath = Path.Combine(exeDirectory, "assets", "logo.ico");
+                iconPath = Path.Combine(exeDirectory, "assets", "logo.ico");
             if (File.Exists(iconPath))
             {
                 using var fileStream = File.OpenRead(iconPath);
                 return new Bitmap(fileStream);
             }
-            
+
             // 尝试从嵌入资源加载
             var uri = new Uri("avares://MFAAvalonia/Assets/logo.ico");
             if (AssetLoader.Exists(uri))

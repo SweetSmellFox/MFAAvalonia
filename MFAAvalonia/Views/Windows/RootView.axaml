@@ -24,7 +24,7 @@
     xmlns:suki="https://github.com/kikipoulet/SukiUI"
     xmlns:windows="clr-namespace:MFAAvalonia.ViewModels.Windows"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    NonClientAreaContentIsHitTestVisible="True"
+    NonClientAreaContentIsHitTestVisible="True" Icon="{Binding Source={x:Static helper:IconHelper.WindowIcon}}"
     xmlns:fluent="clr-namespace:FluentIcons.Avalonia.Fluent.Markup;assembly=FluentIcons.Avalonia.Fluent">
     <suki:SukiWindow.Styles>
         <Style Selector="ToggleButton.SP:checked > PathIcon">
