@@ -11,6 +11,7 @@ using FluentAvalonia.UI.Controls;
 using Lang.Avalonia.MarkupExtensions;
 using MFAAvalonia.Configuration;
 using MFAAvalonia.Extensions.MaaFW;
+using MFAAvalonia.Helper.Converters;
 using MFAAvalonia.ViewModels.Windows;
 using MFAAvalonia.Views.Windows;
 using SukiUI.Content;
@@ -34,8 +35,18 @@ public class TrayIconManager
             IsVisible = true
         };
 
-        var i18nBinding = new I18nBinding(LangKeys.AppTitle);
-        _trayIcon.Bind(TrayIcon.ToolTipTextProperty, i18nBinding);
+        _trayIcon.Bind(TrayIcon.ToolTipTextProperty, new MultiBinding
+        {
+            Converter = new TrayToolTipConverter(),
+            Bindings =
+            {
+                new Binding("CustomTitle") { Source = viewModel },
+                new Binding("IsCustomTitleVisible") { Source = viewModel },
+                new Binding("ResourceName") { Source = viewModel },
+                new I18nBinding(LangKeys.AppTitle)
+            }
+        });
+        
         var menu = new NativeMenu();
         // 绑定 Icon
         _trayIcon.Bind(TrayIcon.IconProperty, new Binding
