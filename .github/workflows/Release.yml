@@ -209,6 +209,10 @@ jobs:
               find . -type f -name "MFAUpdater*" -exec chmod +x {} \; 2>/dev/null || true
               echo "Set execute permission for all MFAUpdater files"
               
+              # Set execute permissions for shell scripts
+              find . -type f -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true
+              echo "Set execute permission for all .sh files"
+              
               # Create tar.gz with preserved permissions
               tar -cpzf ../MFAAvalonia-${{ needs.meta.outputs.tag }}-${f}.tar.gz .
               echo "Created archive with preserved permissions: MFAAvalonia-${{ needs.meta.outputs.tag }}-${f}.tar.gz"
