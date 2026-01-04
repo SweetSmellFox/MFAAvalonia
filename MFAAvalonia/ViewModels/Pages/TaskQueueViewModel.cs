@@ -1783,8 +1783,7 @@ public partial class TaskQueueViewModel : ViewModelBase
         {
             if (value != null && value != ConfigurationManager.GetCurrentConfiguration())
             {
-                ConfigurationManager.SetDefaultConfig(value);
-                Instances.RestartApplication();
+                ConfigurationManager.SwitchConfiguration(value);
             }
         }
     }

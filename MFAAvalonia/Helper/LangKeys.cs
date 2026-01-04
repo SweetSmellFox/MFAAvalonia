@@ -397,8 +397,12 @@ public static class LangKeys
 	public static readonly string AlphaVersion = "AlphaVersion";
 	public static readonly string UIUpdateChannel = "UIUpdateChannel";
 	public static readonly string ExportLog = "ExportLog";
+	public static readonly string ClearCache = "ClearCache";
+	public static readonly string ClearCacheSuccess = "ClearCacheSuccess";
+	public static readonly string ClearCacheFailed = "ClearCacheFailed";
 	public static readonly string Warning = "Warning";
 	public static readonly string StopTaskBeforeExportLog = "StopTaskBeforeExportLog";
+	public static readonly string StopTaskBeforeClearCache = "StopTaskBeforeClearCache";
 	public static readonly string MirrorCdkEmpty = "MirrorCdkEmpty";
 	public static readonly string ContinueRunningWhenError = "ContinueRunningWhenError";
 	public static readonly string CurrentOtherUpdatingTask = "CurrentOtherUpdatingTask";

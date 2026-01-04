@@ -1,5 +1,6 @@
 ﻿using Avalonia.Collections;
 using MFAAvalonia.Helper;
+using MFAAvalonia.Helper.Converters;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -20,6 +21,10 @@ public static class ConfigurationManager
 
     public static AvaloniaList<MFAConfiguration> Configs { get; } = LoadConfigurations();
 
+    public static event Action<string>? ConfigurationSwitched;
+
+    public static bool IsSwitching { get; private set; }
+
     public static string ConfigName { get; set; }
     public static string GetCurrentConfiguration() => ConfigName;
 
@@ -33,6 +38,50 @@ public static class ConfigurationManager
     public static void Initialize()
     {
         LoggerHelper.Info("Current Configuration: " + GetCurrentConfiguration());
+    }
+
+    public static void SwitchConfiguration(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return;
+
+        if (ConfigName.Equals(name, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        if (!Configs.Any(c => c.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+        {
+            LoggerHelper.Warning($"配置 {name} 不存在，切换已取消");
+            return;
+        }
+
+        void ApplySwitch()
+        {
+            IsSwitching = true;
+            try
+            {
+                SetDefaultConfig(name);
+                ConfigName = name;
+
+                var config = Configs.First(c => c.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+                config.SetConfig(JsonHelper.LoadConfig(config.FileName, new Dictionary<string, object>()));
+                Current = config;
+
+                ConfigurationSwitched?.Invoke(name);
+                Instances.ReloadConfigurationForSwitch();
+            }
+            finally
+            {
+                IsSwitching = false;
+            }
+        }
+
+        if (Instances.RootViewModel.IsRunning)
+        {
+            Instances.TaskQueueViewModel.StopTask(ApplySwitch);
+            return;
+        }
+
+        ApplySwitch();
     }
 
     public static void SetDefaultConfig(string? name)

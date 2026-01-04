@@ -48,6 +48,10 @@ public partial class MFAConfiguration(string name, string fileName, Dictionary<s
     public void SetValue(string key, object? value)
     {
         if (Config == null || value == null) return;
+        if (ConfigurationManager.IsSwitching && key == ConfigurationKeys.TaskItems)
+        {
+            return;
+        }
         Config[key] = value;
         JsonHelper.SaveConfig(FileName, Config, new MaaInterfaceSelectAdvancedConverter(false), new MaaInterfaceSelectOptionConverter(false));
     }

@@ -1173,11 +1173,23 @@
     <data name="ExportLog" xml:space="preserve">
         <value>Export Log</value>
     </data>
+    <data name="ClearCache" xml:space="preserve">
+        <value>Clear Cache</value>
+    </data>
+    <data name="ClearCacheSuccess" xml:space="preserve">
+        <value>Cache cleared</value>
+    </data>
+    <data name="ClearCacheFailed" xml:space="preserve">
+        <value>Failed to clear cache</value>
+    </data>
     <data name="Warning" xml:space="preserve">
         <value>Warning</value>
     </data>
     <data name="StopTaskBeforeExportLog" xml:space="preserve">
         <value>Please stop the task before exporting logs</value>
+    </data>
+    <data name="StopTaskBeforeClearCache" xml:space="preserve">
+        <value>Please stop the task before clearing cache</value>
     </data>
     <data name="MirrorCdkEmpty" xml:space="preserve">
         <value>Please go to the "Update Settings" in the "Settings", switch the "update source" to "GitHub", or fill in Mirror CDK</value>

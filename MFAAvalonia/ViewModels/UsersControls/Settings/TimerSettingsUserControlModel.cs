@@ -191,11 +191,7 @@ public partial class TimerSettingsUserControlModel : ViewModelBase
                 var config = timer.TimerConfig ?? ConfigurationManager.GetCurrentConfiguration();
                 if (config != ConfigurationManager.GetCurrentConfiguration())
                 {
-                    ConfigurationManager.SetDefaultConfig(config);
-                    if (Instances.RootViewModel.IsRunning)
-                        Instances.TaskQueueViewModel.StopTask(() => Instances.RestartApplication(true, true));
-                    else
-                        Instances.RestartApplication(true, true);
+                    ConfigurationManager.SwitchConfiguration(config);
                 }
             }
         }

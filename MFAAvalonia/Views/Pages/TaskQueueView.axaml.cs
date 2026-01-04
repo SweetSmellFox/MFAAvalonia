@@ -169,6 +169,18 @@ public partial class TaskQueueView : UserControl
     private static readonly ConcurrentDictionary<string, string> IntroductionsCache = new();
     private static readonly ConcurrentDictionary<string, bool> ShowCache = new();
 
+    public void ResetOptionPanels()
+    {
+        CommonPanelCache.Clear();
+        AdvancedPanelCache.Clear();
+        IntroductionsCache.Clear();
+        ShowCache.Clear();
+        CommonOptionSettings?.Children.Clear();
+        AdvancedOptionSettings?.Children.Clear();
+        Introduction.Markdown = "";
+        SetHiddenMode();
+    }
+
     private void SetMarkDown(string markDown)
     {
         Introduction.Markdown = markDown;

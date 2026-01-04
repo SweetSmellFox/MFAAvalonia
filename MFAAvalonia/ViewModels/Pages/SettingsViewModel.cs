@@ -53,8 +53,12 @@ public partial class SettingsViewModel : ViewModelBase
 
     partial void OnCurrentConfigurationChanged(string value)
     {
-        ConfigurationManager.SetDefaultConfig(value);
-        Instances.RestartApplication();
+        ConfigurationManager.SwitchConfiguration(value);
+    }
+
+    public void RefreshCurrentConfiguration()
+    {
+        SetProperty(ref _currentConfiguration, ConfigurationManager.GetCurrentConfiguration());
     }
 
     [ObservableProperty] private string _newConfigurationName = string.Empty;

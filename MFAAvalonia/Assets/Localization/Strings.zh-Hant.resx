@@ -1173,11 +1173,23 @@
     <data name="ExportLog" xml:space="preserve">
         <value>導出日誌</value>
     </data>
+    <data name="ClearCache" xml:space="preserve">
+        <value>清理快取</value>
+    </data>
+    <data name="ClearCacheSuccess" xml:space="preserve">
+        <value>快取已清理</value>
+    </data>
+    <data name="ClearCacheFailed" xml:space="preserve">
+        <value>清理快取失敗</value>
+    </data>
     <data name="Warning" xml:space="preserve">
         <value>警告</value>
     </data>
     <data name="StopTaskBeforeExportLog" xml:space="preserve">
         <value>導出日誌前請停止任務</value>
+    </data>
+    <data name="StopTaskBeforeClearCache" xml:space="preserve">
+        <value>清理快取前請停止任務</value>
     </data>
     <data name="MirrorCdkEmpty" xml:space="preserve">
         <value>請前往“設定”中的“更新設定”，將“更新源”切換至“GitHub”，或填寫Mirror醬 CDK</value>
