@@ -2247,7 +2247,7 @@ public partial class TaskQueueView : UserControl
         _liveViewTimerStarted = true;
     }
 
-    private void StopLiveViewLoop()
+    public void StopLiveViewLoop()
     {
         if (!_liveViewTimerStarted)
             return;
@@ -2267,6 +2267,8 @@ public partial class TaskQueueView : UserControl
     {
         try
         {
+            if (MaaProcessor.IsClosed)
+                return;
             if (Instances.TaskQueueViewModel.EnableLiveView && Instances.TaskQueueViewModel.IsConnected)
             {
                 if (!MaaProcessor.Instance.MaaTasker!.IsRunning)

@@ -86,6 +86,8 @@
         <entry key="SukiUI/Controls/SukiStackPage.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="SukiUI/Controls/SukiToast.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="SukiUI/Controls/SukiWindow.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
+        <entry key="SukiUI/Controls/Touch/TouchNavigationStack.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
+        <entry key="SukiUI/Controls/Touch/UserControl1.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="SukiUI/Controls/WaveProgress.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="SukiUI/Locale/en-us.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="SukiUI/Locale/zh-cn.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
@@ -106,6 +108,7 @@
         <entry key="SukiUI/Theme/DatePicker.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="SukiUI/Theme/DropDownButton.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="SukiUI/Theme/Expander.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
+        <entry key="SukiUI/Theme/GridSplitterStyles.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="SukiUI/Theme/Index.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="SukiUI/Theme/ListBoxItemStyle.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="SukiUI/Theme/ManagedFileChooser.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />

@@ -107,7 +107,14 @@ public class MaaProcessor
             LoggerHelper.Error(e);
         }
     }
-
+    private static bool _isClosed = false;
+    public static bool IsClosed => _isClosed;
+    public static void Dispose()
+    {
+        _isClosed = true;
+        Instances.TaskQueueView.StopLiveViewLoop();
+    }
+    
     public static MaaInterface? Interface
     {
         get => field;
@@ -295,7 +302,7 @@ public class MaaProcessor
             return MaaTasker;
         }
 
-        if (_screenshotTasker == null)
+        if (_screenshotTasker == null && !_isClosed)
         {
             var task = InitializeScreenshotTaskerAsync(token);
             task.Wait(token);
@@ -348,7 +355,7 @@ public class MaaProcessor
 
     private IMaaController? GetScreenshotController(bool test)
     {
-        if (test)
+        if (test && !_isClosed)
             TryConnectAsync(CancellationToken.None);
 
         return GetScreenshotTasker(CancellationToken.None)?.Controller;
@@ -356,7 +363,7 @@ public class MaaProcessor
 
     private bool ShouldScreencapForLiveView()
     {
-        return MaaTasker?.IsRunning != true;
+        return MaaTasker?.IsRunning != true &&  !_isClosed;
     }
 
     public Bitmap? GetBitmapImage(bool test = true)

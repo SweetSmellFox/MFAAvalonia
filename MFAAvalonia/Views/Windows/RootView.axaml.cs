@@ -127,7 +127,7 @@ public partial class RootView : SukiWindow
             }
             ConfigurationManager.Current.SetValue(ConfigurationKeys.TaskItems, Instances.TaskQueueViewModel.TaskItemViewModels.ToList().Select(model => model.InterfaceItem));
             // 确保窗口大小和位置被立即保存（绕过防抖机制）
-
+            MaaProcessor.Dispose();
             DispatcherHelper.PostOnMainThread(SaveWindowSizeAndPositionImmediately);
             if (!noLog)
                 LoggerHelper.Info("MFA Closed!");
