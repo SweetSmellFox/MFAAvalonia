@@ -171,6 +171,12 @@
         <Content Include="..\cliff.toml">
             <Link>cliff.toml</Link>
         </Content>
+        <Content Include="..\docs\en\external-notification.md">
+          <Link>docs\en\external-notification.md</Link>
+        </Content>
+        <Content Include="..\docs\zh\外部通知.md">
+          <Link>docs\zh\外部通知.md</Link>
+        </Content>
         <Content Include="..\README_en.md">
             <Link>README_en.md</Link>
         </Content>
