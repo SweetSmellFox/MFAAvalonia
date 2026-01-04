@@ -40,7 +40,7 @@
         <Style Selector="dashboard|DashboardCard[IsCollapsed=true] /template/ ContentPresenter#HeaderActionsPresenter">
             <Setter Property="IsVisible" Value="False" />
         </Style>
-
+        
         <Style Selector="dashboard|DashboardCard[IsMaximized=true] /template/ Thumb.ResizeThumb">
             <Setter Property="IsVisible" Value="False" />
         </Style>
@@ -48,7 +48,7 @@
         <Style Selector="dashboard|DashboardCard[IsMaximized=true] /template/ Border#DragHandle">
             <Setter Property="IsHitTestVisible" Value="False" />
         </Style>
-
+        
         <Style Selector="dashboard|DashboardCard[IsCollapsed=true] /template/ ContentPresenter#ContentArea">
             <Setter Property="IsVisible" Value="False" />
         </Style>

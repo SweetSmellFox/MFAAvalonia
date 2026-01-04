@@ -65,6 +65,15 @@ public partial class DashboardCard : ContentControl
         set => SetValue(IsMaximizedProperty, value);
     }
 
+    public static readonly StyledProperty<bool> IsMaximizeTransitionActiveProperty =
+        AvaloniaProperty.Register<DashboardCard, bool>(nameof(IsMaximizeTransitionActive), false);
+
+    public bool IsMaximizeTransitionActive
+    {
+        get => GetValue(IsMaximizeTransitionActiveProperty);
+        set => SetValue(IsMaximizeTransitionActiveProperty, value);
+    }
+
     public static readonly StyledProperty<double> CollapsedHeightProperty =
         AvaloniaProperty.Register<DashboardCard, double>(nameof(CollapsedHeight), 55);
 

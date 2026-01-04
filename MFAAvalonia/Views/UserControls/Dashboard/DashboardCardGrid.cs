@@ -18,7 +18,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 using Avalonia.Threading;
 
 namespace MFAAvalonia.Views.UserControls.Dashboard;
@@ -1200,6 +1199,8 @@ public sealed class DashboardCardGrid : Panel
         var columns = Math.Max(1, Columns);
         var rows = Math.Max(1, Rows);
         var metrics = GetMetrics(finalSize);
+        var arrangedRects = new Dictionary<DashboardCard, Rect>();
+        Rect? maximizedRect = null;
 
         foreach (var child in Children.OfType<Control>())
         {
@@ -1229,8 +1230,10 @@ public sealed class DashboardCardGrid : Panel
                 child.Arrange(new Rect(0, 0, 0, 0));
                 continue;
             }
+            var isMaximizeVisual = card.IsMaximized
+                || (ReferenceEquals(card, _maximizedCard) && card.IsMaximizeTransitionActive);
 
-            if (card.IsMaximized)
+            if (isMaximizeVisual)
             {
                 var maxWidth = Math.Max(0, finalSize.Width - Padding.Left - Padding.Right);
                 var maxHeight = Math.Max(0, finalSize.Height - Padding.Top - Padding.Bottom);
@@ -1239,6 +1242,8 @@ public sealed class DashboardCardGrid : Panel
                 child.Arrange(arranged1);
                 UpdateLastArranged(card, rect1);
                 HandlePendingTransition(card, rect1);
+                arrangedRects[card] = arranged1;
+                maximizedRect = arranged1;
                 continue;
             }
 
@@ -1267,8 +1272,10 @@ public sealed class DashboardCardGrid : Panel
             child.Arrange(arranged);
             UpdateLastArranged(card, rect);
             HandlePendingTransition(card, rect);
+            arrangedRects[card] = arranged;
         }
 
+        ApplyMaximizeOpacityMask(maximizedRect, arrangedRects);
         ArrangeDragPreview();
         ArrangeColumnSplitters(finalSize);
         ArrangeRowSplitters(finalSize);
@@ -1470,14 +1477,8 @@ public sealed class DashboardCardGrid : Panel
         _suppressLayoutSave = true;
         _maximizedCard = card;
         _maximizedLayout = HiddenLayout.FromCard(card);
-
-        foreach (var other in Children.OfType<DashboardCard>())
-        {
-            if (!ReferenceEquals(other, card))
-            {
-                other.IsVisible = false;
-            }
-        }
+        card.IsMaximizeTransitionActive = true;
+        card.ZIndex = 100;
 
         card.IsCollapsed = false;
 
@@ -1496,7 +1497,16 @@ public sealed class DashboardCardGrid : Panel
             Math.Max(0, Bounds.Height - Padding.Top - Padding.Bottom));
 
         _suppressLayoutSave = false;
-        StartRectTransition(card, fromRect, toRect);
+        StartRectTransition(card, fromRect, toRect, () =>
+        {
+            foreach (var other in Children.OfType<DashboardCard>())
+            {
+                if (!ReferenceEquals(other, card))
+                {
+                    other.IsVisible = false;
+                }
+            }
+        });
         InvalidateMeasure();
         InvalidateArrange();
     }
@@ -1517,6 +1527,17 @@ public sealed class DashboardCardGrid : Panel
             card.IsCollapsed = _maximizedLayout.IsCollapsed;
         }
 
+        foreach (var other in Children.OfType<DashboardCard>())
+        {
+            if (!ReferenceEquals(other, card))
+            {
+                other.IsVisible = true;
+            }
+        }
+
+        card.IsMaximizeTransitionActive = true;
+        card.ZIndex = 100;
+
         var fromRect = _lastArranged.TryGetValue(card, out var last)
             ? last
             : new Rect(
@@ -1533,11 +1554,8 @@ public sealed class DashboardCardGrid : Panel
 
         StartRectTransition(card, fromRect, toRect, () =>
         {
-            foreach (var other in Children.OfType<DashboardCard>())
-            {
-                other.IsVisible = true;
-            }
-
+            card.IsMaximizeTransitionActive = false;
+            card.ZIndex = 0;
             _maximizedCard = null;
             _maximizedLayout = null;
             _suppressLayoutSave = false;
@@ -1780,7 +1798,6 @@ public sealed class DashboardCardGrid : Panel
         }
     }
 
-
     private void EnsureDragPreviewHost()
     {
         if (_dragPreviewBorder == null)
@@ -1810,6 +1827,68 @@ public sealed class DashboardCardGrid : Panel
             _isUpdatingPreviewHost = false;
         }
     }
+
+    private void ApplyMaximizeOpacityMask(Rect? maximizedRect, Dictionary<DashboardCard, Rect> arrangedRects)
+    {
+        if (maximizedRect is not { } maxRect)
+        {
+            foreach (var card in arrangedRects.Keys)
+            {
+                card.OpacityMask = null;
+            }
+            return;
+        }
+
+        foreach (var (card, rect) in arrangedRects)
+        {
+            if (card.IsMaximized || ReferenceEquals(card, _maximizedCard))
+            {
+                card.OpacityMask = null;
+                continue;
+            }
+
+            var intersection = rect.Intersect(maxRect);
+            if (intersection.Width <= 0 || intersection.Height <= 0)
+            {
+                card.OpacityMask = null;
+                continue;
+            }
+
+            var topLeft = this.TranslatePoint(intersection.Position, card);
+            var bottomRight = this.TranslatePoint(intersection.BottomRight, card);
+            if (topLeft == null || bottomRight == null)
+            {
+                card.OpacityMask = null;
+                continue;
+            }
+
+            var left = Math.Min(topLeft.Value.X, bottomRight.Value.X);
+            var top = Math.Min(topLeft.Value.Y, bottomRight.Value.Y);
+            var right = Math.Max(topLeft.Value.X, bottomRight.Value.X);
+            var bottom = Math.Max(topLeft.Value.Y, bottomRight.Value.Y);
+
+            var localIntersect = new Rect(new Point(left, top), new Point(right, bottom));
+            var cardRect = new Rect(0, 0, rect.Width, rect.Height);
+
+            var clipGeometry = new CombinedGeometry(
+                GeometryCombineMode.Exclude,
+                new RectangleGeometry(cardRect),
+                new RectangleGeometry(localIntersect));
+
+            card.OpacityMask = new DrawingBrush
+            {
+                Stretch = Stretch.None,
+                AlignmentX = AlignmentX.Left,
+                AlignmentY = AlignmentY.Top,
+                Drawing = new GeometryDrawing
+                {
+                    Brush = Brushes.White,
+                    Geometry = clipGeometry
+                }
+            };
+        }
+    }
+
 
     private void EnsureSplitters()
     {
