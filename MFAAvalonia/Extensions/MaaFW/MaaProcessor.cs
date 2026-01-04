@@ -114,7 +114,7 @@ public class MaaProcessor
         _isClosed = true;
         Instances.TaskQueueView.StopLiveViewLoop();
     }
-    
+
     public static MaaInterface? Interface
     {
         get => field;
@@ -367,7 +367,7 @@ public class MaaProcessor
 
     private bool ShouldScreencapForLiveView()
     {
-        return MaaTasker?.IsRunning != true &&  !_isClosed;
+        return MaaTasker?.IsRunning != true && !_isClosed;
     }
 
     public Bitmap? GetBitmapImage(bool test = true)
@@ -797,64 +797,11 @@ public class MaaProcessor
                                 LoggerHelper.Info("MaaTasker exited!");
                                 _agentProcess = null;
                             };
-                            _agentProcess?.OutputDataReceived += (sender, args) =>
-                            {
-                                if (!string.IsNullOrEmpty(args.Data))
-                                {
-                                    var outData = args.Data;
-                                    try
-                                    {
-                                        outData = Regex.Replace(outData, @"\x1B\[[0-9;]*[a-zA-Z]", "");
-                                    }
-                                    catch (Exception)
-                                    {
-                                    }
 
-                                    DispatcherHelper.PostOnMainThread(() =>
-                                    {
-                                        if (TaskQueueViewModel.CheckShouldLog(outData))
-                                        {
-                                            RootView.AddLog(outData);
-                                        }
-                                        else
-                                        {
-                                            LoggerHelper.Info("agent:" + outData);
-                                        }
-                                    });
-                                }
-                            };
+                            TaskManager.RunTaskAsync(() => ReadProcessStreamAsync(_agentProcess.StandardOutput.BaseStream, HandleAgentOutputLine, token), token: token, noMessage: true);
+                            TaskManager.RunTaskAsync(() => ReadProcessStreamAsync(_agentProcess.StandardError.BaseStream, HandleAgentOutputLine, token), token: token, noMessage: true);
 
-                            _agentProcess?.ErrorDataReceived += (sender, args) =>
-                            {
-                                if (!string.IsNullOrEmpty(args.Data))
-                                {
-                                    var outData = args.Data;
-                                    try
-                                    {
-                                        outData = Regex.Replace(outData, @"\x1B\[[0-9;]*[a-zA-Z]", "");
-                                    }
-                                    catch (Exception)
-                                    {
-                                    }
-
-                                    DispatcherHelper.PostOnMainThread(() =>
-                                    {
-                                        if (TaskQueueViewModel.CheckShouldLog(outData))
-                                        {
-                                            RootView.AddLog(outData);
-                                        }
-                                        else
-                                        {
-                                            LoggerHelper.Info("agent:" + outData);
-                                        }
-                                    });
-                                }
-                            };
-                            _agentProcess?.BeginOutputReadLine();
-                            _agentProcess?.BeginErrorReadLine();
-                            if (_agentProcess != null)
-                                TaskManager.RunTaskAsync(async () => await _agentProcess.WaitForExitAsync(token), token: token, name: "Agent程序启动");
-
+                            TaskManager.RunTaskAsync(async () => await _agentProcess.WaitForExitAsync(token), token: token, name: "Agent程序启动");
                         }
                         return _agentProcess;
                     };
@@ -1035,7 +982,16 @@ public class MaaProcessor
                 {
                     RootView.AddLogByKey(LangKeys.AgentStartFailed, Brushes.OrangeRed, changeColor: false);
                     LoggerHelper.Error(ex);
-                    ToastHelper.Error(LangKeys.AgentStartFailed.ToLocalization(), ex.Message);
+                    var isNullReference = ex is NullReferenceException
+                                          || ex.Message.Contains("Object reference not set to an instance of an object.", StringComparison.OrdinalIgnoreCase);
+                    if (isNullReference)
+                    {
+                        ToastHelper.Error(LangKeys.AgentStartFailed.ToLocalization());
+                    }
+                    else
+                    {
+                        ToastHelper.Error(LangKeys.AgentStartFailed.ToLocalization(), ex.Message);
+                    }
                     SafeKillAgentProcess();
                     ShouldRetry = false; // Agent 启动失败不应该重连
                     return (null, InvalidResource, ShouldRetry);
@@ -1840,6 +1796,154 @@ public class MaaProcessor
     public async Task ReconnectByAdb()
     {
         await ProcessHelper.ReconnectByAdbAsync(Config.AdbDevice.AdbPath, Config.AdbDevice.AdbSerial);
+    }
+
+    private static void EnsureEncodingProviders()
+    {
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+    }
+
+    private static readonly Encoding Utf8Strict = new UTF8Encoding(false, true);
+    private static readonly Lazy<Encoding> GbkEncoding = new(() =>
+    {
+        EnsureEncodingProviders();
+        return Encoding.GetEncoding(936);
+    });
+    private static readonly Lazy<Encoding> Gb2312Encoding = new(() =>
+    {
+        EnsureEncodingProviders();
+        return Encoding.GetEncoding(936);
+    });
+    private static readonly Lazy<Encoding> Gb18030Encoding = new(() =>
+    {
+        EnsureEncodingProviders();
+        return Encoding.GetEncoding(54936);
+    });
+    private static readonly Lazy<Encoding> Big5Encoding = new(() =>
+    {
+        EnsureEncodingProviders();
+        return Encoding.GetEncoding(950);
+    });
+
+    private static string DecodeProcessLine(byte[] buffer)
+    {
+        try
+        {
+            return Utf8Strict.GetString(buffer);
+        }
+        catch (DecoderFallbackException)
+        {
+        }
+
+        try
+        {
+            return Gb18030Encoding.Value.GetString(buffer);
+        }
+        catch (DecoderFallbackException)
+        {
+        }
+
+        try
+        {
+            return GbkEncoding.Value.GetString(buffer);
+        }
+        catch (DecoderFallbackException)
+        {
+        }
+
+        try
+        {
+            return Gb2312Encoding.Value.GetString(buffer);
+        }
+        catch (DecoderFallbackException)
+        {
+        }
+
+        return Big5Encoding.Value.GetString(buffer);
+    }
+
+    private static async Task ReadProcessStreamAsync(Stream stream, Action<string> onLine, CancellationToken token)
+    {
+        EnsureEncodingProviders();
+
+        var readBuffer = new byte[4096];
+        var lineBuffer = new List<byte>();
+
+        while (!token.IsCancellationRequested)
+        {
+            int bytesRead;
+            try
+            {
+                bytesRead = await stream.ReadAsync(readBuffer.AsMemory(0, readBuffer.Length), token);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+
+            if (bytesRead <= 0)
+                break;
+
+            for (int i = 0; i < bytesRead; i++)
+            {
+                var value = readBuffer[i];
+                if (value == (byte)'\n')
+                {
+                    if (lineBuffer.Count > 0 && lineBuffer[^1] == (byte)'\r')
+                    {
+                        lineBuffer.RemoveAt(lineBuffer.Count - 1);
+                    }
+
+                    if (lineBuffer.Count > 0)
+                    {
+                        var text = DecodeProcessLine(lineBuffer.ToArray());
+                        onLine(text);
+                        lineBuffer.Clear();
+                    }
+                    else
+                    {
+                        onLine(string.Empty);
+                    }
+                }
+                else
+                {
+                    lineBuffer.Add(value);
+                }
+            }
+        }
+
+        if (lineBuffer.Count > 0)
+        {
+            var text = DecodeProcessLine(lineBuffer.ToArray());
+            onLine(text);
+        }
+    }
+
+    private static void HandleAgentOutputLine(string? line)
+    {
+        if (string.IsNullOrEmpty(line))
+            return;
+
+        var outData = line;
+        try
+        {
+            outData = Regex.Replace(outData, @"\x1B\[[0-9;]*[a-zA-Z]", "");
+        }
+        catch (Exception)
+        {
+        }
+
+        DispatcherHelper.PostOnMainThread(() =>
+        {
+            if (TaskQueueViewModel.CheckShouldLog(outData))
+            {
+                RootView.AddLog(outData);
+            }
+            else
+            {
+                LoggerHelper.Info("agent:" + outData);
+            }
+        });
     }
 
 
