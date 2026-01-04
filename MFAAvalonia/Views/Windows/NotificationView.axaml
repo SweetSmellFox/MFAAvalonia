@@ -8,7 +8,7 @@
                  xmlns:fluent="clr-namespace:FluentIcons.Avalonia.Fluent.Markup;assembly=FluentIcons.Avalonia.Fluent"
                  xmlns:helper="clr-namespace:MFAAvalonia.Helper"
                  xmlns:markupExtensions="https://codewf.com" SystemDecorations="None"
-                 x:DataType="settings:NotificationView"
+                 x:DataType="settings:NotificationView" Icon="{Binding Source={x:Static helper:IconHelper.WindowIcon}}"
                  mc:Ignorable="d" d:DesignWidth="350" d:DesignHeight="150" WindowStartupLocation="Manual"
                  x:Class="MFAAvalonia.Views.Windows.NotificationView" Width="400" TitleBarAutoHideDelay="0"
                  TitleBarAnimationEnabled="False" TitleBarVisibilityOnFullScreen="Hidden"

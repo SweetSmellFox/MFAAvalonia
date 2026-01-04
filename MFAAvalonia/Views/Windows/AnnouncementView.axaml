@@ -20,7 +20,7 @@
     Title="{markup:I18n {x:Static helper:LangKeys.Announcement}}"
     mc:Ignorable="d"
     d:DesignWidth="800"
-    d:DesignHeight="450"
+    d:DesignHeight="450" Icon="{Binding Source={x:Static helper:IconHelper.WindowIcon}}"
     x:Class="MFAAvalonia.Views.Windows.AnnouncementView">
     <suki:SukiWindow.Resources>
     </suki:SukiWindow.Resources>

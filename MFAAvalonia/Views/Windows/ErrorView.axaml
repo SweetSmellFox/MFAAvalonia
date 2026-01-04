@@ -17,7 +17,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:suki="https://github.com/kikipoulet/SukiUI"
     xmlns:utilities="clr-namespace:MFAAvalonia.Utilities"
-    xmlns:windows="clr-namespace:MFAAvalonia.Views.Windows"
+    xmlns:windows="clr-namespace:MFAAvalonia.Views.Windows" Icon="{Binding Source={x:Static helper:IconHelper.WindowIcon}}"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <suki:SukiWindow.LogoContent>
         <Image
