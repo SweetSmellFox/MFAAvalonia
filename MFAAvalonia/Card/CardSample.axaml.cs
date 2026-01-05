@@ -13,6 +13,12 @@ public partial class CardSample : UserControl
 {
     #region 依赖属性定义
     
+    /// <summary>
+    /// 卡牌 ViewModel - 推荐使用此属性绑定数据
+    /// </summary>
+    public static readonly StyledProperty<CardViewModel?> CardViewModelProperty =
+        AvaloniaProperty.Register<CardSample, CardViewModel?>(nameof(CardViewModel));
+    
     public static readonly StyledProperty<IImage?> mImageProperty =
         AvaloniaProperty.Register<CardSample, IImage?>(nameof(mImage));
     public static readonly StyledProperty<bool> IsDragbilityProperty = 
@@ -49,6 +55,9 @@ public partial class CardSample : UserControl
     {
         // 当 IsGlowEnabled 属性变化时，自动同步 IsNormalMode
         IsGlowEnabledProperty.Changed.AddClassHandler<CardSample>((x, e) => x.OnIsGlowEnabledChanged(e));
+        
+        // 当 CardViewModel 属性变化时，自动同步到 DataContext 和其他属性
+        CardViewModelProperty.Changed.AddClassHandler<CardSample>((x, e) => x.OnCardViewModelChanged(e));
     }
     
     /// <summary>
@@ -63,10 +72,46 @@ public partial class CardSample : UserControl
             System.Diagnostics.Debug.WriteLine($"[CardSample] IsGlowEnabled changed to {newValue}, IsNormalMode set to {!newValue}");
         }
     }
+    
+    /// <summary>
+    /// CardViewModel 属性变化处理 - 自动同步所有相关属性
+    /// </summary>
+    private void OnCardViewModelChanged(AvaloniaPropertyChangedEventArgs e)
+    {
+        if (e.NewValue is CardViewModel cardVm)
+        {
+            // 同步 DataContext
+            DataContext = cardVm;
+            
+            // 同步所有相关属性
+            mImage = cardVm.CardImage;
+            IsGlowEnabled = cardVm.EnableGlow;
+            GlowConfig = cardVm.GlowConfig ?? CardGlowConfig.Default;
+            
+            System.Diagnostics.Debug.WriteLine($"[CardSample] CardViewModel changed: {cardVm.Name}, Glow={cardVm.EnableGlow}");
+        }
+        else if (e.NewValue is null)
+        {
+            // 清空数据
+            DataContext = null;
+            mImage = null;
+            IsGlowEnabled = false;
+            GlowConfig = CardGlowConfig.Default;
+        }
+    }
 
     private static CCMgr MgrIns;
 
     #region 属性访问器
+
+    /// <summary>
+    /// 卡牌 ViewModel - 推荐使用此属性绑定数据
+    /// </summary>
+    public CardViewModel? CardViewModel
+    {
+        get => GetValue(CardViewModelProperty);
+        set => SetValue(CardViewModelProperty, value);
+    }
 
     public double CardWith
     {

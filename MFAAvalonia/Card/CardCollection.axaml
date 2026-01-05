@@ -77,14 +77,16 @@
                     Margin="0"/>
             </Grid>
 
-
+            <!-- 测试发光卡片按钮 -->
+            <!-- 测试发光卡片按钮 -->
+            <!-- 测试发光卡片按钮 -->
             <Button Height="50" Width="50" Background="Red"
                     VerticalAlignment="Bottom" 
                     HorizontalAlignment="Center"
                     IsVisible="True"
                     Click="PullButton_OnClick"/>
             
-            <!-- 测试发光卡片按钮 -->
+            
             <StackPanel VerticalAlignment="Bottom" 
                     IsVisible="False"
                     HorizontalAlignment="Right" Margin="10" Orientation="Horizontal">

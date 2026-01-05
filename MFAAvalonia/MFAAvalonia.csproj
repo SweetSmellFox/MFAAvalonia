@@ -172,6 +172,10 @@
             <DependentUpon>MultiInstanceEditorDialogView.axaml</DependentUpon>
             <SubType>Code</SubType>
         </Compile>
+        <Compile Update="Card\CardSample.axaml.cs">
+          <DependentUpon>CardSample.axaml</DependentUpon>
+          <SubType>Code</SubType>
+        </Compile>
     </ItemGroup>
     <ItemGroup>
         <Compile Update="Assets\Localization\Strings.Designer.cs">
