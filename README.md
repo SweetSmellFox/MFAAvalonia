@@ -86,7 +86,7 @@ _基于 [Avalonia UI](https://github.com/AvaloniaUI/Avalonia)
 MaaFramework 项目模板已内置 MFAAvalonia，创建项目时自动配置完成。
 
 ### 方式二：手动安装
-
+ 
 <details>
 <summary><b>📦 点击展开安装步骤</b></summary>
 
@@ -187,6 +187,9 @@ MaaFramework 项目模板已内置 MFAAvalonia，创建项目时自动配置完�
 
 #### 外部通知
 - [外部通知填写指南](./docs/zh/外部通知.md)
+
+hu#### 自定义布局
+- [自定义布局说明](./docs/zh/自定义布局.md)
 
 | 字段              |   类型    |   默认值   | 说明            |
 |:----------------|:-------:|:-------:|:--------------|

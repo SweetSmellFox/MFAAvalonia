@@ -186,6 +186,9 @@ MaaFramework project templates come with MFAAvalonia pre-configured.
 #### External Notifications
 - [External Notification Fill Guide](./docs/en/external-notification.md)
 
+#### Custom Layout
+- [Custom Layout Guide](./docs/en/custom-layout.md)
+
 | Field           |  Type   | Default | Description                             |
 |:----------------|:-------:|:-------:|:----------------------------------------|
 | `name`          | string  |    -    | Task display name                       |
