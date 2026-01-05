@@ -207,20 +207,27 @@ public partial class TaskQueueViewModel : ViewModelBase
             return;
         }
 
-        if (CurrentController != MaaControllerTypes.PlayCover && CurrentDevice == null)
-        {
-            ToastHelper.Warn(LangKeys.CannotStart.ToLocalization(), "DeviceNotSelected".ToLocalization());
-            LoggerHelper.Warning(LangKeys.CannotStart.ToLocalization());
-            return;
-        }
+        var beforeTask = ConfigurationManager.Current.GetValue(ConfigurationKeys.BeforeTask, "None");
+        var skipDeviceCheck = beforeTask.Contains("StartupSoftware", StringComparison.OrdinalIgnoreCase)
+            || Instances.ConnectSettingsUserControlModel.AutoDetectOnConnectionFailed;
 
-        if (CurrentController == MaaControllerTypes.Adb
-            && CurrentDevice is AdbDeviceInfo adbInfo
-            && string.IsNullOrWhiteSpace(adbInfo.AdbSerial))
+        if (!skipDeviceCheck)
         {
-            ToastHelper.Warn(LangKeys.CannotStart.ToLocalization(), LangKeys.AdbAddressEmpty.ToLocalization());
-            LoggerHelper.Warning(LangKeys.CannotStart.ToLocalization());
-            return;
+            if (CurrentController != MaaControllerTypes.PlayCover && CurrentDevice == null)
+            {
+                ToastHelper.Warn(LangKeys.CannotStart.ToLocalization(), "DeviceNotSelected".ToLocalization());
+                LoggerHelper.Warning(LangKeys.CannotStart.ToLocalization());
+                return;
+            }
+
+            if (CurrentController == MaaControllerTypes.Adb
+                && CurrentDevice is AdbDeviceInfo adbInfo
+                && string.IsNullOrWhiteSpace(adbInfo.AdbSerial))
+            {
+                ToastHelper.Warn(LangKeys.CannotStart.ToLocalization(), LangKeys.AdbAddressEmpty.ToLocalization());
+                LoggerHelper.Warning(LangKeys.CannotStart.ToLocalization());
+                return;
+            }
         }
 
         if (CurrentController == MaaControllerTypes.PlayCover
