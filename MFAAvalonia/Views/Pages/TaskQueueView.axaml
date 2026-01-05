@@ -798,7 +798,7 @@
                                      CellSpacing="10">
             <dashboard:DashboardCard x:Name="SettingCard"
                                      CardId="settings"
-                                     GridColumn="0"
+                                     GridColumn="4"
                                      GridRow="0"
                                      GridColumnSpan="4"
                                      GridRowSpan="5"
@@ -852,7 +852,7 @@
 
             <dashboard:DashboardCard x:Name="TaskListCard"
                                      CardId="task_list"
-                                     GridColumn="4"
+                                     GridColumn="0"
                                      GridRow="0"
                                      GridColumnSpan="4"
                                      GridRowSpan="8"
@@ -1117,7 +1117,7 @@
 
             <dashboard:DashboardCard x:Name="IntroductionCard"
                                      CardId="task_desc"
-                                     GridColumn="0"
+                                     GridColumn="4"
                                      GridRow="5"
                                      GridColumnSpan="4"
                                      GridRowSpan="3"

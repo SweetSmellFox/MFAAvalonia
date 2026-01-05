@@ -60,19 +60,19 @@ Below is the current default layout (TaskQueueView) as a reference:
   "spacing": 10,
   "settings": {
     "row": 0,
-    "col": 0,
+    "col": 4,
     "row_span": 5,
     "col_span": 4
   },
   "task_list": {
     "row": 0,
-    "col": 4,
+    "col": 0,
     "row_span": 8,
     "col_span": 4
   },
   "task_desc": {
     "row": 5,
-    "col": 0,
+    "col": 4,
     "row_span": 3,
     "col_span": 4
   },
