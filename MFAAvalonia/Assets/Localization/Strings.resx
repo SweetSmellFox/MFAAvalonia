@@ -1481,6 +1481,12 @@
     <data name="Reconnect" xml:space="preserve">
         <value>重新连接</value>
     </data>
+    <data name="ResourceLayoutUpdatedTitle" xml:space="preserve">
+        <value>资源布局更新</value>
+    </data>
+    <data name="ResourceLayoutUpdatedContent" xml:space="preserve">
+        <value>检测到资源布局文件更新，已应用最新布局并覆盖当前布局。</value>
+    </data>
 
 </root>
 

@@ -164,6 +164,7 @@ public static class ConfigurationKeys
     public const string TaskQueueRightPanelCollapsed = "UI.TaskQueue.RightPanelCollapsed";
     public const string TaskQueueDashboardLayout = "UI.TaskQueue.DashboardLayout";
     public const string DashboardCardGridLayout = "UI.DashboardCardGrid.Layout";
+    public const string DashboardCardGridResourceLayoutHash = "UI.DashboardCardGrid.ResourceLayoutHash";
     public const string EnableLiveView = "UI.LiveView.EnableLiveView";
     public const string LiveViewRefreshRate = "UI.LiveView.RefreshRate";
     public const string MainWindowWidth = "UI.MainWindow.Width";

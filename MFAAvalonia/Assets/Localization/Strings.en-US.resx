@@ -1474,5 +1474,11 @@
     <data name="Reconnect" xml:space="preserve">
         <value>Reconnect</value>
     </data>
+    <data name="ResourceLayoutUpdatedTitle" xml:space="preserve">
+        <value>Resource layout updated</value>
+    </data>
+    <data name="ResourceLayoutUpdatedContent" xml:space="preserve">
+        <value>Resource layout file changed. Latest layout has been applied and current layout overwritten.</value>
+    </data>
 </root>
 

@@ -495,4 +495,6 @@ public static class LangKeys
 	public static readonly string PlayCoverBundleIdentifier = "PlayCoverBundleIdentifier";
 	public static readonly string PlayCoverAddressEmpty = "PlayCoverAddressEmpty";
 	public static readonly string Reconnect = "Reconnect";
+	public static readonly string ResourceLayoutUpdatedTitle = "ResourceLayoutUpdatedTitle";
+	public static readonly string ResourceLayoutUpdatedContent = "ResourceLayoutUpdatedContent";
 }

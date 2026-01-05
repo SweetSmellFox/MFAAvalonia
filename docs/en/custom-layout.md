@@ -117,6 +117,7 @@ Each card entry is an object with:
 - Unspecified cards keep the default layout
 - Drag/resize in the UI saves to local config, but does not overwrite `mfa_layout.json`
 - Only when `rows` or `columns` differs from the current config will MFA force-refresh config layout from `mfa_layout.json`
+- If `mfa_layout.json` content changes (hash update), MFA force-applies the resource layout and overwrites current layout
 
 ---
 

@@ -17,8 +17,11 @@ using System.Collections.Specialized;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using Avalonia.Threading;
+using MFAAvalonia.Extensions;
 
 namespace MFAAvalonia.Views.UserControls.Dashboard;
 
@@ -687,10 +690,22 @@ public sealed class DashboardCardGrid : Panel
 
         var defaults = GetDefaultLayouts();
         var key = GetLayoutKey();
-
         var layouts = LoadConfigLayouts(defaults, key, out var hasConfigLayouts);
         var layoutMeta = LoadLayoutMeta();
-        var resourceLayout = TryLoadResourceLayout();
+        var resourceLayout = TryLoadResourceLayout(out var resourceLayoutHash);
+        var layoutHashKey = GetResourceLayoutHashKey();
+        var storedLayoutHash = ConfigurationManager.Current.GetValue(layoutHashKey, string.Empty);
+        var resourceLayoutChanged = !string.IsNullOrWhiteSpace(resourceLayoutHash)
+            && !string.Equals(resourceLayoutHash, storedLayoutHash, StringComparison.OrdinalIgnoreCase);
+
+        if (resourceLayoutChanged && resourceLayout != null)
+        {
+            ApplyResourceLayout(resourceLayout, defaults);
+            ConfigurationManager.Current.SetValue(layoutHashKey, resourceLayoutHash);
+            ToastHelper.Info(LangKeys.ResourceLayoutUpdatedTitle.ToLocalization(),
+                LangKeys.ResourceLayoutUpdatedContent.ToLocalization());
+            return;
+        }
 
         if (resourceLayout == null && !hasConfigLayouts)
         {
@@ -702,6 +717,10 @@ public sealed class DashboardCardGrid : Panel
         if (!hasConfigLayouts && resourceLayout != null)
         {
             ApplyResourceLayout(resourceLayout, defaults);
+            if (!string.IsNullOrWhiteSpace(resourceLayoutHash))
+            {
+                ConfigurationManager.Current.SetValue(layoutHashKey, resourceLayoutHash);
+            }
             return;
         }
 
@@ -712,10 +731,15 @@ public sealed class DashboardCardGrid : Panel
             && (layoutMeta.Rows != resourceLayout.Rows || layoutMeta.Columns != resourceLayout.Columns))
         {
             ApplyResourceLayout(resourceLayout, defaults);
+            if (!string.IsNullOrWhiteSpace(resourceLayoutHash))
+            {
+                ConfigurationManager.Current.SetValue(layoutHashKey, resourceLayoutHash);
+            }
             return;
         }
 
         ApplyLayoutMeta(layoutMeta);
+        ApplyLayouts(layouts);
         ApplyLayouts(layouts);
     }
 
@@ -918,8 +942,10 @@ public sealed class DashboardCardGrid : Panel
         public Dictionary<string, LayoutCell> Cards { get; init; } = new();
     }
 
-    private ResourceLayoutDefinition? TryLoadResourceLayout()
+    private ResourceLayoutDefinition? TryLoadResourceLayout(out string? layoutHash)
     {
+        layoutHash = null;
+
         if (!TryGetResourceLayoutPath(out var layoutPath, forWrite: false) || !File.Exists(layoutPath))
         {
             return null;
@@ -928,6 +954,7 @@ public sealed class DashboardCardGrid : Panel
         try
         {
             var json = File.ReadAllText(layoutPath);
+            layoutHash = ComputeLayoutHash(json);
             var root = JObject.Parse(json);
 
             var rows = root["rows"]?.Value<int>() ?? 0;
@@ -977,6 +1004,7 @@ public sealed class DashboardCardGrid : Panel
         }
         catch
         {
+            layoutHash = null;
             return null;
         }
     }
@@ -1041,6 +1069,20 @@ public sealed class DashboardCardGrid : Panel
         {
             // 忽略生成失败
         }
+    }
+
+    private string GetResourceLayoutHashKey()
+    {
+        return string.IsNullOrWhiteSpace(GridId)
+            ? ConfigurationKeys.DashboardCardGridResourceLayoutHash
+            : $"{ConfigurationKeys.DashboardCardGridResourceLayoutHash}.{GridId}";
+    }
+
+    private static string ComputeLayoutHash(string content)
+    {
+        var bytes = Encoding.UTF8.GetBytes(content);
+        var hash = SHA256.HashData(bytes);
+        return Convert.ToHexString(hash);
     }
 
     private bool TryGetResourceLayoutPath(out string layoutPath, bool forWrite)
