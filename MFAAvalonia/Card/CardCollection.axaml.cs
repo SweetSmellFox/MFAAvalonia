@@ -9,6 +9,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
 using Avalonia.Media;
+using MFAAvalonia.Card.ViewModel;
 using MFAAvalonia.Helper;
 using MFAAvalonia.Utilities.CardClass;
 using MFAAvalonia.ViewModels.Pages;

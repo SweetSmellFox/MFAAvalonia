@@ -1,4 +1,4 @@
-﻿using Avalonia.Media;
+using Avalonia.Media;
 using MFAAvalonia.Card.ViewModel;
 using MFAAvalonia.ViewModels;
 using MFAAvalonia.Views.UserControls.Card;
@@ -34,7 +34,7 @@ public class CardBase
 
 public class CardViewModel : ViewModelBase, ICardBase
 {
-    public CardViewModel(CardBase cb)
+    public CardViewModel(CardBase? cb = null)
     {
         var img = CCMgr.LoadImageFromAssets(cb.ImagePath);
         if (img is not null)
@@ -53,24 +53,14 @@ public class CardViewModel : ViewModelBase, ICardBase
     public string Name { get; set; }
     public string ImagePath { get; set; }
     public int Index { get; set; }
-    
-    /// <summary>
-    /// 卡牌稀有度 - 决定发光效果
-    /// </summary>
     public CardRarity Rarity { get; set; } = CardRarity.Normal;
-    
-    /// <summary>
-    /// 是否启用发光效果
-    /// </summary>
     public bool EnableGlow { get; set; } = false;
-    
     public IImage CardImage  { get; set; }
-    
-    /// <summary>
-    /// 发光效果配置
-    /// </summary>
     public CardGlowConfig GlowConfig { get; set; }
-    
+
+
+    public double CardWidth { get; set; } = 300;
+    public double CardHeight { get; set; } = 450;
     /// <summary>
     /// 根据稀有度获取对应的发光配置
     /// </summary>

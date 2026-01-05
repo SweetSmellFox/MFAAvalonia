@@ -5,6 +5,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+using MFAAvalonia.Card.ViewModel;
 using MFAAvalonia.Helper;
 using MFAAvalonia.ViewModels.Pages;
 using MFAAvalonia.Views.UserControls.Card;
@@ -91,9 +92,12 @@ public sealed class CCMgr
             CCVM.addcard(cardVm);
             // 2) UI状态更新：同步更新 PulledCard
             CCVM.PulledCard = cardVm;
-
+            var pullres = new List<CardViewModel>();
+            pullres.Add(cardVm);
+            var pullvm = new PullResultViewModel(pullres);
             // 3) 弹窗展示
-            var window = new PullResult(cardVm);
+            var window = new PullResult(pullvm);
+
 
             // Owner 可能已关闭，这里做兼容避免崩溃
             var owner = Instances.RootView;
@@ -116,13 +120,8 @@ public sealed class CCMgr
             }
 
             try
-            {
-                var window = new PullResult(null, $"抽卡失败：{ex.Message}");
+            { 
                 var owner = Instances.RootView;
-                if (owner != null && owner.IsVisible)
-                    await window.ShowDialog(owner);
-                else
-                    window.Show();
             }
             catch
             {

@@ -19,6 +19,7 @@
         <Folder Include="Models\"/>
         <AvaloniaResource Include="Assets\**"/>
         <AvaloniaResource Include="Assets\CardImg\CardTable.csv" />
+        <Folder Include="Windows\" />
     </ItemGroup>
 
 
@@ -174,6 +175,10 @@
         </Compile>
         <Compile Update="Card\CardSample.axaml.cs">
           <DependentUpon>CardSample.axaml</DependentUpon>
+          <SubType>Code</SubType>
+        </Compile>
+        <Compile Update="Card\PullResult.axaml.cs">
+          <DependentUpon>PullResult.axaml</DependentUpon>
           <SubType>Code</SubType>
         </Compile>
     </ItemGroup>

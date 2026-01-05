@@ -1,31 +1,36 @@
 ﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:MFAAvalonia.Utilities.CardClass"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:card="clr-namespace:MFAAvalonia.Views.UserControls.Card"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Name="Root"
-             x:Class="MFAAvalonia.Views.UserControls.Card.CardSample">
+             x:Class="MFAAvalonia.Views.UserControls.Card.CardSample"
+             x:DataType="vm:CardViewModel"
+>
     <!-- Set the dimensions of the card here -->
     <Design.Width>200</Design.Width>
     <Design.Height>300</Design.Height>
+        
 
     <!-- Root container for the card -->
-    <Grid Width="{Binding CardWith, ElementName=Root}" Height="{Binding CardHeight , ElementName=Root}">
+    <Grid 
+        Width="{Binding CardWidth}" Height="{Binding CardHeight }">
         <!-- 普通卡牌图片层 (当不启用发光时显示) -->
         <Image x:Name="Image"
-               Source="{Binding mImage, ElementName=Root}"
+               Source="{Binding CardImage}"
                Stretch="UniformToFill"
                Margin="8"
-               IsVisible="{Binding IsNormalMode, ElementName=Root}" />
+               />
         
         <!-- 发光效果卡牌层 (当启用发光时显示) -->
         <card:CardGlowRenderer x:Name="GlowRenderer"
-                               Source="{Binding mImage, ElementName=Root}"
-                               Config="{Binding GlowConfig, ElementName=Root}"
-                               IsGlowEnabled="{Binding IsGlowEnabled, ElementName=Root}"
+                               Source="{Binding CardImage}"
+                               Config="{Binding GlowConfig}"
+                               IsGlowEnabled="{Binding EnableGlow}"
                                Margin="8"
-                               IsVisible="{Binding IsGlowEnabled, ElementName=Root}" />
+                               IsVisible="{Binding EnableGlow}" />
         
         <!-- Shader边框效果层 -->
         <card:CardBorderRenderer />

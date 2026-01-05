@@ -32,9 +32,6 @@
                         <DataTemplate x:DataType="cardClass:CardViewModel">
                             <!-- 这里的 DataContext 自动变成了单个 CardViewModel -->
                             <local:CardSample 
-                                mImage="{Binding CardImage}" 
-                                IsGlowEnabled="{Binding EnableGlow}"
-                                GlowConfig="{Binding GlowConfig}"
                                 Margin="5">
                             </local:CardSample>
                         </DataTemplate>
@@ -67,11 +64,6 @@
 
                 <local:CardSample 
                     DataContext="{Binding SelectedCard}"
-                    CardHeight="{Binding #CardScrollViewer.Bounds.Height, Converter={conv:MathMultiplyConverter}, ConverterParameter=0.85}"
-                    CardWith="{Binding #CardScrollViewer.Bounds.Height, Converter={conv:MathMultiplyConverter}, ConverterParameter=0.5666666666666667}"
-                    mImage="{Binding CardImage}" 
-                    IsGlowEnabled="True"
-                    IsNormalMode="False"
                     IsHitTestVisible="False"
                     IsDragbility="False"
                     Margin="0"/>
