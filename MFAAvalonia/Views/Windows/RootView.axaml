@@ -31,6 +31,11 @@
         <Style Selector="ToggleButton.SP:checked > PathIcon">
             <Setter Property="Foreground" Value="{DynamicResource SukiPrimaryColor}" />
         </Style>
+        <Style Selector="ToggleButton.SP:pointerover > PathIcon">
+            <Setter Property="RenderTransform">
+                <ScaleTransform ScaleX="1.12" ScaleY="1.12" />
+            </Setter>
+        </Style>
     </suki:SukiWindow.Styles>
     <suki:SukiWindow.NonClientAreaContent>
         <StackPanel Orientation="Horizontal" Spacing="5">
@@ -204,7 +209,6 @@
                 <TranslateTransform X="-5" />
             </ToggleButton.RenderTransform>
             <PathIcon Data="{x:Static suki:Icons.Pin}" Width="16" Height="16"></PathIcon>
-            <!-- <fluent:FluentIcon Icon="Pin" IconSize="Size16"></fluent:FluentIcon> -->
         </ToggleButton>
     </suki:SukiWindow.RightWindowTitleBarControls>
     <suki:SukiWindow.LogoContent>

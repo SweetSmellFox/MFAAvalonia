@@ -88,10 +88,10 @@
                                                                   Data="{x:Static icons:Icons.WindowPin}" />
                                                     </Button>
                                                     <Button Name="PART_MinimizeButton"
-                                                            VerticalContentAlignment="Bottom"
+                                                            VerticalContentAlignment="Center"
                                                             Classes="WindowControlsButton"
                                                             IsVisible="{TemplateBinding CanMinimize}">
-                                                        <PathIcon Margin="0,0,0,6.5"
+                                                        <PathIcon
                                                                   VerticalAlignment="Bottom"
                                                                   Data="{x:Static icons:Icons.WindowMinimize}" />
                                                     </Button>
