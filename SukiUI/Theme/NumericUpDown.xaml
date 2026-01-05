@@ -5,17 +5,14 @@
     <!--  Add Resources Here  -->
     <Design.PreviewWith>
         <Border Padding="20">
-            <Border.Styles>
-                <Style Selector="NumericUpDown">
-                    <Setter Property="Width" Value="300" />
-                </Style>
-            </Border.Styles>
+
             <StackPanel Orientation="Vertical" Spacing="5">
 
-                <NumericUpDown IsReadOnly="True"
+                <NumericUpDown IsReadOnly="True" Width="1234" 
                                ShowButtonSpinner="False"
                                Value="120" />
-                <NumericUpDown IsEnabled="False" Value="120" />
+                <NumericUpDown Width="223" Value="120"  />
+                <TextBox Width="223" Text="120" ></TextBox>
                 <NumericUpDown AllowSpin="False" Value="120" />
                 <NumericUpDown Height="64"
                                suki:NumericUpDownExtensions.UseFloatingWatermark="True"
@@ -152,10 +149,8 @@
         <Setter Property="FontSize" Value="14" />
         <Setter Property="Template">
             <ControlTemplate>
-                <suki:GlassCard Name="PART_GlassCard"
+                <suki:GlassCard Name="PART_GlassCard" Margin="5,0"
                                 Padding="0"
-                                HorizontalAlignment="{TemplateBinding HorizontalAlignment}"
-                                VerticalAlignment="{TemplateBinding VerticalAlignment}"
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
@@ -166,9 +161,9 @@
                         </Transitions>
                     </suki:GlassCard.Transitions>
                     <ButtonSpinner Name="PART_Spinner"
-                                   Margin="5,0"
+                                   Margin="5,4,5,2"
                                    HorizontalContentAlignment="Stretch"
-                                   VerticalContentAlignment="Stretch"
+                                   VerticalContentAlignment="Center"
                                    AllowSpin="{TemplateBinding AllowSpin}"
                                    Background="Transparent"
                                    BorderThickness="0"
@@ -182,7 +177,7 @@
                             <DataValidationErrors Grid.Column="0">
                                 <TextBox Name="PART_TextBox"
                                          MinWidth="20"
-                                         MinHeight="34"
+                                         Margin="-10,-4,-5,0"
                                          Padding="{TemplateBinding Padding}"
                                          HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
                                          VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
