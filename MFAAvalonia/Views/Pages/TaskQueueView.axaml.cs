@@ -2283,8 +2283,7 @@ public partial class TaskQueueView : UserControl
                 return;
             if (Instances.TaskQueueViewModel.EnableLiveView && Instances.TaskQueueViewModel.IsConnected)
             {
-                if (!MaaProcessor.Instance.MaaTasker!.IsRunning)
-                    MaaProcessor.Instance.PostScreencap();
+                MaaProcessor.Instance.PostScreencap();
                 var buffer = MaaProcessor.Instance.GetLiveViewBuffer(false);
                 _ = Instances.TaskQueueViewModel.UpdateLiveViewImageAsync(buffer);
             }
@@ -2298,7 +2297,7 @@ public partial class TaskQueueView : UserControl
             // ignored
         }
     }
-    
+
     private void OnLoaded(object? sender, RoutedEventArgs e)
     {
         StartLiveViewLoop();

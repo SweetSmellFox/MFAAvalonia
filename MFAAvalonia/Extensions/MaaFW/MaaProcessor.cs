@@ -296,10 +296,6 @@ public class MaaProcessor
 
     private MaaTasker? GetScreenshotTasker(CancellationToken token = default)
     {
-        if (MaaTasker is { IsRunning: true })
-        {
-            return MaaTasker;
-        }
         if (!UseSeparateScreenshotTasker)
         {
             DisposeScreenshotTasker();
@@ -456,6 +452,66 @@ public class MaaProcessor
 
     #region MaaTasker初始化
 
+    private async Task<IMaaController?> InitializeScreenshotControllerAsync(CancellationToken token)
+    {
+        if (!UseSeparateScreenshotTasker)
+            return MaaTasker?.Controller;
+
+        if (Design.IsDesignMode)
+            return null;
+
+        MaaController controller = null;
+        try
+        {
+            controller = await TaskManager.RunTaskAsync(() =>
+            {
+                token.ThrowIfCancellationRequested();
+                return InitializeController(Instances.TaskQueueViewModel.CurrentController);
+            }, token: token, name: "截图控制器检测", catchException: true, shouldLog: false, noMessage: true);
+
+            var displayShortSide = Interface?.Controller?.Find(c => c.Type != null && c.Type.Equals(Instances.TaskQueueViewModel.CurrentController.ToJsonKey(), StringComparison.OrdinalIgnoreCase))?.DisplayShortSide;
+            var displayLongSide = Interface?.Controller?.Find(c => c.Type != null && c.Type.Equals(Instances.TaskQueueViewModel.CurrentController.ToJsonKey(), StringComparison.OrdinalIgnoreCase))?.DisplayLongSide;
+            var displayRaw = Interface?.Controller?.Find(c => c.Type != null && c.Type.Equals(Instances.TaskQueueViewModel.CurrentController.ToJsonKey(), StringComparison.OrdinalIgnoreCase))?.DisplayRaw;
+
+            if (displayLongSide != null && displayShortSide == null && displayRaw == null)
+                controller.SetOption_ScreenshotTargetLongSide(Convert.ToInt32(displayLongSide.Value));
+            if (displayShortSide != null && displayLongSide == null && displayRaw == null)
+                controller.SetOption_ScreenshotTargetShortSide(Convert.ToInt32(displayShortSide.Value));
+            if (displayRaw != null && displayShortSide == null && displayLongSide == null)
+                controller.SetOption_ScreenshotUseRawSize(displayRaw.Value);
+        }
+        catch (Exception ex)
+        {
+            LoggerHelper.Warning($"Screenshot controller init failed: {ex.Message}");
+            try
+            {
+                controller?.Dispose();
+            }
+            catch (Exception disposeEx)
+            {
+                LoggerHelper.Warning($"Screenshot controller dispose failed: {disposeEx.Message}");
+            }
+            return null;
+        }
+        try
+        {
+            token.ThrowIfCancellationRequested();
+            var linkStatus = controller.LinkStart().Wait();
+            if (linkStatus != MaaJobStatus.Succeeded)
+            {
+                controller.Dispose();
+                return null;
+            }
+
+            return controller;
+        }
+        catch (Exception ex)
+        {
+            LoggerHelper.Warning($"Screenshot controller link failed: {ex.Message}");
+            return null;
+        }
+    }
+
     private async Task<MaaTasker?> InitializeScreenshotTaskerAsync(CancellationToken token)
     {
         if (!UseSeparateScreenshotTasker)
@@ -522,7 +578,7 @@ public class MaaProcessor
                 Global = new MaaGlobal(),
                 DisposeOptions = DisposeOptions.All,
             };
-
+            
             ConfigureScreenshotTasker(tasker);
 
             var linkStatus = tasker.Controller?.LinkStart().Wait();
