@@ -1,4 +1,4 @@
-﻿using Avalonia.Controls;
+using Avalonia.Controls;
 using Avalonia.Threading;
 using MaaFramework.Binding;
 using MaaFramework.Binding.Buffers;
@@ -2727,13 +2727,19 @@ public class MaaProcessor
                 RootView.AddLogByKeys(LangKeys.TaskAllCompletedWithTime, null, true, ((int)elapsedTime.TotalHours).ToString(),
                     ((int)elapsedTime.TotalMinutes % 60).ToString(), ((int)elapsedTime.TotalSeconds % 60).ToString());
                 
-                // 如果执行时间大于2分钟，触发抽卡
+                        // 如果执行时间大于2分钟，触发抽卡
                 if (elapsedTime.TotalMinutes > 2)
                 {
                     try
                     {
-                        LoggerHelper.Info($"任务执行时间 {elapsedTime.TotalMinutes:F1} 分钟，触发自动抽卡");
-                        TaskManager.RunTaskAsync(async () => await CCMgr.Instance.PullOne(), null, "自动抽卡");
+                        var enableCardSystem = ConfigurationManager.Current.GetValue(ConfigurationKeys.EnableCardSystem, true);
+                        var taskCompleteAutoPull = ConfigurationManager.Current.GetValue(ConfigurationKeys.TaskCompleteAutoPull, true);
+
+                        if (enableCardSystem && taskCompleteAutoPull)
+                        {
+                            LoggerHelper.Info($"任务执行时间 {elapsedTime.TotalMinutes:F1} 分钟，触发自动抽卡");
+                            TaskManager.RunTaskAsync(async () => await CCMgr.Instance.PullOne(), null, "自动抽卡");
+                        }
                     }
                     catch (Exception ex)
                     {

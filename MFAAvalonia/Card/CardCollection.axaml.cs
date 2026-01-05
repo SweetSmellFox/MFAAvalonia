@@ -24,8 +24,6 @@ public partial class CardCollection : UserControl
 {
     private CCMgr mgr;
     
-    #region  dragcard
-    
     private CardSample DraggingCard;
     private bool IsDragging = false;
     private bool IsDragStarted = false;  // 是否真正开始拖拽（超过阈值）
@@ -37,29 +35,15 @@ public partial class CardCollection : UserControl
     private int hov_index;
     private const int undefine = -1;
     private const double DragThreshold = 5;  // 拖拽阈值（像素）
-
-    /// <summary>
-    /// 根据鼠标点击坐标相对于ScrollViewer的位置，返回区域标识
-    /// 右边30%返回1，左边30%返回-1，中间返回0
-    /// </summary>
-    private int GetClickRegion(PointerEventArgs e)
+    
+    public CardCollection()
     {
-        var scrollViewer = CardScrollViewer;
-        if (scrollViewer == null) return 0;
-        
-        var pos = e.GetPosition(scrollViewer);
-        double width = scrollViewer.Bounds.Width;
-        if (width <= 0) return 0;
-        
-        double ratio = pos.X / width;
-        if (ratio >= 0.7) return 1;   // 右边30%
-        if (ratio <= 0.3) return -1;  // 左边30%
-        return 0;                      // 中间40%
-    }
-
-    private static void Logg(double num)
-    {
-        Console.WriteLine(num);
+        InitializeComponent();
+        DataContext = Design.IsDesignMode
+            ? new CardCollectionViewModel()
+            : App.Services.GetRequiredService<CardCollectionViewModel>();
+        mgr = CCMgr.Instance;
+        BindEvent();
     }
 
     private void BindEvent()
@@ -162,11 +146,20 @@ public partial class CardCollection : UserControl
             mgr.SetIsOpenDetail(false);
         }
     }
-    #endregion
 
-    private void OnStart()
+    private int GetClickRegion(PointerEventArgs e)
     {
-        mgr = CCMgr.Instance;
+        var scrollViewer = CardScrollViewer;
+        if (scrollViewer == null) return 0;
+        
+        var pos = e.GetPosition(scrollViewer);
+        double width = scrollViewer.Bounds.Width;
+        if (width <= 0) return 0;
+        
+        double ratio = pos.X / width;
+        if (ratio >= 0.7) return 1;   // 右边30%
+        if (ratio <= 0.3) return -1;  // 左边30%
+        return 0;                      // 中间40%
     }
 
     public void ClickBlankSpace(object sender, PointerReleasedEventArgs e)
@@ -182,209 +175,4 @@ public partial class CardCollection : UserControl
 
         await mgr.PullOne();
     }
-    
-    public CardCollection()
-    {
-        InitializeComponent();
-
-        DataContext = Design.IsDesignMode
-            ? new CardCollectionViewModel()
-            : App.Services.GetRequiredService<CardCollectionViewModel>();
-
-        OnStart();
-        BindEvent();
-        
-        // 初始化流光预览 - 加载默认测试图片
-        //CardBorderRenderer.UseSimpleRender = true;
-        //CardGlowRenderer.UseSimpleRender = true;
-    }
-
-    #region 流光效果测试
-
-    /// <summary>
-    /// 初始化流光预览
-    /// </summary>
-    private void InitializeGlowPreview()
-    {
-        // 尝试加载第一张玩家卡牌作为测试图片
-        Loaded += (s, e) =>
-        {
-            try
-            {
-                var vm = DataContext as CardCollectionViewModel;
-                if (vm?.PlayerCards.Count > 0)
-                {
-                    GlowPreviewRenderer.Source = vm.PlayerCards[0].CardImage;
-                }
-                else
-                {
-                    // 如果没有卡牌，尝试加载默认测试图片
-                    LoadDefaultTestImage();
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[CardCollection] InitializeGlowPreview failed: {ex.Message}");
-            }
-        };
-    }
-
-    /// <summary>
-    /// 加载默认测试图片
-    /// </summary>
-    private void LoadDefaultTestImage()
-    {
-        try
-        {
-            // 尝试从资源或默认路径加载
-            var testImagePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "test_card.png");
-            if (File.Exists(testImagePath))
-            {
-                GlowPreviewRenderer.Source = new Bitmap(testImagePath);
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[CardCollection] LoadDefaultTestImage failed: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// 稀有度预览按钮点击事件
-    /// </summary>
-    private void OnRarityPreviewClick(object? sender, RoutedEventArgs e)
-    {
-        if (sender is Button button && button.Tag is string rarityName)
-        {
-            if (Enum.TryParse<CardRarity>(rarityName, out var rarity))
-            {
-                // 创建一个临时的 CardViewModel 来获取对应稀有度的配置
-                var tempBase = new CardBase { Rarity = rarity, EnableGlow = rarity != CardRarity.None && rarity != CardRarity.Normal };
-                var tempVm = new CardViewModel(tempBase);
-                
-                if (tempVm.GlowConfig != null)
-                {
-                    GlowPreviewRenderer.Config = tempVm.GlowConfig;
-                    GlowPreviewRenderer.IsGlowEnabled = true;
-                    // 强制刷新渲染以确保配置立即生效
-                    GlowPreviewRenderer.ForceRefresh();
-                }
-                else
-                {
-                    GlowPreviewRenderer.IsGlowEnabled = false;
-                }
-                
-                CurrentPresetText.Text = $"当前稀有度: {rarityName}";
-                Console.WriteLine($"[CardCollection] Previewed rarity: {rarityName}");
-            }
-        }
-    }
-
-    /// <summary>
-    /// 预设按钮点击事件
-    /// </summary>
-    private void OnPresetClick(object? sender, RoutedEventArgs e)
-    {
-        if (sender is Button button && button.Tag is string presetName)
-        {
-            var preset = presetName switch
-            {
-                "Default" => GlowPreset.Default,
-                "GoldRare" => GlowPreset.GoldRare,
-                "BlueRare" => GlowPreset.BlueRare,
-                "PurpleLegend" => GlowPreset.PurpleLegend,
-                _ => GlowPreset.Default
-            };
-
-            GlowPreviewRenderer.ApplyPreset(preset);
-            CurrentPresetText.Text = $"当前预设: {presetName}";
-            
-            Console.WriteLine($"[CardCollection] Applied preset: {presetName}");
-        }
-    }
-
-    /// <summary>
-    /// 流光开关切换事件
-    /// </summary>
-    private void OnGlowToggleChanged(object? sender, RoutedEventArgs e)
-    {
-        if (sender is ToggleSwitch toggle)
-        {
-            GlowPreviewRenderer.IsGlowEnabled = toggle.IsChecked ?? false;
-            Console.WriteLine($"[CardCollection] Glow enabled: {GlowPreviewRenderer.IsGlowEnabled}");
-        }
-    }
-
-    /// <summary>
-    /// 选择测试图片
-    /// </summary>
-    private async void OnSelectImageClick(object? sender, RoutedEventArgs e)
-    {
-        try
-        {
-            var topLevel = TopLevel.GetTopLevel(this);
-            if (topLevel == null) return;
-
-            var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-            {
-                Title = "选择测试卡牌图片",
-                AllowMultiple = false,
-                FileTypeFilter = new[]
-                {
-                    new FilePickerFileType("图片文件")
-                    {
-                        Patterns = new[] { "*.png", "*.jpg", "*.jpeg", "*.bmp", "*.gif" }
-                    }
-                }
-            });
-
-            if (files.Count > 0)
-            {
-                var file = files[0];
-                await using var stream = await file.OpenReadAsync();
-                var bitmap = new Bitmap(stream);
-                GlowPreviewRenderer.Source = bitmap;
-                
-                Console.WriteLine($"[CardCollection] Loaded test image: {file.Name}");
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[CardCollection] OnSelectImageClick failed: {ex.Message}");
-        }
-    }
-    
-    /// <summary>
-    /// 添加金色传说发光卡片按钮点击事件
-    /// </summary>
-    private void OnAddGlowingCardClick(object? sender, RoutedEventArgs e)
-    {
-        try
-        {
-            var cardVm = mgr.AddGlowingCard();
-            Console.WriteLine($"[CardCollection] Added glowing card: {cardVm.Name}, Glow={cardVm.EnableGlow}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[CardCollection] OnAddGlowingCardClick failed: {ex.Message}");
-        }
-    }
-    
-    /// <summary>
-    /// 添加普通卡片按钮点击事件
-    /// </summary>
-    private void OnAddNormalCardClick(object? sender, RoutedEventArgs e)
-    {
-        try
-        {
-            var cardVm = mgr.AddNormalCard();
-            Console.WriteLine($"[CardCollection] Added normal card: {cardVm.Name}, Glow={cardVm.EnableGlow}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[CardCollection] OnAddNormalCardClick failed: {ex.Message}");
-        }
-    }
-
-    #endregion
 }

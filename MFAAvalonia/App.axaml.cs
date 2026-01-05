@@ -179,6 +179,7 @@ public partial class App : Application
             .AddView<ConnectSettingsUserControl, ConnectSettingsUserControlModel>(services)
             .AddView<GameSettingsUserControl, GameSettingsUserControlModel>(services)
             .AddView<GuiSettingsUserControl, GuiSettingsUserControlModel>(services)
+            .AddView<CardSettingsUserControl, CardSettingsUserControlModel>(services)
             .AddView<StartSettingsUserControl, StartSettingsUserControlModel>(services)
             .AddView<ExternalNotificationSettingsUserControl, ExternalNotificationSettingsUserControlModel>(services)
             .AddView<TimerSettingsUserControl, TimerSettingsUserControlModel>(services)

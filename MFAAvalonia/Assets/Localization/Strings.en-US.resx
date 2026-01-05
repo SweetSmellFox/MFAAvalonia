@@ -1,4 +1,4 @@
-﻿<root>
+<root>
     <resheader name="resmimetype">
         <value>text/microsoft-resx</value>
     </resheader>
@@ -1458,6 +1458,18 @@
     </data>
     <data name="Reconnect" xml:space="preserve">
         <value>Reconnect</value>
+    </data>
+    <data name="CardSettings" xml:space="preserve">
+        <value>Card Settings</value>
+    </data>
+    <data name="EnableCardSystem" xml:space="preserve">
+        <value>Enable Card Function</value>
+    </data>
+    <data name="LoginAutoPull" xml:space="preserve">
+        <value>Auto Pull on Login</value>
+    </data>
+    <data name="TaskCompleteAutoPull" xml:space="preserve">
+        <value>Auto Pull on Task Completion</value>
     </data>
 </root>
 

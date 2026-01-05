@@ -1,4 +1,4 @@
-﻿using Avalonia.Controls.Notifications;
+using Avalonia.Controls.Notifications;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MFAAvalonia.Configuration;
@@ -20,6 +20,7 @@ public partial class RootViewModel : ViewModelBase
 
     [ObservableProperty] private bool _idle = true;
     [ObservableProperty] private bool _isWindowVisible = true;
+    [ObservableProperty] private bool _enableCardSystem = ConfigurationManager.Current.GetValue(ConfigurationKeys.EnableCardSystem, true);
 
     [ObservableProperty] private bool _isRunning;
 

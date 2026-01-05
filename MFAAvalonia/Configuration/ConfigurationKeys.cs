@@ -1,4 +1,4 @@
-﻿namespace MFAAvalonia.Configuration;
+namespace MFAAvalonia.Configuration;
 
 public static class ConfigurationKeys
 {
@@ -151,6 +151,14 @@ public static class ConfigurationKeys
     public const string ProxyType = "ProxyType";
     public const string CurrentTasks = "CurrentTasks";
     public const string ResourceUpdateChannelInitialized = "ResourceUpdateChannelInitialized";
+
+    #endregion
+
+    #region 卡片设置
+
+    public const string EnableCardSystem = "Card.EnableCardSystem";
+    public const string LoginAutoPull = "Card.LoginAutoPull";
+    public const string TaskCompleteAutoPull = "Card.TaskCompleteAutoPull";
 
     #endregion
 

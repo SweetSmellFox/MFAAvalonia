@@ -1,0 +1,168 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:local="using:MFAAvalonia.Views.UserControls.Card"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450">
+             <!-- x:Class="MFAAvalonia.Card.test_for_effect"> -->
+    Hello World
+    <!-- -->
+<!--      -->
+<!-- ~1~ 流光效果测试面板（非常耗性能：默认关闭，需要时再打开） @1@ -->
+<!--         <Border Grid.Row="1"  -->
+<!--                 Background="#2D2D30"  -->
+<!--                 BorderBrush="#3F3F46"  -->
+<!--                 IsVisible="False" -->
+<!--                 BorderThickness="0,1,0,0" -->
+<!--                 Padding="10"> -->
+<!--             <Grid> -->
+<!--                 <Grid.ColumnDefinitions> -->
+<!--                     <ColumnDefinition Width="Auto"/> -->
+<!--                     <ColumnDefinition Width="*"/> -->
+<!--                 </Grid.ColumnDefinitions> -->
+<!--                  -->
+<!--                 ~1~ 流光卡牌预览 @1@ -->
+<!--                 <Border Grid.Column="0"  -->
+<!--                         Background="#1E1E1E"  -->
+<!--                         CornerRadius="8" -->
+<!--                         Padding="10" -->
+<!--                         Margin="0,0,10,0"> -->
+<!--                     <StackPanel> -->
+<!--                         <TextBlock Text="流光效果预览"  -->
+<!--                                    Foreground="White"  -->
+<!--                                    FontWeight="Bold" -->
+<!--                                    Margin="0,0,0,10" -->
+<!--                                    HorizontalAlignment="Center"/> -->
+<!--                         ~1~ 流光渲染器 @1@ -->
+<!--                         <local:CardGlowRenderer  -->
+<!--                             x:Name="GlowPreviewRenderer" -->
+<!--                             Width="200"  -->
+<!--                             Height="300" -->
+<!--                             IsGlowEnabled="True"> -->
+<!--                             <local:CardGlowRenderer.MaskSource> -->
+<!--                                 <Bitmap>avares://MFAAvalonia/Assets/CardImg/mark5.jpeg</Bitmap> -->
+<!--                             </local:CardGlowRenderer.MaskSource> -->
+<!--                         </local:CardGlowRenderer> -->
+<!--                     </StackPanel> -->
+<!--                 </Border> -->
+<!--                  -->
+<!--                 ~1~ 控制面板 @1@ -->
+<!--                 <Border Grid.Column="1"  -->
+<!--                         Background="#1E1E1E"  -->
+<!--                         CornerRadius="8" -->
+<!--                         Padding="15"> -->
+<!--                     <StackPanel> -->
+<!--                         <TextBlock Text="稀有度效果预览 (实时联动)"  -->
+<!--                                    Foreground="Gold"  -->
+<!--                                    FontWeight="Bold" -->
+<!--                                    FontSize="14" -->
+<!--                                    Margin="0,0,0,10"/> -->
+<!--                          -->
+<!--                         ~1~ 稀有度按钮 @1@ -->
+<!--                         <WrapPanel Orientation="Horizontal" Margin="0,0,0,15"> -->
+<!--                             <Button Content="普通 (Normal)"  -->
+<!--                                     Click="OnRarityPreviewClick"  -->
+<!--                                     Tag="Normal" -->
+<!--                                     Margin="5"  -->
+<!--                                     Padding="15,8" -->
+<!--                                     Background="#555555"/> -->
+<!--                             <Button Content="稀有 (Rare)"  -->
+<!--                                     Click="OnRarityPreviewClick"  -->
+<!--                                     Tag="Rare" -->
+<!--                                     Margin="5"  -->
+<!--                                     Padding="15,8" -->
+<!--                                     Background="#4169E1"/> -->
+<!--                             <Button Content="史诗 (Epic)"  -->
+<!--                                     Click="OnRarityPreviewClick"  -->
+<!--                                     Tag="Epic" -->
+<!--                                     Margin="5"  -->
+<!--                                     Padding="15,8" -->
+<!--                                     Background="#9932CC"/> -->
+<!--                             <Button Content="传说 (Legendary)"  -->
+<!--                                     Click="OnRarityPreviewClick"  -->
+<!--                                     Tag="Legendary" -->
+<!--                                     Margin="5"  -->
+<!--                                     Padding="15,8" -->
+<!--                                     Background="#FFD700" -->
+<!--                                     Foreground="Black"/> -->
+<!--                         </WrapPanel> -->
+<!-- -->
+<!--                         <Separator Background="#33FFFFFF" Height="1" Margin="0,5,0,15"/> -->
+<!-- -->
+<!--                         <TextBlock Text="底层预设调试"  -->
+<!--                                    Foreground="White"  -->
+<!--                                    FontWeight="Bold" -->
+<!--                                    FontSize="14" -->
+<!--                                    Margin="0,0,0,10"/> -->
+<!--                          -->
+<!--                         ~1~ 预设按钮 @1@ -->
+<!--                         <WrapPanel Orientation="Horizontal"> -->
+<!--                             <Button Content="默认"  -->
+<!--                                     Click="OnPresetClick"  -->
+<!--                                     Tag="Default" -->
+<!--                                     Margin="5"  -->
+<!--                                     Padding="15,8"/> -->
+<!--                             <Button Content="金色稀有"  -->
+<!--                                     Click="OnPresetClick"  -->
+<!--                                     Tag="GoldRare" -->
+<!--                                     Margin="5"  -->
+<!--                                     Padding="15,8" -->
+<!--                                     Background="#FFD700"/> -->
+<!--                             <Button Content="蓝色稀有"  -->
+<!--                                     Click="OnPresetClick"  -->
+<!--                                     Tag="BlueRare" -->
+<!--                                     Margin="5"  -->
+<!--                                     Padding="15,8" -->
+<!--                                     Background="#4169E1"/> -->
+<!--                             <Button Content="紫色传说"  -->
+<!--                                     Click="OnPresetClick"  -->
+<!--                                     Tag="PurpleLegend" -->
+<!--                                     Margin="5"  -->
+<!--                                     Padding="15,8" -->
+<!--                                     Background="#9932CC"/> -->
+<!--                             <Button Content="彩虹全息"  -->
+<!--                                     Click="OnPresetClick"  -->
+<!--                                     Tag="RainbowHolo" -->
+<!--                                     Margin="5"  -->
+<!--                                     Padding="15,8" -->
+<!--                                     Background="#FF69B4"/> -->
+<!--                             <Button Content="低调效果"  -->
+<!--                                     Click="OnPresetClick"  -->
+<!--                                     Tag="Subtle" -->
+<!--                                     Margin="5"  -->
+<!--                                     Padding="15,8" -->
+<!--                                     Background="#555555"/> -->
+<!--                         </WrapPanel> -->
+<!--                          -->
+<!--                         ~1~ 开关控制 @1@ -->
+<!--                         <StackPanel Orientation="Horizontal" Margin="0,15,0,0"> -->
+<!--                             <TextBlock Text="启用流光效果:"  -->
+<!--                                        Foreground="White"  -->
+<!--                                        VerticalAlignment="Center" -->
+<!--                                        Margin="5,0,10,0"/> -->
+<!--                             <ToggleSwitch x:Name="GlowToggle"  -->
+<!--                                           IsChecked="True" -->
+<!--                                           IsCheckedChanged="OnGlowToggleChanged"/> -->
+<!--                         </StackPanel> -->
+<!--                          -->
+<!--                         ~1~ 选择图片按钮 @1@ -->
+<!--                         <Button Content="选择测试图片"  -->
+<!--                                 Click="OnSelectImageClick" -->
+<!--                                 Margin="5,15,5,0" -->
+<!--                                 Padding="15,8"/> -->
+<!--                          -->
+<!--                         ~1~ 当前预设显示 @1@ -->
+<!--                         <TextBlock x:Name="CurrentPresetText" -->
+<!--                                    Text="当前预设: Default"  -->
+<!--                                    Foreground="#888888"  -->
+<!--                                    FontSize="12" -->
+<!--                                    Margin="5,10,0,0"/> -->
+<!--                     </StackPanel> -->
+<!--                 </Border> -->
+<!--             </Grid> -->
+<!--         </Border>     -->
+<!--      -->
+<!--      -->
+<!--      -->
+<!--      -->
+</UserControl>

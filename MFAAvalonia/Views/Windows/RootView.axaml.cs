@@ -65,7 +65,13 @@ public partial class RootView : SukiWindow
                 // 加载UI
                 LoadUI();
 
-                _ = CCMgr.Instance.PullOne();
+                var enableCardSystem = ConfigurationManager.Current.GetValue(ConfigurationKeys.EnableCardSystem, true);
+                var loginAutoPull = ConfigurationManager.Current.GetValue(ConfigurationKeys.LoginAutoPull, true);
+
+                if (enableCardSystem && loginAutoPull)
+                {
+                    _ = CCMgr.Instance.PullOne();
+                }
             });
 
         };

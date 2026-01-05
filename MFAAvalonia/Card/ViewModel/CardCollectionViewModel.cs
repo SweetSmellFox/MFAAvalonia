@@ -73,79 +73,78 @@ namespace MFAAvalonia.ViewModels.Pages;
             LoggerHelper.Info("01:CardCollectionViewModel, 构造");
         }
 
-    private async Task LoadPlayerCardsAsync()
-    {
-        try
+        private async Task LoadPlayerCardsAsync()
         {
-            // 后台线程做IO+图片解码
-            var list = await Task.Run(() =>
+            try
             {
-                var handler = new PlayerDataHandler();
-                handler.ReadLocal();
-                var playerData = handler.GetData();
-
-                var result = new List<CardViewModel>();
-                int i = 0;
-                foreach (CardBase cardbase in playerData)
+                // 后台线程做IO+图片解码
+                var list = await Task.Run(() =>
                 {
-                    var vm = new CardViewModel(cardbase);
-                    vm.Index = i++;
-                    result.Add(vm);
-                }
+                    var handler = new PlayerDataHandler();
+                    handler.ReadLocal();
+                    var playerData = handler.GetData();
 
-                return (handler, result);
-            });
+                    var result = new List<CardViewModel>();
+                    int i = 0;
+                    foreach (CardBase cardbase in playerData)
+                    {
+                        var vm = new CardViewModel(cardbase);
+                        vm.Index = i++;
+                        result.Add(vm);
+                    }
 
-            await Dispatcher.UIThread.InvokeAsync(() =>
+                    return (handler, result);
+                });
+
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    PlayerDataHandler = list.handler;
+                    PlayerCards.Clear();
+                    foreach (var vm in list.result)
+                        PlayerCards.Add(vm);
+
+                    LoggerHelper.Info("008:LoadPlayerCardsAsync, 加载玩家数据");
+                });
+            }
+            catch (Exception ex)
             {
-                PlayerDataHandler = list.handler;
-                PlayerCards.Clear();
-                foreach (var vm in list.result)
-                    PlayerCards.Add(vm);
-
-                LoggerHelper.Info("008:LoadPlayerCardsAsync, 加载玩家数据");
-            });
+                LoggerHelper.Error($"LoadPlayerCardsAsync failed: {ex.Message}");
+            }
         }
-        catch (Exception ex)
+        
+        public void SwapCard(int index1, int index2)
         {
-            LoggerHelper.Error($"LoadPlayerCardsAsync failed: {ex.Message}");
+            (PlayerCards[index1], PlayerCards[index2]) = (PlayerCards[index2], PlayerCards[index1]);
+            PlayerCards[index1].Index = index1;
+            PlayerCards[index2].Index = index2;
         }
-    }
-    
-    public void SwapCard(int index1, int index2)
-    {
-        (PlayerCards[index1], PlayerCards[index2]) = (PlayerCards[index2], PlayerCards[index1]);
-        PlayerCards[index1].Index = index1;
-        PlayerCards[index2].Index = index2;
-    }
 
-    public void addcard(CardViewModel cvm)
-    {
-        cvm.Index = PlayerCards.Count;
-        PlayerCards.Add(cvm);
-    }
-
-    /// <summary>
-    /// 保存玩家卡片数据到本地
-    /// </summary>
-    public void SavePlayerData()
-    {
-        var cardBaseList = new List<CardBase>();
-        foreach (var cvm in PlayerCards)
+        public void addcard(CardViewModel cvm)
         {
-            cardBaseList.Add(new CardBase
+            cvm.Index = PlayerCards.Count;
+            PlayerCards.Add(cvm);
+        }
+
+        /// <summary>
+        /// 保存玩家卡片数据到本地
+        /// </summary>
+        public void SavePlayerData()
+        {
+            var cardBaseList = new List<CardBase>();
+            foreach (var cvm in PlayerCards)
             {
-                Name = cvm.Name,
-                ImagePath = cvm.ImagePath,
-                Index = cvm.Index,
-                Rarity = cvm.Rarity,
-                EnableGlow = cvm.EnableGlow
-            });
+                cardBaseList.Add(new CardBase
+                {
+                    Name = cvm.Name,
+                    ImagePath = cvm.ImagePath,
+                    Index = cvm.Index,
+                    Rarity = cvm.Rarity,
+                    EnableGlow = cvm.EnableGlow
+                });
+            }
+            PlayerDataHandler.SaveLocal(cardBaseList);
         }
-        PlayerDataHandler.SaveLocal(cardBaseList);
-            LoggerHelper.Info("999:SavePlayerData, 保存玩家数据");
     }
-}
 
 
 
