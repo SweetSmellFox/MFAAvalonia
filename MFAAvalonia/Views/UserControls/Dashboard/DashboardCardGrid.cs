@@ -1047,36 +1047,34 @@ public sealed class DashboardCardGrid : Panel
     {
         layoutPath = string.Empty;
 
-        var resourcePaths = GetCurrentResourcePaths();
-        foreach (var path in resourcePaths)
+        var resourceRoot = MaaProcessor.Resource;
+
+        if (forWrite)
         {
-            if (string.IsNullOrWhiteSpace(path))
+            if (!Directory.Exists(resourceRoot))
             {
-                continue;
+                Directory.CreateDirectory(resourceRoot);
             }
 
-            var fullPath = Path.GetFullPath(path);
-            if (forWrite && !Directory.Exists(fullPath))
-            {
-                Directory.CreateDirectory(fullPath);
-            }
+            layoutPath = Path.Combine(resourceRoot, "mfa_layout.json");
+            return true;
+        }
 
-            var candidate = Path.Combine(fullPath, "mfa_layout.json");
-            if (forWrite || File.Exists(candidate))
+        if (Directory.Exists(resourceRoot))
+        {
+            var candidate = Directory
+                .EnumerateFiles(resourceRoot, "mfa_layout.json", SearchOption.AllDirectories)
+                .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+                .FirstOrDefault();
+
+            if (!string.IsNullOrWhiteSpace(candidate))
             {
                 layoutPath = candidate;
                 return true;
             }
         }
 
-        var fallback = Path.Combine(MaaProcessor.Resource, "mfa_layout.json");
-        if (forWrite)
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(fallback)!);
-        }
-
-        layoutPath = fallback;
-        return forWrite || File.Exists(fallback);
+        return false;
     }
 
     private static IEnumerable<string> GetCurrentResourcePaths()
