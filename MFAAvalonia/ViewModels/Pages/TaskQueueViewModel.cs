@@ -824,9 +824,16 @@ public partial class TaskQueueViewModel : ViewModelBase
             return;
         }
 
-        using var tokenSource = new CancellationTokenSource();
-        await MaaProcessor.Instance.ReconnectAsync(tokenSource.Token);
-        await MaaProcessor.Instance.TestConnecting();
+        try
+        {
+            using var tokenSource = new CancellationTokenSource();
+            await MaaProcessor.Instance.ReconnectAsync(tokenSource.Token);
+            await MaaProcessor.Instance.TestConnecting();
+        }
+        catch (Exception ex)
+        {
+            LoggerHelper.Warning($"Reconnect failed: {ex.Message}");
+        }
     }
 
     [RelayCommand]
