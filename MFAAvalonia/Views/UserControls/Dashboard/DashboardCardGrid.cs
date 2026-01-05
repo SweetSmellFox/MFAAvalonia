@@ -701,6 +701,7 @@ public sealed class DashboardCardGrid : Panel
         if (resourceLayoutChanged && resourceLayout != null)
         {
             ApplyResourceLayout(resourceLayout, defaults);
+            SaveLayouts();
             ConfigurationManager.Current.SetValue(layoutHashKey, resourceLayoutHash);
             ToastHelper.Info(LangKeys.ResourceLayoutUpdatedTitle.ToLocalization(),
                 LangKeys.ResourceLayoutUpdatedContent.ToLocalization());
@@ -717,6 +718,7 @@ public sealed class DashboardCardGrid : Panel
         if (!hasConfigLayouts && resourceLayout != null)
         {
             ApplyResourceLayout(resourceLayout, defaults);
+            SaveLayouts();
             if (!string.IsNullOrWhiteSpace(resourceLayoutHash))
             {
                 ConfigurationManager.Current.SetValue(layoutHashKey, resourceLayoutHash);
@@ -731,6 +733,7 @@ public sealed class DashboardCardGrid : Panel
             && (layoutMeta.Rows != resourceLayout.Rows || layoutMeta.Columns != resourceLayout.Columns))
         {
             ApplyResourceLayout(resourceLayout, defaults);
+            SaveLayouts();
             if (!string.IsNullOrWhiteSpace(resourceLayoutHash))
             {
                 ConfigurationManager.Current.SetValue(layoutHashKey, resourceLayoutHash);
