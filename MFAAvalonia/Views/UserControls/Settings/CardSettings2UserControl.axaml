@@ -1,0 +1,43 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:suki="https://github.com/kikipoulet/SukiUI"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="MFAAvalonia.Views.UserControls.Settings.CardSettings2UserControl">
+    <StackPanel Spacing="25">
+        <suki:GlassCard Padding="25">
+            <StackPanel Spacing="20">
+                <!-- 开关1 -->
+                <DockPanel>
+                    <ToggleSwitch DockPanel.Dock="Right"
+                                  Classes="Switch"
+                                  VerticalAlignment="Top" />
+                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
+                        <TextBlock FontSize="16" FontWeight="SemiBold"
+                                   Text="启用卡片功能" />
+                        <TextBlock Foreground="{DynamicResource SukiLowText}"
+                                   Margin="0,8,70,0"
+                                   Text=""
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </DockPanel>
+
+                <!-- 开关2 -->
+                <DockPanel>
+                    <ToggleSwitch DockPanel.Dock="Right"
+                                  Classes="Switch"
+                                  VerticalAlignment="Top" />
+                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
+                        <TextBlock FontSize="16" FontWeight="SemiBold"
+                                   Text="卡片自定义位置" />
+                        <TextBlock Foreground="{DynamicResource SukiLowText}"
+                                   Margin="0,8,70,0"
+                                   Text="允许卡片拖到任意位置"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </DockPanel>
+            </StackPanel>
+        </suki:GlassCard>
+    </StackPanel>
+</UserControl>

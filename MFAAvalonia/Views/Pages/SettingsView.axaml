@@ -36,8 +36,8 @@
                     Content="{extensions:ServiceProvider ServiceType={x:Type settings:GuiSettingsUserControl}}"
                     Header="{markup:I18n {x:Static helper:LangKeys.UiSettings}}" />
                 <suki:SettingsLayoutItem
-                    Content="{extensions:ServiceProvider ServiceType={x:Type settings:CardSettingsUserControl}}"
-                    Header="{markup:I18n {x:Static helper:LangKeys.CardSettings}}" />
+                    Content="{extensions:ServiceProvider ServiceType={x:Type settings:CardSettings2UserControl}}"
+                    Header="卡片设置" />
                 <suki:SettingsLayoutItem
                     Content="{extensions:ServiceProvider ServiceType={x:Type settings:PerformanceUserControl}}"
                     Header="{markup:I18n {x:Static helper:LangKeys.PerformanceSettings}}" />

@@ -181,6 +181,7 @@
           <DependentUpon>PullResult.axaml</DependentUpon>
           <SubType>Code</SubType>
         </Compile>
+        <Compile Remove="Views\UserControls\Settings\CardSettingsUserControl.axaml.cs" />
     </ItemGroup>
     <ItemGroup>
         <Compile Update="Assets\Localization\Strings.Designer.cs">
@@ -254,6 +255,9 @@
                  CopyToPublishDirectory="PreserveNewest">
             <Link>DependencySetup_依赖库安装_mac.sh</Link>
         </Content>
+    </ItemGroup>
+    <ItemGroup>
+      <AvaloniaXaml Remove="Views\UserControls\Settings\CardSettingsUserControl.axaml" />
     </ItemGroup>
 
     <!-- 为Linux/macOS脚本添加可执行权限（仅对应系统发布时生效） -->

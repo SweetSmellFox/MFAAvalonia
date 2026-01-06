@@ -48,3 +48,53 @@
         </suki:GlassCard>
     </StackPanel>
 </UserControl>
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:suki="https://github.com/kikipoulet/SukiUI"
+             xmlns:helper="clr-namespace:MFAAvalonia.Helper"
+             xmlns:markup="https://codewf.com"
+             xmlns:settings="clr-namespace:MFAAvalonia.ViewModels.UsersControls.Settings"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="MFAAvalonia.Views.UserControls.Settings.CardSettingsUserControl"
+             x:DataType="settings:CardSettingsUserControlModel">
+    <StackPanel Spacing="25">
+        <suki:GlassCard Padding="25">
+            <StackPanel Spacing="20">
+                <DockPanel>
+                    <ToggleSwitch DockPanel.Dock="Right"
+                                  Classes="Switch"
+                                  IsChecked="{Binding EnableCardSystem}"
+                                  VerticalAlignment="Top" />
+                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
+                        <TextBlock FontSize="16" FontWeight="SemiBold"
+                                   Text="{markup:I18n {x:Static helper:LangKeys.EnableCardSystem}}" />
+                    </StackPanel>
+                </DockPanel>
+
+                <DockPanel IsEnabled="{Binding EnableCardSystem}">
+                    <ToggleSwitch DockPanel.Dock="Right"
+                                  Classes="Switch"
+                                  IsChecked="{Binding LoginAutoPull}"
+                                  VerticalAlignment="Top" />
+                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
+                        <TextBlock FontSize="16" FontWeight="SemiBold"
+                                   Text="{markup:I18n {x:Static helper:LangKeys.LoginAutoPull}}" />
+                    </StackPanel>
+                </DockPanel>
+
+                <DockPanel IsEnabled="{Binding EnableCardSystem}">
+                    <ToggleSwitch DockPanel.Dock="Right"
+                                  Classes="Switch"
+                                  IsChecked="{Binding TaskCompleteAutoPull}"
+                                  VerticalAlignment="Top" />
+                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
+                        <TextBlock FontSize="16" FontWeight="SemiBold"
+                                   Text="{markup:I18n {x:Static helper:LangKeys.TaskCompleteAutoPull}}" />
+                    </StackPanel>
+                </DockPanel>
+            </StackPanel>
+        </suki:GlassCard>
+    </StackPanel>
+</UserControl>
