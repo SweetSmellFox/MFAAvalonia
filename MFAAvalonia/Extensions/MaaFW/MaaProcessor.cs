@@ -226,7 +226,7 @@ public class MaaProcessor
     public static MaaFWConfiguration Config { get; } = new();
     public MaaTasker? MaaTasker { get; set; }
     private MaaTasker? _screenshotTasker;
-
+    public MaaTasker? ScreenshotTasker => _screenshotTasker;
     public void SetTasker(MaaTasker? maaTasker = null)
     {
         if (maaTasker == null && MaaTasker != null)
@@ -376,6 +376,8 @@ public class MaaProcessor
     public Bitmap? GetLiveView(bool test = true)
     {
         var controller = GetScreenshotController(test);
+        if (controller == null || !controller.IsConnected)
+            return null;
         using var buffer = GetImage(controller, ShouldScreencapForLiveView());
         return buffer?.ToBitmap();
     }
@@ -383,6 +385,9 @@ public class MaaProcessor
     public Bitmap? GetLiveViewCached()
     {
         var controller = GetScreenshotController(false);
+        if (controller == null || !controller.IsConnected)
+            return null;
+        
         using var buffer = GetImage(controller, false);
         return buffer?.ToBitmap();
     }
@@ -390,7 +395,8 @@ public class MaaProcessor
     public void PostScreencap()
     {
         var controller = GetScreenshotController(false);
-        if (controller == null)
+
+        if (controller == null || !controller.IsConnected)
             return;
 
         try
@@ -600,8 +606,8 @@ public class MaaProcessor
     private void ConfigureScreenshotTasker(MaaTasker tasker)
     {
         var logDir = Path.Combine(AppContext.BaseDirectory, "logs", "log_screencap");
-        if (!Directory.Exists(logDir))
-            Directory.CreateDirectory(logDir);
+        // if (!Directory.Exists(logDir))
+        //     Directory.CreateDirectory(logDir);
         tasker.Global.SetOption_LogDir(logDir);
     }
 
