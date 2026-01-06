@@ -13,7 +13,7 @@ public static class GlobalConfiguration
     private static readonly string _configPath = Path.Combine(
         AppContext.BaseDirectory,
         "appsettings.json");
-    
+
     public static string ConfigPath => _configPath;
     public static bool HasFileAccessError { get; private set; }
     public static string? LastFileAccessErrorMessage { get; private set; }
@@ -33,6 +33,10 @@ public static class GlobalConfiguration
                 .AddJsonFile(_configPath, optional: false, reloadOnChange: false);
 
             return builder.Build();
+        }
+        catch (InvalidDataException ex)
+        {
+            ReportFileAccessError(ex);
         }
         catch (IOException ex)
         {
@@ -59,7 +63,7 @@ public static class GlobalConfiguration
                 {
                     var json = File.ReadAllText(_configPath);
                     configDict = JsonSerializer.Deserialize<Dictionary<string, string>>(json)
-                                 ?? new Dictionary<string, string>();
+                        ?? new Dictionary<string, string>();
                 }
 
                 configDict[key] = value;
@@ -124,7 +128,7 @@ public static class GlobalConfiguration
     {
         SetValue($"Timer.Timer{i + 1}.Config", value);
     }
-    
+
     public static string GetTimerSchedule(int i, string defaultValue)
     {
         return GetValue($"Timer.Timer{i + 1}.Schedule", defaultValue);
