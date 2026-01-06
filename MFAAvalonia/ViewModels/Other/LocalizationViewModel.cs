@@ -56,9 +56,9 @@ public partial class LocalizationViewModel<T> : ViewModelBase, IDisposable
         {
             if (!global::System.Collections.Generic.EqualityComparer<string>.Default.Equals(_name, value))
             {
-                OnPropertyChanging(Name);
+                OnPropertyChanging(nameof(Name));
                 _name = value;
-                OnPropertyChanged(Name);
+                OnPropertyChanged(nameof(Name));
             }
         }
     }
@@ -169,9 +169,9 @@ public partial class LocalizationViewModel : ViewModelBase, IDisposable
         {
             if (!global::System.Collections.Generic.EqualityComparer<string>.Default.Equals(_name, value))
             {
-                OnPropertyChanging(Name);
+                OnPropertyChanging(nameof(Name));
                 _name = value;
-                OnPropertyChanged(Name);
+                OnPropertyChanged(nameof(Name));
             }
         }
     }
