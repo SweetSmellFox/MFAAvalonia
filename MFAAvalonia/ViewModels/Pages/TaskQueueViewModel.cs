@@ -1709,11 +1709,26 @@ public partial class TaskQueueViewModel : ViewModelBase
     {
         const int dstBytesPerPixel = 4;
 
-        targetBitmap ??= new WriteableBitmap(
-            new PixelSize(width, height),
-            new Vector(96, 96),
-            PixelFormat.Bgra8888,
-            AlphaFormat.Premul);
+        if (width <= 0 || height <= 0)
+        {
+            return targetBitmap ?? new WriteableBitmap(
+                new PixelSize(1, 1),
+                new Vector(96, 96),
+                PixelFormat.Bgra8888,
+                AlphaFormat.Premul);
+        }
+
+        if (targetBitmap == null
+            || targetBitmap.PixelSize.Width != width
+            || targetBitmap.PixelSize.Height != height)
+        {
+            targetBitmap?.Dispose();
+            targetBitmap = new WriteableBitmap(
+                new PixelSize(width, height),
+                new Vector(96, 96),
+                PixelFormat.Bgra8888,
+                AlphaFormat.Premul);
+        }
 
         using var framebuffer = targetBitmap.Lock();
         unsafe
