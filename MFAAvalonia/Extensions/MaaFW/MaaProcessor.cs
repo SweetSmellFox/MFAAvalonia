@@ -580,7 +580,7 @@ public class MaaProcessor
             {
                 Controller = controller,
                 Resource = maaResource,
-                Toolkit = MaaProcessor.Toolkit,
+                Toolkit = new MaaToolkit(),
                 Global = new MaaGlobal(),
                 DisposeOptions = DisposeOptions.All,
             };
