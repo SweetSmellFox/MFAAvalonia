@@ -2281,6 +2281,8 @@ public partial class TaskQueueView : UserControl
         {
             if (MaaProcessor.IsClosed)
                 return;
+            if (!Instances.TaskQueueViewModel.IsLiveViewExpanded)
+                return;
             if (Instances.TaskQueueViewModel.EnableLiveView && Instances.TaskQueueViewModel.IsConnected)
             {
                 MaaProcessor.Instance.PostScreencap();
