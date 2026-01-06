@@ -387,7 +387,7 @@ public class MaaProcessor
         var controller = GetScreenshotController(false);
         if (controller == null || !controller.IsConnected)
             return null;
-        
+
         using var buffer = GetImage(controller, false);
         return buffer?.ToBitmap();
     }
@@ -584,7 +584,7 @@ public class MaaProcessor
                 Global = new MaaGlobal(),
                 DisposeOptions = DisposeOptions.All,
             };
-            
+
             ConfigureScreenshotTasker(tasker);
 
             var linkStatus = tasker.Controller?.LinkStart().Wait();
@@ -1045,7 +1045,7 @@ public class MaaProcessor
                     RootView.AddLogByKey(LangKeys.AgentStartFailed, Brushes.OrangeRed, changeColor: false);
                     LoggerHelper.Error(ex);
                     var isNullReference = ex is NullReferenceException
-                                          || ex.Message.Contains("Object reference not set to an instance of an object.", StringComparison.OrdinalIgnoreCase);
+                        || ex.Message.Contains("Object reference not set to an instance of an object.", StringComparison.OrdinalIgnoreCase);
                     if (isNullReference)
                     {
                         ToastHelper.Error(LangKeys.AgentStartFailed.ToLocalization());
@@ -2293,6 +2293,17 @@ public class MaaProcessor
         {
             foreach (var selectAdvanced in advanceds)
             {
+                if (string.IsNullOrWhiteSpace(selectAdvanced.PipelineOverride) || selectAdvanced.PipelineOverride == "{}")
+                {
+                    if (Interface?.Advanced?.TryGetValue(selectAdvanced.Name ?? string.Empty, out var interfaceAdvanced) == true)
+                    {
+                        var inputValues = selectAdvanced.Data
+                            .Where(kv => kv.Value != null)
+                            .ToDictionary(kv => kv.Key, kv => kv.Value!);
+                        selectAdvanced.PipelineOverride = interfaceAdvanced.GenerateProcessedPipeline(inputValues);
+                    }
+                }
+
                 if (!string.IsNullOrWhiteSpace(selectAdvanced.PipelineOverride) && selectAdvanced.PipelineOverride != "{}")
                 {
                     var param = JsonConvert.DeserializeObject<Dictionary<string, JToken>>(selectAdvanced.PipelineOverride);
@@ -2350,6 +2361,13 @@ public class MaaProcessor
             {
                 // 从 Data 重新生成 PipelineOverride（因为 PipelineOverride 是 JsonIgnore 的）
                 string? pipelineOverride = selectOption.PipelineOverride;
+
+                if ((selectOption.Data == null || selectOption.Data.Count == 0) && interfaceOption.Inputs is { Count: > 0 })
+                {
+                    selectOption.Data = interfaceOption.Inputs
+                        .Where(input => !string.IsNullOrEmpty(input.Name))
+                        .ToDictionary(input => input.Name!, input => input.Default ?? string.Empty);
+                }
 
                 if ((string.IsNullOrWhiteSpace(pipelineOverride) || pipelineOverride == "{}")
                     && selectOption.Data != null
@@ -2453,7 +2471,7 @@ public class MaaProcessor
         //
         // var tasks = JsonConvert.DeserializeObject<Dictionary<string, MaaNode>>(json, settings);
         // tasks = tasks.MergeMaaNodes(taskModels);
-
+        Console.WriteLine(taskParams);
         return new NodeAndParam
         {
             Name = task.InterfaceItem?.DisplayName,

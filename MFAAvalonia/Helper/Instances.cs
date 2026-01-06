@@ -530,10 +530,6 @@ public static partial class Instances
 
             if (IsResolved<MFAAvalonia.Views.Pages.TaskQueueView>())
             {
-                foreach (var item in task.TaskItemViewModels)
-                {
-                    Instances.TaskQueueView.SetOption(item, true, init: true);
-                }
                 var selected = task.TaskItemViewModels.FirstOrDefault(i => i.IsResourceOptionItem)
                     ?? task.TaskItemViewModels.FirstOrDefault(i => i.InterfaceItem?.Advanced is { Count: > 0 }
                         || i.InterfaceItem?.Option is { Count: > 0 }

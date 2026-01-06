@@ -308,8 +308,6 @@ public partial class RootView : SukiWindow
                                 // 如果还没有找到资源选项项，则选择第一个有配置的普通任务
                                 tempTask ??= task;
                             }
-                            // 使用 init=true 参数只初始化面板缓存，不显示面板也不改变 EnableSetting 状态
-                            Instances.TaskQueueView.SetOption(task, true, init: true);
                         }
 
                         // 只对最终选中的任务设置 EnableSetting = true，这会触发面板显示
@@ -332,9 +330,7 @@ public partial class RootView : SukiWindow
                     await Task.Delay(1000);
                     DispatcherHelper.RunOnMainThread(() =>
                     {
-                        DispatcherHelper.RunOnMainThread(VersionChecker.CheckMinVersion);
-                        AnnouncementViewModel.CheckAnnouncement();
-
+                        VersionChecker.CheckMinVersion();
                         if (ConfigurationManager.Current.GetValue(ConfigurationKeys.AutoMinimize, false))
                         {
                             WindowState = WindowState.Minimized;
@@ -345,6 +341,8 @@ public partial class RootView : SukiWindow
                         }
                     });
 
+                    await Task.Delay(300);
+                    await AnnouncementViewModel.CheckAnnouncement();
                 }, name: "公告和最新版本检测");
             }
             else

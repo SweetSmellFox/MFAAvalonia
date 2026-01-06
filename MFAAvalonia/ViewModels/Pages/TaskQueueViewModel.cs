@@ -1712,10 +1712,10 @@ public partial class TaskQueueViewModel : ViewModelBase
         if (width <= 0 || height <= 0)
         {
             return targetBitmap ?? new WriteableBitmap(
-                new PixelSize(1, 1),
-                new Vector(96, 96),
-                PixelFormat.Bgra8888,
-                AlphaFormat.Premul);
+                    new PixelSize(1, 1),
+                    new Vector(96, 96),
+                    PixelFormat.Bgra8888,
+                    AlphaFormat.Premul);
         }
 
         if (targetBitmap == null
@@ -1794,7 +1794,7 @@ public partial class TaskQueueViewModel : ViewModelBase
     }
 
     #endregion
-    
+
     #region 配置切换
 
     /// <summary>

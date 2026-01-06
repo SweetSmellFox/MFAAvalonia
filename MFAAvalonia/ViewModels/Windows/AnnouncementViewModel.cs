@@ -224,57 +224,64 @@ public partial class AnnouncementViewModel : ViewModelBase
             {
                 return;
             }
+
             var resourcePath = Path.Combine(AppContext.BaseDirectory, "resource");
             var announcementDir = Path.Combine(resourcePath, AnnouncementFolder);
 
-            if (!Directory.Exists(announcementDir))
+            var scanResult = await Task.Run(() =>
+            {
+                if (!Directory.Exists(announcementDir))
+                {
+                    return (exists: false, hasAnnouncements: false);
+                }
+
+                var hasAnnouncements = Directory.EnumerateFiles(announcementDir, "*.md").Any();
+                return (exists: true, hasAnnouncements);
+            }).ConfigureAwait(false);
+
+            if (!scanResult.exists)
             {
                 LoggerHelper.Warning($"公告文件夹不存在: {announcementDir}");
                 return;
             }
-            var announcementView = new AnnouncementView
+
+            if (!scanResult.hasAnnouncements)
             {
-                DataContext = viewModel
-            };
-            // 后台线程获取 Markdown 文件列表并读取内容
-            var mdCount = Directory.GetFiles(announcementDir, "*.md").Length;
-            if (mdCount > 0)
-            {
-                // 先创建并显示窗口（快速响应用户操作）
-                viewModel.SetView(announcementView);
-                announcementView.Show();
-            }
-            else
-            {
-                ToastHelper.Warn(LangKeys.Warning.ToLocalization(), LangKeys.AnnouncementEmpty.ToLocalization());
-                announcementView.DataContext = null;
-                announcementView.Dispose();
+                await DispatcherHelper.RunOnMainThreadAsync(() =>
+                    ToastHelper.Warn(LangKeys.Warning.ToLocalization(), LangKeys.AnnouncementEmpty.ToLocalization()));
                 return;
             }
+
+            var announcementView = await DispatcherHelper.RunOnMainThreadAsync(() =>
+            {
+                var view = new AnnouncementView
+                {
+                    DataContext = viewModel
+                };
+                viewModel.SetView(view);
+                view.Show();
+                return view;
+            });
+
             // 异步加载公告元数据
             await viewModel.LoadAnnouncementMetadataAsync();
 
-            // 加载完成后检查是否有公告
-            if (forceShow)
+            await DispatcherHelper.RunOnMainThreadAsync(() =>
             {
                 if (!viewModel.AnnouncementItems.Any())
                 {
-                    ToastHelper.Warn(LangKeys.Warning.ToLocalization(), LangKeys.AnnouncementEmpty.ToLocalization());
+                    if (forceShow)
+                    {
+                        ToastHelper.Warn(LangKeys.Warning.ToLocalization(), LangKeys.AnnouncementEmpty.ToLocalization());
+                    }
+
                     announcementView.Close();
                     return;
                 }
-            }
-            else if (!viewModel.AnnouncementItems.Any())
-            {
-                announcementView.Close();
-                return;
-            }
 
-            // 选中第一个公告
-            if (viewModel.AnnouncementItems.Any())
-            {
+                // 选中第一个公告
                 viewModel.SelectedAnnouncement = viewModel.AnnouncementItems[0];
-            }
+            });
         }
         catch (Exception ex)
         {
