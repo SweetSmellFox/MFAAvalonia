@@ -292,7 +292,7 @@ public class MaaProcessor
     }
 
     private bool UseSeparateScreenshotTasker =>
-       false;
+        false;
 
     private MaaTasker? GetScreenshotTasker(CancellationToken token = default)
     {
@@ -352,7 +352,7 @@ public class MaaProcessor
     private bool _agentStarted;
     private Process? _agentProcess;
     private MFATask.MFATaskStatus Status = MFATask.MFATaskStatus.NOT_STARTED;
-    private const int ActionFailedLimit = 6;
+    private const int ActionFailedLimit = 1;
     private int _screencapFailedCount;
 
     private IMaaController? GetScreenshotController(bool test)
@@ -590,12 +590,12 @@ public class MaaProcessor
 
             tasker.Releasing += (_, _) =>
             {
-                tasker.Callback -= HandleScreenshotCallBack;
+                tasker.Controller.Callback -= HandleControllerCallBack;
             };
 
             ConfigureScreenshotTasker(tasker);
 
-            tasker.Callback += HandleScreenshotCallBack;
+            tasker.Controller.Callback += HandleControllerCallBack;
 
             var linkStatus = tasker.Controller?.LinkStart().Wait();
             if (linkStatus != MaaJobStatus.Succeeded)
@@ -759,6 +759,7 @@ public class MaaProcessor
             tasker.Releasing += (_, _) =>
             {
                 tasker.Callback -= HandleCallBack;
+                tasker.Controller.Callback -= HandleControllerCallBack;
             };
 
             try
@@ -1081,7 +1082,7 @@ public class MaaProcessor
             LoggerHelper.Info("Maafw debug mode: " + ConfigurationManager.Maa.GetValue(ConfigurationKeys.ShowHitDraw, false));
             // 注意：只订阅一次回调，避免嵌套订阅导致内存泄漏
             tasker.Callback += HandleCallBack;
-
+            tasker.Controller.Callback += HandleControllerCallBack;
             return (tasker, InvalidResource, ShouldRetry);
         }
         catch (OperationCanceledException)
@@ -1099,7 +1100,14 @@ public class MaaProcessor
             return (null, InvalidResource, ShouldRetry);
         }
     }
-
+    public void HandleControllerCallBack(object? sender, MaaCallbackEventArgs args)
+    {
+        var message = args.Message;
+        if (message == MaaMsg.Controller.Action.Failed)
+        {
+            HandleScreencapFailure(true);
+        }
+    }
     public void HandleCallBack(object? sender, MaaCallbackEventArgs args)
     {
         JObject jObject;
@@ -1232,30 +1240,12 @@ public class MaaProcessor
                 }
             }
         }
-        var message = args.Message;
-        Console.WriteLine(message);
-        if (message == MaaMsg.Controller.Action.Failed)
-        {
-            if (HandleScreencapFailure(true))
-            {
-                return;
-            }
-        }
+
         if (jObject.ContainsKey("focus"))
         {
             _focusHandler ??= new FocusHandler(AutoInitDictionary);
             _focusHandler.UpdateDictionary(AutoInitDictionary);
-            _focusHandler.DisplayFocus(jObject, message, args.Details);
-        }
-    }
-
-    private void HandleScreenshotCallBack(object? sender, MaaCallbackEventArgs args)
-    {
-        var message = args.Message;
-        Console.WriteLine(message);
-        if (message == MaaMsg.Controller.Action.Failed)
-        {
-            HandleScreencapFailure(true);
+            _focusHandler.DisplayFocus(jObject, args.Message, args.Details);
         }
     }
 
@@ -1824,12 +1814,13 @@ public class MaaProcessor
         _screencapFailedCount = 0;
         if (stopTaskOnLimit)
         {
-            RootView.AddLog("截图失败超过20次，已中断任务", Brushes.OrangeRed, changeColor: false);
+            RootView.AddLogByKey(LangKeys.ScreencapTimeoutAbort, Brushes.OrangeRed, changeColor: false);
             Instances.TaskQueueViewModel.StopTask();
             SetTasker();
         }
         else
         {
+            RootView.AddLogByKey(LangKeys.ScreencapTimeoutDisconnected, Brushes.OrangeRed, changeColor: false);
             SetTasker();
         }
 

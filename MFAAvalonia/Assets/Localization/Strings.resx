@@ -846,6 +846,12 @@
     <data name="ScreencapWarningTip" xml:space="preserve">
         <value>截图用时较长: {0}ms({1})</value>
     </data>
+    <data name="ScreencapTimeoutAbort" xml:space="preserve">
+        <value>截图超时，已中断任务</value>
+    </data>
+    <data name="ScreencapTimeoutDisconnected" xml:space="preserve">
+        <value>截图超时，已断开连接</value>
+    </data>
     <data name="Select" xml:space="preserve">
         <value>选择</value>
     </data>

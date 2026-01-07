@@ -2293,6 +2293,7 @@ public partial class TaskQueueView : UserControl
                 }
 
                 var buffer = MaaProcessor.Instance.GetLiveViewBuffer(false);
+                if (buffer == null) return;
                 _ = Instances.TaskQueueViewModel.UpdateLiveViewImageAsync(buffer);
             }
             else

@@ -284,6 +284,8 @@ public static class LangKeys
 	public static readonly string ScreencapCost = "ScreencapCost";
 	public static readonly string ScreencapErrorTip = "ScreencapErrorTip";
 	public static readonly string ScreencapWarningTip = "ScreencapWarningTip";
+	public static readonly string ScreencapTimeoutAbort = "ScreencapTimeoutAbort";
+	public static readonly string ScreencapTimeoutDisconnected = "ScreencapTimeoutDisconnected";
 	public static readonly string Select = "Select";
 	public static readonly string SelectAll = "SelectAll";
 	public static readonly string SelectExecutableFile = "SelectExecutableFile";

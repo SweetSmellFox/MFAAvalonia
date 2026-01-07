@@ -837,6 +837,12 @@
     <data name="ScreencapWarningTip" xml:space="preserve">
         <value>Screencap takes a long time: {0}ms({1})</value>
     </data>
+    <data name="ScreencapTimeoutAbort" xml:space="preserve">
+        <value>Screenshot timed out; task aborted</value>
+    </data>
+    <data name="ScreencapTimeoutDisconnected" xml:space="preserve">
+        <value>Screenshot timed out; disconnected</value>
+    </data>
     <data name="Select" xml:space="preserve">
         <value>Select</value>
     </data>
