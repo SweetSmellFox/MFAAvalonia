@@ -293,7 +293,7 @@ public class MaaProcessor
     }
 
     private bool UseSeparateScreenshotTasker =>
-        false;
+        true;
 
     private MaaTasker? GetScreenshotTasker(CancellationToken token = default)
     {
