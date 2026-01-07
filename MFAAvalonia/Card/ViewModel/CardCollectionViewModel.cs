@@ -45,10 +45,12 @@ namespace MFAAvalonia.ViewModels.Pages;
         [ObservableProperty]
         private CardViewModel? _pulledCard;
 
-        public double DetailWidth { get; set; }
-        public double DetailHeight { get; set;}
-        
-        
+        [ObservableProperty]
+        private double _detailWidth;
+
+        [ObservableProperty]
+        private double _detailHeight;
+
         [RelayCommand]
         private void PullCard()
         {

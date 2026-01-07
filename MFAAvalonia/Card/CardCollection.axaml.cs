@@ -42,10 +42,22 @@ public partial class CardCollection : UserControl
         DataContext = Design.IsDesignMode
             ? new CardCollectionViewModel()
             : App.Services.GetRequiredService<CardCollectionViewModel>();
+          var dataContext = DataContext as CardCollectionViewModel;
         mgr = CCMgr.Instance;
         DeleteDropArea.IsVisible = false;
         BindEvent();
-        //(DataContext as CardCollectionViewModel).DetailHeight = CCWindow.Width
+        
+        // 监听尺寸变化以动态计算
+        CCWindow.SizeChanged += (s, e) =>
+        {
+            if (dataContext != null)
+            {
+                // 限制最大宽度，避免在高分辨率下细节栏过大
+                double targetWidth = Math.Min(CCWindow.Bounds.Width * 0.35, 600); 
+                dataContext.DetailWidth = targetWidth;
+                dataContext.DetailHeight = targetWidth / 2.0 * 3.0;
+            }
+        };
     }
 
     private void BindEvent()
@@ -181,7 +193,6 @@ public partial class CardCollection : UserControl
     {
         if (DeleteDropArea == null || !DeleteDropArea.IsVisible)
         {
-            Console.WriteLine("error DragCard : DeleteDropArea = " + DeleteDropArea);
             return false;
         }
 

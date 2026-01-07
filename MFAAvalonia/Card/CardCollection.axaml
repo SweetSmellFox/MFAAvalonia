@@ -42,6 +42,8 @@
             <!-- 细节栏 -->
             <Grid HorizontalAlignment="{Binding Hori}"
                   Margin="0, 20, 0, 20"
+                  Width="{Binding DetailWidth}"
+                  Height="{Binding DetailHeight}"
                   IsVisible="{Binding IsOpenDetail}">
                 
                 <Grid.Styles>
@@ -64,7 +66,8 @@
 
                 <local:CardSample 
                     DataContext="{Binding SelectedCard}"
-                    CardWidth="" CardHeight="600"
+                    CardWidth="{Binding #PageRoot.((vm:CardCollectionViewModel)DataContext).DetailWidth}" 
+                    CardHeight="{Binding #PageRoot.((vm:CardCollectionViewModel)DataContext).DetailHeight}"
                     IsHitTestVisible="False"
                     IsDragbility="False"
                     Margin="0"/>
