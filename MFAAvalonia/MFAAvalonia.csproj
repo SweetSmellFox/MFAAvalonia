@@ -53,7 +53,6 @@
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <PublishTrimmed>false</PublishTrimmed>
         <SelfContained>false</SelfContained>
-        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <GenerateResource>Always</GenerateResource>
         <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
         <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>

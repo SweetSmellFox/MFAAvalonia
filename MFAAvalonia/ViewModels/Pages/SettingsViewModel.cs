@@ -58,7 +58,7 @@ public partial class SettingsViewModel : ViewModelBase
 
     public void RefreshCurrentConfiguration()
     {
-        SetProperty(ref _currentConfiguration, ConfigurationManager.GetCurrentConfiguration());
+        CurrentConfiguration = ConfigurationManager.GetCurrentConfiguration();
     }
 
     [ObservableProperty] private string _newConfigurationName = string.Empty;

@@ -26,6 +26,7 @@ using VerticalAlignment = Avalonia.Layout.VerticalAlignment;
 using Avalonia.Threading;
 using Avalonia.Xaml.Interactivity;
 using Lang.Avalonia.MarkupExtensions;
+using MaaFramework.Binding;
 using Newtonsoft.Json.Linq;
 using Timer = System.Timers.Timer;
 
@@ -2285,7 +2286,12 @@ public partial class TaskQueueView : UserControl
                 return;
             if (Instances.TaskQueueViewModel.EnableLiveView && Instances.TaskQueueViewModel.IsConnected)
             {
-                MaaProcessor.Instance.PostScreencap();
+                var status = MaaProcessor.Instance.PostScreencap();
+                if (MaaProcessor.Instance.HandleScreencapStatus(status, false))
+                {
+                    return;
+                }
+
                 var buffer = MaaProcessor.Instance.GetLiveViewBuffer(false);
                 _ = Instances.TaskQueueViewModel.UpdateLiveViewImageAsync(buffer);
             }
