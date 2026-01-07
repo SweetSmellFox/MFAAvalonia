@@ -599,7 +599,7 @@ public class MaaProcessor
                 tasker.Controller.Callback -= HandleControllerCallBack;
             };
 
-            ConfigureScreenshotTasker(tasker);
+            // ConfigureScreenshotTasker(tasker);
 
             tasker.Controller.Callback += HandleControllerCallBack;
 
