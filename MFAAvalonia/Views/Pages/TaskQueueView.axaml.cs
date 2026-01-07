@@ -27,6 +27,7 @@ using Avalonia.Threading;
 using Avalonia.Xaml.Interactivity;
 using Lang.Avalonia.MarkupExtensions;
 using MaaFramework.Binding;
+using MFAAvalonia.Views.Windows;
 using Newtonsoft.Json.Linq;
 using Timer = System.Timers.Timer;
 
@@ -2282,6 +2283,18 @@ public partial class TaskQueueView : UserControl
         {
             if (MaaProcessor.IsClosed)
                 return;
+            
+            if (MaaProcessor.Instance.TryConsumeScreencapFailureLog(out var shouldAbort, out var shouldDisconnected))
+            {
+                if (shouldAbort)
+                {
+                    RootView.AddLogByKey(LangKeys.ScreencapTimeoutAbort, Brushes.OrangeRed, changeColor: false);
+                }
+                if (shouldDisconnected)
+                {
+                    RootView.AddLogByKey(LangKeys.ScreencapTimeoutDisconnected, Brushes.OrangeRed, changeColor: false);
+                }
+            }
             if (!Instances.TaskQueueViewModel.IsLiveViewExpanded)
                 return;
             if (Instances.TaskQueueViewModel.EnableLiveView && Instances.TaskQueueViewModel.IsConnected)

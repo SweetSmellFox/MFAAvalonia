@@ -268,6 +268,7 @@ public class MaaProcessor
         {
             MaaTasker = maaTasker;
             DisposeScreenshotTasker();
+            ResetScreencapFailureLogFlags();
         }
     }
 
@@ -354,6 +355,11 @@ public class MaaProcessor
     private MFATask.MFATaskStatus Status = MFATask.MFATaskStatus.NOT_STARTED;
     private const int ActionFailedLimit = 1;
     private int _screencapFailedCount;
+    private readonly Lock _screencapLogLock = new();
+    private bool _screencapAbortLogPending;
+    private bool _screencapDisconnectedLogPending;
+    private bool _screencapFailureLogged;
+    private int _isConnecting;
 
     private IMaaController? GetScreenshotController(bool test)
     {
@@ -1083,6 +1089,7 @@ public class MaaProcessor
             // 注意：只订阅一次回调，避免嵌套订阅导致内存泄漏
             tasker.Callback += HandleCallBack;
             tasker.Controller.Callback += HandleControllerCallBack;
+            ResetScreencapFailureLogFlags();
             return (tasker, InvalidResource, ShouldRetry);
         }
         catch (OperationCanceledException)
@@ -1788,6 +1795,29 @@ public class MaaProcessor
     {
         _screencapFailedCount = 0;
     }
+    public void ResetScreencapFailureLogFlags()
+    {
+        lock (_screencapLogLock)
+        {
+            _screencapAbortLogPending = false;
+            _screencapDisconnectedLogPending = false;
+            _screencapFailureLogged = false;
+        }
+    }
+        
+    
+
+    public bool TryConsumeScreencapFailureLog(out bool shouldAbort, out bool shouldDisconnected)
+    {
+        lock (_screencapLogLock)
+        {
+            shouldAbort = _screencapAbortLogPending;
+            shouldDisconnected = _screencapDisconnectedLogPending;
+            _screencapAbortLogPending = false;
+            _screencapDisconnectedLogPending = false;
+            return shouldAbort || shouldDisconnected;
+        }
+    }
 
     public bool HandleScreencapStatus(MaaJobStatus status, bool stopTaskOnLimit)
     {
@@ -1806,26 +1836,43 @@ public class MaaProcessor
 
     private bool HandleScreencapFailure(bool stopTaskOnLimit)
     {
-        if (++_screencapFailedCount <= ActionFailedLimit)
+        if (Instances.TaskQueueViewModel.IsConnected && ++_screencapFailedCount <= ActionFailedLimit)
         {
             return false;
         }
 
         _screencapFailedCount = 0;
+        Instances.TaskQueueViewModel.SetConnected(false);
+        lock (_screencapLogLock)
+        {
+            if (!_screencapFailureLogged)
+            {
+                if (stopTaskOnLimit)
+                {
+                    _screencapAbortLogPending = true;
+                }
+                else
+                {
+                    _screencapDisconnectedLogPending = true;
+                }
+                _screencapFailureLogged = true;
+            }
+        }
         if (stopTaskOnLimit)
         {
-            RootView.AddLogByKey(LangKeys.ScreencapTimeoutAbort, Brushes.OrangeRed, changeColor: false);
+
             Instances.TaskQueueViewModel.StopTask();
             SetTasker();
         }
         else
         {
-            RootView.AddLogByKey(LangKeys.ScreencapTimeoutDisconnected, Brushes.OrangeRed, changeColor: false);
             SetTasker();
         }
 
         return true;
     }
+
+
     private string? _tempResourceVersion;
 
     public void AppendVersionLog(string? resourceVersion)
@@ -2610,42 +2657,59 @@ public class MaaProcessor
 
     async private Task HandleDeviceConnectionAsync(CancellationToken token, bool showMessage = true)
     {
-        var controllerType = Instances.TaskQueueViewModel.CurrentController;
-        var isAdb = controllerType == MaaControllerTypes.Adb;
-        var isPlayCover = controllerType == MaaControllerTypes.PlayCover;
-        var targetKey = controllerType switch
+        if (Interlocked.CompareExchange(ref _isConnecting, 1, 0) != 0)
         {
-            MaaControllerTypes.Adb => LangKeys.Emulator,
-            MaaControllerTypes.Win32 => LangKeys.Window,
-            MaaControllerTypes.PlayCover => "TabPlayCover",
-            _ => LangKeys.Window
-        };
+            return;
+        }
 
-        if (showMessage)
-            RootView.AddLogByKeys(LangKeys.ConnectingTo, null, true, targetKey);
-        else
-            ToastHelper.Info(LangKeys.Tip.ToLocalization(), LangKeys.ConnectingTo.ToLocalizationFormatted(true, targetKey));
+        try
+        {
+            if (Instances.TaskQueueViewModel.IsConnected)
+            {
+                return;
+            }
 
-        if (!isPlayCover && Instances.TaskQueueViewModel.CurrentDevice == null && Instances.ConnectSettingsUserControlModel.AutoDetectOnConnectionFailed)
-            Instances.TaskQueueViewModel.TryReadAdbDeviceFromConfig(false, true);
+            var controllerType = Instances.TaskQueueViewModel.CurrentController;
+            var isAdb = controllerType == MaaControllerTypes.Adb;
+            var isPlayCover = controllerType == MaaControllerTypes.PlayCover;
+            var targetKey = controllerType switch
+            {
+                MaaControllerTypes.Adb => LangKeys.Emulator,
+                MaaControllerTypes.Win32 => LangKeys.Window,
+                MaaControllerTypes.PlayCover => "TabPlayCover",
+                _ => LangKeys.Window
+            };
 
-        var tuple = await TryConnectAsync(token);
-        var connected = tuple.Item1;
-        var shouldRetry = tuple.Item3;
+            if (showMessage)
+                RootView.AddLogByKeys(LangKeys.ConnectingTo, null, true, targetKey);
+            else
+                ToastHelper.Info(LangKeys.Tip.ToLocalization(), LangKeys.ConnectingTo.ToLocalizationFormatted(true, targetKey));
+
+            if (!isPlayCover && Instances.TaskQueueViewModel.CurrentDevice == null && Instances.ConnectSettingsUserControlModel.AutoDetectOnConnectionFailed)
+                Instances.TaskQueueViewModel.TryReadAdbDeviceFromConfig(false, true);
+
+            var tuple = await TryConnectAsync(token);
+            var connected = tuple.Item1;
+            var shouldRetry = tuple.Item3;
 
         if (!connected && isAdb && !tuple.Item2 && shouldRetry)
         {
             connected = await HandleAdbConnectionAsync(token, showMessage);
         }
 
-        if (!connected)
-        {
-            if (!tuple.Item2 && shouldRetry)
-                HandleConnectionFailureAsync(controllerType, token);
-            throw new Exception("Connection failed after all retries");
-        }
+            if (!connected)
+            {
+                if (!tuple.Item2 && shouldRetry)
+                    HandleConnectionFailureAsync(controllerType, token);
+                throw new Exception("Connection failed after all retries");
+            }
 
-        Instances.TaskQueueViewModel.SetConnected(true);
+            Instances.TaskQueueViewModel.SetConnected(true);
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _isConnecting, 0);
+        }
     }
 
     async private Task<bool> HandleAdbConnectionAsync(CancellationToken token, bool showMessage = true)
@@ -2802,6 +2866,7 @@ public class MaaProcessor
     }
 
     #endregion
+
     #region 停止任务
 
     private Lock stop = new Lock();
