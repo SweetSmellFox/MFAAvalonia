@@ -226,6 +226,8 @@ public class MaaProcessor
     public static MaaFWConfiguration Config { get; } = new();
     public MaaTasker? MaaTasker { get; set; }
     private MaaTasker? _screenshotTasker;
+    private Task<MaaTasker?>? _screenshotTaskerInitTask;
+    private readonly Lock _screenshotTaskerInitLock = new();
     public MaaTasker? ScreenshotTasker => _screenshotTasker;
     public void SetTasker(MaaTasker? maaTasker = null)
     {
@@ -305,9 +307,24 @@ public class MaaProcessor
 
         if (_screenshotTasker == null && !_isClosed)
         {
-            var task = InitializeScreenshotTaskerAsync(token);
-            task.Wait(token);
-            _screenshotTasker = task.Result;
+            Task<MaaTasker?> initTask;
+            lock (_screenshotTaskerInitLock)
+            {
+                _screenshotTaskerInitTask ??= InitializeScreenshotTaskerAsync(token);
+                initTask = _screenshotTaskerInitTask;
+            }
+
+            initTask.Wait(token);
+            var tasker = initTask.Result;
+
+            lock (_screenshotTaskerInitLock)
+            {
+                if (_screenshotTasker == null)
+                {
+                    _screenshotTasker = tasker;
+                }
+                _screenshotTaskerInitTask = null;
+            }
         }
 
         return _screenshotTasker;
@@ -320,6 +337,10 @@ public class MaaProcessor
 
         var screenshotTasker = _screenshotTasker;
         _screenshotTasker = null;
+        lock (_screenshotTaskerInitLock)
+        {
+            _screenshotTaskerInitTask = null;
+        }
 
         try
         {
@@ -481,7 +502,7 @@ public class MaaProcessor
             controller = await TaskManager.RunTaskAsync(() =>
             {
                 token.ThrowIfCancellationRequested();
-                return InitializeController(Instances.TaskQueueViewModel.CurrentController);
+                return InitializeController(Instances.TaskQueueViewModel.CurrentController, logConfig: false);
             }, token: token, name: "截图控制器检测", catchException: true, shouldLog: false, noMessage: true);
 
             var displayShortSide = Interface?.Controller?.Find(c => c.Type != null && c.Type.Equals(Instances.TaskQueueViewModel.CurrentController.ToJsonKey(), StringComparison.OrdinalIgnoreCase))?.DisplayShortSide;
@@ -561,7 +582,7 @@ public class MaaProcessor
             controller = await TaskManager.RunTaskAsync(() =>
             {
                 token.ThrowIfCancellationRequested();
-                return InitializeController(Instances.TaskQueueViewModel.CurrentController);
+                return InitializeController(Instances.TaskQueueViewModel.CurrentController, logConfig: false);
             }, token: token, name: "截图控制器检测", catchException: true, shouldLog: false, noMessage: true);
 
             var displayShortSide = Interface?.Controller?.Find(c => c.Type != null && c.Type.Equals(Instances.TaskQueueViewModel.CurrentController.ToJsonKey(), StringComparison.OrdinalIgnoreCase))?.DisplayShortSide;
@@ -714,7 +735,7 @@ public class MaaProcessor
             controller = await TaskManager.RunTaskAsync(() =>
             {
                 token.ThrowIfCancellationRequested();
-                return InitializeController(Instances.TaskQueueViewModel.CurrentController);
+                return InitializeController(Instances.TaskQueueViewModel.CurrentController, logConfig: true);
             }, token: token, name: "控制器检测", catchException: true, shouldLog: false, handleError: exception => HandleInitializationError(exception,
                 LangKeys.ConnectingEmulatorOrWindow.ToLocalization()
                     .FormatWith(Instances.TaskQueueViewModel.CurrentController == MaaControllerTypes.Adb
@@ -1279,19 +1300,22 @@ public class MaaProcessor
         LoggerHelper.Error(e.ToString());
     }
 
-    private MaaController InitializeController(MaaControllerTypes controllerType)
+    private MaaController InitializeController(MaaControllerTypes controllerType, bool logConfig)
     {
-        ConnectToMAA();
+        ConnectToMAA(logConfig);
 
         switch (controllerType)
         {
             case MaaControllerTypes.Adb:
-                LoggerHelper.Info($"Name: {Config.AdbDevice.Name}");
-                LoggerHelper.Info($"AdbPath: {Config.AdbDevice.AdbPath}");
-                LoggerHelper.Info($"AdbSerial: {Config.AdbDevice.AdbSerial}");
-                LoggerHelper.Info($"ScreenCap: {Config.AdbDevice.ScreenCap}");
-                LoggerHelper.Info($"Input: {Config.AdbDevice.Input}");
-                LoggerHelper.Info($"Config: {Config.AdbDevice.Config}");
+                if (logConfig)
+                {
+                    LoggerHelper.Info($"Name: {Config.AdbDevice.Name}");
+                    LoggerHelper.Info($"AdbPath: {Config.AdbDevice.AdbPath}");
+                    LoggerHelper.Info($"AdbSerial: {Config.AdbDevice.AdbSerial}");
+                    LoggerHelper.Info($"ScreenCap: {Config.AdbDevice.ScreenCap}");
+                    LoggerHelper.Info($"Input: {Config.AdbDevice.Input}");
+                    LoggerHelper.Info($"Config: {Config.AdbDevice.Config}");
+                }
 
                 return new MaaAdbController(
                     Config.AdbDevice.AdbPath,
@@ -1302,20 +1326,26 @@ public class MaaProcessor
                 );
 
             case MaaControllerTypes.PlayCover:
-                LoggerHelper.Info($"PlayCover Address: {Config.PlayCover.PlayCoverAddress}");
-                LoggerHelper.Info($"PlayCover BundleId: {Config.PlayCover.UUID}");
+                if (logConfig)
+                {
+                    LoggerHelper.Info($"PlayCover Address: {Config.PlayCover.PlayCoverAddress}");
+                    LoggerHelper.Info($"PlayCover BundleId: {Config.PlayCover.UUID}");
+                }
 
                 return new MaaPlayCoverController(Config.PlayCover.PlayCoverAddress, Config.PlayCover.UUID);
 
             case MaaControllerTypes.Win32:
             default:
-                LoggerHelper.Info($"Name: {Config.DesktopWindow.Name}");
-                LoggerHelper.Info($"HWnd: {Config.DesktopWindow.HWnd}");
-                LoggerHelper.Info($"ScreenCap: {Config.DesktopWindow.ScreenCap}");
-                LoggerHelper.Info($"MouseInput: {Config.DesktopWindow.Mouse}");
-                LoggerHelper.Info($"KeyboardInput: {Config.DesktopWindow.KeyBoard}");
-                LoggerHelper.Info($"Link: {Config.DesktopWindow.Link}");
-                LoggerHelper.Info($"Check: {Config.DesktopWindow.Check}");
+                if (logConfig)
+                {
+                    LoggerHelper.Info($"Name: {Config.DesktopWindow.Name}");
+                    LoggerHelper.Info($"HWnd: {Config.DesktopWindow.HWnd}");
+                    LoggerHelper.Info($"ScreenCap: {Config.DesktopWindow.ScreenCap}");
+                    LoggerHelper.Info($"MouseInput: {Config.DesktopWindow.Mouse}");
+                    LoggerHelper.Info($"KeyboardInput: {Config.DesktopWindow.KeyBoard}");
+                    LoggerHelper.Info($"Link: {Config.DesktopWindow.Link}");
+                    LoggerHelper.Info($"Check: {Config.DesktopWindow.Check}");
+                }
 
                 return new MaaWin32Controller(
                     Config.DesktopWindow.HWnd,
@@ -1688,15 +1718,18 @@ public class MaaProcessor
         }
     }
 
-    public void ConnectToMAA()
+    public void ConnectToMAA(bool logConfig)
     {
-        LoggerHelper.Info("Loading MAA Controller Configuration...");
-        ConfigureMaaProcessorForADB();
-        ConfigureMaaProcessorForWin32();
+        if (logConfig)
+        {
+            LoggerHelper.Info("Loading MAA Controller Configuration...");
+        }
+        ConfigureMaaProcessorForADB(logConfig);
+        ConfigureMaaProcessorForWin32(logConfig);
         ConfigureMaaProcessorForPlayCover();
     }
 
-    private void ConfigureMaaProcessorForADB()
+    private void ConfigureMaaProcessorForADB(bool logConfig)
     {
         if (Instances.TaskQueueViewModel.CurrentController == MaaControllerTypes.Adb)
         {
@@ -1705,8 +1738,11 @@ public class MaaProcessor
 
             Config.AdbDevice.Input = adbInputType;
             Config.AdbDevice.ScreenCap = adbScreenCapType;
-            LoggerHelper.Info(
-                $"{LangKeys.AdbInputMode.ToLocalization()}{adbInputType},{LangKeys.AdbCaptureMode.ToLocalization()}{adbScreenCapType}");
+            if (logConfig)
+            {
+                LoggerHelper.Info(
+                    $"{LangKeys.AdbInputMode.ToLocalization()}{adbInputType},{LangKeys.AdbCaptureMode.ToLocalization()}{adbScreenCapType}");
+            }
         }
     }
 
@@ -1736,7 +1772,7 @@ public class MaaProcessor
         };
     }
 
-    private void ConfigureMaaProcessorForWin32()
+    private void ConfigureMaaProcessorForWin32(bool logConfig)
     {
         if (Instances.TaskQueueViewModel.CurrentController == MaaControllerTypes.Win32)
         {
@@ -1748,8 +1784,11 @@ public class MaaProcessor
             Config.DesktopWindow.KeyBoard = win32KeyboardInputType;
             Config.DesktopWindow.ScreenCap = winScreenCapType;
 
-            LoggerHelper.Info(
-                $"{LangKeys.MouseInput.ToLocalization()}:{win32MouseInputType},{LangKeys.KeyboardInput.ToLocalization()}:{win32KeyboardInputType},{LangKeys.AdbCaptureMode.ToLocalization()}{winScreenCapType}");
+            if (logConfig)
+            {
+                LoggerHelper.Info(
+                    $"{LangKeys.MouseInput.ToLocalization()}:{win32MouseInputType},{LangKeys.KeyboardInput.ToLocalization()}:{win32KeyboardInputType},{LangKeys.AdbCaptureMode.ToLocalization()}{winScreenCapType}");
+            }
         }
     }
 
