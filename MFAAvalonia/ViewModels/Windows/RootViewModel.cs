@@ -22,6 +22,11 @@ public partial class RootViewModel : ViewModelBase
     [ObservableProperty] private bool _isWindowVisible = true;
     [ObservableProperty] private bool _enableCardSystem = ConfigurationManager.Current.GetValue(ConfigurationKeys.EnableCardSystem, true);
 
+    partial void OnEnableCardSystemChanged(bool value)
+    {
+        ConfigurationManager.Current.SetValue(ConfigurationKeys.EnableCardSystem, value);
+    }
+
     [ObservableProperty] private bool _isRunning;
 
     partial void OnIsRunningChanged(bool value)
@@ -57,6 +62,7 @@ public partial class RootViewModel : ViewModelBase
     [ObservableProperty] private bool _isCustomTitleVisible;
 
     [ObservableProperty] private bool _lockController;
+
 
     [ObservableProperty] private bool _isDebugMode = ConfigurationManager.Maa.GetValue(ConfigurationKeys.Recording, false)
         || ConfigurationManager.Maa.GetValue(ConfigurationKeys.SaveDraw, false)

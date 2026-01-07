@@ -7,24 +7,27 @@
                  xmlns:local="using:MFAAvalonia.Views.UserControls.Card"
                  xmlns:cardClass="clr-namespace:MFAAvalonia.Utilities.CardClass"
                  xmlns:vm="clr-namespace:MFAAvalonia.Card.ViewModel"
-                 mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="600"
-                 x:Name="Root"
-                 x:DataType="vm:PullResultViewModel"
-                 Title="抽卡结果"
-                 Width="500" Height="750">
-    <Grid RowDefinitions="*,Auto">
+                mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="600"
+                x:Name="Root"
+                x:DataType="vm:PullResultViewModel"
+                Title="抽卡结果"
+                Width="{Binding WindowWidth}"
+                Height="{Binding WindowHeight}">
+    <Grid RowDefinitions="Auto,Auto">
         <!-- 卡牌展示区域 -->
-        <ScrollViewer Grid.Row="0" Margin="15">
-            <StackPanel Spacing="12">
+        <ScrollViewer Grid.Row="0" Margin="30"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center">
+            <StackPanel >
                 <!-- 有卡片时展示 -->
-                <ItemsRepeater ItemsSource="{Binding PulledCards}">
+                <ItemsRepeater ItemsSource="{Binding PulledCards}" Margin="{Binding OuterMargin}">
                     <ItemsRepeater.Layout>
-                        <WrapLayout Orientation="Horizontal"/>
+                        <WrapLayout Orientation="Horizontal" HorizontalSpacing="{Binding CardSpacing}" />
                     </ItemsRepeater.Layout>
                     <ItemsRepeater.ItemTemplate>
                         <DataTemplate>
-                            <StackPanel>
-                                <TextBlock Text="暂无卡片"
+                            <StackPanel Spacing="20">
+                                <TextBlock Text="{Binding Name}"
                                            Opacity="0.5"
                                            HorizontalAlignment="Center"
                                            />
@@ -33,19 +36,6 @@
                         </DataTemplate>
                     </ItemsRepeater.ItemTemplate>
                 </ItemsRepeater>
-                <!--
-                <Border CornerRadius="8" Padding="12"
-                        Background="{DynamicResource SukiCardBackground}"
-                        IsVisible="{Binding PulledCard, Converter={x:Static ObjectConverters.IsNotNull}}">
-                    <StackPanel Spacing="10"
-                               >
-                        <TextBlock Text="{Binding PulledCard.Name}" HorizontalAlignment="Center" FontSize="16" FontWeight="Bold"/>
-                        <local:CardSample DataContext="{Binding PulledCard}" />
-                    </StackPanel>
-                </Border>
-                -->
-                <!-- 无卡片且无错误时 -->
-                
             </StackPanel>
         </ScrollViewer>
 
@@ -55,6 +45,6 @@
                 Classes="Accent"
                 HorizontalAlignment="Center"
                 Margin="0,0,0,20"
-                Click="OkButton_OnClick"/>
+                Click="OnButton_OnClick"/>
     </Grid>
 </suki:SukiWindow>

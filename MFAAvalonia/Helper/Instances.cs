@@ -357,5 +357,4 @@ public static partial class Instances
     private static StartSettingsUserControlModel _startSettingsUserControlModel;
     private static AboutUserControl _aboutUserControl;
     private static HotKeySettingsUserControl _hotKeySettingsUserControl;
-    private static CardSettingsUserControlModel _cardSettingsUserControlModel;
 }

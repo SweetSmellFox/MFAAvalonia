@@ -33,8 +33,6 @@ public sealed class CCMgr
     public void PostLoading()
     {
         _ = PullOne();
-        LoggerHelper.Info("0099 pullOnre_real");
-        
     }
 
 
@@ -148,9 +146,21 @@ public sealed class CCMgr
         CCVM.SwapCard(in_cur_idx1, in_hov_indx2);
     }
 
+    /// <summary>
+    /// 根据索引删除卡片
+    /// </summary>
+    /// <param name="index">要删除的卡片索引</param>
+    /// <returns>删除成功返回 true，否则 false</returns>
+    public bool RemoveCardByIndex(int index)
+    {
+        if (CCVM is null) return false;
+        return CCVM.RemoveCardAt(index);
+    }
+
     public const int undefine = -1;
     
     private static readonly Dictionary<string, Bitmap> AssetBitmapCache = new(StringComparer.OrdinalIgnoreCase);
+
 
     public static IImage? LoadImageFromAssets(string path)
     {

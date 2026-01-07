@@ -15,9 +15,12 @@
         
 
     <!-- Root container for the card -->
-    <Grid 
-        Width="{Binding CardWidth}" Height="{Binding CardHeight }">
+    <Grid
+        Width="{Binding CardWidth, RelativeSource={RelativeSource AncestorType=card:CardSample}}"
+        Height="{Binding CardHeight, RelativeSource={RelativeSource AncestorType=card:CardSample}}">
+
         <!-- 普通卡牌图片层 (当不启用发光时显示) -->
+
         <Image x:Name="Image"
                Source="{Binding CardImage}"
                Stretch="UniformToFill"

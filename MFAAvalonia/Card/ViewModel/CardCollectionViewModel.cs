@@ -42,10 +42,13 @@ namespace MFAAvalonia.ViewModels.Pages;
         /** 放大面板中选中的卡片模型 */
         private CardViewModel? selectedCard;
 
-
         [ObservableProperty]
         private CardViewModel? _pulledCard;
 
+        public double DetailWidth { get; set; }
+        public double DetailHeight { get; set;}
+        
+        
         [RelayCommand]
         private void PullCard()
         {
@@ -126,6 +129,25 @@ namespace MFAAvalonia.ViewModels.Pages;
         }
 
         /// <summary>
+        /// 根据索引删除卡片，并重新整理剩余卡片的 Index
+        /// </summary>
+        /// <param name="index">待删除卡片的索引</param>
+        /// <returns>删除成功返回 true，否则 false</returns>
+        public bool RemoveCardAt(int index)
+        {
+            if (index < 0 || index >= PlayerCards.Count)
+                return false;
+
+            PlayerCards.RemoveAt(index);
+            for (int i = index; i < PlayerCards.Count; i++)
+            {
+                PlayerCards[i].Index = i;
+            }
+
+            return true;
+        }
+
+        /// <summary>
         /// 保存玩家卡片数据到本地
         /// </summary>
         public void SavePlayerData()
@@ -148,3 +170,4 @@ namespace MFAAvalonia.ViewModels.Pages;
 
 
 
+    

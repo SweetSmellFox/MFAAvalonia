@@ -1539,7 +1539,6 @@ public partial class TaskQueueViewModel : ViewModelBase
     [ObservableProperty] private Bitmap? _liveViewImage;
     [ObservableProperty] private bool _isLiveViewExpanded = true;
     private WriteableBitmap? _liveViewWriteableBitmap;
-    private int _liveViewProcessing;
     [ObservableProperty] private double _liveViewFps;
     private DateTime _liveViewFpsWindowStart = DateTime.UtcNow;
     private int _liveViewFrameCount;

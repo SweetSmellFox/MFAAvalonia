@@ -15,7 +15,7 @@ public partial class PullResult : SukiWindow
         InitializeComponent();
     }
     
-    private void OkButton_OnClick(object? sender, RoutedEventArgs e)
+    private void OnButton_OnClick(object? sender, RoutedEventArgs e)
     {
         Close();
     }

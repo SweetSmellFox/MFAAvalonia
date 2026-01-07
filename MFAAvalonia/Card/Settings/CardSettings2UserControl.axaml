@@ -3,7 +3,9 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:suki="https://github.com/kikipoulet/SukiUI"
+             xmlns:vm="clr-namespace:MFAAvalonia.ViewModels.Windows"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:DataType="vm:RootViewModel"
              x:Class="MFAAvalonia.Views.UserControls.Settings.CardSettings2UserControl">
     <StackPanel Spacing="25">
         <suki:GlassCard Padding="25">
@@ -11,6 +13,7 @@
                 <!-- 开关1 -->
                 <DockPanel>
                     <ToggleSwitch DockPanel.Dock="Right"
+                                  IsChecked="{Binding EnableCardSystem, Mode=TwoWay}"
                                   Classes="Switch"
                                   VerticalAlignment="Top" />
                     <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">

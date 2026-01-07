@@ -12,7 +12,7 @@
              x:Name="PageRoot"
              x:Class="MFAAvalonia.Views.Pages.CardCollection">
         <!-- -->
-    <Grid>
+    <Grid Name="CCWindow">
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
@@ -64,6 +64,7 @@
 
                 <local:CardSample 
                     DataContext="{Binding SelectedCard}"
+                    CardWidth="" CardHeight="600"
                     IsHitTestVisible="False"
                     IsDragbility="False"
                     Margin="0"/>
@@ -78,7 +79,22 @@
                     IsVisible="True"
                     Click="PullButton_OnClick"/>
         </Grid>
-        
-        
+
+        <!-- 拖动时显示的删除区域 -->
+        <Border Grid.Row="1"
+                x:Name="DeleteDropArea"
+                Background="#33FF5555"
+                Height="120"
+                IsVisible="False"
+                CornerRadius="4"
+                BorderBrush="#55FF0000"
+                BorderThickness="1">
+            <TextBlock Text="拖到此处删除"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       FontWeight="Bold"
+                       Foreground="#CCFFFFFF"/>
+        </Border>
     </Grid>
 </UserControl>
+

@@ -43,7 +43,9 @@ public partial class CardCollection : UserControl
             ? new CardCollectionViewModel()
             : App.Services.GetRequiredService<CardCollectionViewModel>();
         mgr = CCMgr.Instance;
+        DeleteDropArea.IsVisible = false;
         BindEvent();
+        //(DataContext as CardCollectionViewModel).DetailHeight = CCWindow.Width
     }
 
     private void BindEvent()
@@ -55,27 +57,37 @@ public partial class CardCollection : UserControl
     
     private void OnPointerPressed(object sender, PointerPressedEventArgs e)
     {
+        
         if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
         {
             DraggingCard = (e.Source as Visual)?.FindAncestorOfType<CardSample>();
             transform = new TranslateTransform();
-            if(DraggingCard == null) return;  // 点击空白处，不阻止事件传播
+            
+            if(DraggingCard == null)
+            {
+                return;  // 点击空白处，不阻止事件传播
+            }
+            
             e.Handled = true;  // 点击卡片时才阻止事件传播
             DraggingCard.RenderTransform = transform;
             IsDragging = true;
             DraggingCard.ZIndex += 1;
+            
             var parent = Parent as Control;
-            if (parent == null) return;
             DragStartPoint = e.GetPosition(parent);
             var currentPoint = e.GetPosition(this.Parent as Visual);
             _initx = currentPoint.X - DragStartPoint.X;
             _inity = currentPoint.Y - DragStartPoint.Y;
+            
             e.Pointer.Capture(this);
             var vm = (DraggingCard.DataContext) as CardViewModel;
             cur_index = vm.Index;  // 记录当前拖拽卡片的索引
             int clickRegion = GetClickRegion(e);  // 右30%=1, 左30%=-1, 中间=0
             mgr.SetSelectedCard(vm, clickRegion);
-
+        }
+        else
+        {
+            DeleteDropArea.IsVisible = false;
         }
     }
 
@@ -89,14 +101,22 @@ public partial class CardCollection : UserControl
             if (!IsDragStarted)
             {
                 var delta = currentPoint - DragStartPoint;
+                
                 if (Math.Abs(delta.X) < DragThreshold && Math.Abs(delta.Y) < DragThreshold)
                     return;  // 未超过阈值，不处理
+                    
                 IsDragStarted = true;  // 超过阈值，开始真正拖拽
+                DeleteDropArea.IsVisible = true;
             }
             
             e.Handled = true;  // 只在拖拽时阻止事件传播
-            transform.X = currentPoint.X - DragStartPoint.X + this._initx;
-            transform.Y = currentPoint.Y - DragStartPoint.Y  + this._inity;
+            
+            var newX = currentPoint.X - DragStartPoint.X + this._initx;
+            var newY = currentPoint.Y - DragStartPoint.Y + this._inity;
+            
+            transform.X = newX;
+            transform.Y = newY;
+            
             DraggingCard.IsHitTestVisible = false;
             var hitVisual = this.InputHitTest(currentPoint) as Visual;
             var newTargetCard = hitVisual?.FindAncestorOfType<CardSample>();
@@ -111,6 +131,9 @@ public partial class CardCollection : UserControl
         
     private void OnPointerReleased(object sender, PointerEventArgs e)
     {
+        
+        var releasedInDeleteArea = IsPointerInDeleteArea(e);
+
         if (IsDragging && IsDragStarted)
         {
             e.Handled = true;  // 只在拖拽时阻止事件传播
@@ -122,13 +145,18 @@ public partial class CardCollection : UserControl
             transform.X = 0;
             transform.Y = 0;
             DraggingCard.ZIndex -= 1;
-            if (cur_index != undefine && hov_index != undefine)
+            if (releasedInDeleteArea && cur_index != undefine)
             {
+                Console.WriteLine("RemoveCardByIndex, ");
+                mgr.RemoveCardByIndex(cur_index);
+            }
+            else if (cur_index != undefine && hov_index != undefine)
+            {
+                Console.WriteLine("SwapCard, releasedInDeleteArea = " + releasedInDeleteArea + " cur_index = " + cur_index);
                 mgr.SwapCard(cur_index, hov_index);
             }
             cur_index = undefine;
             hov_index = undefine;
-            
         } 
         else if (IsDragging)  // 点击但未拖拽，重置状态
         {
@@ -145,7 +173,27 @@ public partial class CardCollection : UserControl
         {
             mgr.SetIsOpenDetail(false);
         }
+
+        DeleteDropArea.IsVisible = false;
     }
+
+    private bool IsPointerInDeleteArea(PointerEventArgs e)
+    {
+        if (DeleteDropArea == null || !DeleteDropArea.IsVisible)
+        {
+            Console.WriteLine("error DragCard : DeleteDropArea = " + DeleteDropArea);
+            return false;
+        }
+
+        // 注意：DeleteDropArea.Bounds 的 X/Y 是相对父级的坐标，而 pos 是相对 DeleteDropArea 自身的坐标。
+        // 如果直接用 Bounds.Contains(pos)，会因为坐标系不同而总是 false。
+        var pos = e.GetPosition(DeleteDropArea);
+        var localRect = new Rect(DeleteDropArea.Bounds.Size); // (0,0,width,height) in local coordinates
+        var contains = localRect.Contains(pos);
+        Console.WriteLine($"DragCard : pos = {pos}, localRect = {localRect}, Bounds = {DeleteDropArea.Bounds}, Contains = {contains}");
+        return contains;
+    }
+
 
     private int GetClickRegion(PointerEventArgs e)
     {
