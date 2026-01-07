@@ -679,6 +679,54 @@ public sealed class DashboardCardGrid : Panel
         return occupied;
     }
 
+    private static bool HasOverlaps(IEnumerable<DashboardCardLayout> layouts, int columns, int rows)
+    {
+        columns = Math.Max(1, columns);
+        rows = Math.Max(1, rows);
+
+        var occupied = new bool[columns, rows];
+
+        foreach (var layout in layouts)
+        {
+            if (string.IsNullOrWhiteSpace(layout.Id))
+            {
+                continue;
+            }
+
+            var colSpan = Math.Max(1, layout.ColSpan);
+            var rowSpan = layout.IsCollapsed ? 1 : Math.Max(1, layout.RowSpan);
+
+            if (layout.Col < 0 || layout.Row < 0)
+            {
+                return true;
+            }
+
+            if (layout.Col >= columns || layout.Row >= rows)
+            {
+                return true;
+            }
+
+            if (layout.Col + colSpan > columns || layout.Row + rowSpan > rows)
+            {
+                return true;
+            }
+
+            for (var c = layout.Col; c < layout.Col + colSpan; c++)
+            {
+                for (var r = layout.Row; r < layout.Row + rowSpan; r++)
+                {
+                    if (occupied[c, r])
+                    {
+                        return true;
+                    }
+
+                    occupied[c, r] = true;
+                }
+            }
+        }
+
+        return false;
+    }
     private void EnsureLayoutsLoaded()
     {
         if (_layoutLoaded)
@@ -706,6 +754,18 @@ public sealed class DashboardCardGrid : Panel
             ToastHelper.Info(LangKeys.ResourceLayoutUpdatedTitle.ToLocalization(),
                 LangKeys.ResourceLayoutUpdatedContent.ToLocalization());
             return;
+        }
+
+        if (hasConfigLayouts)
+        {
+            var effectiveColumns = layoutMeta?.Columns > 0 ? layoutMeta.Columns : Columns;
+            var effectiveRows = layoutMeta?.Rows > 0 ? layoutMeta.Rows : Rows;
+
+            if (HasOverlaps(layouts, effectiveColumns, effectiveRows))
+            {
+                layouts = defaults;
+                hasConfigLayouts = false;
+            }
         }
 
         if (resourceLayout == null && !hasConfigLayouts)
