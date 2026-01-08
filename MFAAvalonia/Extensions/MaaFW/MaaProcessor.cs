@@ -559,15 +559,15 @@ public class MaaProcessor
         MaaResource? maaResource = null;
         try
         {
-            var currentResource = Instances.TaskQueueViewModel.CurrentResources
-                .FirstOrDefault(c => c.Name == Instances.TaskQueueViewModel.CurrentResource);
-            var resources = currentResource?.ResolvedPath ?? currentResource?.Path ?? [];
-            resources = resources.Select(Path.GetFullPath).ToList();
+            // var currentResource = Instances.TaskQueueViewModel.CurrentResources
+            //     .FirstOrDefault(c => c.Name == Instances.TaskQueueViewModel.CurrentResource);
+            // var resources = currentResource?.ResolvedPath ?? currentResource?.Path ?? [];
+            // resources = resources.Select(Path.GetFullPath).ToList();
 
             maaResource = await TaskManager.RunTaskAsync(() =>
             {
                 token.ThrowIfCancellationRequested();
-                return new MaaResource(resources);
+                return new MaaResource();
             }, token: token, name: "截图资源检测", catchException: true, shouldLog: false, noMessage: true);
         }
         catch (Exception ex)
@@ -620,7 +620,7 @@ public class MaaProcessor
                 tasker.Controller.Callback -= HandleControllerCallBack;
             };
 
-            // ConfigureScreenshotTasker(tasker);
+           // ConfigureScreenshotTasker(tasker);
 
             tasker.Controller.Callback += HandleControllerCallBack;
 
@@ -645,6 +645,7 @@ public class MaaProcessor
         var logDir = Path.Combine(AppContext.BaseDirectory, "logs", "log_screencap");
         // if (!Directory.Exists(logDir))
         //     Directory.CreateDirectory(logDir);
+        LoggerHelper.Info("screenlog dir:" + logDir);
         tasker.Global.SetOption_LogDir(logDir);
     }
 
