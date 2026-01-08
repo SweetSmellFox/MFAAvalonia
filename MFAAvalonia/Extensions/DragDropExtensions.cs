@@ -235,9 +235,11 @@ public class DragDropExtensions
         listBox.AddHandler(ListBox.PointerExitedEvent, OnPointerExited);
         listBox.AddHandler(ListBox.PointerReleasedEvent, OnPointerReleased);
         listBox.AddHandler(ListBox.PointerMovedEvent, OnPointerMoved);
+        listBox.AddHandler(InputElement.PointerCaptureLostEvent, OnPointerCaptureLost);
         listBox.AddHandler(DragDrop.DragOverEvent, OnDragOver);
         listBox.AddHandler(DragDrop.DropEvent, OnDrop);
         listBox.AddHandler(DragDrop.DragLeaveEvent, OnDragLeave);
+        listBox.DetachedFromVisualTree += OnDetachedFromVisualTree;
     }
 
     private static void DisableDragDrop(ListBox listBox)
@@ -245,9 +247,11 @@ public class DragDropExtensions
         listBox.RemoveHandler(ListBox.PointerExitedEvent, OnPointerExited);
         listBox.RemoveHandler(ListBox.PointerReleasedEvent, OnPointerReleased);
         listBox.RemoveHandler(ListBox.PointerMovedEvent, OnPointerMoved);
+        listBox.RemoveHandler(InputElement.PointerCaptureLostEvent, OnPointerCaptureLost);
         listBox.RemoveHandler(DragDrop.DragOverEvent, OnDragOver);
         listBox.RemoveHandler(DragDrop.DropEvent, OnDrop);
         listBox.RemoveHandler(DragDrop.DragLeaveEvent, OnDragLeave);
+        listBox.DetachedFromVisualTree -= OnDetachedFromVisualTree;
     }
     public static readonly AttachedProperty<bool> LimitDragDropProperty =
         AvaloniaProperty.RegisterAttached<Control, bool>(
@@ -295,6 +299,29 @@ public class DragDropExtensions
         else if (sender is Control { Parent: ListBox lb })
         {
             ClearDragState(lb);
+        }
+    }
+
+    private static void OnPointerCaptureLost(object? sender, PointerCaptureLostEventArgs e)
+    {
+        if (sender is ListBox listBox)
+        {
+            ClearDragState(listBox);
+            ClearAdorner(listBox);
+        }
+        else if (sender is Control { Parent: ListBox lb })
+        {
+            ClearDragState(lb);
+            ClearAdorner(lb);
+        }
+    }
+
+    private static void OnDetachedFromVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
+    {
+        if (sender is ListBox listBox)
+        {
+            ClearDragState(listBox);
+            ClearAdorner(listBox);
         }
     }
 
