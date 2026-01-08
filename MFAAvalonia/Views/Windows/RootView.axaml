@@ -255,11 +255,10 @@
                                            PageContent="{extensions:ServiceProvider ServiceType={x:Type pages:ResourcesView}}" />
                     <suki:SukiSideMenuItem IsContentMovable="False"
                                            Header="卡片"
-                                           Icon="{fluent:FluentIcon Icon=Apps,
+                                           Icon="{fluent:FluentIcon Icon=PlayingCards,
                                            IconVariant=Regular}"
                                            IsVisible="{Binding EnableCardSystem}"
                                            PageContent="{extensions:ServiceProvider ServiceType={x:Type pages:CardCollection}}" />
-
                 </suki:SukiSideMenu.Items>
 
                 <suki:SukiSideMenu.HeaderContent>

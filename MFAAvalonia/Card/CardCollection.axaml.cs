@@ -42,7 +42,7 @@ public partial class CardCollection : UserControl
         DataContext = Design.IsDesignMode
             ? new CardCollectionViewModel()
             : App.Services.GetRequiredService<CardCollectionViewModel>();
-          var dataContext = DataContext as CardCollectionViewModel;
+          var dataContext = DataContext as CardCollectionViewModel; 
         mgr = CCMgr.Instance;
         DeleteDropArea.IsVisible = false;
         BindEvent();

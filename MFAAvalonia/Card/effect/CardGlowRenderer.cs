@@ -725,7 +725,6 @@ vec4 main(vec2 fragCoord) {
             GlowPreset.GoldRare => CardGlowConfig.GoldRare,
             GlowPreset.BlueRare => CardGlowConfig.BlueRare,
             GlowPreset.PurpleLegend => CardGlowConfig.PurpleLegend,
-            GlowPreset.RainbowHolo => CardGlowConfig.RainbowHolo,
             GlowPreset.Subtle => CardGlowConfig.Subtle,
             _ => CardGlowConfig.Default
         };

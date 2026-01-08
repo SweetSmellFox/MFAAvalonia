@@ -130,7 +130,7 @@ public class CardGlowConfig
         SecondaryFlowColor = Color.FromRgb(255, 180, 50),
         FlowIntensity = 1.0f,
         SecondaryFlowIntensity = 0.6f,
-        FlowSpeed = 1.2f,
+        FlowSpeed = 0.7f,
         BlendMode = 0 // Add
     };
 
@@ -150,16 +150,6 @@ public class CardGlowConfig
         BlendMode = 0
     };
 
-    public static CardGlowConfig RainbowHolo => new()
-    {
-        FlowColor = Color.FromRgb(255, 105, 180),
-        SecondaryFlowColor = Color.FromRgb(100, 255, 240),
-        FlowIntensity = 1.2f,
-        SecondaryFlowIntensity = 0.8f,
-        FlowSpeed = 1.5f,
-        SparkleIntensity = 0.6f,
-        BlendMode = 0 // Add
-    };
 
     public static CardGlowConfig Subtle => new()
     {

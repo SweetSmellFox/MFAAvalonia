@@ -79,7 +79,7 @@
             <Button Height="50" Width="50" Background="Red"
                     VerticalAlignment="Bottom" 
                     HorizontalAlignment="Center"
-                    IsVisible="True"
+                    IsVisible="false"
                     Click="PullButton_OnClick"/>
         </Grid>
 
