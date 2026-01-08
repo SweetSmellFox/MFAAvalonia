@@ -29,6 +29,9 @@ public class TrayIconManager
 
     public static void InitializeTrayIcon(Application application, RootView mainWindow, RootViewModel viewModel)
     {
+        // 先清理旧的托盘实例，避免残留
+        DisposeTrayIcon(application);
+
         // 创建 TrayIcon 实例
         _trayIcon = new TrayIcon
         {
@@ -117,30 +120,82 @@ public class TrayIconManager
         // 将菜单绑定到 TrayIcon
         _trayIcon.Menu = menu;
         // 监听 Clicked 事件
-        _trayIcon.Clicked += (sender, args) =>
-        {
-            var now = DateTime.Now;
-            var clickInterval = now - _lastClickTime;
-
-            // 判断是否为双击（时间间隔小于 500 毫秒）
-            if (clickInterval.TotalMilliseconds < 500)
-            {
-                DispatcherHelper.PostOnMainThread(() =>
-                {
-                    Instances.RootView.ShowWindow();
-                });
-            }
-
-            _lastClickTime = now;
-        };
+        _trayIcon.Clicked += TrayIconOnClicked;
 
         // 将 TrayIcon 添加到托盘
         TrayIcon.SetIcons(application, [_trayIcon]);
     }
 
+    public static void DisposeTrayIcon(Application? application)
+    {
+        if (_trayIcon == null)
+            return;
+
+        try
+        {
+            _trayIcon.Clicked -= TrayIconOnClicked;
+        }
+        catch
+        {
+            // ignore
+        }
+
+        if (_trayIcon.Menu is NativeMenu menu)
+        {
+            foreach (var item in menu.Items.OfType<NativeMenuItem>())
+            {
+                item.Click -= StartTask;
+                item.Click -= StopTask;
+                item.Click -= App_hide;
+                item.Click -= App_show;
+                item.Click -= App_exit;
+            }
+        }
+
+        try
+        {
+            _trayIcon.IsVisible = false;
+        }
+        catch
+        {
+            // ignore
+        }
+
+        if (application != null)
+        {
+            try
+            {
+                TrayIcon.SetIcons(application, null);
+            }
+            catch
+            {
+                // ignore
+            }
+        }
+
+        _trayIcon.Dispose();
+        _trayIcon = null;
+    }
+
     private static void NotifyIcon_MouseClick(object sender, EventArgs e) =>
         Instances.RootView.ShowWindow();
 
+    private static void TrayIconOnClicked(object sender, EventArgs args)
+    {
+        var now = DateTime.Now;
+        var clickInterval = now - _lastClickTime;
+
+        // 判断是否为双击（时间间隔小于 500 毫秒）
+        if (clickInterval.TotalMilliseconds < 500)
+        {
+            DispatcherHelper.PostOnMainThread(() =>
+            {
+                Instances.RootView.ShowWindow();
+            });
+        }
+
+        _lastClickTime = now;
+    }
 
     private static void StartTask(object sender, EventArgs e) =>
         Instances.TaskQueueViewModel.StartTask();

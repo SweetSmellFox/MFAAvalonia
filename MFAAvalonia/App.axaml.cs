@@ -102,6 +102,7 @@ public partial class App : Application
 
     private void OnShutdownRequested(object sender, ShutdownRequestedEventArgs e)
     {
+        TrayIconManager.DisposeTrayIcon(this);
         ConfigurationManager.Current.SetValue(ConfigurationKeys.TaskItems, Instances.TaskQueueViewModel.TaskItemViewModels.ToList().Select(model => model.InterfaceItem));
 
         MaaProcessor.Instance.SetTasker();
