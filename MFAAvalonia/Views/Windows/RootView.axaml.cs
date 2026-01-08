@@ -131,7 +131,7 @@ public partial class RootView : SukiWindow
             DispatcherHelper.PostOnMainThread(SaveWindowSizeAndPositionImmediately);
             if (!noLog)
                 LoggerHelper.Info("MFA Closed!");
-
+            TrayIconManager.DisposeTrayIcon(Application.Current);
             MaaProcessor.Instance.SetTasker();
 
             CustomClassLoader.Dispose();

@@ -122,6 +122,7 @@
         <PackageReference Include="System.Private.Uri" Version="4.3.2"/>
         <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.0"/>
         <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.6.3"/>
+        <PackageReference Include="WindowsAPICodePack" Version="8.0.14" />
 
         <ProjectReference Include="../LazyStaticGenerator/LazyStaticGenerator.csproj" OutputItemType="Analyzer" ExcludeAssets="runtime;build;native;contentfiles" ReferenceOutputAssembly="false"/>
         <ProjectReference Include="../SukiUI/SukiUI.csproj"/>

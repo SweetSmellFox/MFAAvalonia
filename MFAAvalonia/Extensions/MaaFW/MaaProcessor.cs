@@ -9,6 +9,7 @@ using MFAAvalonia.Helper.ValueType;
 using MFAAvalonia.Helper.Converters;
 using MFAAvalonia.ViewModels.Pages;
 using MFAAvalonia.Views.Windows;
+using Microsoft.WindowsAPICodePack.Taskbar;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
@@ -42,6 +43,7 @@ public class MaaProcessor
     #region 属性
 
     private static Random Random = new();
+    private int _taskQueueTotal;
     public static string Resource => Path.Combine(AppContext.BaseDirectory, "resource");
     public static string ResourceBase => Path.Combine(Resource, "base");
     public static MaaProcessor Instance { get; } = new();
@@ -85,6 +87,21 @@ public class MaaProcessor
         {
             if (args.NewValue > 0)
                 Instances.RootViewModel.IsRunning = true;
+
+            if (_taskQueueTotal <= 0)
+            {
+                ClearTaskbarProgress();
+                return;
+            }
+
+            var completed = _taskQueueTotal - args.NewValue;
+            SetTaskbarProgress(completed, _taskQueueTotal);
+
+            if (args.NewValue <= 0)
+            {
+                ClearTaskbarProgress();
+                _taskQueueTotal = 0;
+            }
         };
         CheckInterface(out _, out _, out _, out _, out _);
         try
@@ -2400,6 +2417,16 @@ public class MaaProcessor
         }
 
         AddPostTasksAsync(onlyStart, checkUpdate, token);
+        _taskQueueTotal = TaskQueue.Count;
+        if (_taskQueueTotal > 0)
+        {
+            SetTaskbarProgress(0, _taskQueueTotal);
+        }
+        else
+        {
+            ClearTaskbarProgress();
+        }
+
         await TaskManager.RunTaskAsync(async () =>
         {
             await ExecuteTasks(token);
@@ -2905,6 +2932,33 @@ public class MaaProcessor
         };
     }
 
+    private static void SetTaskbarProgress(int completed, int total)
+    {
+        if (!OperatingSystem.IsWindows())
+            return;
+        try
+        {
+            TaskbarManager.Instance.SetProgressState(TaskbarProgressBarState.Normal);
+            TaskbarManager.Instance.SetProgressValue(completed, total);
+        }
+        catch
+        {
+        }
+    }
+
+    private static void ClearTaskbarProgress()
+    {
+        if (!OperatingSystem.IsWindows())
+            return;
+        try
+        {
+            TaskbarManager.Instance.SetProgressState(TaskbarProgressBarState.NoProgress);
+        }
+        catch
+        {
+        }
+    }
+
     #endregion
 
     #region 停止任务
@@ -2914,6 +2968,8 @@ public class MaaProcessor
     public void Stop(MFATask.MFATaskStatus status, bool finished = false, bool onlyStart = false, Action? action = null)
     {
         ResetActionFailedCount();
+        ClearTaskbarProgress();
+        _taskQueueTotal = 0;
         // 在后台线程执行停止操作，避免阻塞 UI 线程
         TaskManager.RunTask(() =>
         {
