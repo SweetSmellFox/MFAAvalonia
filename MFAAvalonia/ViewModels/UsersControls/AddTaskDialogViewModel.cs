@@ -1,6 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MFAAvalonia.Configuration;
+using MFAAvalonia.Extensions;
 using MFAAvalonia.Extensions.MaaFW;
 using MFAAvalonia.Helper;
 using MFAAvalonia.Helper.ValueType;
@@ -55,8 +56,9 @@ public partial class AddTaskDialogViewModel : ViewModelBase
             if (output.InterfaceItem.Option != null)
                 output.InterfaceItem.Option.ForEach(option => TaskLoader.SetDefaultOptionValue(MaaProcessor.Interface, option));
 
-            Instances.TaskQueueViewModel.TaskItemViewModels.Add(Output.Clone());
+            Instances.TaskQueueViewModel.TaskItemViewModels.Add(output);
             ConfigurationManager.Current.SetValue(ConfigurationKeys.TaskItems, Instances.TaskQueueViewModel.TaskItemViewModels.ToList().Select(model => model.InterfaceItem));
+            ToastHelper.Info(LangKeys.Tip.ToLocalization(), LangKeys.TaskAddedToast.ToLocalizationFormatted(false, output.Name));
         }
 
         Dialog.Dismiss();

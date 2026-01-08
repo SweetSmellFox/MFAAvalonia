@@ -303,30 +303,33 @@ public static class MFAExtensions
         }
     }
 
-    public static string ToLocalization(this string? key)
+    extension(string? key)
     {
-        if (string.IsNullOrWhiteSpace(key))
-            return string.Empty;
-
-        return I18nManager.Instance.GetResource(key) ?? key;
-    }
-
-    public static string ToLocalizationFormatted(this string? key, bool transformKey = true, params string[] args)
-    {
-        if (string.IsNullOrWhiteSpace(key)) return string.Empty;
-
-        var localizedKey = key.ToLocalization();
-        var processedArgs = transformKey
-            ? Array.ConvertAll(args, a => a.ToLocalization() as object)
-            : Array.ConvertAll(args, a => a as object);
-
-        try
+        public string ToLocalization()
         {
-            return Regex.Unescape(localizedKey.FormatWith(processedArgs));
+            if (string.IsNullOrWhiteSpace(key))
+                return string.Empty;
+
+            return I18nManager.Instance.GetResource(key) ?? key;
         }
-        catch
+
+        public string ToLocalizationFormatted(bool transformKey = true, params string[] args)
         {
-            return localizedKey.FormatWith(processedArgs);
+            if (string.IsNullOrWhiteSpace(key)) return string.Empty;
+
+            var localizedKey = key.ToLocalization();
+            var processedArgs = transformKey
+                ? Array.ConvertAll(args, a => a.ToLocalization() as object)
+                : Array.ConvertAll(args, a => a as object);
+
+            try
+            {
+                return Regex.Unescape(localizedKey.FormatWith(processedArgs));
+            }
+            catch
+            {
+                return localizedKey.FormatWith(processedArgs);
+            }
         }
     }
 

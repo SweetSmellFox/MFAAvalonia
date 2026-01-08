@@ -326,6 +326,8 @@ public static class LangKeys
 	public static readonly string TaskStackError = "TaskStackError";
 	public static readonly string TaskStart = "TaskStart";
 	public static readonly string TaskStopped = "TaskStopped";
+	public static readonly string TaskAddedToast = "TaskAddedToast";
+	public static readonly string TaskDeletedToast = "TaskDeletedToast";
 	public static readonly string TextRecognizerTitle = "TextRecognizerTitle";
 	public static readonly string ThemeOption = "ThemeOption";
 	public static readonly string ThemeSettings = "ThemeSettings";

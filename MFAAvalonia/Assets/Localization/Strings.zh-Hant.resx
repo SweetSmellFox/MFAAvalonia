@@ -963,6 +963,12 @@
     <data name="TaskStopped" xml:space="preserve">
         <value>任務已中止</value>
     </data>
+    <data name="TaskAddedToast" xml:space="preserve">
+        <value>已新增 {0} 任務</value>
+    </data>
+    <data name="TaskDeletedToast" xml:space="preserve">
+        <value>已刪除 {0} 任務</value>
+    </data>
     <data name="TextRecognizerTitle" xml:space="preserve">
         <value>文字辨識器</value>
     </data>

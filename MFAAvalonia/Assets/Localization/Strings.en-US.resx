@@ -963,6 +963,12 @@
     <data name="TaskStopped" xml:space="preserve">
         <value>Task has been stopped</value>
     </data>
+    <data name="TaskAddedToast" xml:space="preserve">
+        <value>Added task {0}</value>
+    </data>
+    <data name="TaskDeletedToast" xml:space="preserve">
+        <value>Deleted task {0}</value>
+    </data>
     <data name="TextRecognizerTitle" xml:space="preserve">
         <value>Text Recognizer</value>
     </data>

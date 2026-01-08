@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
 using Avalonia.Data.Converters;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
@@ -105,22 +106,161 @@ public partial class TaskQueueView : UserControl
         }
     }
 
+    private void TaskListBox_OnKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (sender is not ListBox listBox)
+        {
+            return;
+        }
+
+        var selectedItem = listBox.SelectedItem as DragItemViewModel;
+
+        if (e.Key == Key.Delete)
+        {
+            if (selectedItem != null)
+            {
+                DeleteTaskItem(selectedItem);
+                e.Handled = true;
+            }
+
+            return;
+        }
+
+        if (!e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        {
+            return;
+        }
+
+        if (e.Key == Key.C)
+        {
+            CopyTaskToClipboard(selectedItem);
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.V)
+        {
+            _ = PasteTaskFromClipboardAsync(listBox, selectedItem);
+            e.Handled = true;
+        }
+    }
+
+    private void CopyTaskToClipboard(DragItemViewModel? taskItemViewModel)
+    {
+        if (taskItemViewModel?.InterfaceItem == null || taskItemViewModel.IsResourceOptionItem)
+        {
+            return;
+        }
+
+        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        if (clipboard == null)
+        {
+            return;
+        }
+
+        var name = taskItemViewModel.InterfaceItem.Name ?? string.Empty;
+        var entry = taskItemViewModel.InterfaceItem.Entry ?? string.Empty;
+        var text = $"{name}{TaskLoader.NEW_SEPARATOR}{entry}";
+        _ = clipboard.SetTextAsync(text);
+    }
+
+    private async System.Threading.Tasks.Task PasteTaskFromClipboardAsync(ListBox listBox, DragItemViewModel? selectedItem)
+    {
+        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        if (clipboard == null)
+        {
+            return;
+        }
+
+        var text = await clipboard.GetTextAsync();
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return;
+        }
+
+        var parts = text.Split(TaskLoader.NEW_SEPARATOR, StringSplitOptions.None);
+        if (parts.Length != 2)
+        {
+            return;
+        }
+
+        var name = parts[0];
+        var entry = parts[1];
+
+        var source = MaaProcessor.Instance.TasksSource
+            .FirstOrDefault(item => item.InterfaceItem?.Name == name && item.InterfaceItem?.Entry == entry);
+
+        if (source?.InterfaceItem == null)
+        {
+            return;
+        }
+
+        AddTaskItem(source, listBox, selectedItem);
+    }
+
+    private void AddTaskItem(DragItemViewModel source, ListBox listBox, DragItemViewModel? selectedItem = null)
+    {
+        if (DataContext is not TaskQueueViewModel vm)
+        {
+            return;
+        }
+
+        var output = source.Clone();
+        if (output.InterfaceItem?.Option != null)
+        {
+            output.InterfaceItem.Option.ForEach(option => TaskLoader.SetDefaultOptionValue(MaaProcessor.Interface, option));
+        }
+
+        var insertIndex = vm.TaskItemViewModels.Count;
+        if (selectedItem != null)
+        {
+            var selectedIndex = vm.TaskItemViewModels.IndexOf(selectedItem);
+            if (selectedIndex >= 0 && selectedIndex < vm.TaskItemViewModels.Count - 1)
+            {
+                insertIndex = selectedIndex + 1;
+            }
+        }
+
+        vm.TaskItemViewModels.Insert(insertIndex, output);
+        ConfigurationManager.Current.SetValue(ConfigurationKeys.TaskItems, vm.TaskItemViewModels.ToList().Select(model => model.InterfaceItem));
+        listBox.SelectedItem = output;
+        ToastHelper.Info(LangKeys.Tip.ToLocalization(), LangKeys.TaskAddedToast.ToLocalizationFormatted(false, output.Name));
+    }
 
     private void Delete(object? sender, RoutedEventArgs e)
     {
         var menuItem = sender as MenuItem;
-        if (menuItem?.DataContext is DragItemViewModel taskItemViewModel && DataContext is TaskQueueViewModel vm)
+        if (menuItem?.DataContext is DragItemViewModel taskItemViewModel)
         {
-            // 资源设置项不能被删除
-            if (taskItemViewModel.IsResourceOptionItem)
-                return;
-
-            int index = vm.TaskItemViewModels.IndexOf(taskItemViewModel);
-            vm.TaskItemViewModels.RemoveAt(index);
-            Instances.TaskQueueView.SetOption(taskItemViewModel, false);
-            ConfigurationManager.Current.SetValue(ConfigurationKeys.TaskItems, vm.TaskItemViewModels.ToList().Select(model => model.InterfaceItem));
-            vm.ShowSettings = false;
+            DeleteTaskItem(taskItemViewModel);
         }
+    }
+
+    private void DeleteTaskItem(DragItemViewModel taskItemViewModel)
+    {
+        if (DataContext is not TaskQueueViewModel vm)
+        {
+            return;
+        }
+
+        // 资源设置项不能被删除
+        if (taskItemViewModel.IsResourceOptionItem)
+        {
+            return;
+        }
+
+        int index = vm.TaskItemViewModels.IndexOf(taskItemViewModel);
+        if (index < 0)
+        {
+            return;
+        }
+
+        var deletedName = taskItemViewModel.Name;
+        vm.TaskItemViewModels.RemoveAt(index);
+        Instances.TaskQueueView.SetOption(taskItemViewModel, false);
+        ConfigurationManager.Current.SetValue(ConfigurationKeys.TaskItems, vm.TaskItemViewModels.ToList().Select(model => model.InterfaceItem));
+        vm.ShowSettings = false;
+        ToastHelper.Info(LangKeys.Tip.ToLocalization(), LangKeys.TaskDeletedToast.ToLocalizationFormatted(false, deletedName));
     }
 
     private void RunSingleTask(object? sender, RoutedEventArgs e)
