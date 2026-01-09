@@ -1,5 +1,5 @@
 <!-- markdownlint-disable MD033 MD041 -->
-<div align="center"><img alt="LOGO" src="./docs/images/maa-logo_512x512.png" width="256" height="256" />
+<div align="center"><img alt="LOGO" src="./docs/images/mfa-logo_512x512.png" width="256" height="256" />
 
 # MFAAvalonia
 
