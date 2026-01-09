@@ -213,10 +213,10 @@
     </suki:SukiWindow.RightWindowTitleBarControls>
     <suki:SukiWindow.LogoContent>
         <Image
-            Height="18"
+            Height="28"
             Source="{x:Static helper:IconHelper.Icon}"
             Stretch="Uniform"
-            Width="18" />
+            Width="28" />
 
     </suki:SukiWindow.LogoContent>
     <Design.DataContext>

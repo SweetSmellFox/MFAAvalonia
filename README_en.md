@@ -1,5 +1,5 @@
 <!-- markdownlint-disable MD033 MD041 -->
-<div align="center"><img alt="LOGO" src="https://github.com/SweetSmellFox/MFAAvalonia/blob/master/MFAAvalonia/MFAAvalonia.ico" width="180" height="180" />
+<div align="center"><img alt="LOGO" src="./docs/images/maa-logo_512x512.png" width="256" height="256" />
 
 # MFAAvalonia
 
@@ -68,7 +68,7 @@ with [Avalonia UI](https://github.com/AvaloniaUI/Avalonia)_
 ## 📸 Preview
 
 <p align="center">
-  <img alt="preview" src="https://github.com/SweetSmellFox/MFAAvalonia/blob/master/MFAAvalonia/Img/preview.png" width="100%" style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);" />
+  <img alt="preview" src="./docs/images/preview.png" width="100%" style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);" />
 </p>
 
 ## 📋 Requirements

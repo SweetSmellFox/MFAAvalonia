@@ -26,10 +26,10 @@
     </suki:SukiWindow.Resources>
     <suki:SukiWindow.LogoContent>
         <Image
-            Height="18"
+            Height="25"
             Source="{x:Static helper:IconHelper.Icon}"
             Stretch="Uniform"
-            Width="18" />
+            Width="25" />
     </suki:SukiWindow.LogoContent>
     <LayoutTransformControl LayoutTransform="{Binding ScaleTransform, Source={x:Static helper:FontService.Instance}}">
 

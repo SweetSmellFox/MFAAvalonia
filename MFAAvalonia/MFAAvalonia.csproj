@@ -174,14 +174,21 @@
         <Content Include="..\docs\en\external-notification.md">
           <Link>docs\en\external-notification.md</Link>
         </Content>
+        <Content Include="..\docs\images\maa-logo_512x512.png">
+          <Link>docs\images\maa-logo_512x512.png</Link>
+        </Content>
+        <Content Include="..\docs\images\preview.png">
+          <Link>docs\images\preview.png</Link>
+        </Content>
         <Content Include="..\docs\zh\外部通知.md">
           <Link>docs\zh\外部通知.md</Link>
         </Content>
         <Content Include="..\README_en.md">
             <Link>README_en.md</Link>
         </Content>
-        <Content Include="Assets/logo.ico" CopyToPublishDirectory="PreserveNewest">
+        <Content Include="Assets/logo.ico">
             <LinuxPath>/usr/share/icons/MFAAvalonia.ico</LinuxPath>
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
     </ItemGroup>
     <ItemGroup>
