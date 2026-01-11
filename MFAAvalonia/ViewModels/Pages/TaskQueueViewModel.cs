@@ -452,7 +452,8 @@ public partial class TaskQueueViewModel : ViewModelBase
     public static readonly string TRACE = "trace:";
     public static readonly string DEBUG = "debug:";
     public static readonly string CRITICAL = "critical:";
-
+    public static readonly string SUCCESS = "success:";
+    
     public static bool CheckShouldLog(string content)
     {
         const StringComparison comparison = StringComparison.Ordinal; // 指定匹配规则（避免大小写问题，按需调整）
@@ -466,7 +467,12 @@ public partial class TaskQueueViewModel : ViewModelBase
         {
             return true;
         }
-
+        
+        if (content.StartsWith(SUCCESS, comparison))
+        {
+            return true;
+        }
+        
         if (content.StartsWith(INFO, comparison))
         {
             return true;
@@ -520,7 +526,14 @@ public partial class TaskQueueViewModel : ViewModelBase
             content = content.Substring(DEBUG.Length).TrimStart();
             changeColor = false;
         }
-
+        
+        if (content.StartsWith(SUCCESS, comparison))
+        {
+            brush = Brushes.LimeGreen;
+            content = content.Substring(SUCCESS.Length).TrimStart();
+            changeColor = false;
+        }
+        
         if (content.StartsWith(INFO, comparison))
         {
             content = content.Substring(INFO.Length).TrimStart();
@@ -535,7 +548,7 @@ public partial class TaskQueueViewModel : ViewModelBase
             content = content.Substring(warnPrefix.Length).TrimStart();
             changeColor = false;
         }
-
+        
         var errorPrefix = ERROR.FirstOrDefault(prefix =>
             !string.IsNullOrEmpty(prefix) && content.StartsWith(prefix, comparison)
         );
