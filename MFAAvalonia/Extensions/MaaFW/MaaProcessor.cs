@@ -3369,18 +3369,26 @@ public class MaaProcessor
         {
             EmulatorHelper.KillEmulatorModeSwitcher();
         }
-        else
+        else if (Instances.TaskQueueViewModel.CurrentController == MaaControllerTypes.Win32)
         {
-            if (_softwareProcess != null && !_softwareProcess.HasExited)
+            if (OperatingSystem.IsWindows())
             {
-                _softwareProcess.Kill();
-            }
-            else
-            {
-                ProcessHelper.CloseProcessesByName(Config.DesktopWindow.Name, ConfigurationManager.Current.GetValue(ConfigurationKeys.EmulatorConfig, string.Empty));
-                _softwareProcess = null;
-            }
+                var hwnd = Config.DesktopWindow.HWnd;
+                var closedByHwnd = ProcessHelper.CloseProcessesByHWnd(hwnd);
 
+                if (!closedByHwnd)
+                {
+                    if (_softwareProcess != null && !_softwareProcess.HasExited)
+                    {
+                        _softwareProcess.Kill();
+                    }
+                    else
+                    {
+                        ProcessHelper.CloseProcessesByName(Config.DesktopWindow.Name, ConfigurationManager.Current.GetValue(ConfigurationKeys.EmulatorConfig, string.Empty));
+                        _softwareProcess = null;
+                    }
+                }
+            }
         }
         Instance.Stop(MFATask.MFATaskStatus.STOPPED);
         action?.Invoke();

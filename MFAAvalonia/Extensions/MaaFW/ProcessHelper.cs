@@ -266,6 +266,34 @@ public static class ProcessHelper
     }
 
     /// <summary>
+    /// Windows: 通过窗口句柄终止进程
+    /// </summary>
+    [SupportedOSPlatform("windows")]
+    public static bool CloseProcessesByHWnd(nint hwnd)
+    {
+        if (!OperatingSystem.IsWindows())
+            return false;
+
+        if (hwnd == nint.Zero || !IsWindow(hwnd))
+            return false;
+
+        if (GetWindowThreadProcessId(hwnd, out var pid) == 0 || pid == 0)
+            return false;
+
+        try
+        {
+            var process = Process.GetProcessById((int)pid);
+            SafeTerminateProcess(process);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            LoggerHelper.Warning($"CloseProcessesByHWnd failed: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
     /// 终止进程列表
     /// </summary>
     public static void KillProcesses(IEnumerable<Process> processes)
@@ -467,6 +495,14 @@ public static class ProcessHelper
     #endregion
 
     #region 平台特定终止方法
+
+    [SupportedOSPlatform("windows")]
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern uint GetWindowThreadProcessId(nint hWnd, out uint lpdwProcessId);
+
+    [SupportedOSPlatform("windows")]
+    [DllImport("user32.dll")]
+    private static extern bool IsWindow(nint hWnd);
 
     /// <summary>
     /// Windows 平台强制终止进程
