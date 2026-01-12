@@ -4,6 +4,7 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using MFAAvalonia.Helper;
+using Newtonsoft.Json.Linq;
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -20,8 +21,25 @@ public static class IconHelper
     {
         try
         {
-            // 尝试从执行目录加载
             var exeDirectory = AppContext.BaseDirectory;
+
+            // 尝试从 interface.json 同目录读取 icon 字段
+            var interfacePath = Path.Combine(exeDirectory, "interface.json");
+            if (File.Exists(interfacePath))
+            {
+                var interfaceIcon = TryGetInterfaceIcon(interfacePath);
+                if (!string.IsNullOrWhiteSpace(interfaceIcon))
+                {
+                    var interfaceIconPath = Path.Combine(exeDirectory, interfaceIcon);
+                    if (File.Exists(interfaceIconPath))
+                    {
+                        using var fileStream = File.OpenRead(interfaceIconPath);
+                        return new Bitmap(fileStream);
+                    }
+                }
+            }
+
+            // 尝试从执行目录加载
             var iconPath = Path.Combine(exeDirectory, "Assets", "logo.ico");
             if (!File.Exists(iconPath))
                 iconPath = Path.Combine(exeDirectory, "assets", "logo.ico");
@@ -46,6 +64,19 @@ public static class IconHelper
         {
             LoggerHelper.Error($"图标加载失败: {ex}");
             return CreateEmptyImage();
+        }
+    }
+
+    private static string? TryGetInterfaceIcon(string interfacePath)
+    {
+        try
+        {
+            var json = JsonHelper.LoadJson<JObject>(interfacePath, null);
+            return json?["icon"]?.ToString();
+        }
+        catch
+        {
+            return null;
         }
     }
 
