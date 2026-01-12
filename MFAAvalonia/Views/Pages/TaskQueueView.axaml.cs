@@ -2319,6 +2319,44 @@ public partial class TaskQueueView : UserControl
 
     #endregion
 
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        DispatcherHelper.PostOnMainThread(RefreshCurrentIntroduction, DispatcherPriority.Render);
+    }
+
+    private void RefreshCurrentIntroduction()
+    {
+        var dragItem = Instances.TaskQueueViewModel?.TaskItemViewModels
+            .FirstOrDefault(item => item.EnableSetting);
+        if (dragItem == null)
+        {
+            return;
+        }
+
+        IntroductionsCache.Clear();
+
+        var cacheKey = dragItem.IsResourceOptionItem
+            ? $"ResourceOption_{dragItem.ResourceItem?.Name}_{dragItem.ResourceItem?.GetHashCode()}"
+            : $"{dragItem.Name}_{dragItem.InterfaceItem?.Entry}_{dragItem.InterfaceItem?.GetHashCode()}";
+
+        var introduction = dragItem.IsResourceOptionItem
+            ? ConvertCustomMarkup(dragItem.ResourceItem?.Description ?? string.Empty)
+            : ConvertCustomMarkup(GetTooltipText(dragItem.InterfaceItem?.Description, dragItem.InterfaceItem?.Document) ?? string.Empty);
+        Console.WriteLine(introduction);
+        IntroductionsCache.AddOrUpdate(cacheKey, introduction, (_, _) => introduction);
+        SetMarkDown(introduction);
+
+        var hasIntroduction = !string.IsNullOrWhiteSpace(introduction);
+        if (!hasIntroduction)
+        {
+            SetSettingOnlyMode();
+        }
+        else
+        {
+            SetNormalMode();
+        }
+    }
+
     #region 实时图像
 
     private readonly Timer _liveViewTimer = new();
@@ -2423,7 +2461,7 @@ public partial class TaskQueueView : UserControl
         {
             if (MaaProcessor.IsClosed)
                 return;
-            
+
             if (MaaProcessor.Instance.TryConsumeScreencapFailureLog(out var shouldAbort, out var shouldDisconnected))
             {
                 if (shouldAbort)
@@ -2467,6 +2505,9 @@ public partial class TaskQueueView : UserControl
 
         TopToolbar.SizeChanged += OnTopToolbarSizeChanged;
         Dispatcher.UIThread.Post(() => UpdateTopToolbarLayout(true), DispatcherPriority.Render);
+
+        LanguageHelper.LanguageChanged -= OnLanguageChanged;
+        LanguageHelper.LanguageChanged += OnLanguageChanged;
 
         if (Instances.TaskQueueViewModel != null)
         {
@@ -2553,5 +2594,9 @@ public partial class TaskQueueView : UserControl
         {
             Spliter2Compact.IsVisible = deviceVisible;
         }
+    }
+    ~TaskQueueView()
+    {
+        LanguageHelper.LanguageChanged -= OnLanguageChanged;
     }
 }
