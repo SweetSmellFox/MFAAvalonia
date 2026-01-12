@@ -158,7 +158,7 @@
 
 
         <!-- TaskToggle 外层悬停放大 -->
-        <Style Selector="Border#TaskToggleBorder">
+        <Style Selector="Border#TaskToggleBorder, Border#TaskToggleBorder1">
             <Setter Property="RenderTransformOrigin" Value="50%,50%" />
             <Setter Property="RenderTransform">
                 <Setter.Value>
@@ -166,7 +166,8 @@
                 </Setter.Value>
             </Setter>
         </Style>
-        <Style Selector="Border#TaskToggleBorder:pointerover">
+        
+        <Style Selector="Border#TaskToggleBorder:pointerover, Border#TaskToggleBorder1:pointerover">
             <Setter Property="RenderTransform">
                 <ScaleTransform ScaleX="1.12" ScaleY="1.12" />
             </Setter>
@@ -174,7 +175,7 @@
         </Style>
 
         <!-- 单层流光动画 -->
-        <Style Selector="Border#TaskToggleShineLayer">
+        <Style Selector="Border#TaskToggleShineLayer, Border#TaskToggleShineLayer1">
             <Setter Property="RenderTransform">
                 <Setter.Value>
                     <TranslateTransform X="-160" />
@@ -538,10 +539,69 @@
                         </Button>
                         <ContentControl
                             Content="{Binding IsConnected, Converter={StaticResource ConnectedConditionConverter}, Source={x:Static helper:Instances.TaskQueueViewModel}}" />
+                        <Border x:Name="TaskToggleBorder" Height="30"
+                                CornerRadius="999"
+                                ClipToBounds="True"
+                                Margin="2,0,0,0"
+                                Background="{DynamicResource SukiPrimaryColor}">
+                            <Grid>
+                                <Border x:Name="TaskToggleShineLayer"
+                                        Width="{Binding Bounds.Width, ElementName=TaskToggleBorder}"
+                                        CornerRadius="999"
+                                        IsHitTestVisible="False"
+                                        HorizontalAlignment="Left">
+                                    <Border.Background>
+                                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                            <GradientStop Color="Transparent" Offset="0.0" />
+                                            <GradientStop Color="Transparent" Offset="0.25" />
+                                            <GradientStop Color="#25FFFFFF" Offset="0.45" />
+                                            <GradientStop Color="#50FFFFFF" Offset="0.5" />
+                                            <GradientStop Color="#25FFFFFF" Offset="0.55" />
+                                            <GradientStop Color="Transparent" Offset="0.75" />
+                                            <GradientStop Color="Transparent" Offset="1.0" />
+                                        </LinearGradientBrush>
+                                    </Border.Background>
+                                </Border>
+                                <Button Classes="Flat Rounded"
+                                        IsEnabled="{Binding ToggleEnable}"
+                                        Command="{Binding ToggleCommand}"
+                                        Padding="0,0"
+                                        CornerRadius="999"
+                                        Background="Transparent"
+                                        Foreground="White">
+                                    <Grid Margin="12 2">
+                                        <WrapPanel
+                                            IsVisible="{Binding !IsRunning, Source={x:Static helper:Instances.RootViewModel}}">
+                                            <Path Data="{StaticResource PlayGeometry}"
+                                                  Fill="White"
+                                                  Width="12"
+                                                  Height="12"
+                                                  Stretch="Uniform"
+                                                  VerticalAlignment="Center"
+                                                  HorizontalAlignment="Center" />
+                                            <TextBlock Margin="6 0 0 0" FontSize="12"
+                                                       Text="{markup:I18n {x:Static helper:LangKeys.StartTask}}" />
+                                        </WrapPanel>
+                                        <WrapPanel
+                                            IsVisible="{Binding IsRunning, Source={x:Static helper:Instances.RootViewModel}}">
+                                            <Path Data="{StaticResource StopGeometry}"
+                                                  Fill="White"
+                                                  Width="12"
+                                                  Height="12"
+                                                  Stretch="Uniform"
+                                                  VerticalAlignment="Center"
+                                                  HorizontalAlignment="Center" />
+                                            <TextBlock Margin="6 0 0 0" FontSize="12"
+                                                       Text="{markup:I18n {x:Static helper:LangKeys.StopTask}}" />
+                                        </WrapPanel>
+                                    </Grid>
+                                </Button>
+                            </Grid>
+                        </Border>
                     </StackPanel>
                 </Grid>
                 <Grid x:Name="TopToolbarCompact" IsVisible="False" RowDefinitions="Auto,Auto">
-                    <Grid x:Name="TopToolbarCompactRow1" Grid.Row="0" ColumnDefinitions="*,Auto,*">
+                    <Grid x:Name="TopToolbarCompactRow1" Grid.Row="0" ColumnDefinitions="*,Auto,*,Auto">
                         <Grid x:Name="ConfigSelectorPanelCompact" Grid.Column="0" VerticalAlignment="Center"
                               ColumnDefinitions="Auto,*">
                             <TextBlock FontSize="12" Grid.Column="0"
@@ -617,6 +677,66 @@
                                 </ComboBox.SelectionBoxItemTemplate>
                             </ComboBox>
                         </Grid>
+
+                        <Border Grid.Column="3" x:Name="TaskToggleBorder1"
+                                CornerRadius="999"
+                                ClipToBounds="True" Height="30"
+                                Margin="2,0,0,0"
+                                Background="{DynamicResource SukiPrimaryColor}">
+                            <Grid>
+                                <Border x:Name="TaskToggleShineLayer1"
+                                        Width="{Binding Bounds.Width, ElementName=TaskToggleBorder1}"
+                                        CornerRadius="999"
+                                        IsHitTestVisible="False"
+                                        HorizontalAlignment="Left">
+                                    <Border.Background>
+                                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                            <GradientStop Color="Transparent" Offset="0.0" />
+                                            <GradientStop Color="Transparent" Offset="0.25" />
+                                            <GradientStop Color="#25FFFFFF" Offset="0.45" />
+                                            <GradientStop Color="#50FFFFFF" Offset="0.5" />
+                                            <GradientStop Color="#25FFFFFF" Offset="0.55" />
+                                            <GradientStop Color="Transparent" Offset="0.75" />
+                                            <GradientStop Color="Transparent" Offset="1.0" />
+                                        </LinearGradientBrush>
+                                    </Border.Background>
+                                </Border>
+                                <Button Classes="Flat Rounded"
+                                        IsEnabled="{Binding ToggleEnable}"
+                                        Command="{Binding ToggleCommand}"
+                                        Padding="0,0"
+                                        CornerRadius="999"
+                                        Background="Transparent"
+                                        Foreground="White">
+                                    <Grid Margin="12 2">
+                                        <WrapPanel
+                                            IsVisible="{Binding !IsRunning, Source={x:Static helper:Instances.RootViewModel}}">
+                                            <Path Data="{StaticResource PlayGeometry}"
+                                                  Fill="White"
+                                                  Width="12"
+                                                  Height="12"
+                                                  Stretch="Uniform"
+                                                  VerticalAlignment="Center"
+                                                  HorizontalAlignment="Center" />
+                                            <TextBlock Margin="6 0 0 0" FontSize="12"
+                                                       Text="{markup:I18n {x:Static helper:LangKeys.StartTask}}" />
+                                        </WrapPanel>
+                                        <WrapPanel
+                                            IsVisible="{Binding IsRunning, Source={x:Static helper:Instances.RootViewModel}}">
+                                            <Path Data="{StaticResource StopGeometry}"
+                                                  Fill="White"
+                                                  Width="12"
+                                                  Height="12"
+                                                  Stretch="Uniform"
+                                                  VerticalAlignment="Center"
+                                                  HorizontalAlignment="Center" />
+                                            <TextBlock Margin="6 0 0 0" FontSize="12"
+                                                       Text="{markup:I18n {x:Static helper:LangKeys.StopTask}}" />
+                                        </WrapPanel>
+                                    </Grid>
+                                </Button>
+                            </Grid>
+                        </Border>
                     </Grid>
                     <Grid x:Name="TopToolbarCompactRow2" Grid.Row="1" Margin="0,6,0,0">
                         <Grid.ColumnDefinitions>
@@ -921,65 +1041,6 @@
                                   Stretch="Uniform"
                                   Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
                         </Button>
-                        <Border x:Name="TaskToggleBorder"
-                                CornerRadius="999"
-                                ClipToBounds="True"
-                                Margin="2,0,0,0"
-                                Background="{DynamicResource SukiPrimaryColor}">
-                            <Grid>
-                                <Border x:Name="TaskToggleShineLayer"
-                                        Width="{Binding Bounds.Width, ElementName=TaskToggleBorder}"
-                                        CornerRadius="999"
-                                        IsHitTestVisible="False"
-                                        HorizontalAlignment="Left">
-                                    <Border.Background>
-                                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                                            <GradientStop Color="Transparent" Offset="0.0" />
-                                            <GradientStop Color="Transparent" Offset="0.25" />
-                                            <GradientStop Color="#25FFFFFF" Offset="0.45" />
-                                            <GradientStop Color="#50FFFFFF" Offset="0.5" />
-                                            <GradientStop Color="#25FFFFFF" Offset="0.55" />
-                                            <GradientStop Color="Transparent" Offset="0.75" />
-                                            <GradientStop Color="Transparent" Offset="1.0" />
-                                        </LinearGradientBrush>
-                                    </Border.Background>
-                                </Border>
-                                <Button Classes="Flat Rounded"
-                                        IsEnabled="{Binding ToggleEnable}"
-                                        Command="{Binding ToggleCommand}"
-                                        Padding="0,0"
-                                        CornerRadius="999"
-                                        Background="Transparent"
-                                        Foreground="White">
-                                    <Grid Margin="12 2">
-                                        <WrapPanel
-                                            IsVisible="{Binding !IsRunning, Source={x:Static helper:Instances.RootViewModel}}">
-                                            <Path Data="{StaticResource PlayGeometry}"
-                                                  Fill="White"
-                                                  Width="12"
-                                                  Height="12"
-                                                  Stretch="Uniform"
-                                                  VerticalAlignment="Center"
-                                                  HorizontalAlignment="Center" />
-                                            <TextBlock Margin="6 0 0 0" FontSize="12"
-                                                       Text="{markup:I18n {x:Static helper:LangKeys.StartTask}}" />
-                                        </WrapPanel>
-                                        <WrapPanel
-                                            IsVisible="{Binding IsRunning, Source={x:Static helper:Instances.RootViewModel}}">
-                                            <Path Data="{StaticResource StopGeometry}"
-                                                  Fill="White"
-                                                  Width="12"
-                                                  Height="12"
-                                                  Stretch="Uniform"
-                                                  VerticalAlignment="Center"
-                                                  HorizontalAlignment="Center" />
-                                            <TextBlock Margin="6 0 0 0" FontSize="12"
-                                                       Text="{markup:I18n {x:Static helper:LangKeys.StopTask}}" />
-                                        </WrapPanel>
-                                    </Grid>
-                                </Button>
-                            </Grid>
-                        </Border>
                         <Button Classes="BasicTight PlayStopButton"
                                 IsEnabled="{Binding ToggleEnable}"
                                 Command="{Binding ToggleCommand}"
