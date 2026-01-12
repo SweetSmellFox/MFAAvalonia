@@ -263,58 +263,11 @@ MaaFramework 项目模板已内置 MFAAvalonia，创建项目时自动配置完�
 
 ## 🧪 高级功能
 
-### Advanced 字段（实验性）
+### Advanced 字段（废弃）
 
 > [!TIP]
-> 推荐使用 [InterfaceV2](https://github.com/MaaXYZ/MaaFramework/blob/main/docs/zh_cn/3.3-ProjectInterfaceV2%E5%8D%8F%E8%AE%AE.md)  的 input 类型
+> `Advanced` 字段已基本被[InterfaceV2](https://github.com/MaaXYZ/MaaFramework/blob/main/docs/zh_cn/3.3-ProjectInterfaceV2%E5%8D%8F%E8%AE%AE.md) 的 input 类型替代，不建议使用
 >
-
-`advanced` 字段允许通过 UI 输入框动态配置 `pipeline_override`，为用户提供更灵活的自定义选项。
-
-<details>
-<summary><b>📖 查看配置示例</b></summary>
-
-```jsonc
-{
-  "task": [
-    {    
-      "name": "测试任务",
-      "entry": "任务A",
-      "advanced": ["高级设置A", "高级设置B"]
-    }
-  ],
-  "advanced": {
-    "高级设置A": {
-      "field": "template_name",
-      "type": "string",
-      "default": "default.png",
-      "pipeline_override": {
-        "任务A": {
-          "template": "{template_name}"
-        }
-      }
-    },
-    "高级设置B": {
-      "field": ["x", "y"],
-      "type": ["int", "int"],
-      "default": ["100", "200"],
-      "pipeline_override": {
-        "任务A": {
-          "roi": ["{x}", "{y}", 50, 50]
-        }
-      }
-    }
-  }
-}
-```
-
-**字段说明：**
-
-- `field` - 字段名称，支持 `string` 或 `string[]`
-- `type` - 字段类型，支持 `string` 或 `string[]`
-- `default` - 默认值，支持 `string` 或 `string[]`
-
-</details>
 
 ## 🛠️ 开发指南
 

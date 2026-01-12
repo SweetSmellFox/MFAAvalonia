@@ -261,57 +261,11 @@ The new protocol matches by message type and renders to logs.
 
 ## 🧪 Advanced Features
 
-### Advanced Field (Experimental)
+### Advanced Field (Deprecated)
 
-> 💡 It is recommended to use
-> [InterfaceV2](https://github.com/MaaXYZ/MaaFramework/blob/main/docs/zh_cn/3.3-ProjectInterfaceV2%E5%8D%8F%E8%AE%AE.md)
-> input types.
-
-The `advanced` field allows dynamic configuration of `pipeline_override` through UI input fields, providing users with
-more flexible customization options.
-
-<details>
-<summary><b>📖 View Configuration Example</b></summary>
-
-```jsonc
-{
-  "task": [
-    {    
-      "name": "Test Task",
-      "entry": "TaskA",
-      "advanced": ["Advanced Setting A", "Advanced Setting B"]
-    }
-  ],
-  "advanced": {
-    "Advanced Setting A": {
-      "field": "template_name",
-      "type": "string",
-      "default": "default.png",
-      "pipeline_override": {
-        "TaskA": {
-          "template": "{template_name}"
-        }
-      }
-    },
-    "Advanced Setting B": {
-      "field": ["x", "y"],
-      "type": ["int", "int"],
-      "default": ["100", "200"],
-      "pipeline_override": {
-        "TaskA": {
-          "roi": ["{x}", "{y}", 50, 50]
-        }
-      }
-    }
-  }
-}
-```
-
-**Field Descriptions:**
-
-- `field` - Field name, supports `string` or `string[]`
-- `type` - Field type, supports `string` or `string[]`
-- `default` - Default value, supports `string` or `string[]`</details>
+> [!TIP]
+> The `Advanced` field has been largely replaced by input types in
+> [InterfaceV2](https://github.com/MaaXYZ/MaaFramework/blob/main/docs/en_us/3.3-ProjectInterfaceV2.md), and is not recommended.
 
 ## 🛠️ Development Guide
 
