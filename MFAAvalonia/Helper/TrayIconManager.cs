@@ -128,6 +128,17 @@ public class TrayIconManager
 
     public static void DisposeTrayIcon(Application? application)
     {
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            DisposeTrayIconCore(application);
+            return;
+        }
+
+        DispatcherHelper.PostOnMainThread(() => DisposeTrayIconCore(application));
+    }
+
+    private static void DisposeTrayIconCore(Application? application)
+    {
         if (_trayIcon == null)
             return;
 
