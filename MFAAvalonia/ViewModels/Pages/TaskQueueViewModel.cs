@@ -743,6 +743,7 @@ public partial class TaskQueueViewModel : ViewModelBase
         if (CurrentResources.Count == 0)
         {
             CurrentResource = string.Empty;
+            UpdateTasksForResource(null);
             return;
         }
 
@@ -769,6 +770,9 @@ public partial class TaskQueueViewModel : ViewModelBase
 
         // 资源仍然有效时，强制刷新绑定以更新下拉框显示
         OnPropertyChanged(nameof(CurrentResource));
+
+        // 控制器切换时，更新任务的控制器支持状态
+        UpdateTasksForResource(CurrentResource);
     }
 
     /// <summary>
@@ -1411,12 +1415,14 @@ public partial class TaskQueueViewModel : ViewModelBase
             }
         }
 
-        // 更新每个任务的资源支持状态
+        // 更新每个任务的资源/控制器支持状态
+        var currentControllerName = GetCurrentControllerName();
         foreach (var task in TaskItemViewModels)
         {
             if (!task.IsResourceOptionItem)
             {
                 task.UpdateResourceSupport(resourceName);
+                task.UpdateControllerSupport(currentControllerName);
             }
         }
     }

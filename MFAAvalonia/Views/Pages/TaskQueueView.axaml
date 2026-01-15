@@ -1121,7 +1121,7 @@
                         </ListBox.ItemsPanel>
                         <ListBox.Styles>
                             <Style Selector="ListBoxItem" x:DataType="valueType:DragItemViewModel">
-                                <Setter Property="IsVisible" Value="{Binding IsResourceSupported}" />
+                                <Setter Property="IsVisible" Value="{Binding IsTaskSupported}" />
                             </Style>
                         </ListBox.Styles>
                         <ListBox.ItemTemplate>

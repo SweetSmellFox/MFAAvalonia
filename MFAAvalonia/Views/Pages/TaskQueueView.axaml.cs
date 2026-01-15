@@ -292,7 +292,7 @@ public partial class TaskQueueView : UserControl
             // 筛选：从当前任务开始，往后所有 IsChecked = true 且支持当前资源包的任务
             var tasksToRun = vm.TaskItemViewModels
                 .Skip(currentTaskIndex) // 跳过当前任务之前的所有项
-                .Where(task => task.IsChecked && task.IsResourceSupported) // 只保留已勾选且支持当前资源包的任务
+                .Where(task => task.IsChecked && task.IsTaskSupported) // 只保留已勾选且支持当前资源包/控制器的任务
                 .ToList(); // 转为列表（避免枚举多次）
 
             // 有需要运行的任务才调用 Start（避免空集合无效调用）

@@ -324,6 +324,7 @@ public class TaskLoader(MaaInterface? maaInterface)
         oldItem.InterfaceItem.Document = newItem.Document;
         oldItem.InterfaceItem.Repeatable = newItem.Repeatable;
         oldItem.InterfaceItem.Resource = newItem.Resource;
+        oldItem.InterfaceItem.Controller = newItem.Controller;
         oldItem.InterfaceItem.Icon = newItem.Icon;
 
         // 更新图标

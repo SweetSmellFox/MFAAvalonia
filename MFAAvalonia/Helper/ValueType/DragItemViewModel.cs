@@ -23,6 +23,7 @@ public partial class DragItemViewModel : ObservableObject
             Name = LangKeys.Unnamed.ToLocalization();
         }
         UpdateIconFromInterfaceItem();
+        InitializeSupportStatus();
         LanguageHelper.LanguageChanged += OnLanguageChanged;
     }
 
@@ -153,6 +154,17 @@ public partial class DragItemViewModel : ObservableObject
     [ObservableProperty] [JsonIgnore] private bool _isResourceSupported = true;
 
     /// <summary>
+    /// 指示任务是否支持当前选中的控制器。
+    /// 当控制器变化时，此属性会被更新。
+    /// </summary>
+    [ObservableProperty] [JsonIgnore] private bool _isControllerSupported = true;
+
+    /// <summary>
+    /// 指示任务是否同时支持当前资源包与控制器。
+    /// </summary>
+    [ObservableProperty] [JsonIgnore] private bool _isTaskSupported = true;
+
+    /// <summary>
     /// 检查任务是否支持指定的资源包
     /// </summary>
     /// <param name="resourceName">资源包名称</param>
@@ -173,12 +185,78 @@ public partial class DragItemViewModel : ObservableObject
     }
 
     /// <summary>
+    /// 检查任务是否支持指定的控制器
+    /// </summary>
+    /// <param name="controllerName">控制器名称</param>
+    /// <returns>如果任务支持该控制器或未指定控制器限制，则返回 true</returns>
+    public bool SupportsController(string? controllerName)
+    {
+        // 如果任务没有指定 controller，则支持所有控制器
+        if (InterfaceItem?.Controller == null || InterfaceItem.Controller.Count == 0)
+            return true;
+
+        // 如果控制器名称为空，则显示所有任务
+        if (string.IsNullOrWhiteSpace(controllerName))
+            return true;
+
+        // 检查任务是否支持当前控制器
+        return InterfaceItem.Controller.Any(c =>
+            c.Equals(controllerName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
     /// 更新任务对指定资源包的支持状态
     /// </summary>
     /// <param name="resourceName">资源包名称</param>
     public void UpdateResourceSupport(string? resourceName)
     {
         IsResourceSupported = SupportsResource(resourceName);
+        UpdateTaskSupport();
+    }
+
+    /// <summary>
+    /// 更新任务对指定控制器的支持状态
+    /// </summary>
+    /// <param name="controllerName">控制器名称</param>
+    public void UpdateControllerSupport(string? controllerName)
+    {
+        IsControllerSupported = SupportsController(controllerName);
+        UpdateTaskSupport();
+    }
+
+    private void UpdateTaskSupport()
+    {
+        IsTaskSupported = IsResourceSupported && IsControllerSupported;
+    }
+
+    private void InitializeSupportStatus()
+    {
+        if (IsResourceOptionItem)
+            return;
+
+        try
+        {
+            var resourceName = Instances.TaskQueueViewModel?.CurrentResource;
+            UpdateResourceSupport(resourceName);
+
+            var controllerName = GetCurrentControllerName();
+            UpdateControllerSupport(controllerName);
+        }
+        catch (Exception)
+        {
+            UpdateTaskSupport();
+        }
+    }
+
+    private static string? GetCurrentControllerName()
+    {
+        var currentControllerType = Instances.TaskQueueViewModel?.CurrentController ?? MaaControllerTypes.None;
+        var controllerTypeKey = currentControllerType.ToJsonKey();
+
+        var controller = MaaProcessor.Interface?.Controller?.Find(c =>
+            c.Type != null && c.Type.Equals(controllerTypeKey, StringComparison.OrdinalIgnoreCase));
+
+        return controller?.Name;
     }
     
     private void UpdateContent()
@@ -242,6 +320,8 @@ public partial class DragItemViewModel : ObservableObject
         clone.EnableSetting = this.EnableSetting;
         clone.IsVisible = this.IsVisible;
         clone.IsResourceSupported = this.IsResourceSupported;
+        clone.IsControllerSupported = this.IsControllerSupported;
+        clone.IsTaskSupported = this.IsTaskSupported;
         clone.ResolvedIcon = this.ResolvedIcon;
         clone.HasIcon = this.HasIcon;
         clone.IsResourceOptionItem = this.IsResourceOptionItem;

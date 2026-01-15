@@ -556,6 +556,16 @@ public partial class MaaInterface
         [JsonConverter(typeof(GenericSingleOrListConverter<string>))] [JsonProperty("resource")]
         public List<string>? Resource;
 
+        /// <summary>
+        /// 可选。指定该任务支持的控制器类型列表。
+        /// 数组元素应与 controller 配置中的 name 字段对应。
+        /// 若不指定，则表示该任务在所有控制器类型中都可用。
+        /// 当用户选择了某个控制器时，只有支持该控制器的任务才会显示在用户界面中供选择。
+        /// 这允许为不同控制器类型提供专门的任务配置，比如某些任务只适用于 Adb 控制器，某些任务只适用于 Win32 控制器。
+        /// </summary>
+        [JsonConverter(typeof(GenericSingleOrListConverter<string>))] [JsonProperty("controller")]
+        public List<string>? Controller;
+
         /// <summary>文档说明（旧版兼容）</summary>
         [JsonConverter(typeof(GenericSingleOrListConverter<string>))] [JsonProperty("doc")]
         public List<string>? Document;

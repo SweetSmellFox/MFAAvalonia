@@ -2361,10 +2361,10 @@ public class MaaProcessor
 
         if (InitializeData(currentTasks))
         {
-            // 排除不支持当前资源包的任务（IsResourceSupported 为 false 的任务）
+            // 排除不支持当前资源包/控制器的任务（IsTaskSupported 为 false 的任务）
             // 排除 resource option 项（它们不参与任务执行，只提供参数）
             var tasks = Instances.TaskQueueViewModel.TaskItemViewModels.ToList()
-                .FindAll(task => (task.IsChecked || task.IsCheckedWithNull == null) && task.IsResourceSupported && !task.IsResourceOptionItem);
+                .FindAll(task => (task.IsChecked || task.IsCheckedWithNull == null) && task.IsTaskSupported && !task.IsResourceOptionItem);
             StartTask(tasks, onlyStart, checkUpdate);
         }
     }
@@ -3287,7 +3287,7 @@ public class MaaProcessor
             if (!onlyStart)
             {
                 var list = _tempTasks.Count > 0 ? _tempTasks : Instances.TaskQueueViewModel.TaskItemViewModels.ToList();
-                list.Where(t => t.IsCheckedWithNull == null && !t.IsResourceSupported).ToList().ForEach(d => d.IsCheckedWithNull = false);
+                list.Where(t => t.IsCheckedWithNull == null && !t.IsTaskSupported).ToList().ForEach(d => d.IsCheckedWithNull = false);
 
                 if (_startTime != null)
                 {
