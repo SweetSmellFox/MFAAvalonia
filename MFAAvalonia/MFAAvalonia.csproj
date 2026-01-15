@@ -14,8 +14,6 @@
 
     <ItemGroup>
         <Folder Include="Assets\Sound\"/>
-        <Folder Include="Img\"/>
-        <Folder Include="Models\"/>
         <AvaloniaResource Include="Assets\**"/>
         <Folder Include="resource\base\pipeline\" />
     </ItemGroup>

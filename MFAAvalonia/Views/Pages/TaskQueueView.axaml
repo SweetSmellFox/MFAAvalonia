@@ -6,7 +6,6 @@
              x:Class="MFAAvalonia.Views.Pages.TaskQueueView"
              x:DataType="pages:TaskQueueViewModel"
              xmlns="https://github.com/avaloniaui"
-             xmlns:System="clr-namespace:System;assembly=System.Runtime"
              xmlns:binding="clr-namespace:MaaFramework.Binding;assembly=MaaFramework.Binding"
              xmlns:calcBinding="clr-namespace:CalcBinding;assembly=CalcBindingAva"
              xmlns:converters="clr-namespace:MFAAvalonia.Helper.Converters"
@@ -307,7 +306,7 @@
                                   ex:ComboBoxExtensions.DisableNavigationOnLostFocus="True"
                                   IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
                                   ItemsSource="{Binding ConfigurationList}"
-                                  SelectedValue="{Binding CurrentConfiguration}"
+                                  SelectedValue="{Binding CurrentConfiguration, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                   SelectedValueBinding="{Binding Name}"
                                   MinWidth="120">
                             <ComboBox.ItemTemplate>
@@ -612,7 +611,7 @@
                                       ex:ComboBoxExtensions.DisableNavigationOnLostFocus="True"
                                       IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
                                       ItemsSource="{Binding ConfigurationList}"
-                                      SelectedValue="{Binding CurrentConfiguration}"
+                                      SelectedValue="{Binding CurrentConfiguration, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                       SelectedValueBinding="{Binding Name}"
                                       MinWidth="120">
                                 <ComboBox.ItemTemplate>

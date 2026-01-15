@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using MFAAvalonia.Configuration;
 using MFAAvalonia.Extensions;
+using MFAAvalonia.Extensions.MaaFW;
 using MFAAvalonia.Utilities.Attributes;
 using MFAAvalonia.ViewModels.Pages;
 using MFAAvalonia.ViewModels.UsersControls.Settings;
@@ -19,6 +20,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace MFAAvalonia.Helper;
 
@@ -363,16 +365,31 @@ public static partial class Instances
     private static StartSettingsUserControlModel _startSettingsUserControlModel;
     private static AboutUserControl _aboutUserControl;
     private static HotKeySettingsUserControl _hotKeySettingsUserControl;
-
     public static void ReloadConfigurationForSwitch()
     {
-        DispatcherHelper.RunOnMainThread(() =>
+        _ = ReloadConfigurationForSwitchAsync();
+    }
+
+    public static async Task ReloadConfigurationForSwitchAsync()
+    {
+        static Task UpdateProgressAsync(double value) =>
+            DispatcherHelper.RunOnMainThreadAsync(() => Instances.RootViewModel.SetConfigSwitchProgress(value));
+
+        await UpdateProgressAsync(30);
+        await Task.Delay(40);
+
+        await DispatcherHelper.RunOnMainThreadAsync(() =>
         {
             if (IsResolved<SettingsViewModel>())
             {
-                Instances.SettingsViewModel.RefreshCurrentConfiguration();
+                SettingsViewModel.RefreshCurrentConfiguration();
             }
+        });
+        await UpdateProgressAsync(35);
+        await Task.Delay(30);
 
+        await DispatcherHelper.RunOnMainThreadAsync(() =>
+        {
             if (IsResolved<GuiSettingsUserControlModel>())
             {
                 var gui = GuiSettingsUserControlModel;
@@ -380,7 +397,8 @@ public static partial class Instances
 
                 gui.BackgroundAnimations = ConfigurationManager.Current.GetValue(ConfigurationKeys.BackgroundAnimations, false);
                 gui.BackgroundTransitions = ConfigurationManager.Current.GetValue(ConfigurationKeys.BackgroundTransitions, false);
-                gui.BackgroundStyle = ConfigurationManager.Current.GetValue(ConfigurationKeys.BackgroundStyle, SukiUI.Enums.SukiBackgroundStyle.GradientSoft, SukiUI.Enums.SukiBackgroundStyle.GradientSoft, new MFAAvalonia.Helper.Converters.UniversalEnumConverter<SukiUI.Enums.SukiBackgroundStyle>());
+                gui.BackgroundStyle = ConfigurationManager.Current.GetValue(ConfigurationKeys.BackgroundStyle, SukiUI.Enums.SukiBackgroundStyle.GradientSoft, SukiUI.Enums.SukiBackgroundStyle.GradientSoft,
+                    new Converters.UniversalEnumConverter<SukiUI.Enums.SukiBackgroundStyle>());
                 gui.ShouldMinimizeToTray = ConfigurationManager.Current.GetValue(ConfigurationKeys.ShouldMinimizeToTray, false);
                 gui.EnableToastNotification = ConfigurationManager.Current.GetValue(ConfigurationKeys.EnableToastNotification, true);
                 gui.BackgroundImagePath = ConfigurationManager.Current.GetValue(ConfigurationKeys.BackgroundImagePath, string.Empty);
@@ -398,17 +416,34 @@ public static partial class Instances
                 gui.CurrentLanguage = language;
                 LanguageHelper.ChangeLanguage(language);
             }
+        });
+        await UpdateProgressAsync(45);
+        await Task.Delay(30);
 
+        await DispatcherHelper.RunOnMainThreadAsync(() =>
+        {
             if (IsResolved<ConnectSettingsUserControlModel>())
             {
                 var connect = ConnectSettingsUserControlModel;
                 connect.RememberAdb = ConfigurationManager.Current.GetValue(ConfigurationKeys.RememberAdb, true);
                 connect.UseFingerprintMatching = ConfigurationManager.Current.GetValue(ConfigurationKeys.UseFingerprintMatching, true);
-                connect.AdbControlScreenCapType = ConfigurationManager.Current.GetValue(ConfigurationKeys.AdbControlScreenCapType, MaaFramework.Binding.AdbScreencapMethods.None, new System.Collections.Generic.List<MaaFramework.Binding.AdbScreencapMethods> { MaaFramework.Binding.AdbScreencapMethods.All, MaaFramework.Binding.AdbScreencapMethods.Default }, new MFAAvalonia.Helper.Converters.UniversalEnumConverter<MaaFramework.Binding.AdbScreencapMethods>());
-                connect.AdbControlInputType = ConfigurationManager.Current.GetValue(ConfigurationKeys.AdbControlInputType, MaaFramework.Binding.AdbInputMethods.None, new System.Collections.Generic.List<MaaFramework.Binding.AdbInputMethods> { MaaFramework.Binding.AdbInputMethods.All, MaaFramework.Binding.AdbInputMethods.Default }, new MFAAvalonia.Helper.Converters.UniversalEnumConverter<MaaFramework.Binding.AdbInputMethods>());
-                connect.Win32ControlScreenCapType = ConfigurationManager.Current.GetValue(ConfigurationKeys.Win32ControlScreenCapType, MaaFramework.Binding.Win32ScreencapMethod.FramePool, MaaFramework.Binding.Win32ScreencapMethod.None, new MFAAvalonia.Helper.Converters.UniversalEnumConverter<MaaFramework.Binding.Win32ScreencapMethod>());
-                connect.Win32ControlMouseType = ConfigurationManager.Current.GetValue(ConfigurationKeys.Win32ControlMouseType, MaaFramework.Binding.Win32InputMethod.SendMessage, MaaFramework.Binding.Win32InputMethod.None, new MFAAvalonia.Helper.Converters.UniversalEnumConverter<MaaFramework.Binding.Win32InputMethod>());
-                connect.Win32ControlKeyboardType = ConfigurationManager.Current.GetValue(ConfigurationKeys.Win32ControlKeyboardType, MaaFramework.Binding.Win32InputMethod.SendMessage, MaaFramework.Binding.Win32InputMethod.None, new MFAAvalonia.Helper.Converters.UniversalEnumConverter<MaaFramework.Binding.Win32InputMethod>());
+                connect.AdbControlScreenCapType = ConfigurationManager.Current.GetValue(ConfigurationKeys.AdbControlScreenCapType, MaaFramework.Binding.AdbScreencapMethods.None,
+                    new System.Collections.Generic.List<MaaFramework.Binding.AdbScreencapMethods>
+                    {
+                        MaaFramework.Binding.AdbScreencapMethods.All,
+                        MaaFramework.Binding.AdbScreencapMethods.Default
+                    }, new Converters.UniversalEnumConverter<MaaFramework.Binding.AdbScreencapMethods>());
+                connect.AdbControlInputType = ConfigurationManager.Current.GetValue(ConfigurationKeys.AdbControlInputType, MaaFramework.Binding.AdbInputMethods.None, new System.Collections.Generic.List<MaaFramework.Binding.AdbInputMethods>
+                {
+                    MaaFramework.Binding.AdbInputMethods.All,
+                    MaaFramework.Binding.AdbInputMethods.Default
+                }, new Converters.UniversalEnumConverter<MaaFramework.Binding.AdbInputMethods>());
+                connect.Win32ControlScreenCapType = ConfigurationManager.Current.GetValue(ConfigurationKeys.Win32ControlScreenCapType, MaaFramework.Binding.Win32ScreencapMethod.FramePool, MaaFramework.Binding.Win32ScreencapMethod.None,
+                    new Converters.UniversalEnumConverter<MaaFramework.Binding.Win32ScreencapMethod>());
+                connect.Win32ControlMouseType = ConfigurationManager.Current.GetValue(ConfigurationKeys.Win32ControlMouseType, MaaFramework.Binding.Win32InputMethod.SendMessage, MaaFramework.Binding.Win32InputMethod.None,
+                    new Converters.UniversalEnumConverter<MaaFramework.Binding.Win32InputMethod>());
+                connect.Win32ControlKeyboardType = ConfigurationManager.Current.GetValue(ConfigurationKeys.Win32ControlKeyboardType, MaaFramework.Binding.Win32InputMethod.SendMessage, MaaFramework.Binding.Win32InputMethod.None,
+                    new Converters.UniversalEnumConverter<MaaFramework.Binding.Win32InputMethod>());
                 connect.RetryOnDisconnected = ConfigurationManager.Current.GetValue(ConfigurationKeys.RetryOnDisconnected, false);
                 connect.AllowAdbRestart = ConfigurationManager.Current.GetValue(ConfigurationKeys.AllowAdbRestart, true);
                 connect.AllowAdbHardRestart = ConfigurationManager.Current.GetValue(ConfigurationKeys.AllowAdbHardRestart, true);
@@ -434,7 +469,12 @@ public static partial class Instances
                 game.PostScript = ConfigurationManager.Current.GetValue(ConfigurationKeys.Postscript, string.Empty);
                 game.ContinueRunningWhenError = ConfigurationManager.Current.GetValue(ConfigurationKeys.ContinueRunningWhenError, true);
             }
+        });
+        await UpdateProgressAsync(60);
+        await Task.Delay(30);
 
+        await DispatcherHelper.RunOnMainThreadAsync(() =>
+        {
             if (IsResolved<PerformanceUserControlModel>())
             {
                 var performance = PerformanceUserControlModel;
@@ -500,21 +540,41 @@ public static partial class Instances
                 version.EnableAutoUpdateResource = ConfigurationManager.Current.GetValue(ConfigurationKeys.EnableAutoUpdateResource, false);
                 version.EnableAutoUpdateMFA = ConfigurationManager.Current.GetValue(ConfigurationKeys.EnableAutoUpdateMFA, false);
                 version.ProxyAddress = ConfigurationManager.Current.GetValue(ConfigurationKeys.ProxyAddress, string.Empty);
-                version.ProxyType = ConfigurationManager.Current.GetValue(ConfigurationKeys.ProxyType, VersionUpdateSettingsUserControlModel.UpdateProxyType.Http, VersionUpdateSettingsUserControlModel.UpdateProxyType.Http, new MFAAvalonia.Helper.Converters.UniversalEnumConverter<VersionUpdateSettingsUserControlModel.UpdateProxyType>());
+                version.ProxyType = ConfigurationManager.Current.GetValue(ConfigurationKeys.ProxyType, VersionUpdateSettingsUserControlModel.UpdateProxyType.Http, VersionUpdateSettingsUserControlModel.UpdateProxyType.Http,
+                    new Converters.UniversalEnumConverter<VersionUpdateSettingsUserControlModel.UpdateProxyType>());
             }
+        });
+        await UpdateProgressAsync(72);
+        await Task.Delay(30);
 
-            var task = Instances.TaskQueueViewModel;
+        await DispatcherHelper.RunOnMainThreadAsync(() =>
+        {
+            var task = TaskQueueViewModel;
+            task.CurrentConfiguration = ConfigurationManager.GetCurrentConfiguration();
             task.TaskItemViewModels = new();
-            task.CurrentController = ConfigurationManager.Current.GetValue(ConfigurationKeys.CurrentController, MFAAvalonia.Extensions.MaaFW.MaaControllerTypes.Adb, MFAAvalonia.Extensions.MaaFW.MaaControllerTypes.None, new MFAAvalonia.Helper.Converters.UniversalEnumConverter<MFAAvalonia.Extensions.MaaFW.MaaControllerTypes>());
+            task.CurrentController = ConfigurationManager.Current.GetValue(ConfigurationKeys.CurrentController, MaaControllerTypes.Adb, MaaControllerTypes.None,
+                new Converters.UniversalEnumConverter<MaaControllerTypes>());
             task.EnableLiveView = ConfigurationManager.Current.GetValue(ConfigurationKeys.EnableLiveView, true);
             task.LiveViewRefreshRate = ConfigurationManager.Current.GetValue(ConfigurationKeys.LiveViewRefreshRate, 30.0);
+        });
+        await UpdateProgressAsync(80);
+        await Task.Delay(30);
 
-            if (IsResolved<MFAAvalonia.Views.Pages.TaskQueueView>())
+        await DispatcherHelper.RunOnMainThreadAsync(() =>
+        {
+            if (IsResolved<TaskQueueView>())
             {
-                Instances.TaskQueueView.ResetOptionPanels();
+                TaskQueueView.ResetOptionPanels();
             }
+        });
+        await UpdateProgressAsync(85);
+        await Task.Delay(40);
 
-            MFAAvalonia.Extensions.MaaFW.MaaProcessor.Instance.InitializeData();
+        await DispatcherHelper.RunOnMainThreadAsync(() =>
+        {
+            var task = TaskQueueViewModel;
+
+           MaaProcessor.Instance.InitializeData();
 
             task.InitializeControllerOptions();
             task.UpdateResourcesForController();
@@ -523,12 +583,12 @@ public static partial class Instances
 
             if (IsResolved<RootViewModel>())
             {
-                Instances.RootViewModel.IsDebugMode = ConfigurationManager.Maa.GetValue(ConfigurationKeys.Recording, false)
+                RootViewModel.IsDebugMode = ConfigurationManager.Maa.GetValue(ConfigurationKeys.Recording, false)
                     || ConfigurationManager.Maa.GetValue(ConfigurationKeys.SaveDraw, false)
                     || ConfigurationManager.Maa.GetValue(ConfigurationKeys.ShowHitDraw, false);
             }
 
-            if (IsResolved<MFAAvalonia.Views.Pages.TaskQueueView>())
+            if (IsResolved<TaskQueueView>())
             {
                 var selected = task.TaskItemViewModels.FirstOrDefault(i => i.IsResourceOptionItem)
                     ?? task.TaskItemViewModels.FirstOrDefault(i => i.InterfaceItem?.Advanced is { Count: > 0 }
@@ -542,7 +602,9 @@ public static partial class Instances
                 }
             }
 
-            MFAAvalonia.Extensions.MaaFW.MaaProcessor.Instance.SetTasker();
+            MaaProcessor.Instance.SetTasker();
         });
+        await UpdateProgressAsync(95);
+        await Task.Delay(40);
     }
 }

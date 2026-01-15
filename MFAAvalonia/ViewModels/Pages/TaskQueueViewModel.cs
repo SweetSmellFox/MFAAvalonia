@@ -453,7 +453,7 @@ public partial class TaskQueueViewModel : ViewModelBase
     public static readonly string DEBUG = "debug:";
     public static readonly string CRITICAL = "critical:";
     public static readonly string SUCCESS = "success:";
-    
+
     public static bool CheckShouldLog(string content)
     {
         const StringComparison comparison = StringComparison.Ordinal; // 指定匹配规则（避免大小写问题，按需调整）
@@ -467,12 +467,12 @@ public partial class TaskQueueViewModel : ViewModelBase
         {
             return true;
         }
-        
+
         if (content.StartsWith(SUCCESS, comparison))
         {
             return true;
         }
-        
+
         if (content.StartsWith(INFO, comparison))
         {
             return true;
@@ -526,14 +526,14 @@ public partial class TaskQueueViewModel : ViewModelBase
             content = content.Substring(DEBUG.Length).TrimStart();
             changeColor = false;
         }
-        
+
         if (content.StartsWith(SUCCESS, comparison))
         {
             brush = Brushes.LimeGreen;
             content = content.Substring(SUCCESS.Length).TrimStart();
             changeColor = false;
         }
-        
+
         if (content.StartsWith(INFO, comparison))
         {
             content = content.Substring(INFO.Length).TrimStart();
@@ -548,7 +548,7 @@ public partial class TaskQueueViewModel : ViewModelBase
             content = content.Substring(warnPrefix.Length).TrimStart();
             changeColor = false;
         }
-        
+
         var errorPrefix = ERROR.FirstOrDefault(prefix =>
             !string.IsNullOrEmpty(prefix) && content.StartsWith(prefix, comparison)
         );
@@ -1208,7 +1208,7 @@ public partial class TaskQueueViewModel : ViewModelBase
                 isAdb ? LangKeys.NoEmulatorFoundDetail : "").ToLocalization());
         }
     }
-    
+
     public void TryReadPlayCoverConfig()
     {
         if (ConfigurationManager.Current.TryGetValue(ConfigurationKeys.PlayCoverConfig, out PlayCoverCoreConfig savedConfig))
@@ -1738,7 +1738,8 @@ public partial class TaskQueueViewModel : ViewModelBase
 
         if (width <= 0 || height <= 0)
         {
-            return targetBitmap ?? new WriteableBitmap(
+            return targetBitmap
+                ?? new WriteableBitmap(
                     new PixelSize(1, 1),
                     new Vector(96, 96),
                     PixelFormat.Bgra8888,
@@ -1822,6 +1823,7 @@ public partial class TaskQueueViewModel : ViewModelBase
 
     #endregion
 
+
     #region 配置切换
 
     /// <summary>
@@ -1829,20 +1831,16 @@ public partial class TaskQueueViewModel : ViewModelBase
     /// </summary>
     public IAvaloniaReadOnlyList<MFAConfiguration> ConfigurationList => ConfigurationManager.Configs;
 
-    /// <summary>
-    /// 当前配置名称
-    /// </summary>
-    public string? CurrentConfiguration
+    [ObservableProperty] private string? _currentConfiguration = ConfigurationManager.GetCurrentConfiguration();
+
+    partial void OnCurrentConfigurationChanged(string? value)
     {
-        get => ConfigurationManager.GetCurrentConfiguration();
-        set
+        if (!string.IsNullOrWhiteSpace(value)
+            && !value.Equals(ConfigurationManager.GetCurrentConfiguration(), StringComparison.OrdinalIgnoreCase))
         {
-            if (value != null && value != ConfigurationManager.GetCurrentConfiguration())
-            {
-                ConfigurationManager.SwitchConfiguration(value);
-            }
+            ConfigurationManager.SwitchConfiguration(value);
         }
     }
-
-    #endregion
 }
+
+#endregion

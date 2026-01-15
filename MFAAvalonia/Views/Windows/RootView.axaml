@@ -227,8 +227,13 @@
         <suki:SukiDialogHost Manager="{x:Static helper:Instances.DialogManager}" Name="DialogHost" />
     </suki:SukiWindow.Hosts>
     <LayoutTransformControl LayoutTransform="{Binding ScaleTransform, Source={x:Static helper:FontService.Instance}}">
-        <Grid>
-            <suki:SukiSideMenu IsMenuExpanded="False" IsSearchEnabled="False" OpenPaneLength="150">
+        <Grid RowDefinitions="*">
+            <ProgressBar Height="30" Width="360"
+                         Minimum="0"  HorizontalAlignment="Center"
+                         Maximum="100" VerticalAlignment="Center"
+                         Value="{Binding ConfigSwitchProgress}"
+                         IsVisible="{Binding IsConfigSwitching}" />
+            <suki:SukiSideMenu IsVisible="{Binding '!IsConfigSwitching'}"  IsMenuExpanded="False" IsSearchEnabled="False" OpenPaneLength="150">
                 <!-- <suki:SukiSideMenu.Styles> -->
                 <!--     <Style Selector="Image.AppIcon"> -->
                 <!--         <Setter Property="Transitions"> -->

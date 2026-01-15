@@ -62,6 +62,27 @@ public partial class RootViewModel : ViewModelBase
         || ConfigurationManager.Maa.GetValue(ConfigurationKeys.ShowHitDraw, false);
     private bool _shouldTip = true;
     [ObservableProperty] private bool _isUpdating;
+    [ObservableProperty] private bool _isConfigSwitching;
+    [ObservableProperty] private double _configSwitchProgress;
+
+    partial void OnIsConfigSwitchingChanging(bool value)
+    {
+        Console.WriteLine("状态：" + value);
+    }
+    
+    public void SetConfigSwitchingState(bool isSwitching)
+    {
+        IsConfigSwitching = isSwitching;
+        if (!isSwitching)
+        {
+            ConfigSwitchProgress = 0;
+        }
+    }
+
+    public void SetConfigSwitchProgress(double progress)
+    {
+        ConfigSwitchProgress = Math.Clamp(progress, 0, 100);
+    }
     
     [RelayCommand]
     private void TryUpdate()
