@@ -21,7 +21,6 @@ public class MFAResxLangPlugin : ILangPlugin
     public Dictionary<string, LocalizationLanguage> Resources { get; } = new();
     public string Mark { get; set; } = "MFAAvalonia.Assets.Localization";
     private Dictionary<Type, ResourceManager>? _resourceManagers;
-
     private CultureInfo? _defaultCulture;
 
     public CultureInfo Culture

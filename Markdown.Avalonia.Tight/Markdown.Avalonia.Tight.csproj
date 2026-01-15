@@ -27,7 +27,7 @@
     <NoWarn>CS0618;CS8602;CS8618;NETSDK1206;CS8524;CS8604;CS0067;CS0219;CS0612;CS8629;CS8619</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Avalonia" Version="11.3.10" />
+    <PackageReference Include="Avalonia" Version="11.3.11" />
   </ItemGroup>
 
   <ItemGroup>

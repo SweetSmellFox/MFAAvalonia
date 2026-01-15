@@ -1678,7 +1678,12 @@ public partial class TaskQueueViewModel : ViewModelBase
                 return;
             }
 
-            if (width <= 0 || height <= 0)
+            if (rawData == IntPtr.Zero || width <= 0 || height <= 0)
+            {
+                return;
+            }
+
+            if (buffer.Channels is not (3 or 4))
             {
                 return;
             }
@@ -1709,6 +1714,10 @@ public partial class TaskQueueViewModel : ViewModelBase
                     LiveViewFps = frameCount / totalSeconds;
                 });
             }
+        }
+        catch (Exception ex)
+        {
+            LoggerHelper.Warning($"LiveView update failed: {ex.Message}");
         }
         finally
         {

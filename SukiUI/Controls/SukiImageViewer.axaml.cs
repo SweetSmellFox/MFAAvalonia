@@ -356,7 +356,6 @@ public class SukiImageViewer : TemplatedControl
             if (storageFile != null)
                 dataTransfer.Add(DataTransferItem.CreateFile(storageFile));
             await clipboard.SetDataAsync(dataTransfer);
-
         }
         catch
         {

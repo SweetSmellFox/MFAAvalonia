@@ -1,4 +1,5 @@
-﻿using Avalonia.Controls;
+﻿using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.Notifications;
 using Avalonia.Media;
 using MaaFramework.Binding.Interop.Native;
@@ -328,7 +329,7 @@ public static class VersionChecker
         {
             progress = new ProgressBar
             {
-                Value = 0,
+                Value = 0,Margin = new Thickness(0,5),
                 ShowProgressText = true
             };
             StackPanel stackPanel = new();
@@ -388,7 +389,6 @@ public static class VersionChecker
         }
         catch (Exception ex)
         {
-            Console.WriteLine(sukiToast == null);
             Dismiss(sukiToast);
             ToastHelper.Warn($"{LangKeys.FailToGetLatestVersionInfo.ToLocalization()}", ex.Message, -1);
             Instances.RootViewModel.SetUpdating(false);
@@ -1033,7 +1033,7 @@ public static class VersionChecker
         {
             progress = new ProgressBar
             {
-                Value = 0,
+                Value = 0,Margin = new Thickness(0,5),
                 ShowProgressText = true
             };
             textBlock = new TextBlock
@@ -1516,7 +1516,7 @@ public static class VersionChecker
         {
             progress = new ProgressBar
             {
-                Value = 0,
+                Value = 0,Margin = new Thickness(0,5),
                 ShowProgressText = true
             };
             textBlock = new TextBlock

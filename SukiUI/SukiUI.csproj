@@ -25,10 +25,10 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Avalonia" Version="11.3.10" />
-        <PackageReference Include="Avalonia.Controls.ColorPicker" Version="11.3.10" />
-        <PackageReference Include="Avalonia.Skia" Version="11.3.10" />
-        <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.10" />
+        <PackageReference Include="Avalonia" Version="11.3.11" />
+        <PackageReference Include="Avalonia.Controls.ColorPicker" Version="11.3.11" />
+        <PackageReference Include="Avalonia.Skia" Version="11.3.11" />
+        <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.11" />
         <PackageReference Include="CalcBindingAva" Version="2.5.3" />
         <PackageReference Include="SkiaSharp" Version="3.119.1">
         </PackageReference>
@@ -37,8 +37,8 @@
             <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
         </PackageReference>
         <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.119.1" />
-        <PackageReference Include="Avalonia.Controls.DataGrid" Version="11.3.10" />
-        <PackageReference Include="Avalonia.Themes.Simple" Version="11.3.10" />
+        <PackageReference Include="Avalonia.Controls.DataGrid" Version="11.3.11" />
+        <PackageReference Include="Avalonia.Themes.Simple" Version="11.3.11" />
         <PackageReference Include="System.Linq.Dynamic.Core" Version="1.7.1" />
         <PackageReference Update="Packaging.Targets">
           <Version>0.1.232</Version>

@@ -326,7 +326,6 @@ public class ResourceBindingWithFallbackExtension : MarkupExtension
         var resolvedDisplayName = ResolveValue(_displayName, serviceProvider);
         var resolvedFallbackName = ResolveValue(_fallbackName, serviceProvider);
         
-        Console.WriteLine("resolvedDisplayName: {0}, resolvedFallbackName: {1}", resolvedDisplayName, resolvedFallbackName);
         return new ResourceBindingWithFallback(resolvedDisplayName, resolvedFallbackName);
     }
 

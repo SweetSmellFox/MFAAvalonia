@@ -18,6 +18,7 @@ using MFAAvalonia.Views.UserControls;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading;
 using System.ComponentModel;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -2342,7 +2343,7 @@ public partial class TaskQueueView : UserControl
         var introduction = dragItem.IsResourceOptionItem
             ? ConvertCustomMarkup(dragItem.ResourceItem?.Description ?? string.Empty)
             : ConvertCustomMarkup(GetTooltipText(dragItem.InterfaceItem?.Description, dragItem.InterfaceItem?.Document) ?? string.Empty);
-        Console.WriteLine(introduction);
+
         IntroductionsCache.AddOrUpdate(cacheKey, introduction, (_, _) => introduction);
         SetMarkDown(introduction);
 
@@ -2361,6 +2362,7 @@ public partial class TaskQueueView : UserControl
 
     private readonly Timer _liveViewTimer = new();
     private bool _liveViewTimerStarted;
+    private int _liveViewTickInProgress;
 
     private void OnTaskQueueViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -2457,6 +2459,11 @@ public partial class TaskQueueView : UserControl
 
     private void OnLiveViewTimerElapsed(object? sender, EventArgs e)
     {
+        if (Interlocked.Exchange(ref _liveViewTickInProgress, 1) == 1)
+        {
+            return;
+        }
+
         try
         {
             if (MaaProcessor.IsClosed)
@@ -2478,8 +2485,10 @@ public partial class TaskQueueView : UserControl
             if (Instances.TaskQueueViewModel.EnableLiveView && Instances.TaskQueueViewModel.IsConnected)
             {
                 var status = MaaProcessor.Instance.PostScreencap();
-                if (MaaProcessor.Instance.HandleScreencapStatus(status, false))
+                if (status != MaaJobStatus.Succeeded)
                 {
+                    if (status == MaaJobStatus.Invalid)
+                        Instances.TaskQueueViewModel.SetConnected(false);
                     return;
                 }
 
@@ -2495,6 +2504,10 @@ public partial class TaskQueueView : UserControl
         catch
         {
             // ignored
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _liveViewTickInProgress, 0);
         }
     }
 

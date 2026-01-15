@@ -631,15 +631,8 @@ public class MaaProcessor
                 Global = new MaaGlobal(),
                 DisposeOptions = DisposeOptions.All,
             };
-
-            tasker.Releasing += (_, _) =>
-            {
-                tasker.Controller.Callback -= HandleControllerCallBack;
-            };
-
+            
            // ConfigureScreenshotTasker(tasker);
-
-            tasker.Controller.Callback += HandleControllerCallBack;
 
             var linkStatus = tasker.Controller?.LinkStart().Wait();
             if (linkStatus != MaaJobStatus.Succeeded)
@@ -804,7 +797,6 @@ public class MaaProcessor
             tasker.Releasing += (_, _) =>
             {
                 tasker.Callback -= HandleCallBack;
-                tasker.Controller.Callback -= HandleControllerCallBack;
             };
 
             try
@@ -1127,7 +1119,6 @@ public class MaaProcessor
             LoggerHelper.Info("Maafw debug mode: " + ConfigurationManager.Maa.GetValue(ConfigurationKeys.ShowHitDraw, false));
             // 注意：只订阅一次回调，避免嵌套订阅导致内存泄漏
             tasker.Callback += HandleCallBack;
-            tasker.Controller.Callback += HandleControllerCallBack;
             ResetScreencapFailureLogFlags();
             return (tasker, InvalidResource, ShouldRetry);
         }
@@ -1146,14 +1137,15 @@ public class MaaProcessor
             return (null, InvalidResource, ShouldRetry);
         }
     }
-    public void HandleControllerCallBack(object? sender, MaaCallbackEventArgs args)
-    {
-        var message = args.Message;
-        if (message == MaaMsg.Controller.Action.Failed)
-        {
-            HandleScreencapFailure(true);
-        }
-    }
+    // public void HandleControllerCallBack(object? sender, MaaCallbackEventArgs args)
+    // {
+    //     var message = args.Message;
+    //     if (message == MaaMsg.Controller.Action.Failed)
+    //     {
+    //         HandleScreencapFailure(true);
+    //     }
+    // }
+    
     public void HandleCallBack(object? sender, MaaCallbackEventArgs args)
     {
         JObject jObject;
