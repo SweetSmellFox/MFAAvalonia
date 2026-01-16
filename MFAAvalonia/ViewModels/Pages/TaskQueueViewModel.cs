@@ -711,11 +711,11 @@ public partial class TaskQueueViewModel : ViewModelBase
             Refresh();
         }
     }
-
     /// <summary>
     /// 根据当前控制器更新资源列表
     /// </summary>
-    public void UpdateResourcesForController()
+    /// <param name="targetResource">目标资源名称（可选）。如果指定，将优先使用此资源而不是当前资源。用于配置切换时指定要恢复的资源。</param>
+    public void UpdateResourcesForController(string? targetResource = null)
     {
         // 获取所有资源
         var allResources = MaaProcessor.Interface?.Resources.Values.ToList() ?? new List<MaaInterface.MaaInterfaceResource>();
@@ -750,8 +750,11 @@ public partial class TaskQueueViewModel : ViewModelBase
             return;
         }
 
+        // 确定要检查的资源：优先使用目标资源，否则使用当前资源
+        var resourceToCheck = !string.IsNullOrWhiteSpace(targetResource) ? targetResource : CurrentResource;
+
         // 当前资源为空或不在列表时，选择第一个
-        if (string.IsNullOrWhiteSpace(CurrentResource) || CurrentResources.All(r => r.Name != CurrentResource))
+        if (string.IsNullOrWhiteSpace(resourceToCheck) || CurrentResources.All(r => r.Name != resourceToCheck))
         {
             var oldResource = CurrentResource;
             var newResource = CurrentResources[0].Name ?? "Default";
@@ -768,6 +771,13 @@ public partial class TaskQueueViewModel : ViewModelBase
                     6);
             }
 
+            return;
+        }
+
+        // 如果指定了目标资源且与当前资源不同，设置为目标资源
+        if (!string.IsNullOrWhiteSpace(targetResource) && !string.Equals(CurrentResource, targetResource, StringComparison.Ordinal))
+        {
+            CurrentResource = targetResource;
             return;
         }
 

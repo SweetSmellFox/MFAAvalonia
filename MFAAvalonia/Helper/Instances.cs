@@ -574,11 +574,13 @@ public static partial class Instances
         {
             var task = TaskQueueViewModel;
 
-           MaaProcessor.Instance.InitializeData();
+            MaaProcessor.Instance.InitializeData();
 
             task.InitializeControllerOptions();
-            task.UpdateResourcesForController();
-            task.CurrentResource = ConfigurationManager.Current.GetValue(ConfigurationKeys.Resource, string.Empty);
+            // 先从配置中读取目标资源，然后传入 UpdateResourcesForController
+            // 这样可以确保在配置切换时正确恢复资源，而不是总是选择第一个
+            var targetResource = ConfigurationManager.Current.GetValue(ConfigurationKeys.Resource, string.Empty);
+            task.UpdateResourcesForController(targetResource);
             task.TryReadAdbDeviceFromConfig(false, false, false);
 
             if (IsResolved<RootViewModel>())
