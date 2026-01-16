@@ -579,7 +579,7 @@ public static partial class Instances
             task.InitializeControllerOptions();
             task.UpdateResourcesForController();
             task.CurrentResource = ConfigurationManager.Current.GetValue(ConfigurationKeys.Resource, string.Empty);
-            task.TryReadAdbDeviceFromConfig(false, true);
+            task.TryReadAdbDeviceFromConfig(false, false, false);
 
             if (IsResolved<RootViewModel>())
             {

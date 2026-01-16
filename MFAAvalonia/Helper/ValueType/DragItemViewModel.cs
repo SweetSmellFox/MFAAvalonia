@@ -15,13 +15,9 @@ public partial class DragItemViewModel : ObservableObject
         InterfaceItem = interfaceItem;
         if (interfaceItem != null)
         {
-            Name = LanguageHelper.GetLocalizedDisplayName(interfaceItem.DisplayName, interfaceItem.Name ?? LangKeys.Unnamed);
             interfaceItem.InitializeIcon();
         }
-        else
-        {
-            Name = LangKeys.Unnamed.ToLocalization();
-        }
+        UpdateDisplayName();
         UpdateIconFromInterfaceItem();
         InitializeSupportStatus();
         LanguageHelper.LanguageChanged += OnLanguageChanged;
@@ -122,13 +118,13 @@ public partial class DragItemViewModel : ObservableObject
         {
             if (value != null)
             {
-                if (!string.IsNullOrEmpty(value.DisplayName))
-                    Name = value.DisplayName;
                 IsVisible = value is { Advanced.Count: > 0 } || value is { Option.Count: > 0 } || value.Repeatable == true || !string.IsNullOrWhiteSpace(value.Description) || value.Document is { Count: > 0 };
                 IsCheckedWithNull = value.Check;
             }
 
             SetProperty(ref _interfaceItem, value);
+            UpdateDisplayName();
+            UpdateIconFromInterfaceItem();
         }
     }
 
@@ -261,18 +257,42 @@ public partial class DragItemViewModel : ObservableObject
     
     private void UpdateContent()
     {
+        UpdateDisplayName();
         if (IsResourceOptionItem && ResourceItem != null)
         {
-            // 使用 i18n 本地化名称 "资源预设配置"
-            Name = LangKeys.ResourcePresetConfig.ToLocalization();
             ResolvedIcon = ResourceItem.ResolvedIcon;
             HasIcon = ResourceItem.HasIcon;
+            return;
         }
-        else if (!string.IsNullOrEmpty(InterfaceItem?.DisplayName ?? LangKeys.Unnamed))
+        UpdateIconFromInterfaceItem();
+    }
+
+    private void UpdateDisplayName()
+    {
+        if (IsResourceOptionItem && ResourceItem != null)
         {
-            Name = LanguageHelper.GetLocalizedDisplayName(InterfaceItem.DisplayName, InterfaceItem.Name ?? LangKeys.Unnamed);
-            UpdateIconFromInterfaceItem();
+            Name = LangKeys.ResourcePresetConfig.ToLocalization();
+            return;
         }
+
+        if (InterfaceItem == null)
+        {
+            Name = LangKeys.Unnamed.ToLocalization();
+            return;
+        }
+
+        var displayName = !string.IsNullOrWhiteSpace(InterfaceItem.Remark)
+            ? InterfaceItem.Remark!
+            : !string.IsNullOrWhiteSpace(InterfaceItem.DisplayNameOverride)
+                ? InterfaceItem.DisplayNameOverride!
+                : LanguageHelper.GetLocalizedDisplayName(InterfaceItem.DisplayName, InterfaceItem.Name ?? LangKeys.Unnamed);
+
+        Name = displayName;
+    }
+
+    public void RefreshDisplayName()
+    {
+        UpdateDisplayName();
     }
 
     private void UpdateIconFromInterfaceItem()

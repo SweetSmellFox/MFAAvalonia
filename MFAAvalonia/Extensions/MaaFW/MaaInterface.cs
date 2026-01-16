@@ -531,6 +531,12 @@ public partial class MaaInterface
         /// <summary>任务显示名称，用于在用户界面中展示。支持国际化字符串（以$开头）。如果未设置，则显示 Name 字段的值。</summary>
         [JsonProperty("label")] public string? Label;
 
+        /// <summary>任务显示名称覆盖（仅配置文件使用，不影响接口定义）</summary>
+        [JsonProperty("display_name_override")] public string? DisplayNameOverride;
+
+        /// <summary>任务备注（仅配置文件使用，不影响接口定义）</summary>
+        [JsonProperty("remark")] public string? Remark;
+
         /// <summary>任务入口，为 pipeline 中 Task 的名称</summary>
         [JsonProperty("entry")] public string? Entry;
 

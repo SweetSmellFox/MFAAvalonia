@@ -2652,7 +2652,7 @@ public class MaaProcessor
         Console.WriteLine(taskParams);
         return new NodeAndParam
         {
-            Name = task.InterfaceItem?.DisplayName,
+            Name = task.Name,
             Entry = task.InterfaceItem?.Entry,
             Count = task.InterfaceItem?.Repeatable == true ? (task.InterfaceItem?.RepeatCount ?? 1) : 1,
             // Tasks = tasks,
@@ -2738,13 +2738,15 @@ public class MaaProcessor
                 MaaControllerTypes.PlayCover => "TabPlayCover",
                 _ => LangKeys.Window
             };
+            var beforeTask = ConfigurationManager.Current.GetValue(ConfigurationKeys.BeforeTask, "None");
+            var delayFingerprintMatching = beforeTask.Contains("StartupSoftware", StringComparison.OrdinalIgnoreCase);
 
             if (showMessage)
                 RootView.AddLogByKeys(LangKeys.ConnectingTo, null, true, targetKey);
             else
                 ToastHelper.Info(LangKeys.Tip.ToLocalization(), LangKeys.ConnectingTo.ToLocalizationFormatted(true, targetKey));
 
-            if (!isPlayCover && Instances.TaskQueueViewModel.CurrentDevice == null && Instances.ConnectSettingsUserControlModel.AutoDetectOnConnectionFailed)
+            if (!isPlayCover && Instances.TaskQueueViewModel.CurrentDevice == null && Instances.ConnectSettingsUserControlModel.AutoDetectOnConnectionFailed && !delayFingerprintMatching)
                 Instances.TaskQueueViewModel.TryReadAdbDeviceFromConfig(false, true);
 
             var tuple = await TryConnectAsync(token);

@@ -1499,6 +1499,24 @@
     <data name="ResourceLayoutUpdatedContent" xml:space="preserve">
         <value>检测到资源布局文件更新，已应用最新布局并覆盖当前布局。</value>
     </data>
+    <data name="TaskRemarkMenu" xml:space="preserve">
+        <value>备注</value>
+    </data>
+    <data name="TaskRemarkTitle" xml:space="preserve">
+        <value>任务备注</value>
+    </data>
+    <data name="TaskRename" xml:space="preserve">
+        <value>重命名</value>
+    </data>
+    <data name="TaskRenamePlaceholder" xml:space="preserve">
+        <value>输入自定义显示名称（可选）</value>
+    </data>
+    <data name="TaskRemark" xml:space="preserve">
+        <value>备注</value>
+    </data>
+    <data name="TaskRemarkPlaceholder" xml:space="preserve">
+        <value>输入备注（可选）</value>
+    </data>
 
 </root>
 

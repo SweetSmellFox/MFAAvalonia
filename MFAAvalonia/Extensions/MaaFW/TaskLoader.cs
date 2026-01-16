@@ -332,10 +332,8 @@ public class TaskLoader(MaaInterface? maaInterface)
         oldItem.ResolvedIcon = oldItem.InterfaceItem.ResolvedIcon;
         oldItem.HasIcon = oldItem.InterfaceItem.HasIcon;
 
-        // 更新显示名称
-        oldItem.Name = LanguageHelper.GetLocalizedDisplayName(
-            oldItem.InterfaceItem.DisplayName,
-            oldItem.InterfaceItem.Name ?? LangKeys.Unnamed);
+        // 更新显示名称（保留自定义重命名/备注）
+        oldItem.RefreshDisplayName();
 
         UpdateAdvancedOptions(oldItem, newItem);
         UpdateOptions(oldItem, newItem);

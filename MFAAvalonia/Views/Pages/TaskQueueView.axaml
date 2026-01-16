@@ -39,6 +39,8 @@
             <MenuItem IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
                       Click="RunCheckedFromCurrent"
                       Header="{markup:I18n {x:Static helper:LangKeys.RunCheckedFromCurrent}}" />
+            <MenuItem Click="EditTaskRemark"
+                      Header="{markup:I18n {x:Static helper:LangKeys.TaskRemarkMenu}}" />
             <MenuItem Click="Delete"
                       Header="{markup:I18n {x:Static helper:LangKeys.Delete}}" />
         </ContextMenu>

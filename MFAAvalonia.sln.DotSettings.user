@@ -513,6 +513,7 @@
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003ASelectingItemsControl_002Ecs_002Fl_003AE_0021_003FRoaming_003FJetBrains_003FRider2024_002E3_003Fresharper_002Dhost_003FDecompilerCache_003Fdecompiler_003Fe777cf0c0c7c4c38af1ea95eef7a413c104400_003Ffe_003Fb695434b_003FSelectingItemsControl_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003ASelectingItemsControl_002Ecs_002Fl_003AE_0021_003FRoaming_003FJetBrains_003FRider2024_002E3_003Fresharper_002Dhost_003FDecompilerCache_003Fdecompiler_003Ff571f37fed6244e1a931556f6afbcbb7100c00_003F37_003F2d01eed9_003FSelectingItemsControl_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003ASelectingItemsControl_002Ecs_002Fl_003AE_0021_003FRoaming_003FJetBrains_003FRider2024_002E3_003Fresharper_002Dhost_003FSourcesCache_003F7eb70fde4273f96e18e4b3aaa7a8f0f4b5dbb555e6c4eae23913fe927134_003FSelectingItemsControl_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
+	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003ASelectingItemsControl_002Ecs_002Fl_003AE_0021_003FRoaming_003FJetBrains_003FRider2025_002E3_003Fresharper_002Dhost_003FDecompilerCache_003Fdecompiler_003F1c28eab5c675457986910a93422c074b108000_003F62_003Fdfa3ac08_003FSelectingItemsControl_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003ASelector_002Ecs_002Fl_003AE_0021_003FRoaming_003FJetBrains_003FRider2025_002E3_003Fresharper_002Dhost_003FDecompilerCache_003Fdecompiler_003Fc37c5f32c06849ebb86e0d412847a96e206400_003F06_003F2c83ac31_003FSelector_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003ASemVersion_002Ecs_002Fl_003AE_0021_003FRoaming_003FJetBrains_003FRider2024_002E3_003Fresharper_002Dhost_003FDecompilerCache_003Fdecompiler_003Fad7c81778cc14d159ebf3b278a2c8d9311c00_003F87_003F93a03caf_003FSemVersion_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003AServiceCollectionServiceExtensions_002Ecs_002Fl_003AE_0021_003FRoaming_003FJetBrains_003FRider2024_002E3_003Fresharper_002Dhost_003FDecompilerCache_003Fdecompiler_003F5a95f0dc132849d89ba966874e2d06c2fd10_003F57_003Fa01f0036_003FServiceCollectionServiceExtensions_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
@@ -676,41 +677,41 @@
   &lt;Assembly Path="F:\nuget\packages\avalonia.avaloniaedit\11.2.0\lib\net6.0\AvaloniaEdit.dll" /&gt;&#xD;
   &lt;Assembly Path="F:\RiderProjects\MFAAvalonia\MFAAvalonia\lib\SukiUI.dll" /&gt;&#xD;
   &lt;Assembly Path="C:\Users\Fox\.nuget\packages\system.management\10.0.0\lib\net8.0\System.Management.dll" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.binding.native\3.0.1-preview.25162.1" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.binding.native\4.0.0-preview.25168.1" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.binding.native\4.2.0" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.binding.native\4.4.0" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.binding.native\4.4.0-preview.1" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.binding.native\4.4.0-preview.25353.2" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.binding.native\4.5.0" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.binding.native\4.5.0-preview.1" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.binding.native\5.0.0-preview.1" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.binding.native\5.0.0-preview.2" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.binding.native\5.0.0-preview.3" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\3.0.1" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\4.0.0" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\4.1.0" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\4.2.3" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\4.3.0" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\4.3.0-beta.2" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\4.3.0-beta.3" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\4.3.0-beta.4" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\4.3.0-beta.5" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\4.3.2" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\4.4.0" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\4.4.0-beta.2" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\4.4.1" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\4.5.2" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\4.5.3" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\4.5.6" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\5.0.0-beta.3" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\5.0.0-beta.4" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\5.0.1" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\5.0.2" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\5.0.3" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\markdown.avalonia\11.0.2" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\markdown.avalonia\11.0.3-a1" Loaded="True" /&gt;&#xD;
-  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\crossplatformprotecteddata\1.0.3" Loaded="True" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.binding.native\3.0.1-preview.25162.1" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.binding.native\4.0.0-preview.25168.1" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.binding.native\4.2.0" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.binding.native\4.4.0" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.binding.native\4.4.0-preview.1" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.binding.native\4.4.0-preview.25353.2" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.binding.native\4.5.0" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.binding.native\4.5.0-preview.1" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.binding.native\5.0.0-preview.1" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.binding.native\5.0.0-preview.2" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.binding.native\5.0.0-preview.3" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\3.0.1" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\4.0.0" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\4.1.0" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\4.2.3" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\4.3.0" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\4.3.0-beta.2" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\4.3.0-beta.3" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\4.3.0-beta.4" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\4.3.0-beta.5" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\4.3.2" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\4.4.0" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\4.4.0-beta.2" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\4.4.1" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\4.5.2" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\4.5.3" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\4.5.6" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\5.0.0-beta.3" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\5.0.0-beta.4" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\5.0.1" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\5.0.2" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\maa.framework.runtimes\5.0.3" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\markdown.avalonia\11.0.2" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\markdown.avalonia\11.0.3-a1" Loaded="False" /&gt;&#xD;
+  &lt;PhysicalFolder Path="C:\Users\Fox\.nuget\packages\crossplatformprotecteddata\1.0.3" Loaded="False" /&gt;&#xD;
 &lt;/AssemblyExplorer&gt;</s:String>
 	<s:Boolean x:Key="/Default/ResxEditorPersonal/CheckedGroups/=MFAAvalonia_002FAssets_002FLocalization_002FStrings/@EntryIndexedValue">True</s:Boolean>
 	<s:Boolean x:Key="/Default/ResxEditorPersonal/CheckedGroups/=MFAAvalonia_002FAssets_002FLocalization_002FStrings_002Een_002Du2s/@EntryIndexedValue">False</s:Boolean>

@@ -89,11 +89,11 @@ public static class ConfigurationManager
             Instances.RootViewModel.SetConfigSwitchingState(true);
             Instances.RootViewModel.SetConfigSwitchProgress(5);
         });
+        await Task.Run(() => MaaProcessor.Instance.SetTasker());
         await Task.Delay(60);
 
         try
         {
-            await Task.Run(() => MaaProcessor.Instance.SetTasker());
             DispatcherHelper.PostOnMainThread(() => Instances.RootViewModel.SetConfigSwitchProgress(25));
 
             var config = Configs.First(c => c.Name.Equals(name, StringComparison.OrdinalIgnoreCase));

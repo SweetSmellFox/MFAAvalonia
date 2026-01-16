@@ -1492,5 +1492,23 @@
     <data name="ResourceLayoutUpdatedContent" xml:space="preserve">
         <value>Resource layout file changed. Latest layout has been applied and current layout overwritten.</value>
     </data>
+    <data name="TaskRemarkMenu" xml:space="preserve">
+        <value>Remark</value>
+    </data>
+    <data name="TaskRemarkTitle" xml:space="preserve">
+        <value>Task Remark</value>
+    </data>
+    <data name="TaskRename" xml:space="preserve">
+        <value>Rename</value>
+    </data>
+    <data name="TaskRenamePlaceholder" xml:space="preserve">
+        <value>Enter a custom display name (optional)</value>
+    </data>
+    <data name="TaskRemark" xml:space="preserve">
+        <value>Remark</value>
+    </data>
+    <data name="TaskRemarkPlaceholder" xml:space="preserve">
+        <value>Enter a remark (optional)</value>
+    </data>
 </root>
 

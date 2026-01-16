@@ -14,6 +14,7 @@ using MFAAvalonia.Extensions.MaaFW;
 using MFAAvalonia.Helper;
 using MFAAvalonia.Helper.ValueType;
 using MFAAvalonia.ViewModels.Pages;
+using MFAAvalonia.ViewModels.UsersControls;
 using MFAAvalonia.Views.UserControls;
 using System;
 using System.Collections.Concurrent;
@@ -31,6 +32,7 @@ using Lang.Avalonia.MarkupExtensions;
 using MaaFramework.Binding;
 using MFAAvalonia.Views.Windows;
 using Newtonsoft.Json.Linq;
+using SukiUI.Dialogs;
 using Timer = System.Timers.Timer;
 
 namespace MFAAvalonia.Views.Pages;
@@ -235,6 +237,40 @@ public partial class TaskQueueView : UserControl
         {
             DeleteTaskItem(taskItemViewModel);
         }
+    }
+
+    private void EditTaskRemark(object? sender, RoutedEventArgs e)
+    {
+        var menuItem = sender as MenuItem;
+        if (menuItem?.DataContext is not DragItemViewModel taskItemViewModel)
+        {
+            return;
+        }
+
+        if (taskItemViewModel.IsResourceOptionItem || taskItemViewModel.InterfaceItem == null)
+        {
+            return;
+        }
+
+        var interfaceItem = taskItemViewModel.InterfaceItem;
+
+        Instances.DialogManager.CreateDialog()
+            .WithTitle(LangKeys.TaskRemarkTitle.ToLocalization())
+            .WithViewModel(dialog => new TaskRemarkDialogViewModel(
+                dialog,
+                interfaceItem.DisplayNameOverride,
+                interfaceItem.Remark,
+                (displayNameOverride, remark) =>
+                {
+                    interfaceItem.DisplayNameOverride = string.IsNullOrWhiteSpace(displayNameOverride) ? null : displayNameOverride;
+                    interfaceItem.Remark = string.IsNullOrWhiteSpace(remark) ? null : remark;
+                    taskItemViewModel.RefreshDisplayName();
+
+                    ConfigurationManager.Current.SetValue(ConfigurationKeys.TaskItems,
+                        Instances.TaskQueueViewModel.TaskItemViewModels.Where(m => !m.IsResourceOptionItem)
+                            .Select(model => model.InterfaceItem));
+                }))
+            .TryShow();
     }
 
     private void DeleteTaskItem(DragItemViewModel taskItemViewModel)

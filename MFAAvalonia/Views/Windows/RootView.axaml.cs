@@ -229,11 +229,13 @@ public partial class RootView : SukiWindow
                         if ((MaaProcessor.Interface?.Controller?.Count ?? 0) == 1 || !ConfigurationManager.Current.ContainsKey(ConfigurationKeys.CurrentController))
                             Instances.TaskQueueViewModel.CurrentController = (MaaProcessor.Interface?.Controller?.FirstOrDefault()?.Type).ToMaaControllerTypes(Instances.TaskQueueViewModel.CurrentController);
                         var beforeTask = ConfigurationManager.Current.GetValue(ConfigurationKeys.BeforeTask, "None");
+                        var startupScriptOnly = beforeTask.Equals("StartupScriptOnly", StringComparison.OrdinalIgnoreCase);
+                        var delayFingerprintMatching = beforeTask.Contains("StartupSoftware", StringComparison.OrdinalIgnoreCase);
                         if (!Convert.ToBoolean(GlobalConfiguration.GetValue(ConfigurationKeys.NoAutoStart, bool.FalseString))
-                            && (beforeTask.Contains("Startup", StringComparison.OrdinalIgnoreCase) || beforeTask.Equals("StartupScriptOnly", StringComparison.OrdinalIgnoreCase)))
+                            && (beforeTask.Contains("Startup", StringComparison.OrdinalIgnoreCase) || startupScriptOnly))
                         {
                             // 只有当不是 StartupScriptOnly 时才启动游戏
-                            if (!beforeTask.Equals("StartupScriptOnly", StringComparison.OrdinalIgnoreCase))
+                            if (!startupScriptOnly)
                             {
                                 MaaProcessor.Instance.TaskQueue.Enqueue(new MFATask
                                 {
@@ -249,7 +251,7 @@ public partial class RootView : SukiWindow
                             {
                                 Instances.TaskQueueViewModel.TryReadPlayCoverConfig();
                             }
-                            else if (ConfigurationManager.Current.GetValue(ConfigurationKeys.RememberAdb, true))
+                            else if (ConfigurationManager.Current.GetValue(ConfigurationKeys.RememberAdb, true) && !delayFingerprintMatching)
                             {
                                 Instances.TaskQueueViewModel.TryReadAdbDeviceFromConfig(false, false);
                             }

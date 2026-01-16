@@ -328,6 +328,12 @@ public static class LangKeys
 	public static readonly string TaskStopped = "TaskStopped";
 	public static readonly string TaskAddedToast = "TaskAddedToast";
 	public static readonly string TaskDeletedToast = "TaskDeletedToast";
+	public static readonly string TaskRemarkMenu = "TaskRemarkMenu";
+	public static readonly string TaskRemarkTitle = "TaskRemarkTitle";
+	public static readonly string TaskRename = "TaskRename";
+	public static readonly string TaskRenamePlaceholder = "TaskRenamePlaceholder";
+	public static readonly string TaskRemark = "TaskRemark";
+	public static readonly string TaskRemarkPlaceholder = "TaskRemarkPlaceholder";
 	public static readonly string TextRecognizerTitle = "TextRecognizerTitle";
 	public static readonly string ThemeOption = "ThemeOption";
 	public static readonly string ThemeSettings = "ThemeSettings";
