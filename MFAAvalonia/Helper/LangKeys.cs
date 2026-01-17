@@ -274,6 +274,7 @@ public static class LangKeys
 	public static readonly string RestartMFA = "RestartMFA";
 	public static readonly string RestartPC = "RestartPC";
 	public static readonly string RetryOnDisconnected = "RetryOnDisconnected";
+	public static readonly string RetryOnDisconnectedWin32 = "RetryOnDisconnectedWin32";
 	public static readonly string AutoDetectOnConnectionFailed = "AutoDetectOnConnectionFailed";
 	public static readonly string RunningSettings = "RunningSettings";
 	public static readonly string SaveFailureMessage = "SaveFailureMessage";
@@ -345,6 +346,7 @@ public static class LangKeys
 	public static readonly string TooltipRefresh = "TooltipRefresh";
 	public static readonly string TryToReconnect = "TryToReconnect";
 	public static readonly string TryToStartEmulator = "TryToStartEmulator";
+	public static readonly string TryToStartGame = "TryToStartGame";
 	public static readonly string UiSettings = "UiSettings";
 	public static readonly string Unconnected = "Unconnected";
 	public static readonly string Update = "Update";

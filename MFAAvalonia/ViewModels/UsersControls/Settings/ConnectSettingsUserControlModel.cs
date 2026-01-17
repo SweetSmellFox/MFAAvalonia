@@ -118,6 +118,10 @@ public partial class ConnectSettingsUserControlModel : ViewModelBase
 
     partial void OnRetryOnDisconnectedChanged(bool value) => HandlePropertyChanged(ConfigurationKeys.RetryOnDisconnected, value);
 
+    [ObservableProperty] private bool _retryOnDisconnectedWin32 = ConfigurationManager.Current.GetValue(ConfigurationKeys.RetryOnDisconnectedWin32, false);
+
+    partial void OnRetryOnDisconnectedWin32Changed(bool value) => HandlePropertyChanged(ConfigurationKeys.RetryOnDisconnectedWin32, value);
+
     [ObservableProperty] private bool _allowAdbRestart = ConfigurationManager.Current.GetValue(ConfigurationKeys.AllowAdbRestart, true);
 
     partial void OnAllowAdbRestartChanged(bool value) => HandlePropertyChanged(ConfigurationKeys.AllowAdbRestart, value);

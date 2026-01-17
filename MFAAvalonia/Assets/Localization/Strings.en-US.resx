@@ -807,6 +807,9 @@
     <data name="RetryOnDisconnected" xml:space="preserve">
         <value>Retry launching the emulator when ADB connection fails</value>
     </data>
+    <data name="RetryOnDisconnectedWin32" xml:space="preserve">
+        <value>Retry launching the game when Win32 connection fails</value>
+    </data>
     <data name="AutoDetectOnConnectionFailed" xml:space="preserve">
         <value>Auto detect available devices on connection failed</value>
     </data>
@@ -1001,6 +1004,9 @@
     </data>
     <data name="TryToStartEmulator" xml:space="preserve">
         <value>Trying to start the emulator</value>
+    </data>
+    <data name="TryToStartGame" xml:space="preserve">
+        <value>Trying to start the game</value>
     </data>
     <data name="UiSettings" xml:space="preserve">
         <value>GUI</value>

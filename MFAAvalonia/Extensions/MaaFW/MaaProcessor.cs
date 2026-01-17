@@ -636,8 +636,8 @@ public class MaaProcessor
                 Global = new MaaGlobal(),
                 DisposeOptions = DisposeOptions.All,
             };
-            
-           // ConfigureScreenshotTasker(tasker);
+
+            // ConfigureScreenshotTasker(tasker);
 
             var linkStatus = tasker.Controller?.LinkStart().Wait();
             if (linkStatus != MaaJobStatus.Succeeded)
@@ -1154,7 +1154,7 @@ public class MaaProcessor
     //         HandleScreencapFailure(true);
     //     }
     // }
-    
+
     public void HandleCallBack(object? sender, MaaCallbackEventArgs args)
     {
         JObject jObject;
@@ -2382,8 +2382,7 @@ public class MaaProcessor
         public UIntPtr PeakJobMemoryUsed;
     }
 
-    [SupportedOSPlatform("windows")]
-    private const uint JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000;
+    [SupportedOSPlatform("windows")] private const uint JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000;
 
     [SupportedOSPlatform("windows")]
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
@@ -2922,10 +2921,20 @@ public class MaaProcessor
             var connected = tuple.Item1;
             var shouldRetry = tuple.Item3;
 
-        if (!connected && isAdb && !tuple.Item2 && shouldRetry)
-        {
-            connected = await HandleAdbConnectionAsync(token, showMessage);
-        }
+            if (!connected && isAdb && !tuple.Item2 && shouldRetry)
+            {
+                connected = await HandleAdbConnectionAsync(token, showMessage);
+            }
+            else if (!connected && controllerType == MaaControllerTypes.Win32 && !tuple.Item2 && shouldRetry)
+            {
+                connected = await RetryConnectionAsync(token, showMessage, StartSoftware, LangKeys.TryToStartGame,
+                    Instances.ConnectSettingsUserControlModel.RetryOnDisconnectedWin32,
+                    () =>
+                    {
+                        if (Instances.ConnectSettingsUserControlModel.AutoDetectOnConnectionFailed)
+                            Instances.TaskQueueViewModel.TryReadAdbDeviceFromConfig(false, true);
+                    });
+            }
 
             if (!connected)
             {

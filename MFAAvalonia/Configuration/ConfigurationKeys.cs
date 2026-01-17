@@ -55,6 +55,7 @@ public static class ConfigurationKeys
     public const string AllowAdbRestart = "AllowAdbRestart";
     public const string AllowAdbHardRestart = "AllowAdbHardRestart";
     public const string RetryOnDisconnected = "RetryOnDisconnected";
+    public const string RetryOnDisconnectedWin32 = "RetryOnDisconnectedWin32";
     public const string AutoDetectOnConnectionFailed = "AutoDetectOnConnectionFailed";
     public const string AdbDevice = "AdbDevice";
     public const string PlayCoverConfig = "PlayCoverConfig";

@@ -445,6 +445,7 @@ public static partial class Instances
                 connect.Win32ControlKeyboardType = ConfigurationManager.Current.GetValue(ConfigurationKeys.Win32ControlKeyboardType, MaaFramework.Binding.Win32InputMethod.SendMessage, MaaFramework.Binding.Win32InputMethod.None,
                     new Converters.UniversalEnumConverter<MaaFramework.Binding.Win32InputMethod>());
                 connect.RetryOnDisconnected = ConfigurationManager.Current.GetValue(ConfigurationKeys.RetryOnDisconnected, false);
+                connect.RetryOnDisconnectedWin32 = ConfigurationManager.Current.GetValue(ConfigurationKeys.RetryOnDisconnectedWin32, false);
                 connect.AllowAdbRestart = ConfigurationManager.Current.GetValue(ConfigurationKeys.AllowAdbRestart, true);
                 connect.AllowAdbHardRestart = ConfigurationManager.Current.GetValue(ConfigurationKeys.AllowAdbHardRestart, true);
                 connect.AutoDetectOnConnectionFailed = ConfigurationManager.Current.GetValue(ConfigurationKeys.AutoDetectOnConnectionFailed, true);

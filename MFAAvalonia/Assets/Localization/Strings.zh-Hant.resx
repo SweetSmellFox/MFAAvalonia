@@ -807,6 +807,9 @@
     <data name="RetryOnDisconnected" xml:space="preserve">
         <value>ADB 連線失敗時嘗試啟動模擬器</value>
     </data>
+    <data name="RetryOnDisconnectedWin32" xml:space="preserve">
+        <value>Win32 連線失敗時嘗試啟動遊戲</value>
+    </data>
     <data name="AutoDetectOnConnectionFailed" xml:space="preserve">
         <value>連線失敗時自動重新搜尋可用裝置</value>
     </data>
@@ -1001,6 +1004,9 @@
     </data>
     <data name="TryToStartEmulator" xml:space="preserve">
         <value>正在嘗試啟動模擬器</value>
+    </data>
+    <data name="TryToStartGame" xml:space="preserve">
+        <value>正在嘗試啟動遊戲</value>
     </data>
     <data name="UiSettings" xml:space="preserve">
         <value>介面設定</value>
