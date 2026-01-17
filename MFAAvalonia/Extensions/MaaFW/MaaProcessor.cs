@@ -396,6 +396,7 @@ public class MaaProcessor
     private SafeJobHandle? _agentJobHandle;
     private readonly Lock _agentJobLock = new();
     private MFATask.MFATaskStatus Status = MFATask.MFATaskStatus.NOT_STARTED;
+    private int _stopCompletionMessageHandled;
     private const int ActionFailedLimit = 1;
     private int _screencapFailedCount;
     private readonly Lock _screencapLogLock = new();
@@ -2560,6 +2561,7 @@ public class MaaProcessor
     public async Task StartTask(List<DragItemViewModel>? tasks, bool onlyStart = false, bool checkUpdate = false)
     {
         ResetActionFailedCount();
+        Interlocked.Exchange(ref _stopCompletionMessageHandled, 0);
         Status = MFATask.MFATaskStatus.NOT_STARTED;
         CancellationTokenSource = new CancellationTokenSource();
 
@@ -3246,7 +3248,7 @@ public class MaaProcessor
     /// 强制终止 Agent 进程（用于窗口关闭等紧急情况）
     /// </summary>
     /// <param name="taskerToDispose">原tasker</param>
-    private void SafeKillAgentProcess(MaaTasker? taskerToDispose = null)
+  private void SafeKillAgentProcess(MaaTasker? taskerToDispose = null)
     {
         // 获取当前引用的本地副本，避免在检查和使用之间被其他线程修改
         var agentClient = _agentClient;
@@ -3255,7 +3257,6 @@ public class MaaProcessor
         var maaTasker = taskerToDispose ?? MaaTasker;
 
         StopAgentReadStreams();
-        DisposeAgentJob();
 
         // 先清除引用，防止在后续操作中被其他线程访问
         _agentClient = null;
@@ -3393,8 +3394,9 @@ public class MaaProcessor
                 LoggerHelper.Warning($"MaaTasker Dispose failed: {e.Message}");
             }
         }
-    }
 
+        DisposeAgentJob();
+    }
 
     private bool ShouldProcessStop(bool finished)
     {
@@ -3446,6 +3448,13 @@ public class MaaProcessor
 
     private void DisplayTaskCompletionMessage(MFATask.MFATaskStatus status, bool onlyStart = false, Action? action = null)
     {
+        if (Interlocked.Exchange(ref _stopCompletionMessageHandled, 1) == 1)
+        {
+            action?.Invoke();
+            _startTime = null;
+            return;
+        }
+
         if (status == MFATask.MFATaskStatus.FAILED)
         {
             ToastHelper.Info(LangKeys.TaskFailed.ToLocalization());
@@ -3460,6 +3469,7 @@ public class MaaProcessor
             {
                 Task.Delay(400).ContinueWith(_ =>
                 {
+
                     ToastHelper.Info(LangKeys.TaskStopped.ToLocalization());
                     RootView.AddLogByKey(LangKeys.TaskAbandoned);
                 });

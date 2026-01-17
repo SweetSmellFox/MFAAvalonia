@@ -1,4 +1,5 @@
-﻿using Serilog;
+﻿using Avalonia.Controls;
+using Serilog;
 using SharpHook.Data;
 using System;
 using System.Collections.Generic;
@@ -12,6 +13,8 @@ public static class LoggerHelper
 
     public static void InitializeLogger()
     {
+        if (Design.IsDesignMode)
+            return;
         if (_logger != null) return;
         _logger = new LoggerConfiguration()
             .WriteTo.File(
