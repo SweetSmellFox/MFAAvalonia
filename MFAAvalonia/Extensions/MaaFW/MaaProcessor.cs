@@ -9,6 +9,7 @@ using MFAAvalonia.Helper.ValueType;
 using MFAAvalonia.Helper.Converters;
 using MFAAvalonia.ViewModels.Pages;
 using MFAAvalonia.Views.Windows;
+using Microsoft.Win32.SafeHandles;
 using Microsoft.WindowsAPICodePack.Taskbar;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -392,6 +393,8 @@ public class MaaProcessor
     private Process? _agentProcess;
     private CancellationTokenSource? _agentReadCancellationTokenSource;
     private readonly Lock _agentReadLock = new();
+    private SafeJobHandle? _agentJobHandle;
+    private readonly Lock _agentJobLock = new();
     private MFATask.MFATaskStatus Status = MFATask.MFATaskStatus.NOT_STARTED;
     private const int ActionFailedLimit = 1;
     private int _screencapFailedCount;
@@ -910,6 +913,8 @@ public class MaaProcessor
                                 StopAgentReadStreams();
                                 _agentProcess = null;
                             };
+
+                            BindAgentProcessLifetime(_agentProcess);
 
                             var readToken = ResetAgentReadCancellation().Token;
                             TaskManager.RunTaskAsync(() => ReadProcessStreamAsync(_agentProcess.StandardOutput.BaseStream, HandleAgentOutputLine, readToken), token: readToken, noMessage: true);
@@ -2260,6 +2265,144 @@ public class MaaProcessor
 
     #endregion
 
+    #region 进程绑定（随主进程退出自动清理）
+
+    private void BindAgentProcessLifetime(Process agentProcess)
+    {
+        if (!OperatingSystem.IsWindows())
+            return;
+
+        TryBindAgentProcessToJob(agentProcess);
+    }
+
+    private void DisposeAgentJob()
+    {
+        if (!OperatingSystem.IsWindows())
+            return;
+
+        lock (_agentJobLock)
+        {
+            if (_agentJobHandle == null)
+                return;
+
+            _agentJobHandle.Dispose();
+            _agentJobHandle = null;
+        }
+    }
+
+    [SupportedOSPlatform("windows")]
+    private void TryBindAgentProcessToJob(Process agentProcess)
+    {
+        lock (_agentJobLock)
+        {
+            if (_agentJobHandle == null || _agentJobHandle.IsInvalid)
+            {
+                _agentJobHandle = CreateJobObject(IntPtr.Zero, null);
+                if (_agentJobHandle == null || _agentJobHandle.IsInvalid)
+                {
+                    LoggerHelper.Warning($"CreateJobObject failed: {Marshal.GetLastWin32Error()}");
+                    _agentJobHandle = null;
+                    return;
+                }
+
+                var info = new JOBOBJECT_EXTENDED_LIMIT_INFORMATION
+                {
+                    BasicLimitInformation = new JOBOBJECT_BASIC_LIMIT_INFORMATION
+                    {
+                        LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+                    }
+                };
+
+                if (!SetInformationJobObject(_agentJobHandle, JOBOBJECTINFOCLASS.JobObjectExtendedLimitInformation, ref info, (uint)Marshal.SizeOf<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>()))
+                {
+                    LoggerHelper.Warning($"SetInformationJobObject failed: {Marshal.GetLastWin32Error()}");
+                    _agentJobHandle.Dispose();
+                    _agentJobHandle = null;
+                    return;
+                }
+            }
+
+            if (!AssignProcessToJobObject(_agentJobHandle, agentProcess.Handle))
+            {
+                LoggerHelper.Warning($"AssignProcessToJobObject failed: {Marshal.GetLastWin32Error()}");
+            }
+        }
+    }
+
+    [SupportedOSPlatform("windows")]
+    private sealed class SafeJobHandle : SafeHandleZeroOrMinusOneIsInvalid
+    {
+        public SafeJobHandle() : base(true) { }
+
+        protected override bool ReleaseHandle() => CloseHandle(handle);
+    }
+
+    [SupportedOSPlatform("windows")]
+    private enum JOBOBJECTINFOCLASS
+    {
+        JobObjectExtendedLimitInformation = 9
+    }
+
+    [SupportedOSPlatform("windows")]
+    [StructLayout(LayoutKind.Sequential)]
+    private struct IO_COUNTERS
+    {
+        public ulong ReadOperationCount;
+        public ulong WriteOperationCount;
+        public ulong OtherOperationCount;
+        public ulong ReadTransferCount;
+        public ulong WriteTransferCount;
+        public ulong OtherTransferCount;
+    }
+
+    [SupportedOSPlatform("windows")]
+    [StructLayout(LayoutKind.Sequential)]
+    private struct JOBOBJECT_BASIC_LIMIT_INFORMATION
+    {
+        public long PerProcessUserTimeLimit;
+        public long PerJobUserTimeLimit;
+        public uint LimitFlags;
+        public UIntPtr MinimumWorkingSetSize;
+        public UIntPtr MaximumWorkingSetSize;
+        public uint ActiveProcessLimit;
+        public UIntPtr Affinity;
+        public uint PriorityClass;
+        public uint SchedulingClass;
+    }
+
+    [SupportedOSPlatform("windows")]
+    [StructLayout(LayoutKind.Sequential)]
+    private struct JOBOBJECT_EXTENDED_LIMIT_INFORMATION
+    {
+        public JOBOBJECT_BASIC_LIMIT_INFORMATION BasicLimitInformation;
+        public IO_COUNTERS IoInfo;
+        public UIntPtr ProcessMemoryLimit;
+        public UIntPtr JobMemoryLimit;
+        public UIntPtr PeakProcessMemoryUsed;
+        public UIntPtr PeakJobMemoryUsed;
+    }
+
+    [SupportedOSPlatform("windows")]
+    private const uint JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000;
+
+    [SupportedOSPlatform("windows")]
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern SafeJobHandle CreateJobObject(IntPtr lpJobAttributes, string? lpName);
+
+    [SupportedOSPlatform("windows")]
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool SetInformationJobObject(SafeJobHandle hJob, JOBOBJECTINFOCLASS infoClass, ref JOBOBJECT_EXTENDED_LIMIT_INFORMATION info, uint cbJobObjectInfoLength);
+
+    [SupportedOSPlatform("windows")]
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool AssignProcessToJobObject(SafeJobHandle hJob, IntPtr hProcess);
+
+    [SupportedOSPlatform("windows")]
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool CloseHandle(IntPtr hObject);
+
+    #endregion
+
     #region 进程终止（带权限处理）
 
     [SupportedOSPlatform("windows")]
@@ -3103,6 +3246,7 @@ public class MaaProcessor
         var maaTasker = taskerToDispose ?? MaaTasker;
 
         StopAgentReadStreams();
+        DisposeAgentJob();
 
         // 先清除引用，防止在后续操作中被其他线程访问
         _agentClient = null;
