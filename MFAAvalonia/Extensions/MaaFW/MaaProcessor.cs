@@ -390,6 +390,8 @@ public class MaaProcessor
     private MaaAgentClient? _agentClient;
     private bool _agentStarted;
     private Process? _agentProcess;
+    private CancellationTokenSource? _agentReadCancellationTokenSource;
+    private readonly Lock _agentReadLock = new();
     private MFATask.MFATaskStatus Status = MFATask.MFATaskStatus.NOT_STARTED;
     private const int ActionFailedLimit = 1;
     private int _screencapFailedCount;
@@ -905,11 +907,13 @@ public class MaaProcessor
                             {
                                 LoggerHelper.Info("Agent process exited!");
                                 LoggerHelper.Info("MaaTasker exited!");
+                                StopAgentReadStreams();
                                 _agentProcess = null;
                             };
 
-                            TaskManager.RunTaskAsync(() => ReadProcessStreamAsync(_agentProcess.StandardOutput.BaseStream, HandleAgentOutputLine, token), token: token, noMessage: true);
-                            TaskManager.RunTaskAsync(() => ReadProcessStreamAsync(_agentProcess.StandardError.BaseStream, HandleAgentOutputLine, token), token: token, noMessage: true);
+                            var readToken = ResetAgentReadCancellation().Token;
+                            TaskManager.RunTaskAsync(() => ReadProcessStreamAsync(_agentProcess.StandardOutput.BaseStream, HandleAgentOutputLine, readToken), token: readToken, noMessage: true);
+                            TaskManager.RunTaskAsync(() => ReadProcessStreamAsync(_agentProcess.StandardError.BaseStream, HandleAgentOutputLine, readToken), token: readToken, noMessage: true);
 
                             TaskManager.RunTaskAsync(async () => await _agentProcess.WaitForExitAsync(token), token: token, name: "Agent程序启动");
                         }
@@ -1853,8 +1857,30 @@ public class MaaProcessor
             _screencapFailureLogged = false;
         }
     }
-        
-    
+
+    private CancellationTokenSource ResetAgentReadCancellation()
+    {
+        lock (_agentReadLock)
+        {
+            _agentReadCancellationTokenSource?.Cancel();
+            _agentReadCancellationTokenSource?.Dispose();
+            _agentReadCancellationTokenSource = new CancellationTokenSource();
+            return _agentReadCancellationTokenSource;
+        }
+    }
+
+    private void StopAgentReadStreams()
+    {
+        lock (_agentReadLock)
+        {
+            if (_agentReadCancellationTokenSource == null)
+                return;
+
+            _agentReadCancellationTokenSource.Cancel();
+            _agentReadCancellationTokenSource.Dispose();
+            _agentReadCancellationTokenSource = null;
+        }
+    }
 
     public bool TryConsumeScreencapFailureLog(out bool shouldAbort, out bool shouldDisconnected)
     {
@@ -3075,6 +3101,8 @@ public class MaaProcessor
         var agentProcess = _agentProcess;
         // 如果传入了 taskerToDispose，使用它；否则使用当前的 MaaTasker
         var maaTasker = taskerToDispose ?? MaaTasker;
+
+        StopAgentReadStreams();
 
         // 先清除引用，防止在后续操作中被其他线程访问
         _agentClient = null;
