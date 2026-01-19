@@ -590,7 +590,7 @@ public class MaaProcessor
     public MaaTasker? ScreenshotTasker => _screenshotTasker;
     public void SetTasker(MaaTasker? maaTasker = null)
     {
-        Instances.TaskQueueView.ResetFailedCount();
+        ResetActionFailedCount();
         if (maaTasker == null && MaaTasker != null)
         {
             var oldTasker = MaaTasker;
@@ -739,7 +739,7 @@ public class MaaProcessor
     private readonly Lock _agentJobLock = new();
     private MFATask.MFATaskStatus Status = MFATask.MFATaskStatus.NOT_STARTED;
     private int _stopCompletionMessageHandled;
-    private const int ActionFailedLimit = 1;
+    private const int ActionFailedLimit = 20;
     private int _screencapFailedCount;
     private readonly Lock _screencapLogLock = new();
     private bool _screencapAbortLogPending;
@@ -2196,6 +2196,7 @@ public class MaaProcessor
     {
         _screencapFailedCount = 0;
     }
+    
     public void ResetScreencapFailureLogFlags()
     {
         lock (_screencapLogLock)
@@ -2242,11 +2243,11 @@ public class MaaProcessor
         }
     }
 
-    public bool HandleScreencapStatus(MaaJobStatus status, bool stopTaskOnLimit)
+    public bool HandleScreencapStatus(MaaJobStatus status)
     {
         if (status == MaaJobStatus.Invalid || status == MaaJobStatus.Failed)
         {
-            return HandleScreencapFailure(stopTaskOnLimit);
+            ++_screencapFailedCount;
         }
 
         if (status == MaaJobStatus.Succeeded)
@@ -2254,47 +2255,9 @@ public class MaaProcessor
             _screencapFailedCount = 0;
         }
 
-        return false;
+        return _screencapFailedCount >= ActionFailedLimit;
     }
-
-    private bool HandleScreencapFailure(bool stopTaskOnLimit)
-    {
-        if (Instances.TaskQueueViewModel.IsConnected && ++_screencapFailedCount <= ActionFailedLimit)
-        {
-            return false;
-        }
-
-        _screencapFailedCount = 0;
-        Instances.TaskQueueViewModel.SetConnected(false);
-        lock (_screencapLogLock)
-        {
-            if (!_screencapFailureLogged)
-            {
-                if (stopTaskOnLimit)
-                {
-                    _screencapAbortLogPending = true;
-                }
-                else
-                {
-                    _screencapDisconnectedLogPending = true;
-                }
-                _screencapFailureLogged = true;
-            }
-        }
-        if (stopTaskOnLimit)
-        {
-
-            Instances.TaskQueueViewModel.StopTask();
-            SetTasker();
-        }
-        else
-        {
-            SetTasker();
-        }
-
-        return true;
-    }
-
+    
 
     private string? _tempResourceVersion;
 

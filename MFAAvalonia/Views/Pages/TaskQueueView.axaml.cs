@@ -2494,11 +2494,6 @@ public partial class TaskQueueView : UserControl
         _liveViewTimer.Interval = Math.Max(1, interval * 1000);
     }
 
-    private int failed_count = 0;
-    public void ResetFailedCount()
-    {
-        failed_count = 0;
-    }
     private void OnLiveViewTimerElapsed(object? sender, EventArgs e)
     {
         if (Interlocked.Exchange(ref _liveViewTickInProgress, 1) == 1)
@@ -2529,14 +2524,11 @@ public partial class TaskQueueView : UserControl
                 var status = MaaProcessor.Instance.PostScreencap();
                 if (status != MaaJobStatus.Succeeded)
                 {
-                    if (status == MaaJobStatus.Invalid)
-                    {
-                        if (++failed_count == 10)
-                            Instances.TaskQueueViewModel.SetConnected(false);
-                    }
+                    if (MaaProcessor.Instance.HandleScreencapStatus(status))
+                        Instances.TaskQueueViewModel.SetConnected(false);
                     return;
                 }
-                failed_count = 0;
+
                 var buffer = MaaProcessor.Instance.GetLiveViewBuffer(false);
                 if (buffer == null) return;
                 _ = Instances.TaskQueueViewModel.UpdateLiveViewImageAsync(buffer);
