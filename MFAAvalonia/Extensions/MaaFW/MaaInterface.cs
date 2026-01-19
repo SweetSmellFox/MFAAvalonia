@@ -830,6 +830,9 @@ public partial class MaaInterface
         [JsonProperty("display_raw")]
         public bool? DisplayRaw { get; set; }
 
+        [JsonProperty("permission_required")]
+        public bool? PermissionRequired { get; set; }
+        
         [JsonProperty("adb")]
         public MaaResourceControllerAdb? Adb { get; set; }
         [JsonProperty("win32")]

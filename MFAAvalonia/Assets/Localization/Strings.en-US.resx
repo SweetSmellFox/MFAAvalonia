@@ -1516,5 +1516,8 @@
     <data name="TaskRemarkPlaceholder" xml:space="preserve">
         <value>Enter a remark (optional)</value>
     </data>
+    <data name="PlatformNotSupportedOperation" xml:space="preserve">
+        <value>This operation is not supported on the current platform</value>
+    </data>
 </root>
 

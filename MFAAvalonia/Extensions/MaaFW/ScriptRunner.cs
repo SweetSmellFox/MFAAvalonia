@@ -29,7 +29,7 @@ public static class ScriptRunner
         if (configKey == null)
             return;
 
-        var scriptPath = ConfigurationManager.Current.GetValue(configKey, string.Empty);
+        var scriptPath = ConfigurationManager.CurrentInstance.GetValue(configKey, string.Empty);
         if (string.IsNullOrWhiteSpace(scriptPath))
             return;
 
@@ -127,7 +127,7 @@ public static class ScriptRunner
         };
 
         Process? softwareProcess = null;
-        var emulatorConfig = ConfigurationManager.Current.GetValue(ConfigurationKeys.EmulatorConfig, string.Empty);
+        var emulatorConfig = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.EmulatorConfig, string.Empty);
 
         if (Process.GetProcessesByName(processName).Length == 0)
         {

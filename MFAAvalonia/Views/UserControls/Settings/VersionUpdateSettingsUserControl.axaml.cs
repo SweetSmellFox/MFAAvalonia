@@ -4,6 +4,7 @@ using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using AvaloniaExtensions.Axaml.Markup;
 using Lang.Avalonia.MarkupExtensions;
+using MFAAvalonia.Extensions;
 using MFAAvalonia.Helper;
 using System.Threading.Tasks;
 
@@ -27,7 +28,14 @@ public partial class VersionUpdateSettingsUserControl : UserControl
             {
                 TaskManager.RunTaskAsync(async () =>
                 {
-                    DispatcherHelper.PostOnMainThread(async () => await Instances.RootView.Clipboard.SetTextAsync(version));
+                    var clipboard = Instances.Clipboard;
+                    if (clipboard == null)
+                    {
+                        ToastHelper.Warn(LangKeys.Warning.ToLocalization(), LangKeys.PlatformNotSupportedOperation.ToLocalization());
+                        return;
+                    }
+
+                    DispatcherHelper.PostOnMainThread(async () => await clipboard.SetTextAsync(version));
                     DispatcherHelper.PostOnMainThread(() => textBlock.Bind(ToolTip.TipProperty, new I18nBinding(LangKeys.CopiedToClipboard)));
                     DispatcherHelper.PostOnMainThread(() => ToolTip.SetIsOpen(textBlock, true));
                     await Task.Delay(1000);

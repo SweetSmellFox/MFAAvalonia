@@ -23,7 +23,14 @@ public partial class AboutUserControl : UserControl
 #pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
     private void Button_OnClick(object? sender, RoutedEventArgs e)
     {
-        FileLogExporter.CompressRecentLogs(Instances.RootView.StorageProvider);
+        var storageProvider = Instances.StorageProvider;
+        if (storageProvider == null)
+        {
+            ToastHelper.Warn(LangKeys.Warning.ToLocalization(), LangKeys.PlatformNotSupportedOperation.ToLocalization());
+            return;
+        }
+
+        FileLogExporter.CompressRecentLogs(storageProvider);
     }
     
     private void DisplayAnnouncement(object? sender, RoutedEventArgs e)

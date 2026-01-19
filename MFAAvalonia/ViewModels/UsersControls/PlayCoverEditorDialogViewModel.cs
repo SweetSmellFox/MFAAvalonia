@@ -30,8 +30,8 @@ public partial class PlayCoverEditorDialogViewModel : ObservableObject
             UUID = string.IsNullOrWhiteSpace(PlayCoverBundleIdentifier) ? "maa.playcover" : PlayCoverBundleIdentifier
         };
 
-        MaaProcessor.Config.PlayCover = config;
-        ConfigurationManager.Current.SetValue(ConfigurationKeys.PlayCoverConfig, config);
+        MaaProcessor.Instance.Config.PlayCover = config;
+        ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.PlayCoverConfig, config);
         MaaProcessor.Instance.SetTasker();
 
         Dialog.Dismiss();

@@ -1,4 +1,5 @@
 ﻿using Avalonia.Controls;
+using Avalonia.Media;
 using MaaFramework.Binding;
 using MaaFramework.Binding.Buffers;
 using MaaFramework.Binding.Notification;
@@ -7,6 +8,7 @@ using MFAAvalonia.Configuration;
 using MFAAvalonia.Helper;
 using MFAAvalonia.Helper.ValueType;
 using MFAAvalonia.Helper.Converters;
+using MFAAvalonia.ViewModels.Other;
 using MFAAvalonia.ViewModels.Pages;
 using MFAAvalonia.Views.Windows;
 using Microsoft.Win32.SafeHandles;
@@ -14,6 +16,7 @@ using Microsoft.WindowsAPICodePack.Taskbar;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -43,20 +46,355 @@ public class MaaProcessor
 {
     #region 属性
 
-    private static Random Random = new();
+    private static readonly Random Random = new();
     private int _taskQueueTotal;
+    private readonly BlockingCollection<Func<Task>> _commandQueue = new();
+    private readonly object _commandThreadLock = new();
+    private readonly CancellationTokenSource _commandThreadCts = new();
+    private Thread? _commandThread;
     public static string Resource => Path.Combine(AppContext.BaseDirectory, "resource");
     public static string ResourceBase => Path.Combine(Resource, "base");
-    public static MaaProcessor Instance { get; } = new();
+    public static MaaProcessor Instance => MaaProcessorManager.Instance.Current;
     public static MaaToolkit Toolkit { get; } = new(true);
-
     public static MaaGlobal Global { get; } = new();
+    public string InstanceId { get; }
+    public InstanceConfiguration InstanceConfiguration { get; }
+    public MaaFWConfiguration Config { get; } = new();
 
     // public Dictionary<string, MaaNode> BaseNodes = new();
     //
     // public Dictionary<string, MaaNode> NodeDictionary = new();
     public ObservableQueue<MFATask> TaskQueue { get; } = new();
     public bool IsV3 = false;
+
+    private const int MaxLogCount = 150;
+    private const int LogCleanupBatchSize = 30;
+    public DisposableObservableCollection<LogItemViewModel> LogItemViewModels { get; } = new();
+
+    public const string INFO = "info:";
+    public static readonly string[] ERROR = ["err:", "error:"];
+    public static readonly string[] WARNING = ["warn:", "warning:"];
+    public const string TRACE = "trace:";
+    public const string DEBUG = "debug:";
+    public const string CRITICAL = "critical:";
+    public const string SUCCESS = "success:";
+
+    public void ClearLogs()
+    {
+        LogItemViewModels.Clear();
+    }
+
+    private void TrimExcessLogs()
+    {
+        if (LogItemViewModels.Count <= MaxLogCount) return;
+
+        var removeCount = Math.Min(LogCleanupBatchSize, LogItemViewModels.Count - MaxLogCount + LogCleanupBatchSize);
+        LogItemViewModels.RemoveRange(0, removeCount);
+
+        try
+        {
+            FontService.Instance.ClearFontCache();
+            LoggerHelper.Info("[内存优化] 已清理字体缓存");
+        }
+        catch (Exception ex)
+        {
+            LoggerHelper.Warning($"清理字体缓存失败: {ex.Message}");
+        }
+    }
+
+    public static string FormatFileSize(long size)
+    {
+        string unit;
+        double value;
+        if (size >= 1024L * 1024 * 1024 * 1024)
+        {
+            value = (double)size / (1024L * 1024 * 1024 * 1024);
+            unit = "TB";
+        }
+        else if (size >= 1024 * 1024 * 1024)
+        {
+            value = (double)size / (1024 * 1024 * 1024);
+            unit = "GB";
+        }
+        else if (size >= 1024 * 1024)
+        {
+            value = (double)size / (1024 * 1024);
+            unit = "MB";
+        }
+        else if (size >= 1024)
+        {
+            value = (double)size / 1024;
+            unit = "KB";
+        }
+        else
+        {
+            value = size;
+            unit = "B";
+        }
+
+        return $"{value:F} {unit}";
+    }
+
+    public static string FormatDownloadSpeed(double speed)
+    {
+        string unit;
+        double value = speed;
+        if (value >= 1024L * 1024 * 1024 * 1024)
+        {
+            value /= 1024L * 1024 * 1024 * 1024;
+            unit = "TB/s";
+        }
+        else if (value >= 1024L * 1024 * 1024)
+        {
+            value /= 1024L * 1024 * 1024;
+            unit = "GB/s";
+        }
+        else if (value >= 1024 * 1024)
+        {
+            value /= 1024 * 1024;
+            unit = "MB/s";
+        }
+        else if (value >= 1024)
+        {
+            value /= 1024;
+            unit = "KB/s";
+        }
+        else
+        {
+            unit = "B/s";
+        }
+
+        return $"{value:F} {unit}";
+    }
+
+    public void OutputDownloadProgress(long value = 0, long maximum = 1, int len = 0, double ts = 1)
+    {
+        string sizeValueStr = FormatFileSize(value);
+        string maxSizeValueStr = FormatFileSize(maximum);
+        string speedValueStr = FormatDownloadSpeed(len / ts);
+
+        string progressInfo = $"[{sizeValueStr}/{maxSizeValueStr}({100 * value / maximum}%) {speedValueStr}]";
+        OutputDownloadProgress(progressInfo);
+    }
+
+    public void ClearDownloadProgress()
+    {
+        DispatcherHelper.RunOnMainThread(() =>
+        {
+            if (LogItemViewModels.Count > 0 && LogItemViewModels[0].IsDownloading)
+            {
+                LogItemViewModels.RemoveAt(0);
+            }
+        });
+    }
+
+    public void OutputDownloadProgress(string output, bool downloading = true)
+    {
+        // DispatcherHelper.RunOnMainThread(() =>
+        // {
+        //     var log = new LogItemViewModel(downloading ? LangKeys.NewVersionFoundDescDownloading.ToLocalization() + "\n" + output : output, Instances.RootView.FindResource("SukiAccentColor") as IBrush,
+        //         dateFormat: "HH':'mm':'ss")
+        //     {
+        //         IsDownloading = true,
+        //     };
+        //     if (LogItemViewModels.Count > 0 && LogItemViewModels[0].IsDownloading)
+        //     {
+        //         if (!string.IsNullOrEmpty(output))
+        //         {
+        //             LogItemViewModels[0] = log;
+        //         }
+        //         else
+        //         {
+        //             LogItemViewModels.RemoveAt(0);
+        //         }
+        //     }
+        //     else if (!string.IsNullOrEmpty(output))
+        //     {
+        //         LogItemViewModels.Insert(0, log);
+        //     }
+        // });
+    }
+
+    public static bool CheckShouldLog(string content)
+    {
+        const StringComparison comparison = StringComparison.Ordinal;
+
+        if (content.StartsWith(TRACE, comparison))
+        {
+            return true;
+        }
+
+        if (content.StartsWith(DEBUG, comparison))
+        {
+            return true;
+        }
+
+        if (content.StartsWith(SUCCESS, comparison))
+        {
+            return true;
+        }
+
+        if (content.StartsWith(INFO, comparison))
+        {
+            return true;
+        }
+
+        var warnPrefix = WARNING.FirstOrDefault(prefix =>
+            !string.IsNullOrEmpty(prefix) && content.StartsWith(prefix, comparison)
+        );
+        if (warnPrefix != null)
+        {
+            return true;
+        }
+
+        var errorPrefix = ERROR.FirstOrDefault(prefix =>
+            !string.IsNullOrEmpty(prefix) && content.StartsWith(prefix, comparison)
+        );
+
+        if (errorPrefix != null)
+        {
+            return true;
+        }
+
+        if (content.StartsWith(CRITICAL, comparison))
+        {
+            return true;
+        }
+        return false;
+    }
+
+    public void AddLog(string content,
+        IBrush? brush,
+        string weight = "Regular",
+        bool changeColor = true,
+        bool showTime = true)
+    {
+        brush ??= Brushes.Black;
+
+        var backGroundBrush = Brushes.Transparent;
+        const StringComparison comparison = StringComparison.Ordinal;
+
+        if (content.StartsWith(TRACE, comparison))
+        {
+            brush = Brushes.MediumAquamarine;
+            content = content.Substring(TRACE.Length).TrimStart();
+            changeColor = false;
+        }
+
+        if (content.StartsWith(DEBUG, comparison))
+        {
+            brush = Brushes.DeepSkyBlue;
+            content = content.Substring(DEBUG.Length).TrimStart();
+            changeColor = false;
+        }
+
+        if (content.StartsWith(SUCCESS, comparison))
+        {
+            brush = Brushes.LimeGreen;
+            content = content.Substring(SUCCESS.Length).TrimStart();
+            changeColor = false;
+        }
+
+        if (content.StartsWith(INFO, comparison))
+        {
+            content = content.Substring(INFO.Length).TrimStart();
+        }
+
+        var warnPrefix = WARNING.FirstOrDefault(prefix =>
+            !string.IsNullOrEmpty(prefix) && content.StartsWith(prefix, comparison)
+        );
+        if (warnPrefix != null)
+        {
+            brush = Brushes.Orange;
+            content = content.Substring(warnPrefix.Length).TrimStart();
+            changeColor = false;
+        }
+
+        var errorPrefix = ERROR.FirstOrDefault(prefix =>
+            !string.IsNullOrEmpty(prefix) && content.StartsWith(prefix, comparison)
+        );
+
+        if (errorPrefix != null)
+        {
+            brush = Brushes.OrangeRed;
+            content = content.Substring(errorPrefix.Length).TrimStart();
+            changeColor = false;
+        }
+
+        if (content.StartsWith(CRITICAL, comparison))
+        {
+            var color = DispatcherHelper.RunOnMainThread(() => MFAExtensions.FindSukiUiResource<Color>(
+                "SukiLightBorderBrush"
+            ));
+            if (color != null)
+                brush = DispatcherHelper.RunOnMainThread(() => new SolidColorBrush(color.Value));
+            else
+                brush = Brushes.White;
+            backGroundBrush = Brushes.OrangeRed;
+            content = content.Substring(CRITICAL.Length).TrimStart();
+        }
+
+        DispatcherHelper.PostOnMainThread(() =>
+        {
+            LogItemViewModels.Add(new LogItemViewModel(content, brush, weight, "HH':'mm':'ss",
+                showTime: showTime, changeColor: changeColor)
+            {
+                BackgroundColor = backGroundBrush
+            });
+            LoggerHelper.Info($"[Record] {content}");
+
+            TrimExcessLogs();
+        });
+    }
+
+    public void AddLog(string content,
+        string color = "",
+        string weight = "Regular",
+        bool changeColor = true,
+        bool showTime = true)
+    {
+        var brush = BrushHelper.ConvertToBrush(color, Brushes.Black);
+        AddLog(content, brush, weight, changeColor, showTime);
+    }
+
+    public void AddLogByKey(string key, IBrush? brush = null, bool changeColor = true, bool transformKey = true, params string[] formatArgsKeys)
+    {
+        brush ??= Brushes.Black;
+        Task.Run(() =>
+        {
+            DispatcherHelper.PostOnMainThread(() =>
+            {
+                var log = new LogItemViewModel(key, brush, "Regular", true, "HH':'mm':'ss", changeColor: changeColor, showTime: true, transformKey: transformKey, formatArgsKeys);
+                LogItemViewModels.Add(log);
+                LoggerHelper.Info(log.Content);
+                TrimExcessLogs();
+            });
+        });
+    }
+
+    public void AddLogByKey(string key, string color = "", bool changeColor = true, bool transformKey = true, params string[] formatArgsKeys)
+    {
+        var brush = BrushHelper.ConvertToBrush(color, Brushes.Black);
+        AddLogByKey(key, brush, changeColor, transformKey, formatArgsKeys);
+    }
+
+    public void AddMarkdown(string key, IBrush? brush = null, bool changeColor = true, bool transformKey = true, params string[] formatArgsKeys)
+    {
+        brush ??= Brushes.Black;
+        Task.Run(() =>
+        {
+            DispatcherHelper.PostOnMainThread(() =>
+            {
+                var log = new LogItemViewModel(key, brush, "Regular", true, "HH':'mm':'ss", changeColor: changeColor, showTime: true, transformKey: transformKey, formatArgsKeys)
+                {
+                    UseMarkdown = true
+                };
+                LogItemViewModels.Add(log);
+                LoggerHelper.Info(log.Content);
+                TrimExcessLogs();
+            });
+        });
+    }
 
     /// <summary>
     /// JSON 加载设置，忽略注释（支持 JSONC 格式）
@@ -82,8 +420,11 @@ public class MaaProcessor
         return null;
     }
 
-    public MaaProcessor()
+    internal MaaProcessor(string instanceId)
     {
+        InstanceId = instanceId;
+        InstanceConfiguration = new InstanceConfiguration(instanceId);
+
         TaskQueue.CountChanged += (_, args) =>
         {
             if (args.NewValue > 0)
@@ -125,12 +466,13 @@ public class MaaProcessor
             LoggerHelper.Error(e);
         }
     }
-    private static bool _isClosed = false;
-    public static bool IsClosed => _isClosed;
-    public static void Dispose()
+    private bool _isClosed = false;
+    public bool IsClosed => _isClosed;
+    public void Dispose()
     {
         _isClosed = true;
         Instances.TaskQueueView.StopLiveViewLoop();
+        StopCommandThread();
     }
 
     public static MaaInterface? Interface
@@ -241,7 +583,6 @@ public class MaaProcessor
         }
     }
 
-    public static MaaFWConfiguration Config { get; } = new();
     public MaaTasker? MaaTasker { get; set; }
     private MaaTasker? _screenshotTasker;
     private Task<MaaTasker?>? _screenshotTaskerInitTask;
@@ -249,6 +590,7 @@ public class MaaProcessor
     public MaaTasker? ScreenshotTasker => _screenshotTasker;
     public void SetTasker(MaaTasker? maaTasker = null)
     {
+        Instances.TaskQueueView.ResetFailedCount();
         if (maaTasker == null && MaaTasker != null)
         {
             var oldTasker = MaaTasker;
@@ -313,7 +655,7 @@ public class MaaProcessor
     }
 
     private bool UseSeparateScreenshotTasker =>
-        true;
+        InstanceConfiguration.GetValue(ConfigurationKeys.UseSeparateScreenshotTasker, true);
 
     private MaaTasker? GetScreenshotTasker(CancellationToken token = default)
     {
@@ -633,8 +975,8 @@ public class MaaProcessor
             {
                 Controller = controller,
                 Resource = maaResource,
-                Toolkit = new MaaToolkit(),
-                Global = new MaaGlobal(),
+                Toolkit = MaaProcessor.Toolkit,
+                Global = MaaProcessor.Global,
                 DisposeOptions = DisposeOptions.All,
             };
 
@@ -795,8 +1137,8 @@ public class MaaProcessor
             {
                 Controller = controller,
                 Resource = maaResource,
-                Toolkit = MaaProcessor.Toolkit,
-                Global = MaaProcessor.Global,
+                Toolkit = Toolkit,
+                Global = Global,
                 DisposeOptions = DisposeOptions.All,
             };
 
@@ -1766,7 +2108,7 @@ public class MaaProcessor
         }
     }
 
-    public static string ScreenshotType()
+    public string ScreenshotType()
     {
         if (Instances.TaskQueueViewModel.CurrentController == MaaControllerTypes.Adb)
             return ConfigureAdbScreenCapTypes().ToString();
@@ -1774,7 +2116,7 @@ public class MaaProcessor
     }
 
 
-    private static AdbInputMethods ConfigureAdbInputTypes()
+    private AdbInputMethods ConfigureAdbInputTypes()
     {
         return Instances.ConnectSettingsUserControlModel.AdbControlInputType switch
         {
@@ -1783,7 +2125,7 @@ public class MaaProcessor
         };
     }
 
-    private static AdbScreencapMethods ConfigureAdbScreenCapTypes()
+    private AdbScreencapMethods ConfigureAdbScreenCapTypes()
     {
         return Instances.ConnectSettingsUserControlModel.AdbControlScreenCapType switch
         {
@@ -1826,17 +2168,17 @@ public class MaaProcessor
         }
     }
 
-    private static Win32ScreencapMethod ConfigureWin32ScreenCapTypes()
+    private Win32ScreencapMethod ConfigureWin32ScreenCapTypes()
     {
         return Instances.ConnectSettingsUserControlModel.Win32ControlScreenCapType;
     }
 
-    private static Win32InputMethod ConfigureWin32MouseInputTypes()
+    private Win32InputMethod ConfigureWin32MouseInputTypes()
     {
         return Instances.ConnectSettingsUserControlModel.Win32ControlMouseType;
     }
 
-    private static Win32InputMethod ConfigureWin32KeyboardInputTypes()
+    private Win32InputMethod ConfigureWin32KeyboardInputTypes()
     {
         return Instances.ConnectSettingsUserControlModel.Win32ControlKeyboardType;
     }
@@ -1981,9 +2323,86 @@ public class MaaProcessor
 
     #endregion
 
+    private void EnsureCommandThread()
+    {
+        if (_commandThread != null)
+            return;
+
+        lock (_commandThreadLock)
+        {
+            if (_commandThread != null)
+                return;
+
+            _commandThread = new Thread(CommandLoop)
+            {
+                IsBackground = true,
+                Name = $"MaaProcessor-{InstanceId}-Command"
+            };
+            _commandThread.Start();
+        }
+    }
+
+    private void CommandLoop()
+    {
+        try
+        {
+            foreach (var command in _commandQueue.GetConsumingEnumerable(_commandThreadCts.Token))
+            {
+                try
+                {
+                    command().GetAwaiter().GetResult();
+                }
+                catch (OperationCanceledException)
+                {
+                }
+                catch (Exception ex)
+                {
+                    LoggerHelper.Error(ex);
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
+    private void EnqueueCommand(Func<Task> command)
+    {
+        if (_commandThreadCts.IsCancellationRequested || _commandQueue.IsAddingCompleted)
+        {
+            LoggerHelper.Info("Command queue stopped, ignore request.");
+            return;
+        }
+
+        EnsureCommandThread();
+        _commandQueue.Add(command);
+    }
+
+    private void StopCommandThread()
+    {
+        lock (_commandThreadLock)
+        {
+            if (_commandThread == null)
+                return;
+
+            try
+            {
+                _commandThreadCts.Cancel();
+                _commandQueue.CompleteAdding();
+            }
+            catch (Exception ex)
+            {
+                LoggerHelper.Warning($"Stop command thread failed: {ex.Message}");
+            }
+        }
+    }
+
     #region 开始任务
 
-    static void MeasureExecutionTime(Action methodToMeasure)
+    private void MeasureExecutionTime(Action methodToMeasure)
     {
         var stopwatch = Stopwatch.StartNew();
 
@@ -2011,7 +2430,7 @@ public class MaaProcessor
         }
     }
 
-    async static Task MeasureExecutionTimeAsync(Func<Task> methodToMeasure)
+    private async Task MeasureExecutionTimeAsync(Func<Task> methodToMeasure)
     {
         const int sampleCount = 2;
         long totalElapsed = 0;
@@ -2196,7 +2615,7 @@ public class MaaProcessor
 
         DispatcherHelper.PostOnMainThread(() =>
         {
-            if (TaskQueueViewModel.CheckShouldLog(outData))
+            if (CheckShouldLog(outData))
             {
                 RootView.AddLog(outData);
             }
@@ -2525,29 +2944,38 @@ public class MaaProcessor
 
     public void Start(bool onlyStart = false, bool checkUpdate = false)
     {
-        // 保存当前的任务列表，以便在重新加载时保留用户调整的顺序和 check 状态
-        var currentTasks = new Collection<DragItemViewModel>(Instances.TaskQueueViewModel.TaskItemViewModels.ToList());
-
-        if (InitializeData(currentTasks))
-        {
-            // 排除不支持当前资源包/控制器的任务（IsTaskSupported 为 false 的任务）
-            // 排除 resource option 项（它们不参与任务执行，只提供参数）
-            var tasks = Instances.TaskQueueViewModel.TaskItemViewModels.ToList()
-                .FindAll(task => (task.IsChecked || task.IsCheckedWithNull == null) && task.IsTaskSupported && !task.IsResourceOptionItem);
-            StartTask(tasks, onlyStart, checkUpdate);
-        }
+        EnqueueCommand(() => StartInternal(null, onlyStart, checkUpdate));
     }
 
     public void Start(List<DragItemViewModel> dragItemViewModels, bool onlyStart = false, bool checkUpdate = false)
+    {
+        EnqueueCommand(() => StartInternal(dragItemViewModels, onlyStart, checkUpdate));
+    }
+
+    private Task StartInternal(List<DragItemViewModel>? dragItemViewModels, bool onlyStart, bool checkUpdate)
     {
         // 保存当前的任务列表，以便在重新加载时保留用户调整的顺序和 check 状态
         var currentTasks = new Collection<DragItemViewModel>(Instances.TaskQueueViewModel.TaskItemViewModels.ToList());
 
         if (InitializeData(currentTasks))
         {
-            var tasks = dragItemViewModels;
-            StartTask(tasks, onlyStart, checkUpdate);
+            List<DragItemViewModel> tasks;
+            if (dragItemViewModels == null)
+            {
+                // 排除不支持当前资源包/控制器的任务（IsTaskSupported 为 false 的任务）
+                // 排除 resource option 项（它们不参与任务执行，只提供参数）
+                tasks = Instances.TaskQueueViewModel.TaskItemViewModels.ToList()
+                    .FindAll(task => (task.IsChecked || task.IsCheckedWithNull == null) && task.IsTaskSupported && !task.IsResourceOptionItem);
+            }
+            else
+            {
+                tasks = dragItemViewModels;
+            }
+
+            _ = StartTask(tasks, onlyStart, checkUpdate);
         }
+
+        return Task.CompletedTask;
     }
 
     public CancellationTokenSource? CancellationTokenSource
@@ -2908,7 +3336,7 @@ public class MaaProcessor
                 MaaControllerTypes.PlayCover => "TabPlayCover",
                 _ => LangKeys.Window
             };
-            var beforeTask = ConfigurationManager.Current.GetValue(ConfigurationKeys.BeforeTask, "None");
+            var beforeTask = InstanceConfiguration.GetValue(ConfigurationKeys.BeforeTask, "None");
             var delayFingerprintMatching = beforeTask.Contains("StartupSoftware", StringComparison.OrdinalIgnoreCase);
 
             if (showMessage)
@@ -3137,76 +3565,80 @@ public class MaaProcessor
 
     #region 停止任务
 
-    private Lock stop = new Lock();
+    private readonly Lock _stopLock = new();
 
     public void Stop(MFATask.MFATaskStatus status, bool finished = false, bool onlyStart = false, Action? action = null)
+    {
+        EnqueueCommand(() => StopInternal(status, finished, onlyStart, action));
+    }
+
+    private Task StopInternal(MFATask.MFATaskStatus status, bool finished, bool onlyStart, Action? action)
     {
         ResetActionFailedCount();
         ClearTaskbarProgress();
         _taskQueueTotal = 0;
-        // 在后台线程执行停止操作，避免阻塞 UI 线程
-        TaskManager.RunTask(() =>
+
+        lock (_stopLock)
         {
-            lock (stop)
+            LoggerHelper.Info("Stop Status: " + Status);
+            if (Status == MFATask.MFATaskStatus.STOPPING)
+                return Task.CompletedTask;
+            Status = MFATask.MFATaskStatus.STOPPING;
+            DispatcherHelper.PostOnMainThread(() => Instances.TaskQueueViewModel.ToggleEnable = false);
+            try
             {
-                LoggerHelper.Info("Stop Status: " + Status);
-                if (Status == MFATask.MFATaskStatus.STOPPING)
-                    return;
-                Status = MFATask.MFATaskStatus.STOPPING;
-                DispatcherHelper.PostOnMainThread(() => Instances.TaskQueueViewModel.ToggleEnable = false);
-                try
+                var isUpdateRelated = TaskQueue.Any(task => task.IsUpdateRelated);
+                Instances.TaskQueueViewModel.SetCurrentTaskName(string.Empty);
+                if (!ShouldProcessStop(finished))
                 {
-                    var isUpdateRelated = TaskQueue.Any(task => task.IsUpdateRelated);
-                    Instances.TaskQueueViewModel.SetCurrentTaskName(string.Empty);
-                    if (!ShouldProcessStop(finished))
-                    {
-                        ToastHelper.Warn(LangKeys.NoTaskToStop.ToLocalization());
-
-                        TaskQueue.Clear();
-                        return;
-                    }
-
-                    CancelOperations(status == MFATask.MFATaskStatus.STOPPED && !_agentStarted && (_agentClient != null || _agentProcess != null));
+                    ToastHelper.Warn(LangKeys.NoTaskToStop.ToLocalization());
 
                     TaskQueue.Clear();
-
-                    DispatcherHelper.PostOnMainThread(() => Instances.RootViewModel.IsRunning = false);
-
-                    ExecuteStopCore(finished, async () =>
-                    {
-                        var stopResult = MaaJobStatus.Succeeded;
-
-                        if (MaaTasker is { IsRunning: true, IsStopping: false } && status != MFATask.MFATaskStatus.FAILED && status != MFATask.MFATaskStatus.SUCCEEDED)
-                        {
-
-                            // 持续尝试停止直到返回 Succeeded
-                            const int maxRetries = 10;
-                            const int retryDelayMs = 500;
-
-                            for (int i = 0; i < maxRetries; i++)
-                            {
-                                LoggerHelper.Info($"Stopping tasker attempt {i + 1}");
-                                stopResult = AbortCurrentTasker();
-                                LoggerHelper.Info($"Stopping tasker attempt {i + 1} returned {stopResult}, retrying...");
-
-                                if (stopResult == MaaJobStatus.Succeeded)
-                                    break;
-
-                                await Task.Delay(retryDelayMs);
-                            }
-
-                        }
-                        HandleStopResult(status, stopResult, onlyStart, action, isUpdateRelated);
-                        DispatcherHelper.PostOnMainThread(() => Instances.TaskQueueViewModel.ToggleEnable = true);
-                    });
+                    return Task.CompletedTask;
                 }
-                catch (Exception ex)
+
+                CancelOperations(status == MFATask.MFATaskStatus.STOPPED && !_agentStarted && (_agentClient != null || _agentProcess != null));
+
+                TaskQueue.Clear();
+
+                DispatcherHelper.PostOnMainThread(() => Instances.RootViewModel.IsRunning = false);
+
+                ExecuteStopCore(finished, async () =>
                 {
+                    var stopResult = MaaJobStatus.Succeeded;
+
+                    if (MaaTasker is { IsRunning: true, IsStopping: false } && status != MFATask.MFATaskStatus.FAILED && status != MFATask.MFATaskStatus.SUCCEEDED)
+                    {
+
+                        // 持续尝试停止直到返回 Succeeded
+                        const int maxRetries = 10;
+                        const int retryDelayMs = 500;
+
+                        for (int i = 0; i < maxRetries; i++)
+                        {
+                            LoggerHelper.Info($"Stopping tasker attempt {i + 1}");
+                            stopResult = AbortCurrentTasker();
+                            LoggerHelper.Info($"Stopping tasker attempt {i + 1} returned {stopResult}, retrying...");
+
+                            if (stopResult == MaaJobStatus.Succeeded)
+                                break;
+
+                            await Task.Delay(retryDelayMs);
+                        }
+
+                    }
+                    HandleStopResult(status, stopResult, onlyStart, action, isUpdateRelated);
                     DispatcherHelper.PostOnMainThread(() => Instances.TaskQueueViewModel.ToggleEnable = true);
-                    HandleStopException(ex);
-                }
+                });
             }
-        }, "停止任务");
+            catch (Exception ex)
+            {
+                DispatcherHelper.PostOnMainThread(() => Instances.TaskQueueViewModel.ToggleEnable = true);
+                HandleStopException(ex);
+            }
+        }
+
+        return Task.CompletedTask;
     }
 
 
@@ -3518,7 +3950,7 @@ public class MaaProcessor
 
     public void HandleAfterTaskOperation()
     {
-        var afterTask = ConfigurationManager.Current.GetValue(ConfigurationKeys.AfterTask, "None");
+        var afterTask = InstanceConfiguration.GetValue(ConfigurationKeys.AfterTask, "None");
         switch (afterTask)
         {
             case "CloseMFA":
@@ -3558,7 +3990,7 @@ public class MaaProcessor
         {
             if (OperatingSystem.IsWindows())
             {
-                var hwnd = Config.DesktopWindow.HWnd;
+                var hwnd = Instance.Config.DesktopWindow.HWnd;
                 var closedByHwnd = ProcessHelper.CloseProcessesByHWnd(hwnd);
 
                 if (!closedByHwnd)
@@ -3569,7 +4001,7 @@ public class MaaProcessor
                     }
                     else
                     {
-                        ProcessHelper.CloseProcessesByName(Config.DesktopWindow.Name, ConfigurationManager.Current.GetValue(ConfigurationKeys.EmulatorConfig, string.Empty));
+                        ProcessHelper.CloseProcessesByName(Instance.Config.DesktopWindow.Name, Instance.InstanceConfiguration.GetValue(ConfigurationKeys.EmulatorConfig, string.Empty));
                         _softwareProcess = null;
                     }
                 }
@@ -3596,7 +4028,7 @@ public class MaaProcessor
 
     public async Task WaitSoftware()
     {
-        if (ConfigurationManager.Current.GetValue(ConfigurationKeys.BeforeTask, "None").Contains("Startup", StringComparison.OrdinalIgnoreCase))
+        if (InstanceConfiguration.GetValue(ConfigurationKeys.BeforeTask, "None").Contains("Startup", StringComparison.OrdinalIgnoreCase))
         {
             await StartSoftware();
         }
@@ -3609,8 +4041,8 @@ public class MaaProcessor
     public async Task StartSoftware()
     {
         _emulatorCancellationTokenSource = new CancellationTokenSource();
-        await StartRunnableFile(ConfigurationManager.Current.GetValue(ConfigurationKeys.SoftwarePath, string.Empty),
-            ConfigurationManager.Current.GetValue(ConfigurationKeys.WaitSoftwareTime, 60.0), _emulatorCancellationTokenSource.Token);
+        await StartRunnableFile(InstanceConfiguration.GetValue(ConfigurationKeys.SoftwarePath, string.Empty),
+            InstanceConfiguration.GetValue(ConfigurationKeys.WaitSoftwareTime, 60.0), _emulatorCancellationTokenSource.Token);
     }
 
     async private Task StartRunnableFile(string exePath, double waitTimeInSeconds, CancellationToken token)
@@ -3626,9 +4058,9 @@ public class MaaProcessor
         };
         if (Process.GetProcessesByName(processName).Length == 0)
         {
-            if (!string.IsNullOrWhiteSpace(ConfigurationManager.Current.GetValue(ConfigurationKeys.EmulatorConfig, string.Empty)))
+            if (!string.IsNullOrWhiteSpace(InstanceConfiguration.GetValue(ConfigurationKeys.EmulatorConfig, string.Empty)))
             {
-                startInfo.Arguments = ConfigurationManager.Current.GetValue(ConfigurationKeys.EmulatorConfig, string.Empty);
+                startInfo.Arguments = InstanceConfiguration.GetValue(ConfigurationKeys.EmulatorConfig, string.Empty);
                 _softwareProcess =
                     Process.Start(startInfo);
             }
@@ -3637,9 +4069,9 @@ public class MaaProcessor
         }
         else
         {
-            if (!string.IsNullOrWhiteSpace(ConfigurationManager.Current.GetValue(ConfigurationKeys.EmulatorConfig, string.Empty)))
+            if (!string.IsNullOrWhiteSpace(InstanceConfiguration.GetValue(ConfigurationKeys.EmulatorConfig, string.Empty)))
             {
-                startInfo.Arguments = ConfigurationManager.Current.GetValue(ConfigurationKeys.EmulatorConfig, string.Empty);
+                startInfo.Arguments = InstanceConfiguration.GetValue(ConfigurationKeys.EmulatorConfig, string.Empty);
                 _softwareProcess = Process.Start(startInfo);
             }
             else

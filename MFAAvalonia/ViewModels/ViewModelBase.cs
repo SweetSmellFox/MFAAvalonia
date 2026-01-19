@@ -17,20 +17,31 @@ public class ViewModelBase : ObservableObject
     
     protected void HandlePropertyChanged<T>(string configKey, T newValue, Action<T>? action = null)
     {
-        ConfigurationManager.Current.SetValue(configKey, newValue);
+        SetConfigValue(configKey, newValue);
         action?.Invoke(newValue);
     }
-    
+
     protected void HandleStringPropertyChanged<T>(string configKey, T newValue, Action<T>? action = null)
     {
-        ConfigurationManager.Current.SetValue(configKey, newValue.ToString());
+        SetConfigValue(configKey, newValue?.ToString() ?? string.Empty);
         action?.Invoke(newValue);
     }
-    
+
     protected void HandlePropertyChanged<T>(string configKey, T newValue, Action? action)
     {
-        ConfigurationManager.Current.SetValue(configKey, newValue);
+        SetConfigValue(configKey, newValue);
         action?.Invoke();
+    }
+
+    private static void SetConfigValue(string configKey, object? value)
+    {
+        if (ConfigurationKeys.IsInstanceScoped(configKey))
+        {
+            ConfigurationManager.CurrentInstance.SetValue(configKey, value);
+            return;
+        }
+
+        ConfigurationManager.Current.SetValue(configKey, value);
     }
     
     protected bool? SetNewProperty<T>([NotNullIfNotNull(nameof(newValue))] ref T field,

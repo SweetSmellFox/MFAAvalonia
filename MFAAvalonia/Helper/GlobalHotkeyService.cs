@@ -28,8 +28,9 @@ public static class GlobalHotkeyService
 
     public static void Initialize()
     {
-        if (_election != null) return;
-        if (Design.IsDesignMode)
+        if (OperatingSystem.IsAndroid())
+            return;
+        if (_election != null) return;if (Design.IsDesignMode)
             return;
         // 使用全局互斥锁选举主进程
         // 与 Program.IsNewInstance 不同，这里对所有 MFAAvalonia 实例生效（不区分目录）

@@ -1,0 +1,68 @@
+<UserControl
+    x:Class="MFAAvalonia.Views.Mobile.RootViewContent"
+    x:DataType="windows:RootViewModel"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:calcBinding="clr-namespace:CalcBinding;assembly=CalcBindingAva"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:extensions="clr-namespace:MFAAvalonia.Extensions"
+    xmlns:fluent="clr-namespace:FluentIcons.Avalonia.Fluent.Markup;assembly=FluentIcons.Avalonia.Fluent"
+    xmlns:helper="clr-namespace:MFAAvalonia.Helper"
+    xmlns:markup="https://codewf.com"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:pages="clr-namespace:MFAAvalonia.Views.Pages"
+    xmlns:suki="https://github.com/kikipoulet/SukiUI"
+    xmlns:windows="clr-namespace:MFAAvalonia.ViewModels.Windows"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    d:DesignHeight="600"
+    d:DesignWidth="360"
+    mc:Ignorable="d">
+    <Design.DataContext>
+        <windows:RootViewModel />
+    </Design.DataContext>
+
+    <Grid>
+        <LayoutTransformControl
+            LayoutTransform="{Binding ScaleTransform, Source={x:Static helper:FontService.Instance}}">
+            <Grid RowDefinitions="*">
+                <ProgressBar Height="30" Width="360"
+                             Minimum="0" HorizontalAlignment="Center"
+                             Maximum="100" VerticalAlignment="Center"
+                             Value="{Binding ConfigSwitchProgress}"
+                             IsVisible="{Binding IsConfigSwitching}" />
+                <suki:SukiSideMenu IsVisible="{Binding '!IsConfigSwitching'}" IsMenuExpanded="False"
+                                   IsSearchEnabled="False" OpenPaneLength="150">
+                    <suki:SukiSideMenu.Items>
+                        <suki:SukiSideMenuItem IsContentMovable="False"
+                                               Header="{markup:I18n {x:Static helper:LangKeys.Home}}"
+                                               Icon="{fluent:FluentIcon Icon=TasksApp,
+                                                               IconVariant=Regular}"
+                                               PageContent="{extensions:ServiceProvider ServiceType={x:Type pages:TaskQueueView}}" />
+                        <suki:SukiSideMenuItem IsContentMovable="False"
+                                               Header="{markup:I18n {x:Static helper:LangKeys.ScreenshotPage}}"
+                                               Icon="{fluent:FluentIcon Icon=Screenshot,
+                                                               IconVariant=Regular}"
+                                               PageContent="{extensions:ServiceProvider ServiceType={x:Type pages:ScreenshotView}}" />
+                        <suki:SukiSideMenuItem IsContentMovable="False"
+                                               Header="{markup:I18n {x:Static helper:LangKeys.ResourceOption}}"
+                                               Icon="{fluent:FluentIcon Icon=Apps,
+                                                               IconVariant=Regular}"
+                                               IsVisible="False"
+                                               PageContent="{extensions:ServiceProvider ServiceType={x:Type pages:ResourcesView}}" />
+                    </suki:SukiSideMenu.Items>
+
+                    <suki:SukiSideMenu.HeaderContent>
+                        <!-- Header Content -->
+                    </suki:SukiSideMenu.HeaderContent>
+
+                    <suki:SukiSideMenu.FooterMenuItems>
+                        <suki:SukiSideMenuItem IsContentMovable="False"
+                                               Header="{markup:I18n {x:Static helper:LangKeys.Settings}}"
+                                               Icon="{fluent:FluentIcon Icon=Settings,
+                                                                   IconVariant=Regular}"
+                                               PageContent="{extensions:ServiceProvider ServiceType={x:Type pages:SettingsView}}" />
+                    </suki:SukiSideMenu.FooterMenuItems>
+                </suki:SukiSideMenu>
+            </Grid>
+        </LayoutTransformControl>
+    </Grid>
+</UserControl>

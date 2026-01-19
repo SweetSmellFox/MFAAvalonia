@@ -127,12 +127,12 @@ jobs:
           config-file: NuGet.config
 
       - name: Restore Dependencies
-        run: dotnet restore
+        run: dotnet restore MFAAvalonia.Desktop/MFAAvalonia.Desktop.csproj
         env:
           NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
 
       - name: Build Solution
-        run: dotnet publish -c Release -r ${{ matrix.platform }}-${{ matrix.arch }}
+        run: dotnet publish MFAAvalonia.Desktop/MFAAvalonia.Desktop.csproj -c Release -r ${{ matrix.platform }}-${{ matrix.arch }}
 
       - name: Sign macOS App with Adhoc Certificate
         if: ${{ matrix.is_macos == true }} 

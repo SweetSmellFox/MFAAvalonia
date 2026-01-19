@@ -1202,7 +1202,7 @@
                         <ex:MarkdownExtension />
                     </mdxaml:MarkdownScrollViewer.Engine>
                     <mdxaml:MarkdownScrollViewer.Styles>
-                        <StyleInclude Source="avares://MFAAvalonia/Assets/Style/MdXamlDocStyle.axaml" />
+                        <StyleInclude Source="avares://MFAAvalonia.Core/Assets/Style/MdXamlDocStyle.axaml" />
                     </mdxaml:MarkdownScrollViewer.Styles>
                     <mdxaml:MarkdownScrollViewer.Plugins>
                         <StaticResource ResourceKey="MdXamlPlugin" />
@@ -1472,7 +1472,7 @@
                                                         </mdxaml:MarkdownScrollViewer.Engine>
                                                         <mdxaml:MarkdownScrollViewer.Styles>
                                                             <StyleInclude
-                                                                Source="avares://MFAAvalonia/Assets/Style/MdXamlDocStyle.axaml" />
+                                                                Source="avares://MFAAvalonia.Core/Assets/Style/MdXamlDocStyle.axaml" />
                                                         </mdxaml:MarkdownScrollViewer.Styles>
                                                         <mdxaml:MarkdownScrollViewer.Plugins>
                                                             <StaticResource ResourceKey="MdXamlPlugin" />
@@ -1601,7 +1601,7 @@
         <!--                                 </mdxaml:MarkdownScrollViewer.Engine> -->
         <!--                                 <mdxaml:MarkdownScrollViewer.Styles> -->
         <!--                                     <StyleInclude -->
-        <!--                                         Source="avares://MFAAvalonia/Assets/Style/MdXamlDocStyle.axaml" /> -->
+        <!--                                         Source="avares://MFAAvalonia.Core/Assets/Style/MdXamlDocStyle.axaml" /> -->
         <!--                                 </mdxaml:MarkdownScrollViewer.Styles> -->
         <!--                                 <mdxaml:MarkdownScrollViewer.Plugins> -->
         <!--                                     <StaticResource ResourceKey="MdXamlPlugin" /> -->

@@ -29,7 +29,7 @@ public class TaskLoader(MaaInterface? maaInterface)
         ref bool firstTask,
         IList<DragItemViewModel>? oldDrags = null)
     {
-        var currentTasks = ConfigurationManager.Current.GetValue(ConfigurationKeys.CurrentTasks, new List<string>());
+        var currentTasks = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.CurrentTasks, new List<string>());
         if (currentTasks.Any(t => t.Contains(OLD_SEPARATOR) && !t.Contains(NEW_SEPARATOR)))
         {
             currentTasks = currentTasks
@@ -50,7 +50,7 @@ public class TaskLoader(MaaInterface? maaInterface)
         }
         else
         {
-            var items = ConfigurationManager.Current.GetValue(ConfigurationKeys.TaskItems, new List<MaaInterface.MaaInterfaceTask>()) ?? new List<MaaInterface.MaaInterfaceTask>();
+            var items = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.TaskItems, new List<MaaInterface.MaaInterfaceTask>()) ?? new List<MaaInterface.MaaInterfaceTask>();
             drags = items.Select(interfaceItem => new DragItemViewModel(interfaceItem)).ToList();
         }
 
@@ -61,7 +61,7 @@ public class TaskLoader(MaaInterface? maaInterface)
         }
 
         var (updateList, removeList) = SynchronizeTaskItems(ref currentTasks, drags, tasks);
-        ConfigurationManager.Current.SetValue(ConfigurationKeys.CurrentTasks, currentTasks);
+        ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.CurrentTasks, currentTasks);
         
         updateList.RemoveAll(d => removeList.Contains(d));
 
@@ -94,7 +94,7 @@ public class TaskLoader(MaaInterface? maaInterface)
             InitializeResourceSelectOptions(resource);
         }
         Instances.TaskQueueViewModel.CurrentResources = new ObservableCollection<MaaInterface.MaaInterfaceResource>(filteredResources);
-        Instances.TaskQueueViewModel.CurrentResource = ConfigurationManager.Current.GetValue(ConfigurationKeys.Resource, string.Empty);
+        Instances.TaskQueueViewModel.CurrentResource = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.Resource, string.Empty);
         if (Instances.TaskQueueViewModel.CurrentResources.Count > 0 && Instances.TaskQueueViewModel.CurrentResources.All(r => r.Name != Instances.TaskQueueViewModel.CurrentResource))
             Instances.TaskQueueViewModel.CurrentResource = Instances.TaskQueueViewModel.CurrentResources[0].Name ?? "Default";
     }
@@ -135,7 +135,7 @@ public class TaskLoader(MaaInterface? maaInterface)
         }
 
         // 获取已保存的配置
-        var savedResourceOptions = ConfigurationManager.Current.GetValue(
+        var savedResourceOptions = ConfigurationManager.CurrentInstance.GetValue(
             ConfigurationKeys.ResourceOptionItems,
             new Dictionary<string, List<MaaInterface.MaaInterfaceSelectOption>>());
 
@@ -504,7 +504,7 @@ public class TaskLoader(MaaInterface? maaInterface)
             return null;
 
         // 从配置中加载已保存的资源选项
-        var savedResourceOptions = ConfigurationManager.Current.GetValue(
+        var savedResourceOptions = ConfigurationManager.CurrentInstance.GetValue(
             ConfigurationKeys.ResourceOptionItems,
             new Dictionary<string, List<MaaInterface.MaaInterfaceSelectOption>>());
 

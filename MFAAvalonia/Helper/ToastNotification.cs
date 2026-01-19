@@ -205,7 +205,7 @@ public class ToastNotification
 
         TaskManager.RunTask(async () =>
         {
-            var uriString = "avares://MFAAvalonia/Assets/Sound/SystemNotification.wav";
+            var uriString = "avares://MFAAvalonia.Core/Assets/Sound/SystemNotification.wav";
             var uri = new Uri(uriString);
 
             // 步骤1：检查嵌入资源

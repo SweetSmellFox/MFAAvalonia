@@ -1,6 +1,7 @@
 ﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Notifications;
+using Avalonia.Layout;
 using Avalonia.Media;
 using MaaFramework.Binding.Interop.Native;
 using MFAAvalonia.Configuration;
@@ -324,11 +325,13 @@ public static class VersionChecker
         Instances.RootViewModel.SetUpdating(true);
         ProgressBar? progress = null;
         TextBlock? textBlock = null;
+        TextBlock? downloadSpeedTextBlock = null;
         ISukiToast? sukiToast = null;
         StackPanel stackPanel = await DispatcherHelper.RunOnMainThreadAsync(() =>
         {
             progress = new ProgressBar
             {
+                Height = 20,
                 Value = 0,Margin = new Thickness(0,5),
                 ShowProgressText = true
             };
@@ -337,8 +340,21 @@ public static class VersionChecker
             {
                 Text = LangKeys.GettingLatestResources.ToLocalization(),
             };
-            stackPanel.Children.Add(textBlock);
+            downloadSpeedTextBlock = new TextBlock
+            {
+                Text = string.Empty,
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+            var infoGrid = new Grid
+            {
+                ColumnDefinitions = new ColumnDefinitions("*,Auto")
+            };
+            Grid.SetColumn(textBlock, 0);
+            Grid.SetColumn(downloadSpeedTextBlock, 1);
+            infoGrid.Children.Add(textBlock);
+            infoGrid.Children.Add(downloadSpeedTextBlock);
             stackPanel.Children.Add(progress);
+            stackPanel.Children.Add(infoGrid);
             return stackPanel;
         });
 
@@ -438,9 +454,9 @@ public static class VersionChecker
         }
         var tempZipFilePath = Path.Combine(tempPath, $"resource_{latestVersion}{fileExtension}");
 
-        SetText(textBlock, LangKeys.Downloading.ToLocalization());
+        SetStatusText(textBlock, downloadSpeedTextBlock, LangKeys.Downloading.ToLocalization());
         SetProgress(progress, 0);
-        (var downloadStatus, tempZipFilePath) = await DownloadWithRetry(downloadUrl, tempZipFilePath, progress, 3);
+        (var downloadStatus, tempZipFilePath) = await DownloadWithRetry(downloadUrl, tempZipFilePath, progress, 3, textBlock, downloadSpeedTextBlock);
         LoggerHelper.Info(tempZipFilePath);
         if (!downloadStatus)
         {
@@ -450,7 +466,7 @@ public static class VersionChecker
             return;
         }
 
-        SetText(textBlock, LangKeys.Extracting.ToLocalization());
+        SetStatusText(textBlock, downloadSpeedTextBlock, LangKeys.Extracting.ToLocalization());
         SetProgress(progress, 0);
 
         var tempExtractDir = Path.Combine(tempPath, $"resource_{latestVersion}_extracted");
@@ -462,7 +478,7 @@ public static class VersionChecker
             Instances.RootViewModel.SetUpdating(false);
             return;
         }
-        SetText(textBlock, LangKeys.Verifying.ToLocalization());
+        SetStatusText(textBlock, downloadSpeedTextBlock, LangKeys.Verifying.ToLocalization());
         var sha256Verified = true;
         if (string.IsNullOrWhiteSpace(sha256))
         {
@@ -480,9 +496,9 @@ public static class VersionChecker
             Instances.RootViewModel.SetUpdating(false);
             return;
         }
-        SetText(textBlock, LangKeys.Extracting.ToLocalization());
+        SetStatusText(textBlock, downloadSpeedTextBlock, LangKeys.Extracting.ToLocalization());
         UniversalExtractor.Extract(tempZipFilePath, tempExtractDir);
-        SetText(textBlock, LangKeys.ApplyingUpdate.ToLocalization());
+        SetStatusText(textBlock, downloadSpeedTextBlock, LangKeys.ApplyingUpdate.ToLocalization());
         var originPath = tempExtractDir;
         var interfacePath = Path.Combine(tempExtractDir, "interface.json");
         var resourceDirPath = Path.Combine(tempExtractDir, "resource");
@@ -668,7 +684,7 @@ public static class VersionChecker
 
         SetProgress(progress, 100);
 
-        SetText(textBlock, LangKeys.UpdateCompleted.ToLocalization());
+        SetStatusText(textBlock, downloadSpeedTextBlock, LangKeys.UpdateCompleted.ToLocalization());
         // dialog?.SetRestartButtonVisibility(true);
 
         Instances.RootViewModel.SetUpdating(false);
@@ -1321,13 +1337,19 @@ public static class VersionChecker
 
     #region 增强型更新核心方法
 
-    async private static Task<(bool, string)> DownloadWithRetry(string url, string savePath, ProgressBar? progress, int retries)
+    async private static Task<(bool, string)> DownloadWithRetry(
+        string url,
+        string savePath,
+        ProgressBar? progress,
+        int retries,
+        TextBlock? downloadSizeTextBlock = null,
+        TextBlock? downloadSpeedTextBlock = null)
     {
         for (int i = 0; i < retries; i++)
         {
             try
             {
-                return await DownloadFileAsync(url, savePath, progress);
+                return await DownloadFileAsync(url, savePath, progress, downloadSizeTextBlock, downloadSpeedTextBlock);
             }
             catch (WebException ex) when (i < retries - 1)
             {
@@ -2249,7 +2271,12 @@ public static class VersionChecker
         return new SemVersion(new BigInteger(major), new BigInteger(minor), new BigInteger(patch), prerelease, build);
     }
 
-    async private static Task<(bool, string)> DownloadFileAsync(string url, string filePath, ProgressBar? progressBar)
+    async private static Task<(bool, string)> DownloadFileAsync(
+        string url,
+        string filePath,
+        ProgressBar? progressBar,
+        TextBlock? downloadSizeTextBlock = null,
+        TextBlock? downloadSpeedTextBlock = null)
     {
         var targetFilePath = filePath;
         try
@@ -2328,17 +2355,13 @@ public static class VersionChecker
                 SetProgress(progressBar, progressPercentage);
                 if (stopwatch.ElapsedMilliseconds >= 100)
                 {
-                    // DispatcherHelper.PostOnMainThread(() =>
-                    //     Instances.TaskQueueViewModel.OutputDownloadProgress(
-                    //         totalBytesRead,
-                    //         totalBytes ?? 0,
-                    //         (int)bytesPerSecond,
-                    //         (currentTime - startTime).TotalSeconds));
+                    SetDownloadInfo(downloadSizeTextBlock, downloadSpeedTextBlock, totalBytesRead, totalBytes ?? totalBytesRead, bytesPerSecond);
                     stopwatch.Restart();
                 }
             }
 
             SetProgress(progressBar, 100);
+            SetDownloadInfo(downloadSizeTextBlock, downloadSpeedTextBlock, totalBytesRead, totalBytes ?? totalBytesRead, bytesPerSecond);
             DispatcherHelper.PostOnMainThread(() =>
                 Instances.TaskQueueViewModel.OutputDownloadProgress(
                     totalBytesRead,
@@ -2429,6 +2452,42 @@ public static class VersionChecker
         if (block == null)
             return;
         DispatcherHelper.PostOnMainThread(() => block.Text = text);
+    }
+
+    private static void SetStatusText(TextBlock? leftBlock, TextBlock? rightBlock, string text)
+    {
+        if (leftBlock == null && rightBlock == null)
+            return;
+
+        DispatcherHelper.PostOnMainThread(() =>
+        {
+            if (leftBlock != null)
+                leftBlock.Text = text;
+            if (rightBlock != null)
+                rightBlock.Text = string.Empty;
+        });
+    }
+
+    private static void SetDownloadInfo(
+        TextBlock? downloadSizeTextBlock,
+        TextBlock? downloadSpeedTextBlock,
+        long downloadedBytes,
+        long totalBytes,
+        long bytesPerSecond)
+    {
+        if (downloadSizeTextBlock == null && downloadSpeedTextBlock == null)
+            return;
+
+        var sizeText = $"{MaaProcessor.FormatFileSize(downloadedBytes)}/{MaaProcessor.FormatFileSize(totalBytes)}";
+        var speedText = MaaProcessor.FormatDownloadSpeed(bytesPerSecond);
+
+        DispatcherHelper.PostOnMainThread(() =>
+        {
+            if (downloadSizeTextBlock != null)
+                downloadSizeTextBlock.Text = sizeText;
+            if (downloadSpeedTextBlock != null)
+                downloadSpeedTextBlock.Text = speedText;
+        });
     }
 
     private static void SetProgress(ProgressBar? bar, double percentage)

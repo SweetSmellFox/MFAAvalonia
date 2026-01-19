@@ -1,4 +1,6 @@
-﻿namespace MFAAvalonia.Configuration;
+﻿using System.Collections.Generic;
+
+namespace MFAAvalonia.Configuration;
 
 public static class ConfigurationKeys
 {
@@ -173,6 +175,46 @@ public static class ConfigurationKeys
     public const string MainWindowPositionX = "UI.MainWindow.PositionX";
     public const string MainWindowPositionY = "UI.MainWindow.PositionY";
     public const string MainWindowMaximized = "UI.MainWindow.Maximized";
+
+    #endregion
+
+    #region 实例设置
+
+    public static readonly HashSet<string> InstanceScopedKeys = new()
+    {
+        TaskItems,
+        CurrentTasks,
+        ResourceOptionItems,
+        BeforeTask,
+        AfterTask,
+        SoftwarePath,
+        WaitSoftwareTime,
+        EmulatorConfig,
+        RememberAdb,
+        UseFingerprintMatching,
+        AdbControlScreenCapType,
+        AdbControlInputType,
+        Win32ControlScreenCapType,
+        Win32ControlMouseType,
+        Win32ControlKeyboardType,
+        AllowAdbRestart,
+        AllowAdbHardRestart,
+        RetryOnDisconnected,
+        RetryOnDisconnectedWin32,
+        AutoDetectOnConnectionFailed,
+        AdbDevice,
+        PlayCoverConfig,
+        CurrentController,
+        Resource,
+        EnableLiveView,
+        LiveViewRefreshRate,
+        Prescript,
+        Postscript,
+        ContinueRunningWhenError,
+        UseSeparateScreenshotTasker
+    };
+
+    public static bool IsInstanceScoped(string key) => InstanceScopedKeys.Contains(key);
 
     #endregion
 }

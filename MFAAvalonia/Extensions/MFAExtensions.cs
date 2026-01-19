@@ -796,35 +796,92 @@ public static class MFAExtensions
 
     /// <summary>
     /// 生成ADB设备的指纹字符串，用于设备匹配
-    /// 指纹由 Name + AdbPath + Index 组成，可以稳定识别同一个模拟器实例
+    /// 指纹由 Name + Index + Address + Port 组成
     /// </summary>
     /// <param name="device">ADB设备信息</param>
     /// <returns>设备指纹字符串</returns>
     public static string GenerateDeviceFingerprint(this MaaFramework.Binding.AdbDeviceInfo device)
     {
         var index = DeviceDisplayConverter.GetFirstEmulatorIndex(device.Config);
-        return GenerateDeviceFingerprint(device.Name, device.AdbPath, index);
+        var (address, port) = ParseAdbSerial(device.AdbSerial);
+        return GenerateDeviceFingerprint(device.Name, index, address, port);
     }
 
     /// <summary>
     /// 生成ADB设备的指纹字符串
     /// </summary>
     /// <param name="name">设备名称</param>
-    /// <param name="adbPath">ADB路径</param>
+    /// <param name="adbSerial">ADB序列号</param>
     /// <param name="index">模拟器索引（-1表示无索引）</param>
     /// <returns>设备指纹字符串</returns>
-    public static string GenerateDeviceFingerprint(string name, string adbPath, int index)
+    public static string GenerateDeviceFingerprint(string name, string adbSerial, int index)
     {
-        // 规范化AdbPath：只保留文件名部分，忽略路径差异
-        var normalizedAdbPath = adbPath;
+        var (address, port) = ParseAdbSerial(adbSerial);
+        return GenerateDeviceFingerprint(name, index, address, port);
+    }
 
-        // 指纹格式：Name|AdbPath|Index
-        return $"{name}|{normalizedAdbPath}|{index}";
+    /// <summary>
+    /// 生成ADB设备的指纹字符串
+    /// </summary>
+    public static string GenerateDeviceFingerprint(string name, int index, string? address, int? port)
+    {
+        var namePart = string.IsNullOrWhiteSpace(name) ? "?" : name;
+        var indexPart = index >= 0 ? index.ToString() : "?";
+        var addressPart = string.IsNullOrWhiteSpace(address) ? "?" : address;
+        var portPart = port.HasValue && port.Value > 0 ? port.Value.ToString() : "?";
+        return $"{namePart}|{indexPart}|{addressPart}|{portPart}";
+    }
+
+    private static (string? address, int? port) ParseAdbSerial(string? adbSerial)
+    {
+        if (string.IsNullOrWhiteSpace(adbSerial))
+            return (null, null);
+
+        var token = adbSerial.Trim();
+        var splitIndex = token.IndexOfAny([' ', '\t', '\r', '\n']);
+        if (splitIndex >= 0)
+        {
+            token = token[..splitIndex];
+        }
+
+        if (string.IsNullOrWhiteSpace(token))
+            return (null, null);
+
+        var lastColon = token.LastIndexOf(':');
+        if (lastColon > 0 && lastColon < token.Length - 1)
+        {
+            var addressPart = token[..lastColon];
+            var portPart = token[(lastColon + 1)..];
+            if (int.TryParse(portPart, out var port))
+            {
+                return (NormalizeAddress(addressPart), port);
+            }
+        }
+
+        var separatorMatch = Regex.Match(token, @"^(?<address>.+?)[-_](?<port>\d+)$");
+        if (separatorMatch.Success && int.TryParse(separatorMatch.Groups["port"].Value, out var portFromSeparator))
+        {
+            return (NormalizeAddress(separatorMatch.Groups["address"].Value), portFromSeparator);
+        }
+
+        var prefixMatch = Regex.Match(token, @"^(?<address>[A-Za-z][A-Za-z0-9_-]*?)(?<port>\d+)$");
+        if (prefixMatch.Success && !prefixMatch.Groups["address"].Value.Contains('.', StringComparison.Ordinal)
+            && int.TryParse(prefixMatch.Groups["port"].Value, out var portFromPrefix))
+        {
+            return (NormalizeAddress(prefixMatch.Groups["address"].Value), portFromPrefix);
+        }
+
+        return (NormalizeAddress(token), null);
+    }
+
+    private static string NormalizeAddress(string address)
+    {
+        return address.Trim().TrimEnd(':', '-', '_');
     }
 
     /// <summary>
     /// 比较两个设备是否匹配（基于指纹）
-    /// 当任一方 index 为 -1 时，只比较 Name 和 AdbPath
+    /// Name / Index / Address / Port 满足至少 3 项匹配
     /// </summary>
     /// <param name="device">当前设备</param>
     /// <param name="savedDevice">保存的设备</param>
@@ -834,18 +891,53 @@ public static class MFAExtensions
         var deviceIndex = DeviceDisplayConverter.GetFirstEmulatorIndex(device.Config);
         var savedIndex = DeviceDisplayConverter.GetFirstEmulatorIndex(savedDevice.Config);
 
-        // 比较 Name 和 AdbPath
-        bool nameMatches = device.Name == savedDevice.Name;
-        bool adbPathMatches = device.AdbPath == savedDevice.AdbPath;
+        var (deviceAddress, devicePort) = ParseAdbSerial(device.AdbSerial);
+        var (savedAddress, savedPort) = ParseAdbSerial(savedDevice.AdbSerial);
 
-        // 如果 Name 或 AdbPath 不匹配，直接返回 false
-        if (!nameMatches || !adbPathMatches) return false;
+        var matches = 0;
+        var comparable = 0;
 
-        // 如果任一方 index 为 -1，则不比较 index，只要 Name 和 AdbPath 匹配即可
-        if (deviceIndex == -1 || savedIndex == -1)
-            return true;
+        if (!string.IsNullOrWhiteSpace(device.Name) && !string.IsNullOrWhiteSpace(savedDevice.Name))
+        {
+            comparable++;
+            if (string.Equals(device.Name, savedDevice.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                matches++;
+            }
+        }
 
-        // 两方 index 都有效时，需要 index 也匹配
-        return deviceIndex == savedIndex;
+        if (deviceIndex >= 0 && savedIndex >= 0)
+        {
+            comparable++;
+            if (deviceIndex == savedIndex)
+            {
+                matches++;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(deviceAddress) && !string.IsNullOrWhiteSpace(savedAddress))
+        {
+            comparable++;
+            if (string.Equals(deviceAddress, savedAddress, StringComparison.OrdinalIgnoreCase))
+            {
+                matches++;
+            }
+        }
+
+        if (devicePort.HasValue && savedPort.HasValue)
+        {
+            comparable++;
+            if (devicePort.Value == savedPort.Value)
+            {
+                matches++;
+            }
+        }
+
+        if (comparable < 3)
+        {
+            return false;
+        }
+
+        return matches >= 3;
     }
 }

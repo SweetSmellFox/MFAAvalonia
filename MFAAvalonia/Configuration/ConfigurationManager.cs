@@ -1,4 +1,5 @@
 ﻿using Avalonia.Collections;
+using MFAAvalonia;
 using MFAAvalonia.Extensions;
 using MFAAvalonia.Extensions.MaaFW;
 using MFAAvalonia.Helper;
@@ -21,6 +22,7 @@ public static class ConfigurationManager
         "config");
     public static readonly MFAConfiguration Maa = new("Maa", "maa_option", new Dictionary<string, object>());
     public static MFAConfiguration Current = new("Default", "config", new Dictionary<string, object>());
+    public static InstanceConfiguration CurrentInstance => MaaProcessor.Instance.InstanceConfiguration;
 
     public static AvaloniaList<MFAConfiguration> Configs { get; } = LoadConfigurations();
 
@@ -181,7 +183,7 @@ public static class ConfigurationManager
 
         Maa.SetConfig(JsonHelper.LoadConfig("maa_option", new Dictionary<string, object>()));
 
-        if (Program.Args.TryGetValue("c", out var param) && !string.IsNullOrEmpty(param))
+        if (AppRuntime.Args.TryGetValue("c", out var param) && !string.IsNullOrEmpty(param))
         {
             if (collection.Any(c => c.Name == param))
                 ConfigName = param;

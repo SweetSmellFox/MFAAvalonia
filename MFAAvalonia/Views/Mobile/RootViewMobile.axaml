@@ -1,0 +1,32 @@
+﻿<UserControl
+    x:Class="MFAAvalonia.Views.Mobile.RootViewMobile"
+    x:DataType="windows:RootViewModel"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:calcBinding="clr-namespace:CalcBinding;assembly=CalcBindingAva"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:extensions="clr-namespace:MFAAvalonia.Extensions"
+    xmlns:fluent="clr-namespace:FluentIcons.Avalonia.Fluent.Markup;assembly=FluentIcons.Avalonia.Fluent"
+    xmlns:helper="clr-namespace:MFAAvalonia.Helper"
+    xmlns:markup="https://codewf.com"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:pages="clr-namespace:MFAAvalonia.Views.Pages"
+    xmlns:suki="https://github.com/kikipoulet/SukiUI"
+    xmlns:windows="clr-namespace:MFAAvalonia.ViewModels.Windows"
+    xmlns:mobile="clr-namespace:MFAAvalonia.Views.Mobile"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    d:DesignHeight="600"
+    d:DesignWidth="360"
+    mc:Ignorable="d">
+    <Design.DataContext>
+        <windows:RootViewModel />
+    </Design.DataContext>
+
+    <suki:SukiMainHost>
+        <suki:SukiMainHost.Hosts>
+            <suki:SukiToastHost Manager="{x:Static helper:Instances.ToastManager}" />
+            <suki:SukiDialogHost Manager="{x:Static helper:Instances.DialogManager}" />
+        </suki:SukiMainHost.Hosts>
+        <mobile:RootViewContent />
+    </suki:SukiMainHost>
+
+</UserControl>

@@ -226,7 +226,7 @@ public partial class TaskQueueView : UserControl
         }
 
         vm.TaskItemViewModels.Insert(insertIndex, output);
-        ConfigurationManager.Current.SetValue(ConfigurationKeys.TaskItems, vm.TaskItemViewModels.ToList().Select(model => model.InterfaceItem));
+        ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.TaskItems, vm.TaskItemViewModels.ToList().Select(model => model.InterfaceItem));
         listBox.SelectedItem = output;
         ToastHelper.Info(LangKeys.Tip.ToLocalization(), LangKeys.TaskAddedToast.ToLocalizationFormatted(false, output.Name));
     }
@@ -267,7 +267,7 @@ public partial class TaskQueueView : UserControl
                     interfaceItem.Remark = string.IsNullOrWhiteSpace(remark) ? null : remark;
                     taskItemViewModel.RefreshDisplayName();
 
-                    ConfigurationManager.Current.SetValue(ConfigurationKeys.TaskItems,
+                    ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.TaskItems,
                         Instances.TaskQueueViewModel.TaskItemViewModels.Where(m => !m.IsResourceOptionItem)
                             .Select(model => model.InterfaceItem));
                 }))
@@ -296,7 +296,7 @@ public partial class TaskQueueView : UserControl
         var deletedName = taskItemViewModel.Name;
         vm.TaskItemViewModels.RemoveAt(index);
         Instances.TaskQueueView.SetOption(taskItemViewModel, false);
-        ConfigurationManager.Current.SetValue(ConfigurationKeys.TaskItems, vm.TaskItemViewModels.ToList().Select(model => model.InterfaceItem));
+        ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.TaskItems, vm.TaskItemViewModels.ToList().Select(model => model.InterfaceItem));
         vm.ShowSettings = false;
         ToastHelper.Info(LangKeys.Tip.ToLocalization(), LangKeys.TaskDeletedToast.ToLocalizationFormatted(false, deletedName));
     }
@@ -2144,7 +2144,7 @@ public partial class TaskQueueView : UserControl
     private void SaveConfiguration()
     {
         // 保存普通任务项配置
-        ConfigurationManager.Current.SetValue(ConfigurationKeys.TaskItems,
+        ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.TaskItems,
             Instances.TaskQueueViewModel.TaskItemViewModels.Where(m => !m.IsResourceOptionItem).Select(m => m.InterfaceItem));
 
         // 保存资源选项配置
@@ -2162,7 +2162,7 @@ public partial class TaskQueueView : UserControl
                 m => m.ResourceItem!.Name ?? string.Empty,
                 m => m.ResourceItem!.SelectOptions!);
 
-        ConfigurationManager.Current.SetValue(ConfigurationKeys.ResourceOptionItems, resourceOptionItems);
+        ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.ResourceOptionItems, resourceOptionItems);
     }
 
     public static string ConvertCustomMarkup(string input, string outputFormat = "html")
@@ -2494,6 +2494,11 @@ public partial class TaskQueueView : UserControl
         _liveViewTimer.Interval = Math.Max(1, interval * 1000);
     }
 
+    private int failed_count = 0;
+    public void ResetFailedCount()
+    {
+        failed_count = 0;
+    }
     private void OnLiveViewTimerElapsed(object? sender, EventArgs e)
     {
         if (Interlocked.Exchange(ref _liveViewTickInProgress, 1) == 1)
@@ -2503,7 +2508,7 @@ public partial class TaskQueueView : UserControl
 
         try
         {
-            if (MaaProcessor.IsClosed)
+            if (MaaProcessor.Instance.IsClosed)
                 return;
 
             if (MaaProcessor.Instance.TryConsumeScreencapFailureLog(out var shouldAbort, out var shouldDisconnected))
@@ -2525,10 +2530,13 @@ public partial class TaskQueueView : UserControl
                 if (status != MaaJobStatus.Succeeded)
                 {
                     if (status == MaaJobStatus.Invalid)
-                        Instances.TaskQueueViewModel.SetConnected(false);
+                    {
+                        if (++failed_count == 10)
+                            Instances.TaskQueueViewModel.SetConnected(false);
+                    }
                     return;
                 }
-
+                failed_count = 0;
                 var buffer = MaaProcessor.Instance.GetLiveViewBuffer(false);
                 if (buffer == null) return;
                 _ = Instances.TaskQueueViewModel.UpdateLiveViewImageAsync(buffer);

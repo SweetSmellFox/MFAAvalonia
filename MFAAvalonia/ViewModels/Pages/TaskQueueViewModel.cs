@@ -87,12 +87,25 @@ public partial class TaskQueueViewModel : ViewModelBase
             var controllers = MaaProcessor.Interface?.Controller;
             if (controllers is { Count: > 0 })
             {
-                // 从interface配置中加载控制器列表
-                foreach (var controller in controllers)
+                var filteredControllers = controllers
+                    .Where(IsControllerSupportedOnCurrentSystem)
+                    .ToList();
+
+                if (filteredControllers.Count > 0)
                 {
-                    controller.InitializeDisplayName();
+                    // 从interface配置中加载控制器列表
+                    foreach (var controller in filteredControllers)
+                    {
+                        controller.InitializeDisplayName();
+                    }
+                    ControllerOptions = new ObservableCollection<MaaInterface.MaaResourceController>(filteredControllers);
                 }
-                ControllerOptions = new ObservableCollection<MaaInterface.MaaResourceController>(controllers);
+                else
+                {
+                    // 过滤后为空则使用默认控制器
+                    var defaultControllers = CreateDefaultControllers();
+                    ControllerOptions = new ObservableCollection<MaaInterface.MaaResourceController>(defaultControllers);
+                }
             }
             else
             {
@@ -113,6 +126,22 @@ public partial class TaskQueueViewModel : ViewModelBase
             ControllerOptions = new ObservableCollection<MaaInterface.MaaResourceController>(defaultControllers);
             SelectedController = ControllerOptions.FirstOrDefault();
         }
+    }
+
+    /// <summary>
+    /// 判断控制器是否支持当前系统
+    /// </summary>
+    private static bool IsControllerSupportedOnCurrentSystem(MaaInterface.MaaResourceController controller)
+    {
+        var type = controller.Type ?? string.Empty;
+
+        if (type.Contains("win32", StringComparison.OrdinalIgnoreCase))
+            return OperatingSystem.IsWindows();
+
+        if (type.Contains("playcover", StringComparison.OrdinalIgnoreCase))
+            return OperatingSystem.IsMacOS();
+
+        return true;
     }
 
     /// <summary>
@@ -179,7 +208,7 @@ public partial class TaskQueueViewModel : ViewModelBase
 
     partial void OnTaskItemViewModelsChanged(ObservableCollection<DragItemViewModel> value)
     {
-        ConfigurationManager.Current.SetValue(ConfigurationKeys.TaskItems, value.ToList().Select(model => model.InterfaceItem));
+        ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.TaskItems, value.ToList().Select(model => model.InterfaceItem));
     }
 
     [RelayCommand]
@@ -207,7 +236,7 @@ public partial class TaskQueueViewModel : ViewModelBase
             return;
         }
 
-        var beforeTask = ConfigurationManager.Current.GetValue(ConfigurationKeys.BeforeTask, "None");
+        var beforeTask = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.BeforeTask, "None");
         var skipDeviceCheck = beforeTask.Contains("StartupSoftware", StringComparison.OrdinalIgnoreCase)
             || Instances.ConnectSettingsUserControlModel.AutoDetectOnConnectionFailed;
 
@@ -231,7 +260,7 @@ public partial class TaskQueueViewModel : ViewModelBase
         }
 
         if (CurrentController == MaaControllerTypes.PlayCover
-            && string.IsNullOrWhiteSpace(MaaProcessor.Config.PlayCover.PlayCoverAddress))
+            && string.IsNullOrWhiteSpace(MaaProcessor.Instance.Config.PlayCover.PlayCoverAddress))
         {
             ToastHelper.Warn(LangKeys.CannotStart.ToLocalization(), LangKeys.PlayCoverAddressEmpty.ToLocalization());
             LoggerHelper.Warning(LangKeys.CannotStart.ToLocalization());
@@ -283,7 +312,7 @@ public partial class TaskQueueViewModel : ViewModelBase
         UpdateTasksForResource(CurrentResource);
 
         // 保存配置
-        ConfigurationManager.Current.SetValue(ConfigurationKeys.TaskItems, TaskItemViewModels.ToList().Select(model => model.InterfaceItem));
+        ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.TaskItems, TaskItemViewModels.ToList().Select(model => model.InterfaceItem));
     }
 
     #endregion
@@ -304,7 +333,7 @@ public partial class TaskQueueViewModel : ViewModelBase
     /// 使用 DisposableObservableCollection 自动管理 LogItemViewModel 的生命周期
     /// 当元素被移除或集合被清空时，会自动调用 Dispose() 释放事件订阅
     /// </summary>
-    public DisposableObservableCollection<LogItemViewModel> LogItemViewModels { get; } = new();
+    public DisposableObservableCollection<LogItemViewModel> LogItemViewModels => MaaProcessor.Instance.LogItemViewModels;
 
     /// <summary>
     /// 清理超出限制的旧日志，防止内存泄漏
@@ -399,50 +428,17 @@ public partial class TaskQueueViewModel : ViewModelBase
     }
     public void OutputDownloadProgress(long value = 0, long maximum = 1, int len = 0, double ts = 1)
     {
-        string sizeValueStr = FormatFileSize(value);
-        string maxSizeValueStr = FormatFileSize(maximum);
-        string speedValueStr = FormatDownloadSpeed(len / ts);
-
-        string progressInfo = $"[{sizeValueStr}/{maxSizeValueStr}({100 * value / maximum}%) {speedValueStr}]";
-        OutputDownloadProgress(progressInfo);
+        MaaProcessor.Instance.OutputDownloadProgress(value, maximum, len, ts);
     }
 
     public void ClearDownloadProgress()
     {
-        DispatcherHelper.RunOnMainThread(() =>
-        {
-            if (LogItemViewModels.Count > 0 && LogItemViewModels[0].IsDownloading)
-            {
-                LogItemViewModels.RemoveAt(0);
-            }
-        });
+        MaaProcessor.Instance.ClearDownloadProgress();
     }
 
     public void OutputDownloadProgress(string output, bool downloading = true)
     {
-        // DispatcherHelper.RunOnMainThread(() =>
-        // {
-        //     var log = new LogItemViewModel(downloading ? LangKeys.NewVersionFoundDescDownloading.ToLocalization() + "\n" + output : output, Instances.RootView.FindResource("SukiAccentColor") as IBrush,
-        //         dateFormat: "HH':'mm':'ss")
-        //     {
-        //         IsDownloading = true,
-        //     };
-        //     if (LogItemViewModels.Count > 0 && LogItemViewModels[0].IsDownloading)
-        //     {
-        //         if (!string.IsNullOrEmpty(output))
-        //         {
-        //             LogItemViewModels[0] = log;
-        //         }
-        //         else
-        //         {
-        //             LogItemViewModels.RemoveAt(0);
-        //         }
-        //     }
-        //     else if (!string.IsNullOrEmpty(output))
-        //     {
-        //         LogItemViewModels.Insert(0, log);
-        //     }
-        // });
+        MaaProcessor.Instance.OutputDownloadProgress(output, downloading);
     }
 
 
@@ -456,50 +452,7 @@ public partial class TaskQueueViewModel : ViewModelBase
 
     public static bool CheckShouldLog(string content)
     {
-        const StringComparison comparison = StringComparison.Ordinal; // 指定匹配规则（避免大小写问题，按需调整）
-
-        if (content.StartsWith(TRACE, comparison))
-        {
-            return true;
-        }
-
-        if (content.StartsWith(DEBUG, comparison))
-        {
-            return true;
-        }
-
-        if (content.StartsWith(SUCCESS, comparison))
-        {
-            return true;
-        }
-
-        if (content.StartsWith(INFO, comparison))
-        {
-            return true;
-        }
-
-        var warnPrefix = WARNING.FirstOrDefault(prefix =>
-            !string.IsNullOrEmpty(prefix) && content.StartsWith(prefix, comparison)
-        );
-        if (warnPrefix != null)
-        {
-            return true;
-        }
-
-        var errorPrefix = ERROR.FirstOrDefault(prefix =>
-            !string.IsNullOrEmpty(prefix) && content.StartsWith(prefix, comparison)
-        );
-
-        if (errorPrefix != null)
-        {
-            return true;
-        }
-
-        if (content.StartsWith(CRITICAL, comparison))
-        {
-            return true;
-        }
-        return false;
+        return MaaProcessor.CheckShouldLog(content);
     }
 
     public void AddLog(string content,
@@ -508,83 +461,7 @@ public partial class TaskQueueViewModel : ViewModelBase
         bool changeColor = true,
         bool showTime = true)
     {
-        brush ??= Brushes.Black;
-
-        var backGroundBrush = Brushes.Transparent;
-        const StringComparison comparison = StringComparison.Ordinal; // 指定匹配规则（避免大小写问题，按需调整）
-
-        if (content.StartsWith(TRACE, comparison))
-        {
-            brush = Brushes.MediumAquamarine;
-            content = content.Substring(TRACE.Length).TrimStart();
-            changeColor = false;
-        }
-
-        if (content.StartsWith(DEBUG, comparison))
-        {
-            brush = Brushes.DeepSkyBlue;
-            content = content.Substring(DEBUG.Length).TrimStart();
-            changeColor = false;
-        }
-
-        if (content.StartsWith(SUCCESS, comparison))
-        {
-            brush = Brushes.LimeGreen;
-            content = content.Substring(SUCCESS.Length).TrimStart();
-            changeColor = false;
-        }
-
-        if (content.StartsWith(INFO, comparison))
-        {
-            content = content.Substring(INFO.Length).TrimStart();
-        }
-
-        var warnPrefix = WARNING.FirstOrDefault(prefix =>
-            !string.IsNullOrEmpty(prefix) && content.StartsWith(prefix, comparison)
-        );
-        if (warnPrefix != null)
-        {
-            brush = Brushes.Orange;
-            content = content.Substring(warnPrefix.Length).TrimStart();
-            changeColor = false;
-        }
-
-        var errorPrefix = ERROR.FirstOrDefault(prefix =>
-            !string.IsNullOrEmpty(prefix) && content.StartsWith(prefix, comparison)
-        );
-
-        if (errorPrefix != null)
-        {
-            brush = Brushes.OrangeRed;
-            content = content.Substring(errorPrefix.Length).TrimStart();
-            changeColor = false;
-        }
-
-        if (content.StartsWith(CRITICAL, comparison))
-        {
-            var color = DispatcherHelper.RunOnMainThread(() => MFAExtensions.FindSukiUiResource<Color>(
-                "SukiLightBorderBrush"
-            ));
-            if (color != null)
-                brush = DispatcherHelper.RunOnMainThread(() => new SolidColorBrush(color.Value));
-            else
-                brush = Brushes.White;
-            backGroundBrush = Brushes.OrangeRed;
-            content = content.Substring(CRITICAL.Length).TrimStart();
-        }
-
-        DispatcherHelper.PostOnMainThread(() =>
-        {
-            LogItemViewModels.Add(new LogItemViewModel(content, brush, weight, "HH':'mm':'ss",
-                showTime: showTime, changeColor: changeColor)
-            {
-                BackgroundColor = backGroundBrush
-            });
-            LoggerHelper.Info($"[Record] {content}");
-
-            // 自动清理超出限制的旧日志
-            TrimExcessLogs();
-        });
+        MaaProcessor.Instance.AddLog(content, brush, weight, changeColor, showTime);
     }
 
     public void AddLog(string content,
@@ -593,49 +470,22 @@ public partial class TaskQueueViewModel : ViewModelBase
         bool changeColor = true,
         bool showTime = true)
     {
-        var brush = BrushHelper.ConvertToBrush(color, Brushes.Black);
-        AddLog(content, brush, weight, changeColor, showTime);
+        MaaProcessor.Instance.AddLog(content, color, weight, changeColor, showTime);
     }
 
     public void AddLogByKey(string key, IBrush? brush = null, bool changeColor = true, bool transformKey = true, params string[] formatArgsKeys)
     {
-        brush ??= Brushes.Black;
-        Task.Run(() =>
-        {
-            DispatcherHelper.PostOnMainThread(() =>
-            {
-                var log = new LogItemViewModel(key, brush, "Regular", true, "HH':'mm':'ss", changeColor: changeColor, showTime: true, transformKey: transformKey, formatArgsKeys);
-                LogItemViewModels.Add(log);
-                LoggerHelper.Info(log.Content);
-                // 自动清理超出限制的旧日志
-                TrimExcessLogs();
-            });
-        });
+        MaaProcessor.Instance.AddLogByKey(key, brush, changeColor, transformKey, formatArgsKeys);
     }
 
     public void AddLogByKey(string key, string color = "", bool changeColor = true, bool transformKey = true, params string[] formatArgsKeys)
     {
-        var brush = BrushHelper.ConvertToBrush(color, Brushes.Black);
-        AddLogByKey(key, brush, changeColor, transformKey, formatArgsKeys);
+        MaaProcessor.Instance.AddLogByKey(key, color, changeColor, transformKey, formatArgsKeys);
     }
 
     public void AddMarkdown(string key, IBrush? brush = null, bool changeColor = true, bool transformKey = true, params string[] formatArgsKeys)
     {
-        brush ??= Brushes.Black;
-        Task.Run(() =>
-        {
-            DispatcherHelper.PostOnMainThread(() =>
-            {
-                var log = new LogItemViewModel(key, brush, "Regular", true, "HH':'mm':'ss", changeColor: changeColor, showTime: true, transformKey: transformKey, formatArgsKeys)
-                {
-                    UseMarkdown = true
-                };
-                LogItemViewModels.Add(log);
-                LoggerHelper.Info(log.Content);
-                // 自动清理超出限制的旧日志
-                TrimExcessLogs();
-            });
-        });
+        MaaProcessor.Instance.AddMarkdown(key, brush, changeColor, transformKey, formatArgsKeys);
     }
 
     #endregion
@@ -678,29 +528,29 @@ public partial class TaskQueueViewModel : ViewModelBase
         if (value is DesktopWindowInfo window)
         {
             if (!igoreToast) ToastHelper.Info(LangKeys.WindowSelectionMessage.ToLocalizationFormatted(false, ""), window.Name);
-            MaaProcessor.Config.DesktopWindow.Name = window.Name;
-            MaaProcessor.Config.DesktopWindow.HWnd = window.Handle;
+            MaaProcessor.Instance.Config.DesktopWindow.Name = window.Name;
+            MaaProcessor.Instance.Config.DesktopWindow.HWnd = window.Handle;
             MaaProcessor.Instance.SetTasker();
         }
         else if (value is AdbDeviceInfo device)
         {
             if (!igoreToast) ToastHelper.Info(LangKeys.EmulatorSelectionMessage.ToLocalizationFormatted(false, ""), device.Name);
-            MaaProcessor.Config.AdbDevice.Name = device.Name;
-            MaaProcessor.Config.AdbDevice.AdbPath = device.AdbPath;
-            MaaProcessor.Config.AdbDevice.AdbSerial = device.AdbSerial;
-            MaaProcessor.Config.AdbDevice.Config = device.Config;
-            MaaProcessor.Config.AdbDevice.Info = device;
+            MaaProcessor.Instance.Config.AdbDevice.Name = device.Name;
+            MaaProcessor.Instance.Config.AdbDevice.AdbPath = device.AdbPath;
+            MaaProcessor.Instance.Config.AdbDevice.AdbSerial = device.AdbSerial;
+            MaaProcessor.Instance.Config.AdbDevice.Config = device.Config;
+            MaaProcessor.Instance.Config.AdbDevice.Info = device;
             MaaProcessor.Instance.SetTasker();
-            ConfigurationManager.Current.SetValue(ConfigurationKeys.AdbDevice, device);
+            ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.AdbDevice, device);
         }
     }
 
     [ObservableProperty] private MaaControllerTypes _currentController =
-        ConfigurationManager.Current.GetValue(ConfigurationKeys.CurrentController, MaaControllerTypes.Adb, MaaControllerTypes.None, new UniversalEnumConverter<MaaControllerTypes>());
+        ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.CurrentController, MaaControllerTypes.Adb, MaaControllerTypes.None, new UniversalEnumConverter<MaaControllerTypes>());
 
     partial void OnCurrentControllerChanged(MaaControllerTypes value)
     {
-        ConfigurationManager.Current.SetValue(ConfigurationKeys.CurrentController, value.ToString());
+        ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.CurrentController, value.ToString());
         UpdateResourcesForController();
         if (value == MaaControllerTypes.PlayCover)
         {
@@ -821,7 +671,7 @@ public partial class TaskQueueViewModel : ViewModelBase
     private void EditPlayCover()
     {
         Instances.DialogManager.CreateDialog().WithTitle("PlayCoverEditor")
-            .WithViewModel(dialog => new PlayCoverEditorDialogViewModel(MaaProcessor.Config.PlayCover, dialog))
+            .WithViewModel(dialog => new PlayCoverEditorDialogViewModel(MaaProcessor.Instance.Config.PlayCover, dialog))
             .Dismiss().ByClickingBackground().TryShow();
     }
 
@@ -854,7 +704,7 @@ public partial class TaskQueueViewModel : ViewModelBase
         }
 
         if (CurrentController == MaaControllerTypes.PlayCover
-            && string.IsNullOrWhiteSpace(MaaProcessor.Config.PlayCover.PlayCoverAddress))
+            && string.IsNullOrWhiteSpace(MaaProcessor.Instance.Config.PlayCover.PlayCoverAddress))
         {
             ToastHelper.Warn(LangKeys.CannotStart.ToLocalization(), LangKeys.PlayCoverAddressEmpty.ToLocalization());
             LoggerHelper.Warning(LangKeys.CannotStart.ToLocalization());
@@ -899,7 +749,7 @@ public partial class TaskQueueViewModel : ViewModelBase
     private void Clear()
     {
         // DisposableObservableCollection 会自动调用所有元素的 Dispose()
-        LogItemViewModels.Clear();
+        MaaProcessor.Instance.ClearLogs();
     }
 
 #pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
@@ -976,7 +826,7 @@ public partial class TaskQueueViewModel : ViewModelBase
             }
         }
 
-        var config = ConfigurationManager.Current.GetValue(ConfigurationKeys.EmulatorConfig, string.Empty);
+        var config = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.EmulatorConfig, string.Empty);
         if (string.IsNullOrWhiteSpace(config)) return 0;
 
         var targetNumber = ExtractNumberFromEmulatorConfig(config);
@@ -1224,12 +1074,12 @@ public partial class TaskQueueViewModel : ViewModelBase
 
     public void TryReadPlayCoverConfig()
     {
-        if (ConfigurationManager.Current.TryGetValue(ConfigurationKeys.PlayCoverConfig, out PlayCoverCoreConfig savedConfig))
+        if (ConfigurationManager.CurrentInstance.TryGetValue(ConfigurationKeys.PlayCoverConfig, out PlayCoverCoreConfig savedConfig))
         {
-            MaaProcessor.Config.PlayCover = savedConfig;
+            MaaProcessor.Instance.Config.PlayCover = savedConfig;
         }
     }
-
+    
     private void HandleDetectionError(Exception ex, MaaControllerTypes controllerType)
     {
         var targetKey = controllerType switch
@@ -1258,8 +1108,8 @@ public partial class TaskQueueViewModel : ViewModelBase
         if (!allowAutoDetect)
         {
             if (CurrentController != MaaControllerTypes.Adb
-                || !ConfigurationManager.Current.GetValue(ConfigurationKeys.RememberAdb, true)
-                || !ConfigurationManager.Current.TryGetValue(ConfigurationKeys.AdbDevice, out AdbDeviceInfo savedDevice,
+                || !ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.RememberAdb, true)
+                || !ConfigurationManager.CurrentInstance.TryGetValue(ConfigurationKeys.AdbDevice, out AdbDeviceInfo savedDevice,
                     new UniversalEnumConverter<AdbInputMethods>(), new UniversalEnumConverter<AdbScreencapMethods>()))
             {
                 DispatcherHelper.RunOnMainThread(() =>
@@ -1278,14 +1128,13 @@ public partial class TaskQueueViewModel : ViewModelBase
             ChangedDevice(savedDevice);
             return;
         }
-
+        
         if (refresh
-            || CurrentController != MaaControllerTypes.Adb
-            || !ConfigurationManager.Current.GetValue(ConfigurationKeys.RememberAdb, true)
-            || MaaProcessor.Config.AdbDevice.AdbPath != "adb"
-            || !ConfigurationManager.Current.TryGetValue(ConfigurationKeys.AdbDevice, out AdbDeviceInfo savedDevice1,
-                new UniversalEnumConverter<AdbInputMethods>(), new UniversalEnumConverter<AdbScreencapMethods>()))
-        {
+                || CurrentController != MaaControllerTypes.Adb
+                || !ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.RememberAdb, true)
+                || MaaProcessor.Instance.Config.AdbDevice.AdbPath != "adb"
+                || !ConfigurationManager.CurrentInstance.TryGetValue(ConfigurationKeys.AdbDevice, out AdbDeviceInfo savedDevice1,
+                    new UniversalEnumConverter<AdbInputMethods>(), new UniversalEnumConverter<AdbScreencapMethods>())) {
             _refreshCancellationTokenSource?.Cancel();
             _refreshCancellationTokenSource = new CancellationTokenSource();
             if (inTask)
@@ -1295,7 +1144,7 @@ public partial class TaskQueueViewModel : ViewModelBase
             return;
         }
         // 检查是否启用指纹匹配功能
-        var useFingerprintMatching = ConfigurationManager.Current.GetValue(ConfigurationKeys.UseFingerprintMatching, true);
+        var useFingerprintMatching = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.UseFingerprintMatching, true);
 
         if (useFingerprintMatching)
         {
@@ -1500,7 +1349,7 @@ public partial class TaskQueueViewModel : ViewModelBase
         }
 
         // 获取已保存的配置
-        var savedResourceOptions = ConfigurationManager.Current.GetValue(
+        var savedResourceOptions = ConfigurationManager.CurrentInstance.GetValue(
             ConfigurationKeys.ResourceOptionItems,
             new Dictionary<string, List<MaaInterface.MaaInterfaceSelectOption>>());
 
@@ -1585,18 +1434,18 @@ public partial class TaskQueueViewModel : ViewModelBase
     /// Live View 是否启用
     /// </summary>
     [ObservableProperty] private bool _enableLiveView =
-        ConfigurationManager.Current.GetValue(ConfigurationKeys.EnableLiveView, true);
+        ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.EnableLiveView, true);
 
     /// <summary>
     /// Live View 刷新率（FPS），范围 1-60，默认 10
     /// </summary>
     [ObservableProperty] private double _liveViewRefreshRate =
-        ConfigurationManager.Current.GetValue(ConfigurationKeys.LiveViewRefreshRate, 30.0);
+        ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.LiveViewRefreshRate, 30.0);
 
     partial void OnEnableLiveViewChanged(bool value)
     {
         OnPropertyChanged(nameof(IsLiveViewVisible));
-        ConfigurationManager.Current.SetValue(ConfigurationKeys.EnableLiveView, value);
+        ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.EnableLiveView, value);
     }
 
     partial void OnLiveViewRefreshRateChanged(double value)
@@ -1613,7 +1462,7 @@ public partial class TaskQueueViewModel : ViewModelBase
             return;
         }
 
-        ConfigurationManager.Current.SetValue(ConfigurationKeys.LiveViewRefreshRate, value);
+        ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.LiveViewRefreshRate, value);
         // 将 FPS 转换为间隔（秒）并触发事件
         var interval = 1.0 / value;
         LiveViewRefreshRateChanged?.Invoke(interval);

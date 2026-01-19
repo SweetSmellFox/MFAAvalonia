@@ -9,16 +9,16 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceInclude Source="avares://MFAAvalonia/Assets/Style/Geometry.axaml" />
-                <ResourceInclude Source="avares://MFAAvalonia/Assets/Style/MdXaml.axaml" />
-                <ResourceInclude Source="avares://MFAAvalonia/Views/UserControls/TooltipBlock.axaml" />
-                <ResourceInclude Source="avares://MFAAvalonia/Views/UserControls/DisplayIcon.axaml" />
-                <ResourceInclude Source="avares://MFAAvalonia/Views/UserControls/SchedulePicker.axaml" />
-                <ResourceInclude Source="avares://MFAAvalonia/Views/UserControls/MarqueeTextBlock.axaml" />
+                <ResourceInclude Source="avares://MFAAvalonia.Core/Assets/Style/Geometry.axaml" />
+                <ResourceInclude Source="avares://MFAAvalonia.Core/Assets/Style/MdXaml.axaml" />
+                <ResourceInclude Source="avares://MFAAvalonia.Core/Views/UserControls/TooltipBlock.axaml" />
+                <ResourceInclude Source="avares://MFAAvalonia.Core/Views/UserControls/DisplayIcon.axaml" />
+                <ResourceInclude Source="avares://MFAAvalonia.Core/Views/UserControls/SchedulePicker.axaml" />
+                <ResourceInclude Source="avares://MFAAvalonia.Core/Views/UserControls/MarqueeTextBlock.axaml" />
             </ResourceDictionary.MergedDictionaries>
             <ResourceDictionary.ThemeDictionaries>
-                <ResourceInclude Source="avares://MFAAvalonia/Assets/Theme/LightTheme.axaml" x:Key="Light" />
-                <ResourceInclude Source="avares://MFAAvalonia/Assets/Theme/DarkTheme.axaml" x:Key="Dark" />
+                <ResourceInclude Source="avares://MFAAvalonia.Core/Assets/Theme/LightTheme.axaml" x:Key="Light" />
+                <ResourceInclude Source="avares://MFAAvalonia.Core/Assets/Theme/DarkTheme.axaml" x:Key="Dark" />
             </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>
 
@@ -27,7 +27,7 @@
         <FluentTheme />
         <styling:FluentAvaloniaTheme />
         <sukiUi:SukiTheme ThemeColor="Blue" />
-        <StyleInclude Source="avares://MFAAvalonia/Views/UserControls/HotKeyEditor.axaml" />
+        <StyleInclude Source="avares://MFAAvalonia.Core/Views/UserControls/HotKeyEditor.axaml" />
         <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
 
         <Style Selector="Thumb.DashboardGridSplitter">

@@ -12,12 +12,12 @@ using MFAAvalonia.ViewModels.Pages;
 using MFAAvalonia.ViewModels.UsersControls;
 using MFAAvalonia.ViewModels.UsersControls.Settings;
 using MFAAvalonia.ViewModels.Windows;
+using MFAAvalonia.Views.Mobile;
 using MFAAvalonia.Views.Pages;
 using MFAAvalonia.Views.UserControls;
 using MFAAvalonia.Views.UserControls.Settings;
 using MFAAvalonia.Views.Windows;
 using Microsoft.Extensions.DependencyInjection;
-using SharpHook;
 using SukiUI.Dialogs;
 using SukiUI.Toasts;
 using System;
@@ -96,6 +96,35 @@ public partial class App : Application
                         .TryShow());
             }
         }
+        else if (ApplicationLifetime is ISingleViewApplicationLifetime singleView)
+        {
+            var services = new ServiceCollection();
+
+            services.AddSingleton(singleView);
+
+            ConfigureServices(services);
+
+            var views = ConfigureViews(services);
+
+            Services = services.BuildServiceProvider();
+
+            DataTemplates.Add(new ViewLocator(views));
+
+            var mainView = views.CreateView<RootViewModel>(Services);
+
+            singleView.MainView = mainView;
+
+            if (GlobalConfiguration.HasFileAccessError)
+            {
+                var message = $"全局配置文件被占用或无权限访问：{GlobalConfiguration.ConfigPath}\n{GlobalConfiguration.LastFileAccessErrorMessage}";
+                DispatcherHelper.PostOnMainThread(() =>
+                    Instances.DialogManager.CreateDialog()
+                        .OfType(NotificationType.Error)
+                        .WithContent(message)
+                        .WithActionButton(LangKeys.Ok.ToLocalization(), _ => { }, true)
+                        .TryShow());
+            }
+        }
 
         base.OnFrameworkInitializationCompleted();
     }
@@ -103,7 +132,7 @@ public partial class App : Application
     private void OnShutdownRequested(object sender, ShutdownRequestedEventArgs e)
     {
         TrayIconManager.DisposeTrayIcon(this);
-        ConfigurationManager.Current.SetValue(ConfigurationKeys.TaskItems, Instances.TaskQueueViewModel.TaskItemViewModels.ToList().Select(model => model.InterfaceItem));
+        ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.TaskItems, Instances.TaskQueueViewModel.TaskItemViewModels.ToList().Select(model => model.InterfaceItem));
 
         MaaProcessor.Instance.SetTasker();
         GlobalHotkeyService.Shutdown();
@@ -161,10 +190,18 @@ public partial class App : Application
     private static ViewsHelper ConfigureViews(ServiceCollection services)
     {
 
-        return new ViewsHelper()
+        var views = new ViewsHelper();
 
-            // Add main view
-            .AddView<RootView, RootViewModel>(services)
+        if (OperatingSystem.IsAndroid())
+        {
+            views.AddView<RootViewMobile, RootViewModel>(services);
+        }
+        else
+        {
+            views.AddView<RootView, RootViewModel>(services);
+        }
+
+        return views
 
             // Add pages
             .AddView<TaskQueueView, TaskQueueViewModel>(services)
@@ -324,7 +361,7 @@ public partial class App : Application
             return true;
         }
 
-        if (ex is HookException)
+        if (ex.GetType().FullName == "SharpHook.HookException")
         {
             errorMessage = "macOS中的全局快捷键Hook异常，可能是由于权限不足或系统限制导致的";
             return true;

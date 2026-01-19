@@ -6,6 +6,7 @@ using MFAAvalonia.Extensions;
 using MFAAvalonia.Helper;
 using MFAAvalonia.Views.Pages;
 using MFAAvalonia.Views.Windows;
+using SukiUI.Dialogs;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -249,6 +250,33 @@ public partial class AnnouncementViewModel : ViewModelBase
             {
                 await DispatcherHelper.RunOnMainThreadAsync(() =>
                     ToastHelper.Warn(LangKeys.Warning.ToLocalization(), LangKeys.AnnouncementEmpty.ToLocalization()));
+                return;
+            }
+
+            if (OperatingSystem.IsAndroid())
+            {
+                await viewModel.LoadAnnouncementMetadataAsync();
+
+                if (!viewModel.AnnouncementItems.Any())
+                {
+                    await DispatcherHelper.RunOnMainThreadAsync(() =>
+                        ToastHelper.Warn(LangKeys.Warning.ToLocalization(), LangKeys.AnnouncementEmpty.ToLocalization()));
+                    return;
+                }
+
+                var content = viewModel.AnnouncementItems[0].Content;
+
+                DispatcherHelper.PostOnMainThread(() =>
+                    Instances.DialogManager.CreateDialog()
+                        .WithTitle(LangKeys.Announcement.ToLocalization())
+                        .WithContent(content)
+                        .WithActionButton(LangKeys.ShowDisclaimerNoMore.ToLocalization(), _ =>
+                        {
+                            GlobalConfiguration.SetValue(ConfigurationKeys.DoNotShowAnnouncementAgain, bool.TrueString);
+                        })
+                        .WithActionButton(LangKeys.Ok.ToLocalization(), _ => { }, true)
+                        .TryShow());
+
                 return;
             }
 

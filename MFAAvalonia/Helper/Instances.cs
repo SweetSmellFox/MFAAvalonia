@@ -1,6 +1,10 @@
 ﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Input;
+using Avalonia.Input.Platform;
+using Avalonia.Platform.Storage;
+using MFAAvalonia;
 using MFAAvalonia.Configuration;
 using MFAAvalonia.Extensions;
 using MFAAvalonia.Extensions.MaaFW;
@@ -176,11 +180,11 @@ public static partial class Instances
 
     public static void ShutdownApplication(bool forceStop)
     {
-        Program.ReleaseMutex();
+        AppRuntime.ReleaseMutex();
         if (forceStop)
         {
             // 强制退出时，只做最基本的清理，避免卡住
-            RootView.BeforeClosed(true, false);
+            TryBeforeClosed(true, false);
             Environment.Exit(0);
             return;
         }
@@ -194,7 +198,7 @@ public static partial class Instances
     /// </summary>
     public static void RestartApplication(bool noAutoStart = false, bool forgeStop = false)
     {
-        Program.ReleaseMutex();
+        AppRuntime.ReleaseMutex();
         if (noAutoStart)
             GlobalConfiguration.SetValue(ConfigurationKeys.NoAutoStart, bool.TrueString);
         var process = new Process
@@ -225,7 +229,7 @@ public static partial class Instances
     /// </summary>
     public static void ShutdownSystem()
     {
-        RootView.BeforeClosed();
+        TryBeforeClosed();
         try
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -330,12 +334,37 @@ public static partial class Instances
         return Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName ?? AppContext.BaseDirectory;
     }
 
+    public static void TryBeforeClosed() => TryBeforeClosed(false, true);
+
+    public static void TryBeforeClosed(bool noLog, bool stopTask)
+    {
+        if (OperatingSystem.IsAndroid())
+            return;
+
+        if (IsResolved<RootView>())
+        {
+            RootView.BeforeClosed(noLog, stopTask);
+        }
+    }
+
     private static IClassicDesktopStyleApplicationLifetime _applicationLifetime;
     private static ISukiToastManager _toastManager;
     private static ISukiDialogManager _dialogManager;
 
     private static RootView _rootView;
     private static RootViewModel _rootViewModel;
+
+    public static TopLevel? TopLevel =>
+        Application.Current?.ApplicationLifetime switch
+        {
+            IClassicDesktopStyleApplicationLifetime desktop => desktop.MainWindow,
+            ISingleViewApplicationLifetime single when single.MainView is Control control => TopLevel.GetTopLevel(control),
+            _ => null
+        };
+
+    public static IStorageProvider? StorageProvider => TopLevel?.StorageProvider;
+
+    public static IClipboard? Clipboard => TopLevel?.Clipboard;
 
     private static TaskQueueView _taskQueueView;
     private static TaskQueueViewModel _taskQueueViewModel;
@@ -425,30 +454,30 @@ public static partial class Instances
             if (IsResolved<ConnectSettingsUserControlModel>())
             {
                 var connect = ConnectSettingsUserControlModel;
-                connect.RememberAdb = ConfigurationManager.Current.GetValue(ConfigurationKeys.RememberAdb, true);
-                connect.UseFingerprintMatching = ConfigurationManager.Current.GetValue(ConfigurationKeys.UseFingerprintMatching, true);
-                connect.AdbControlScreenCapType = ConfigurationManager.Current.GetValue(ConfigurationKeys.AdbControlScreenCapType, MaaFramework.Binding.AdbScreencapMethods.None,
+                connect.RememberAdb = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.RememberAdb, true);
+                connect.UseFingerprintMatching = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.UseFingerprintMatching, true);
+                connect.AdbControlScreenCapType = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.AdbControlScreenCapType, MaaFramework.Binding.AdbScreencapMethods.None,
                     new System.Collections.Generic.List<MaaFramework.Binding.AdbScreencapMethods>
                     {
                         MaaFramework.Binding.AdbScreencapMethods.All,
                         MaaFramework.Binding.AdbScreencapMethods.Default
                     }, new Converters.UniversalEnumConverter<MaaFramework.Binding.AdbScreencapMethods>());
-                connect.AdbControlInputType = ConfigurationManager.Current.GetValue(ConfigurationKeys.AdbControlInputType, MaaFramework.Binding.AdbInputMethods.None, new System.Collections.Generic.List<MaaFramework.Binding.AdbInputMethods>
+                connect.AdbControlInputType = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.AdbControlInputType, MaaFramework.Binding.AdbInputMethods.None, new System.Collections.Generic.List<MaaFramework.Binding.AdbInputMethods>
                 {
                     MaaFramework.Binding.AdbInputMethods.All,
                     MaaFramework.Binding.AdbInputMethods.Default
                 }, new Converters.UniversalEnumConverter<MaaFramework.Binding.AdbInputMethods>());
-                connect.Win32ControlScreenCapType = ConfigurationManager.Current.GetValue(ConfigurationKeys.Win32ControlScreenCapType, MaaFramework.Binding.Win32ScreencapMethod.FramePool, MaaFramework.Binding.Win32ScreencapMethod.None,
+                connect.Win32ControlScreenCapType = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.Win32ControlScreenCapType, MaaFramework.Binding.Win32ScreencapMethod.FramePool, MaaFramework.Binding.Win32ScreencapMethod.None,
                     new Converters.UniversalEnumConverter<MaaFramework.Binding.Win32ScreencapMethod>());
-                connect.Win32ControlMouseType = ConfigurationManager.Current.GetValue(ConfigurationKeys.Win32ControlMouseType, MaaFramework.Binding.Win32InputMethod.SendMessage, MaaFramework.Binding.Win32InputMethod.None,
+                connect.Win32ControlMouseType = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.Win32ControlMouseType, MaaFramework.Binding.Win32InputMethod.SendMessage, MaaFramework.Binding.Win32InputMethod.None,
                     new Converters.UniversalEnumConverter<MaaFramework.Binding.Win32InputMethod>());
-                connect.Win32ControlKeyboardType = ConfigurationManager.Current.GetValue(ConfigurationKeys.Win32ControlKeyboardType, MaaFramework.Binding.Win32InputMethod.SendMessage, MaaFramework.Binding.Win32InputMethod.None,
+                connect.Win32ControlKeyboardType = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.Win32ControlKeyboardType, MaaFramework.Binding.Win32InputMethod.SendMessage, MaaFramework.Binding.Win32InputMethod.None,
                     new Converters.UniversalEnumConverter<MaaFramework.Binding.Win32InputMethod>());
-                connect.RetryOnDisconnected = ConfigurationManager.Current.GetValue(ConfigurationKeys.RetryOnDisconnected, false);
-                connect.RetryOnDisconnectedWin32 = ConfigurationManager.Current.GetValue(ConfigurationKeys.RetryOnDisconnectedWin32, false);
-                connect.AllowAdbRestart = ConfigurationManager.Current.GetValue(ConfigurationKeys.AllowAdbRestart, true);
-                connect.AllowAdbHardRestart = ConfigurationManager.Current.GetValue(ConfigurationKeys.AllowAdbHardRestart, true);
-                connect.AutoDetectOnConnectionFailed = ConfigurationManager.Current.GetValue(ConfigurationKeys.AutoDetectOnConnectionFailed, true);
+                connect.RetryOnDisconnected = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.RetryOnDisconnected, false);
+                connect.RetryOnDisconnectedWin32 = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.RetryOnDisconnectedWin32, false);
+                connect.AllowAdbRestart = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.AllowAdbRestart, true);
+                connect.AllowAdbHardRestart = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.AllowAdbHardRestart, true);
+                connect.AutoDetectOnConnectionFailed = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.AutoDetectOnConnectionFailed, true);
             }
 
             if (IsResolved<StartSettingsUserControlModel>())
@@ -456,19 +485,19 @@ public static partial class Instances
                 var start = StartSettingsUserControlModel;
                 start.AutoMinimize = ConfigurationManager.Current.GetValue(ConfigurationKeys.AutoMinimize, false);
                 start.AutoHide = ConfigurationManager.Current.GetValue(ConfigurationKeys.AutoHide, false);
-                start.SoftwarePath = ConfigurationManager.Current.GetValue(ConfigurationKeys.SoftwarePath, string.Empty);
-                start.EmulatorConfig = ConfigurationManager.Current.GetValue(ConfigurationKeys.EmulatorConfig, string.Empty);
-                start.WaitSoftwareTime = ConfigurationManager.Current.GetValue(ConfigurationKeys.WaitSoftwareTime, 60.0);
-                start.BeforeTask = ConfigurationManager.Current.GetValue(ConfigurationKeys.BeforeTask, "None");
-                start.AfterTask = ConfigurationManager.Current.GetValue(ConfigurationKeys.AfterTask, "None");
+                start.SoftwarePath = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.SoftwarePath, string.Empty);
+                start.EmulatorConfig = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.EmulatorConfig, string.Empty);
+                start.WaitSoftwareTime = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.WaitSoftwareTime, 60.0);
+                start.BeforeTask = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.BeforeTask, "None");
+                start.AfterTask = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.AfterTask, "None");
             }
 
             if (IsResolved<GameSettingsUserControlModel>())
             {
                 var game = GameSettingsUserControlModel;
-                game.Prescript = ConfigurationManager.Current.GetValue(ConfigurationKeys.Prescript, string.Empty);
-                game.PostScript = ConfigurationManager.Current.GetValue(ConfigurationKeys.Postscript, string.Empty);
-                game.ContinueRunningWhenError = ConfigurationManager.Current.GetValue(ConfigurationKeys.ContinueRunningWhenError, true);
+                game.Prescript = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.Prescript, string.Empty);
+                game.PostScript = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.Postscript, string.Empty);
+                game.ContinueRunningWhenError = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.ContinueRunningWhenError, true);
             }
         });
         await UpdateProgressAsync(60);
@@ -553,10 +582,10 @@ public static partial class Instances
             var task = TaskQueueViewModel;
             task.CurrentConfiguration = ConfigurationManager.GetCurrentConfiguration();
             task.TaskItemViewModels = new();
-            task.CurrentController = ConfigurationManager.Current.GetValue(ConfigurationKeys.CurrentController, MaaControllerTypes.Adb, MaaControllerTypes.None,
+            task.CurrentController = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.CurrentController, MaaControllerTypes.Adb, MaaControllerTypes.None,
                 new Converters.UniversalEnumConverter<MaaControllerTypes>());
-            task.EnableLiveView = ConfigurationManager.Current.GetValue(ConfigurationKeys.EnableLiveView, true);
-            task.LiveViewRefreshRate = ConfigurationManager.Current.GetValue(ConfigurationKeys.LiveViewRefreshRate, 30.0);
+            task.EnableLiveView = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.EnableLiveView, true);
+            task.LiveViewRefreshRate = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.LiveViewRefreshRate, 30.0);
         });
         await UpdateProgressAsync(80);
         await Task.Delay(30);
@@ -580,7 +609,7 @@ public static partial class Instances
             task.InitializeControllerOptions();
             // 先从配置中读取目标资源，然后传入 UpdateResourcesForController
             // 这样可以确保在配置切换时正确恢复资源，而不是总是选择第一个
-            var targetResource = ConfigurationManager.Current.GetValue(ConfigurationKeys.Resource, string.Empty);
+            var targetResource = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.Resource, string.Empty);
             task.UpdateResourcesForController(targetResource);
             task.TryReadAdbDeviceFromConfig(false, false, false);
 

@@ -1501,4 +1501,7 @@
     <data name="TaskRemarkPlaceholder" xml:space="preserve">
         <value>輸入備註（可選）</value>
     </data>
+    <data name="PlatformNotSupportedOperation" xml:space="preserve">
+        <value>當前平台不支援該操作</value>
+    </data>
 </root>

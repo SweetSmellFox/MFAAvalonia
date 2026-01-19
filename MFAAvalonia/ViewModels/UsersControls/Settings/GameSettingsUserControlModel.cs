@@ -18,11 +18,11 @@ public partial class GameSettingsUserControlModel : ViewModelBase
 
     [ObservableProperty] private bool _showHitDraw = ConfigurationManager.Maa.GetValue(ConfigurationKeys.ShowHitDraw, false);
 
-    [ObservableProperty] private string _prescript = ConfigurationManager.Current.GetValue(ConfigurationKeys.Prescript, string.Empty);
+    [ObservableProperty] private string _prescript = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.Prescript, string.Empty);
 
-    [ObservableProperty] private string _postScript = ConfigurationManager.Current.GetValue(ConfigurationKeys.Postscript, string.Empty);
+    [ObservableProperty] private string _postScript = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.Postscript, string.Empty);
 
-    [ObservableProperty] private bool _continueRunningWhenError = ConfigurationManager.Current.GetValue(ConfigurationKeys.ContinueRunningWhenError, true);
+    [ObservableProperty] private bool _continueRunningWhenError = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.ContinueRunningWhenError, true);
 
     partial void OnEnableRecordingChanged(bool value)
     {
@@ -58,12 +58,12 @@ public partial class GameSettingsUserControlModel : ViewModelBase
 
     partial void OnPrescriptChanged(string value)
     {
-        ConfigurationManager.Current.SetValue(ConfigurationKeys.Prescript, value);
+        ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.Prescript, value);
     }
 
     partial void OnPostScriptChanged(string value)
     {
-        ConfigurationManager.Current.SetValue(ConfigurationKeys.Postscript, value);
+        ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.Postscript, value);
     }
 
     partial void OnContinueRunningWhenErrorChanged(bool value) => HandlePropertyChanged(ConfigurationKeys.ContinueRunningWhenError, value);

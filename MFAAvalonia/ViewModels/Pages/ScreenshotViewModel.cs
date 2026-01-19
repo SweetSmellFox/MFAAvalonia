@@ -103,7 +103,14 @@ public partial class ScreenshotViewModel : ViewModelBase
             ]
         };
 
-        if (Instances.RootView.StorageProvider.SaveFilePickerAsync(options).Result is { } result && result.TryGetLocalPath() is { } path)
+        var storageProvider = Instances.StorageProvider;
+        if (storageProvider == null)
+        {
+            ToastHelper.Warn(LangKeys.Warning.ToLocalization(), LangKeys.PlatformNotSupportedOperation.ToLocalization());
+            return;
+        }
+
+        if (storageProvider.SaveFilePickerAsync(options).Result is { } result && result.TryGetLocalPath() is { } path)
         {
             using var stream = File.Create(path);
             ScreenshotImage.Save(stream);

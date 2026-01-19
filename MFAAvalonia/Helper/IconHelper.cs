@@ -50,7 +50,7 @@ public static class IconHelper
             }
 
             // 尝试从嵌入资源加载
-            var uri = new Uri("avares://MFAAvalonia/Assets/logo.ico");
+            var uri = new Uri("avares://MFAAvalonia.Core/Assets/logo.ico");
             if (AssetLoader.Exists(uri))
             {
                 var assets = AssetLoader.Open(uri);

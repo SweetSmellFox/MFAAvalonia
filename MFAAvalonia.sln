@@ -22,6 +22,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ColorDocument.Avalonia", "C
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ColorTextBlock.Avalonia", "ColorTextBlock.Avalonia\ColorTextBlock.Avalonia.csproj", "{649B551C-FC7C-42C2-9A8B-196165C41296}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MFAAvalonia.Android", "MFAAvalonia.Android\MFAAvalonia.Android.csproj", "{AA3F756D-A5AD-44F6-8232-8EB69664F3F8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MFAAvalonia.Desktop", "MFAAvalonia.Desktop\MFAAvalonia.Desktop.csproj", "{B68D4668-1F6B-47C6-A06C-DE0ACEB3CCE1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -72,5 +76,13 @@ Global
 		{649B551C-FC7C-42C2-9A8B-196165C41296}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{649B551C-FC7C-42C2-9A8B-196165C41296}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{649B551C-FC7C-42C2-9A8B-196165C41296}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AA3F756D-A5AD-44F6-8232-8EB69664F3F8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AA3F756D-A5AD-44F6-8232-8EB69664F3F8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AA3F756D-A5AD-44F6-8232-8EB69664F3F8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AA3F756D-A5AD-44F6-8232-8EB69664F3F8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B68D4668-1F6B-47C6-A06C-DE0ACEB3CCE1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B68D4668-1F6B-47C6-A06C-DE0ACEB3CCE1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B68D4668-1F6B-47C6-A06C-DE0ACEB3CCE1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B68D4668-1F6B-47C6-A06C-DE0ACEB3CCE1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

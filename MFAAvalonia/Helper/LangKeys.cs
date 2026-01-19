@@ -413,6 +413,7 @@ public static class LangKeys
 	public static readonly string ClearCacheSuccess = "ClearCacheSuccess";
 	public static readonly string ClearCacheFailed = "ClearCacheFailed";
 	public static readonly string Warning = "Warning";
+	public static readonly string PlatformNotSupportedOperation = "PlatformNotSupportedOperation";
 	public static readonly string StopTaskBeforeExportLog = "StopTaskBeforeExportLog";
 	public static readonly string StopTaskBeforeClearCache = "StopTaskBeforeClearCache";
 	public static readonly string MirrorCdkEmpty = "MirrorCdkEmpty";

@@ -19,11 +19,11 @@ public partial class StartSettingsUserControlModel : ViewModelBase
 
     [ObservableProperty] private bool _autoHide = ConfigurationManager.Current.GetValue(ConfigurationKeys.AutoHide, false);
 
-    [ObservableProperty] private string _softwarePath = ConfigurationManager.Current.GetValue(ConfigurationKeys.SoftwarePath, string.Empty);
+    [ObservableProperty] private string _softwarePath = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.SoftwarePath, string.Empty);
 
-    [ObservableProperty] private string _emulatorConfig = ConfigurationManager.Current.GetValue(ConfigurationKeys.EmulatorConfig, string.Empty);
+    [ObservableProperty] private string _emulatorConfig = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.EmulatorConfig, string.Empty);
 
-    [ObservableProperty] private double _waitSoftwareTime = ConfigurationManager.Current.GetValue(ConfigurationKeys.WaitSoftwareTime, 60.0);
+    [ObservableProperty] private double _waitSoftwareTime = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.WaitSoftwareTime, 60.0);
 
 
     partial void OnAutoMinimizeChanged(bool value)
@@ -38,23 +38,28 @@ public partial class StartSettingsUserControlModel : ViewModelBase
 
     partial void OnSoftwarePathChanged(string value)
     {
-        ConfigurationManager.Current.SetValue(ConfigurationKeys.SoftwarePath, value);
+        ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.SoftwarePath, value);
     }
 
     partial void OnEmulatorConfigChanged(string value)
     {
-        ConfigurationManager.Current.SetValue(ConfigurationKeys.EmulatorConfig, value);
+        ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.EmulatorConfig, value);
     }
 
     partial void OnWaitSoftwareTimeChanged(double value)
     {
-        ConfigurationManager.Current.SetValue(ConfigurationKeys.WaitSoftwareTime, value);
+        ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.WaitSoftwareTime, value);
     }
 
     [RelayCommand]
     async private Task SelectSoft()
     {
-        var storageProvider = Instances.RootView.StorageProvider;
+        var storageProvider = Instances.StorageProvider;
+        if (storageProvider == null)
+        {
+            ToastHelper.Warn(LangKeys.Warning.ToLocalization(), LangKeys.PlatformNotSupportedOperation.ToLocalization());
+            return;
+        }
 
         // 配置文件选择器选项
         var options = new FilePickerOpenOptions
@@ -100,18 +105,18 @@ public partial class StartSettingsUserControlModel : ViewModelBase
     ];
 
 
-    [ObservableProperty] private string? _beforeTask = ConfigurationManager.Current.GetValue(ConfigurationKeys.BeforeTask, "None");
+    [ObservableProperty] private string? _beforeTask = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.BeforeTask, "None");
 
     partial void OnBeforeTaskChanged(string? value)
     {
-        ConfigurationManager.Current.SetValue(ConfigurationKeys.BeforeTask, value);
+        ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.BeforeTask, value);
     }
 
-    [ObservableProperty] private string? _afterTask = ConfigurationManager.Current.GetValue(ConfigurationKeys.AfterTask, "None");
+    [ObservableProperty] private string? _afterTask = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.AfterTask, "None");
 
     partial void OnAfterTaskChanged(string? value)
     {
-        ConfigurationManager.Current.SetValue(ConfigurationKeys.AfterTask, value);
+        ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.AfterTask, value);
     }
 
     [RelayCommand]

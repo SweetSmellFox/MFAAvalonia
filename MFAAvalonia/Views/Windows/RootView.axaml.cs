@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Notifications;
 using Avalonia.Input;
+using MFAAvalonia;
 using Avalonia.Media;
 using Avalonia.Threading;
 using MFAAvalonia.Configuration;
@@ -63,7 +64,7 @@ public partial class RootView : SukiWindow
                 LoadUI();
             });
         };
-        if (Program.IsNewInstance)
+        if (AppRuntime.IsNewInstance)
         {
             MaaProcessor.Instance.InitializeData();
         }
@@ -125,9 +126,9 @@ public partial class RootView : SukiWindow
                 else
                     DispatcherHelper.PostOnMainThread(() => Instances.RootViewModel.IsRunning = false);
             }
-            ConfigurationManager.Current.SetValue(ConfigurationKeys.TaskItems, Instances.TaskQueueViewModel.TaskItemViewModels.ToList().Select(model => model.InterfaceItem));
+            ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.TaskItems, Instances.TaskQueueViewModel.TaskItemViewModels.ToList().Select(model => model.InterfaceItem));
             // 确保窗口大小和位置被立即保存（绕过防抖机制）
-            MaaProcessor.Dispose();
+            MaaProcessor.Instance.Dispose();
             DispatcherHelper.PostOnMainThread(SaveWindowSizeAndPositionImmediately);
             if (!noLog)
                 LoggerHelper.Info("MFA Closed!");
@@ -139,7 +140,7 @@ public partial class RootView : SukiWindow
             if (!noLog)
                 LoggerHelper.DisposeLogger();
             GlobalHotkeyService.Shutdown();
-            Program.ReleaseMutex();
+            AppRuntime.ReleaseMutex();
         }
     }
 
@@ -184,7 +185,7 @@ public partial class RootView : SukiWindow
         string brush = "Gray",
         string weight = "Regular",
         bool showTime = true) =>
-        Instances.TaskQueueViewModel.AddLog(content, brush, weight, showTime);
+        MaaProcessor.Instance.AddLog(content, brush, weight, showTime);
 
 
     public static void AddLog(string content,
@@ -193,18 +194,18 @@ public partial class RootView : SukiWindow
         bool changeColor = true,
         bool showTime = true)
         =>
-            Instances.TaskQueueViewModel.AddLog(content, brush, weight, changeColor, showTime);
+            MaaProcessor.Instance.AddLog(content, brush, weight, changeColor, showTime);
     public static void AddLogByKeys(string key, IBrush? brush = null, bool transformKey = true, params string[] formatArgsKeys)
-        => Instances.TaskQueueViewModel.AddLogByKey(key, brush, true, transformKey, formatArgsKeys);
+        => MaaProcessor.Instance.AddLogByKey(key, brush, true, transformKey, formatArgsKeys);
     public static void AddLogByKey(string key, IBrush? brush = null, bool changeColor = true, bool transformKey = true, params string[] formatArgsKeys)
-        => Instances.TaskQueueViewModel.AddLogByKey(key, brush, changeColor, transformKey, formatArgsKeys);
+        => MaaProcessor.Instance.AddLogByKey(key, brush, changeColor, transformKey, formatArgsKeys);
     public static void AddMarkdown(string key, IBrush? brush = null, bool changeColor = true, bool transformKey = true, params string[] formatArgsKeys)
-        => Instances.TaskQueueViewModel.AddMarkdown(key, brush, changeColor, transformKey, formatArgsKeys);
+        => MaaProcessor.Instance.AddMarkdown(key, brush, changeColor, transformKey, formatArgsKeys);
 
 #pragma warning  disable CS4014 // 由于此调用不会等待，因此在此调用完成之前将会继续执行当前方法。请考虑将 "await" 运算符应用于调用结果。
     public void LoadUI()
     {
-        if (Program.IsNewInstance)
+        if (AppRuntime.IsNewInstance)
         {
             foreach (var rfile in Directory.EnumerateFiles(AppContext.BaseDirectory, "*.backupMFA", SearchOption.AllDirectories))
             {
@@ -226,9 +227,9 @@ public partial class RootView : SukiWindow
                     (Action)(async () =>
                     {
                         await Task.Delay(300);
-                        if ((MaaProcessor.Interface?.Controller?.Count ?? 0) == 1 || !ConfigurationManager.Current.ContainsKey(ConfigurationKeys.CurrentController))
+                        if ((MaaProcessor.Interface?.Controller?.Count ?? 0) == 1 || !ConfigurationManager.CurrentInstance.ContainsKey(ConfigurationKeys.CurrentController))
                             Instances.TaskQueueViewModel.CurrentController = (MaaProcessor.Interface?.Controller?.FirstOrDefault()?.Type).ToMaaControllerTypes(Instances.TaskQueueViewModel.CurrentController);
-                        var beforeTask = ConfigurationManager.Current.GetValue(ConfigurationKeys.BeforeTask, "None");
+                        var beforeTask = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.BeforeTask, "None");
                         var startupScriptOnly = beforeTask.Equals("StartupScriptOnly", StringComparison.OrdinalIgnoreCase);
                         var delayFingerprintMatching = beforeTask.Contains("StartupSoftware", StringComparison.OrdinalIgnoreCase);
                         if (!Convert.ToBoolean(GlobalConfiguration.GetValue(ConfigurationKeys.NoAutoStart, bool.FalseString))
@@ -251,7 +252,7 @@ public partial class RootView : SukiWindow
                             {
                                 Instances.TaskQueueViewModel.TryReadPlayCoverConfig();
                             }
-                            else if (ConfigurationManager.Current.GetValue(ConfigurationKeys.RememberAdb, true) && !delayFingerprintMatching)
+                            else if (ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.RememberAdb, true) && !delayFingerprintMatching)
                             {
                                 Instances.TaskQueueViewModel.TryReadAdbDeviceFromConfig(false, false);
                             }

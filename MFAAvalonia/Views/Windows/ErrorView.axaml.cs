@@ -6,9 +6,11 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using AvaloniaExtensions.Axaml.Markup;
 using Lang.Avalonia.MarkupExtensions;
+using MFAAvalonia.Extensions;
 using MFAAvalonia.Helper;
 using MFAAvalonia.Utilities;
 using SukiUI.Controls;
+using SukiUI.Dialogs;
 using System;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -79,6 +81,35 @@ public partial class ErrorView : SukiWindow
         {
             try
             {
+                if (OperatingSystem.IsAndroid())
+                {
+                    var errorStr = new StringBuilder();
+                    var exception = e;
+                    while (exception != null)
+                    {
+                        errorStr.Append(exception.Message);
+                        if (exception.InnerException != null)
+                        {
+                            errorStr.AppendLine();
+                            exception = exception.InnerException;
+                        }
+                        else break;
+                    }
+                    
+                    Instances.DialogManager.CreateDialog()
+                        .WithTitle(LangKeys.Error.ToLocalization())
+                        .WithContent($"{errorStr}\n\n{e}")
+                        .WithActionButton(LangKeys.Ok.ToLocalization(), _ =>
+                        {
+                            if (shouldExit)
+                                Instances.ShutdownApplication(true);
+                        }, true)
+                        .TryShow();
+                    
+                    _existed = true;
+                    return;
+                }
+                
                 var rootView = Instances.RootView;
                 // 检查 RootView 是否可用（未关闭且未正在关闭）
                 if (rootView == null || !rootView.IsVisible)

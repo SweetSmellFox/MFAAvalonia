@@ -1,0 +1,113 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <AssemblyName>MFAAvalonia</AssemblyName>
+        <OutputName>MFAAvalonia</OutputName>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+        <Platforms>x64</Platforms>
+        <ApplicationManifest>app.manifest</ApplicationManifest>
+        <ApplicationIcon>..\MFAAvalonia\Assets\logo.ico</ApplicationIcon>
+        <CETCompat>false</CETCompat>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <DebianPackageDependencies>dotnet-runtime-8.0;libc6;libgtk-3-0</DebianPackageDependencies>
+        <RuntimeIdentifiers Condition="'$(RuntimeIdentifier)' == ''">win-x64;linux-x64;osx-x64;win-arm64;linux-arm64;osx-arm64</RuntimeIdentifiers>
+        <RuntimeIdentifiers Condition="'$(RuntimeIdentifier)' != ''">$(RuntimeIdentifier)</RuntimeIdentifiers>
+        <OutputPath>../bin/$(Platform)/$(Configuration)/</OutputPath>
+        <IntermediateOutputPath>obj/$(Platform)/$(Configuration)/$(TargetFramework)/</IntermediateOutputPath>
+        <PublishReadyToRun>false</PublishReadyToRun>
+        <PublishSingleFile>false</PublishSingleFile>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <PublishTrimmed>false</PublishTrimmed>
+        <SelfContained>false</SelfContained>
+        <GenerateResource>Always</GenerateResource>
+        <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+        <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+        <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+        <MaaAgentBinaryPath>libs/MaaAgentBinary</MaaAgentBinaryPath>
+        <BeautyLibsDir>./libs</BeautyLibsDir>
+        <BeautyOnPublishOnly>True</BeautyOnPublishOnly>
+        <DebugType>none</DebugType>
+        <DebugSymbols>false</DebugSymbols>
+    </PropertyGroup>
+
+    <ItemGroup Condition="'$(OS)' == 'Windows_NT'">
+        <PackageReference Update="Packaging.Targets">
+            <Version>0.1.232</Version>
+        </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Avalonia.Desktop" Version="11.3.11"/>
+        <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.3.11"/>
+        <PackageReference Include="nulastudio.NetBeauty" Version="2.1.5" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\MFAAvalonia\MFAAvalonia.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <RuntimeHostConfigurationOption Include="SubdirectoriesToProbe" Value="libs"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Content Include="..\cliff.toml">
+            <Link>cliff.toml</Link>
+        </Content>
+        <Content Include="..\docs\en\external-notification.md">
+            <Link>docs\en\external-notification.md</Link>
+        </Content>
+        <Content Include="..\docs\images\maa-logo_512x512.png">
+            <Link>docs\images\maa-logo_512x512.png</Link>
+        </Content>
+        <Content Include="..\docs\images\preview.png">
+            <Link>docs\images\preview.png</Link>
+        </Content>
+        <Content Include="..\docs\zh\外部通知.md">
+            <Link>docs\zh\外部通知.md</Link>
+        </Content>
+        <Content Include="..\README_en.md">
+            <Link>README_en.md</Link>
+        </Content>
+        <Content Include="..\README.md">
+            <Link>README.md</Link>
+        </Content>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Content Include="..\MFAAvalonia\DependencySetup_依赖库安装_win.bat"
+                 Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('win'))"
+                 CopyToPublishDirectory="PreserveNewest">
+            <Link>DependencySetup_依赖库安装_win.bat</Link>
+        </Content>
+
+        <Content Include="..\MFAAvalonia\DependencySetup_依赖库安装_linux.sh"
+                 Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('linux'))"
+                 CopyToPublishDirectory="PreserveNewest">
+            <Link>DependencySetup_依赖库安装_linux.sh</Link>
+        </Content>
+
+        <Content Include="..\MFAAvalonia\DependencySetup_依赖库安装_mac.sh"
+                 Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('osx'))"
+                 CopyToPublishDirectory="PreserveNewest">
+            <Link>DependencySetup_依赖库安装_mac.sh</Link>
+        </Content>
+    </ItemGroup>
+
+    <Target Name="RemoveUnwantedFiles" AfterTargets="Publish" Condition="'$(PublishDir)' != ''">
+        <PropertyGroup>
+            <MainPublishDir>$([MSBuild]::NormalizeDirectory('$(OutputPath)\$(RuntimeIdentifier)\publish'))</MainPublishDir>
+        </PropertyGroup>
+
+        <ItemGroup>
+            <PdbFilesToDelete Include="$(MainPublishDir)**\*.pdb"/>
+            <XmlFilesToDelete Include="$(MainPublishDir)SukiUI.xml"/>
+        </ItemGroup>
+
+        <Delete Files="@(PdbFilesToDelete);@(XmlFilesToDelete);@(RuntimeConfigFilesToDelete)" ContinueOnError="true"/>
+    </Target>
+</Project>
