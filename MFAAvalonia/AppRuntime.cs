@@ -41,8 +41,8 @@ public static class AppRuntime
     public static void Initialize(string[] args, string mutexName)
     {
         Args = ParseArguments(args);
-        _mutex = new Mutex(true, mutexName, out var isNewInstance);
-        IsNewInstance = isNewInstance;
+        // _mutex = new Mutex(true, mutexName, out var isNewInstance);
+        IsNewInstance = true;
         _mutexOwnerThreadId = Environment.CurrentManagedThreadId;
         _mutexReleased = false;
     }

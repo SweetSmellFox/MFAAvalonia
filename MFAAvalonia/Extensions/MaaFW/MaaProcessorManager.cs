@@ -15,7 +15,8 @@ public sealed class MaaProcessorManager
 
     private MaaProcessorManager()
     {
-        Current = CreateInstanceInternal(CreateUniqueId(), setCurrent: true);
+        // 使用固定的默认 InstanceId，确保重启后能读取到之前保存的配置
+        Current = CreateInstanceInternal("default", setCurrent: true);
     }
 
     public IReadOnlyCollection<MaaProcessor> Instances

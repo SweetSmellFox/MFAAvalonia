@@ -16,6 +16,7 @@
         <DebianPackageDependencies>dotnet-runtime-8.0;libc6;libgtk-3-0</DebianPackageDependencies>
         <RuntimeIdentifiers Condition="'$(RuntimeIdentifier)' == ''">win-x64;linux-x64;osx-x64;win-arm64;linux-arm64;osx-arm64</RuntimeIdentifiers>
         <RuntimeIdentifiers Condition="'$(RuntimeIdentifier)' != ''">$(RuntimeIdentifier)</RuntimeIdentifiers>
+        <MaaFrameworkPlatform>$(RuntimeIdentifier)</MaaFrameworkPlatform>
         <OutputPath>../bin/$(Platform)/$(Configuration)/</OutputPath>
         <IntermediateOutputPath>obj/$(Platform)/$(Configuration)/$(TargetFramework)/</IntermediateOutputPath>
         <PublishReadyToRun>false</PublishReadyToRun>

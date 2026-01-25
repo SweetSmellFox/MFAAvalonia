@@ -417,35 +417,39 @@ public static partial class Instances
         await UpdateProgressAsync(35);
         await Task.Delay(30);
 
-        await DispatcherHelper.RunOnMainThreadAsync(() =>
-        {
-            if (IsResolved<GuiSettingsUserControlModel>())
-            {
-                var gui = GuiSettingsUserControlModel;
-                var theme = SukiUI.SukiTheme.GetInstance();
-
-                gui.BackgroundAnimations = ConfigurationManager.Current.GetValue(ConfigurationKeys.BackgroundAnimations, false);
-                gui.BackgroundTransitions = ConfigurationManager.Current.GetValue(ConfigurationKeys.BackgroundTransitions, false);
-                gui.BackgroundStyle = ConfigurationManager.Current.GetValue(ConfigurationKeys.BackgroundStyle, SukiUI.Enums.SukiBackgroundStyle.GradientSoft, SukiUI.Enums.SukiBackgroundStyle.GradientSoft,
-                    new Converters.UniversalEnumConverter<SukiUI.Enums.SukiBackgroundStyle>());
-                gui.ShouldMinimizeToTray = ConfigurationManager.Current.GetValue(ConfigurationKeys.ShouldMinimizeToTray, false);
-                gui.EnableToastNotification = ConfigurationManager.Current.GetValue(ConfigurationKeys.EnableToastNotification, true);
-                gui.BackgroundImagePath = ConfigurationManager.Current.GetValue(ConfigurationKeys.BackgroundImagePath, string.Empty);
-                gui.BackgroundImageOpacity = ConfigurationManager.Current.GetValue(ConfigurationKeys.BackgroundImageOpacity, 0.2);
-                gui.FontScale = ConfigurationManager.Current.GetValue(ConfigurationKeys.FontScale, FontService.DefaultScale);
-
-                gui.CurrentColorTheme = ConfigurationManager.Current.GetValue(ConfigurationKeys.ColorTheme, theme.ColorThemes.First(t => t.DisplayName.Equals("blue", StringComparison.OrdinalIgnoreCase)));
-                gui.BaseTheme = ConfigurationManager.Current.GetValue(ConfigurationKeys.BaseTheme, Avalonia.Styling.ThemeVariant.Light, new System.Collections.Generic.Dictionary<object, Avalonia.Styling.ThemeVariant>
+                await DispatcherHelper.RunOnMainThreadAsync(() =>
                 {
-                    ["Dark"] = Avalonia.Styling.ThemeVariant.Dark,
-                    ["Light"] = Avalonia.Styling.ThemeVariant.Light
+                    if (IsResolved<GuiSettingsUserControlModel>())
+                    {
+                        var gui = GuiSettingsUserControlModel;
+                        var theme = SukiUI.SukiTheme.GetInstance();
+        
+                        gui.BackgroundAnimations = ConfigurationManager.Current.GetValue(ConfigurationKeys.BackgroundAnimations, false);
+                        gui.BackgroundTransitions = ConfigurationManager.Current.GetValue(ConfigurationKeys.BackgroundTransitions, false);
+                        gui.BackgroundStyle = ConfigurationManager.Current.GetValue(ConfigurationKeys.BackgroundStyle, SukiUI.Enums.SukiBackgroundStyle.GradientSoft, SukiUI.Enums.SukiBackgroundStyle.GradientSoft,
+                            new Converters.UniversalEnumConverter<SukiUI.Enums.SukiBackgroundStyle>());
+                        gui.ShouldMinimizeToTray = ConfigurationManager.Current.GetValue(ConfigurationKeys.ShouldMinimizeToTray, false);
+                        gui.EnableToastNotification = ConfigurationManager.Current.GetValue(ConfigurationKeys.EnableToastNotification, true);
+                        gui.BackgroundImagePath = ConfigurationManager.Current.GetValue(ConfigurationKeys.BackgroundImagePath, string.Empty);
+                        gui.BackgroundImageOpacity = ConfigurationManager.Current.GetValue(ConfigurationKeys.BackgroundImageOpacity, 0.2);
+                        gui.FontScale = ConfigurationManager.Current.GetValue(ConfigurationKeys.FontScale, FontService.DefaultScale);
+        
+                        gui.CurrentColorTheme = ConfigurationManager.Current.GetValue(ConfigurationKeys.ColorTheme, theme.ColorThemes.First(t => t.DisplayName.Equals("blue", StringComparison.OrdinalIgnoreCase)));
+                        gui.BaseTheme = ConfigurationManager.Current.GetValue(ConfigurationKeys.BaseTheme, Avalonia.Styling.ThemeVariant.Light, new System.Collections.Generic.Dictionary<object, Avalonia.Styling.ThemeVariant>
+                        {
+                            ["Dark"] = Avalonia.Styling.ThemeVariant.Dark,
+                            ["Light"] = Avalonia.Styling.ThemeVariant.Light
+                        });
+        
+                        // 实际应用主题到UI
+                        theme.ChangeBaseTheme(gui.BaseTheme);
+                        theme.ChangeColorTheme(gui.CurrentColorTheme);
+        
+                        var language = ConfigurationManager.Current.GetValue(ConfigurationKeys.CurrentLanguage, LanguageHelper.SupportedLanguages[0].Key, ["zh-CN", "zh-Hant", "en-US"]);
+                        gui.CurrentLanguage = language;
+                        LanguageHelper.ChangeLanguage(language);
+                    }
                 });
-
-                var language = ConfigurationManager.Current.GetValue(ConfigurationKeys.CurrentLanguage, LanguageHelper.SupportedLanguages[0].Key, ["zh-CN", "zh-Hant", "en-US"]);
-                gui.CurrentLanguage = language;
-                LanguageHelper.ChangeLanguage(language);
-            }
-        });
         await UpdateProgressAsync(45);
         await Task.Delay(30);
 

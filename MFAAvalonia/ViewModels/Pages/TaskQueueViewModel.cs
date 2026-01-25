@@ -1523,100 +1523,117 @@ public partial class TaskQueueViewModel : ViewModelBase
     /// <summary>
     /// 更新 Live View 图像（仿 WPF：直接写入缓冲）
     /// </summary>
-    public async Task UpdateLiveViewImageAsync(MaaImageBuffer? buffer)
-    {
-        if (!await _liveViewSemaphore.WaitAsync(0))
+        /// <summary>
+        /// 更新 Live View 图像（仿 WPF：直接写入缓冲）
+        /// </summary>
+        public async Task UpdateLiveViewImageAsync(MaaImageBuffer? buffer)
         {
-            if (++_liveViewSemaphoreFailCount < 3)
+            if (!await _liveViewSemaphore.WaitAsync(0))
             {
+                if (++_liveViewSemaphoreFailCount < 3)
+                {
+                    buffer?.Dispose();
+                    return;
+                }
+    
+                _liveViewSemaphoreFailCount = 0;
+    
+                if (_liveViewSemaphoreCurrentCount < LiveViewSemaphoreMaxCount)
+                {
+                    _liveViewSemaphoreCurrentCount++;
+                    _liveViewSemaphore.Release();
+                    LoggerHelper.Info($"LiveView Semaphore Full, increase semaphore count to {_liveViewSemaphoreCurrentCount}");
+                }
+    
                 buffer?.Dispose();
                 return;
             }
-
-            _liveViewSemaphoreFailCount = 0;
-
-            if (_liveViewSemaphoreCurrentCount < LiveViewSemaphoreMaxCount)
+    
+            try
             {
-                _liveViewSemaphoreCurrentCount++;
+                var count = Interlocked.Increment(ref _liveViewImageCount);
+                var index = count % _liveViewImageCache.Length;
+    
+                if (buffer == null)
+                {
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        LiveViewImage = null;
+                        _liveViewWriteableBitmap?.Dispose();
+                        _liveViewWriteableBitmap = null;
+                        Array.Fill(_liveViewImageCache, null);
+                        _liveViewImageNewestCount = 0;
+                        _liveViewImageCount = 0;
+                    });
+                    return;
+                }
+    
+                if (!buffer.TryGetRawData(out var rawData, out var width, out var height, out _))
+                {
+                    return;
+                }
+    
+                if (rawData == IntPtr.Zero || width <= 0 || height <= 0)
+                {
+                    return;
+                }
+    
+                if (buffer.Channels is not (3 or 4))
+                {
+                    return;
+                }
+    
+                if (count <= _liveViewImageNewestCount)
+                {
+                    return;
+                }
+    
+                // 关键修复：在 UI 线程调用中使用 buffer，确保在使用期间不会被释放
+                // 使用 Invoke 而不是 InvokeAsync，确保同步执行完成后再释放 buffer
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    try
+                    {
+                        // 再次验证指针有效性（防止在等待期间失效）
+                        if (rawData != IntPtr.Zero && width > 0 && height > 0)
+                        {
+                            _liveViewImageCache[index] = WriteBgrToBitmap(rawData, width, height, buffer.Channels, _liveViewImageCache[index]);
+                            LiveViewImage = _liveViewImageCache[index];
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        LoggerHelper.Warning($"LiveView WriteBgrToBitmap failed: {ex.Message}");
+                    }
+                });
+    
+                Interlocked.Exchange(ref _liveViewImageNewestCount, count);
+                _liveViewSemaphoreFailCount = 0;
+    
+                var now = DateTime.UtcNow;
+                Interlocked.Increment(ref _liveViewFrameCount);
+                var totalSeconds = (now - _liveViewFpsWindowStart).TotalSeconds;
+                if (totalSeconds >= 1)
+                {
+                    var frameCount = Interlocked.Exchange(ref _liveViewFrameCount, 0);
+                    _liveViewFpsWindowStart = now;
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        LiveViewFps = frameCount / totalSeconds;
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                LoggerHelper.Warning($"LiveView update failed: {ex.Message}");
+            }
+            finally
+            {
+                buffer?.Dispose();
                 _liveViewSemaphore.Release();
-                LoggerHelper.Info($"LiveView Semaphore Full, increase semaphore count to {_liveViewSemaphoreCurrentCount}");
-            }
-
-            buffer?.Dispose();
-            return;
-        }
-
-        try
-        {
-            var count = Interlocked.Increment(ref _liveViewImageCount);
-            var index = count % _liveViewImageCache.Length;
-
-            if (buffer == null)
-            {
-                await Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    LiveViewImage = null;
-                    _liveViewWriteableBitmap?.Dispose();
-                    _liveViewWriteableBitmap = null;
-                    Array.Fill(_liveViewImageCache, null);
-                    _liveViewImageNewestCount = 0;
-                    _liveViewImageCount = 0;
-                });
-                return;
-            }
-
-            if (!buffer.TryGetRawData(out var rawData, out var width, out var height, out _))
-            {
-                return;
-            }
-
-            if (rawData == IntPtr.Zero || width <= 0 || height <= 0)
-            {
-                return;
-            }
-
-            if (buffer.Channels is not (3 or 4))
-            {
-                return;
-            }
-
-            if (count <= _liveViewImageNewestCount)
-            {
-                return;
-            }
-
-            await Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                _liveViewImageCache[index] = WriteBgrToBitmap(rawData, width, height, buffer.Channels, _liveViewImageCache[index]);
-                LiveViewImage = _liveViewImageCache[index];
-            });
-
-            Interlocked.Exchange(ref _liveViewImageNewestCount, count);
-            _liveViewSemaphoreFailCount = 0;
-
-            var now = DateTime.UtcNow;
-            Interlocked.Increment(ref _liveViewFrameCount);
-            var totalSeconds = (now - _liveViewFpsWindowStart).TotalSeconds;
-            if (totalSeconds >= 1)
-            {
-                var frameCount = Interlocked.Exchange(ref _liveViewFrameCount, 0);
-                _liveViewFpsWindowStart = now;
-                await Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    LiveViewFps = frameCount / totalSeconds;
-                });
             }
         }
-        catch (Exception ex)
-        {
-            LoggerHelper.Warning($"LiveView update failed: {ex.Message}");
-        }
-        finally
-        {
-            buffer?.Dispose();
-            _liveViewSemaphore.Release();
-        }
-    }
+    
 
     private static WriteableBitmap WriteBgrToBitmap(IntPtr bgrData, int width, int height, int channels, WriteableBitmap? targetBitmap)
     {
