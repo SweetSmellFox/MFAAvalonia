@@ -2525,7 +2525,10 @@ public partial class TaskQueueView : UserControl
                 if (status != MaaJobStatus.Succeeded)
                 {
                     if (MaaProcessor.Instance.HandleScreencapStatus(status))
+                    {
                         Instances.TaskQueueViewModel.SetConnected(false);
+                        LoggerHelper.Warn("超过10次Invaild,已断开链接");
+                    }
                     return;
                 }
 
