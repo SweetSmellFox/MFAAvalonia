@@ -43,91 +43,116 @@ public partial class App : Application
     /// </summary>
     private static AvaloniaMemoryCracker? _memoryCracker;
 
+        /// <summary>
+        /// 标记是否已经显示过启动错误对话框（确保只显示一次）
+        /// 使用 int 类型以便使用 Interlocked 原子操作
+        /// 0 = 未显示，1 = 已显示
+        /// </summary>
+        private static int _hasShownStartupError = 0;
+
     public override void Initialize()
     {
-        base.Initialize();
-        LoggerHelper.InitializeLogger();
-        AvaloniaXamlLoader.Load(this);
-        LanguageHelper.Initialize();
-        ConfigurationManager.Initialize();
-        FontService.Initialize();
+        try
+        {
+            base.Initialize();
+            LoggerHelper.InitializeLogger();
+            AvaloniaXamlLoader.Load(this);
+            LanguageHelper.Initialize();
+            ConfigurationManager.Initialize();
+            FontService.Initialize();
 
-        // 保存引用以便在退出时正确释放
-        _memoryCracker = new AvaloniaMemoryCracker();
-        _memoryCracker.Cracker();
+            // 保存引用以便在退出时正确释放
+            _memoryCracker = new AvaloniaMemoryCracker();
+            _memoryCracker.Cracker();
 
-        GlobalHotkeyService.Initialize();
-        TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException; //Task线程内未捕获异常处理事件
-        AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException; //非UI线程内未捕获异常处理事件
-        Dispatcher.UIThread.UnhandledException += OnDispatcherUnhandledException; //UI线程内未捕获异常处理事件
+            GlobalHotkeyService.Initialize();
+            TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException; //Task线程内未捕获异常处理事件
+            AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException; //非UI线程内未捕获异常处理事件
+            Dispatcher.UIThread.UnhandledException += OnDispatcherUnhandledException; //UI线程内未捕获异常处理事件
+        }
+        catch (Exception ex)
+        {
+            LoggerHelper.Error($"应用初始化失败：{ex}");
+            ShowStartupErrorAndExit(ex, "应用初始化");
+        }
     }
+
 
     public override void OnFrameworkInitializationCompleted()
     {
-        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        try
         {
-            desktop.ShutdownRequested += OnShutdownRequested;
-            var services = new ServiceCollection();
-
-            services.AddSingleton(desktop);
-
-            ConfigureServices(services);
-
-            var views = ConfigureViews(services);
-
-            Services = services.BuildServiceProvider();
-
-            DataTemplates.Add(new ViewLocator(views));
-
-            var window = views.CreateView<RootViewModel>(Services) as Window;
-
-            desktop.MainWindow = window;
-
-            TrayIconManager.InitializeTrayIcon(this, Instances.RootView, Instances.RootViewModel);
-
-            if (GlobalConfiguration.HasFileAccessError)
+            if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
-                var message = $"全局配置文件被占用或无权限访问：{GlobalConfiguration.ConfigPath}\n{GlobalConfiguration.LastFileAccessErrorMessage}";
-                DispatcherHelper.PostOnMainThread(() =>
-                    Instances.DialogManager.CreateDialog()
-                        .OfType(NotificationType.Error)
-                        .WithContent(message)
-                        .WithActionButton(LangKeys.Ok.ToLocalization(), _ => { }, true)
-                        .TryShow());
+                desktop.ShutdownRequested += OnShutdownRequested;
+                var services = new ServiceCollection();
+
+                services.AddSingleton(desktop);
+
+                ConfigureServices(services);
+
+                var views = ConfigureViews(services);
+
+                Services = services.BuildServiceProvider();
+
+                DataTemplates.Add(new ViewLocator(views));
+
+                var window = views.CreateView<RootViewModel>(Services) as Window;
+
+                desktop.MainWindow = window;
+
+                TrayIconManager.InitializeTrayIcon(this, Instances.RootView, Instances.RootViewModel);
+
+                if (GlobalConfiguration.HasFileAccessError)
+                {
+                    var message = $"全局配置文件被占用或无权限访问：{GlobalConfiguration.ConfigPath}\n{GlobalConfiguration.LastFileAccessErrorMessage}";
+                    DispatcherHelper.PostOnMainThread(() =>
+                        Instances.DialogManager.CreateDialog()
+                            .OfType(NotificationType.Error)
+                            .WithContent(message)
+                            .WithActionButton(LangKeys.Ok.ToLocalization(), _ => { }, true)
+                            .TryShow());
+                }
             }
+            else if (ApplicationLifetime is ISingleViewApplicationLifetime singleView)
+            {
+                var services = new ServiceCollection();
+
+                services.AddSingleton(singleView);
+
+                ConfigureServices(services);
+
+                var views = ConfigureViews(services);
+
+                Services = services.BuildServiceProvider();
+
+                DataTemplates.Add(new ViewLocator(views));
+
+                var mainView = views.CreateView<RootViewModel>(Services);
+
+                singleView.MainView = mainView;
+
+                if (GlobalConfiguration.HasFileAccessError)
+                {
+                    var message = $"全局配置文件被占用或无权限访问：{GlobalConfiguration.ConfigPath}\n{GlobalConfiguration.LastFileAccessErrorMessage}";
+                    DispatcherHelper.PostOnMainThread(() =>
+                        Instances.DialogManager.CreateDialog()
+                            .OfType(NotificationType.Error)
+                            .WithContent(message)
+                            .WithActionButton(LangKeys.Ok.ToLocalization(), _ => { }, true)
+                            .TryShow());
+                }
+            }
+
+            base.OnFrameworkInitializationCompleted();
         }
-        else if (ApplicationLifetime is ISingleViewApplicationLifetime singleView)
+        catch (Exception ex)
         {
-            var services = new ServiceCollection();
-
-            services.AddSingleton(singleView);
-
-            ConfigureServices(services);
-
-            var views = ConfigureViews(services);
-
-            Services = services.BuildServiceProvider();
-
-            DataTemplates.Add(new ViewLocator(views));
-
-            var mainView = views.CreateView<RootViewModel>(Services);
-
-            singleView.MainView = mainView;
-
-            if (GlobalConfiguration.HasFileAccessError)
-            {
-                var message = $"全局配置文件被占用或无权限访问：{GlobalConfiguration.ConfigPath}\n{GlobalConfiguration.LastFileAccessErrorMessage}";
-                DispatcherHelper.PostOnMainThread(() =>
-                    Instances.DialogManager.CreateDialog()
-                        .OfType(NotificationType.Error)
-                        .WithContent(message)
-                        .WithActionButton(LangKeys.Ok.ToLocalization(), _ => { }, true)
-                        .TryShow());
-            }
+            LoggerHelper.Error($"框架初始化失败：{ex}");
+            ShowStartupErrorAndExit(ex, "框架初始化");
         }
-
-        base.OnFrameworkInitializationCompleted();
     }
+
 
     private void OnShutdownRequested(object sender, ShutdownRequestedEventArgs e)
     {
@@ -239,6 +264,14 @@ public partial class App : Application
     {
         try
         {
+            // 如果已经显示过启动错误，不再显示其他错误对话框
+            if (System.Threading.Interlocked.CompareExchange(ref _hasShownStartupError, 0, 0) == 1)
+            {
+                LoggerHelper.Error($"启动失败后的UI线程异常（已忽略显示）: {e.Exception}");
+                e.Handled = true;
+                return;
+            }
+
             if (TryIgnoreException(e.Exception, out string errorMessage))
             {
                 LoggerHelper.Warning(errorMessage);
@@ -254,7 +287,10 @@ public partial class App : Application
         catch (Exception ex)
         {
             LoggerHelper.Error("处理UI线程异常时发生错误: " + ex.ToString());
-            ErrorView.ShowException(ex, true);
+            if (System.Threading.Interlocked.CompareExchange(ref _hasShownStartupError, 0, 0) == 0)
+            {
+                ErrorView.ShowException(ex, true);
+            }
         }
     }
 
@@ -262,6 +298,13 @@ public partial class App : Application
     {
         try
         {
+            // 如果已经显示过启动错误，不再显示其他错误对话框
+            if (System.Threading.Interlocked.CompareExchange(ref _hasShownStartupError, 0, 0) == 1)
+            {
+                LoggerHelper.Error($"启动失败后的非UI线程异常（已忽略显示）: {e.ExceptionObject}");
+                return;
+            }
+
             if (e.ExceptionObject is Exception ex && TryIgnoreException(ex, out string errorMessage))
             {
                 LoggerHelper.Warning(errorMessage);
@@ -296,6 +339,14 @@ public partial class App : Application
     {
         try
         {
+            // 如果已经显示过启动错误，不再显示其他错误对话框
+            if (System.Threading.Interlocked.CompareExchange(ref _hasShownStartupError, 0, 0) == 1)
+            {
+                LoggerHelper.Error($"启动失败后的任务异常（已忽略显示）: {e.Exception}");
+                e.SetObserved();
+                return;
+            }
+
             if (TryIgnoreException(e.Exception, out string errorMessage))
             {
                 LoggerHelper.Warning(errorMessage);
@@ -427,4 +478,52 @@ public partial class App : Application
 
         return false;
     }
+    
+    /// <summary>
+    /// 显示启动错误并退出应用（确保只显示一次）
+    /// 使用 Interlocked 原子操作确保线程安全
+    /// </summary>
+    public static void ShowStartupErrorAndExit(Exception exception, string stage = "启动")
+    {
+        // 使用原子操作检查并设置标志，确保只有一个线程能进入
+        if (System.Threading.Interlocked.CompareExchange(ref _hasShownStartupError, 1, 0) != 0)
+        {
+            // 已经有其他线程在显示错误对话框，直接退出
+            System.Threading.Thread.Sleep(100); // 等待一下让第一个线程显示对话框
+            Environment.Exit(1);
+            return;
+        }
+
+        try
+        {
+            var message = $"MFAAvalonia {stage}失败\n\n错误信息：\n{exception.Message}\n\n详细信息：\n{exception}";
+            
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                // Windows: 使用 MessageBox
+                var shortMessage = message.Length > 500
+                    ? message.Substring(0, 500) + "...\n\n详细信息请查看日志文件。"
+                    : message;
+                
+                MessageBox(IntPtr.Zero, shortMessage, "MFAAvalonia 启动失败", 0x10); // MB_ICONERROR
+            }
+            else
+            {
+                // Linux/macOS: 输出到控制台
+                Console.Error.WriteLine("=== MFAAvalonia 启动失败 ===");
+                Console.Error.WriteLine(message);
+            }
+        }
+        catch
+        {
+            Console.Error.WriteLine("=== MFAAvalonia 启动失败 ===");
+            Console.Error.WriteLine(exception.ToString());
+        }
+        
+        Environment.Exit(1);
+    }
+
+    // Windows MessageBox P/Invoke
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int MessageBox(IntPtr hWnd, string text, string caption, uint type);
 }
