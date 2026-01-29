@@ -9,6 +9,7 @@ using MFAAvalonia.ViewModels.Windows;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -19,14 +20,18 @@ namespace MFAAvalonia.Desktop;
 
 sealed class Program
 {
+    /// <summary>
+    /// 主窗口关闭后的强制退出超时时间（毫秒）
+    /// </summary>
+    private const int ForceExitTimeoutMs = 5000;
+
     [STAThread]
     public static void Main(string[] args)
     {
         try
         {
-            Directory.SetCurrentDirectory(AppContext.BaseDirectory);PrivatePathHelper.CleanupDuplicateLibraries(AppContext.BaseDirectory, AppContext.GetData("SubdirectoriesToProbe") as string);
-
-            PrivatePathHelper.SetupNativeLibraryResolver();
+            Directory.SetCurrentDirectory(AppContext.BaseDirectory);
+            PrivatePathHelper.CleanupDuplicateLibraries(AppContext.BaseDirectory, AppContext.GetData("SubdirectoriesToProbe") as string);PrivatePathHelper.SetupNativeLibraryResolver();
 
             List<string> resultDirectories = new();
 
@@ -86,8 +91,16 @@ sealed class Program
                 LoggerHelper.Info(".NET version: " + RuntimeInformation.FrameworkDescription);}
             catch
             {}
+
+            // 启动强制退出监控线程
+            // 当主窗口关闭后，如果进程在指定时间内没有正常退出，则强制终止
+            StartForceExitWatchdog();
+
             BuildAvaloniaApp()
                 .StartWithClassicDesktopLifetime(args, ShutdownMode.OnMainWindowClose);
+
+            // 主窗口已关闭，通知监控线程开始计时
+            SignalMainWindowClosed();
         }
         catch (Exception e)
         {
@@ -99,9 +112,65 @@ sealed class Program
             {
             }
 
-            // 使用 App 类的统一错误处理方法（确保只显示一次）
+            // 使用 App类的统一错误处理方法（确保只显示一次）
             App.ShowStartupErrorAndExit(e, "程序启动");
         }
+    }
+
+    /// <summary>
+    /// 用于通知监控线程主窗口已关闭的事件
+    /// </summary>
+    private static readonly ManualResetEventSlim MainWindowClosedEvent = new(false);
+
+    /// <summary>
+    /// 启动强制退出监控线程
+    /// </summary>
+    private static void StartForceExitWatchdog()
+    {
+        var watchdogThread = new Thread(() =>
+        {
+            try
+            {
+                // 等待主窗口关闭信号
+                MainWindowClosedEvent.Wait();
+
+                // 主窗口已关闭，开始计时
+                // 等待指定时间，如果进程还没退出则强制终止
+                Thread.Sleep(ForceExitTimeoutMs);
+
+                // 如果代码执行到这里，说明进程在超时时间内没有正常退出
+                try
+                {
+                    LoggerHelper.Warning($"进程在主窗口关闭后 {ForceExitTimeoutMs}ms 内未能正常退出，强制终止进程");
+                }
+                catch
+                {
+                    // 忽略日志错误
+                }
+
+                // 强制终止当前进程
+                Environment.Exit(0);
+            }
+            catch
+            {
+                // 忽略监控线程中的任何异常
+            }
+        })
+        {
+            Name = "ForceExitWatchdog",
+            IsBackground = true, // 设置为后台线程，这样如果主线程正常退出，此线程也会自动终止
+            Priority = ThreadPriority.BelowNormal
+        };
+
+        watchdogThread.Start();
+    }
+
+    /// <summary>
+    /// 通知监控线程主窗口已关闭
+    /// </summary>
+    private static void SignalMainWindowClosed()
+    {
+        MainWindowClosedEvent.Set();
     }
 
     public static AppBuilder BuildAvaloniaApp()
