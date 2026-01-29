@@ -790,6 +790,37 @@ public partial class MaaInterface
         public object? ScreenCap { get; set; }
     }
 
+    /// <summary>
+    /// Gamepad 控制器的具体配置（仅 Windows）。
+    /// 用于创建虚拟游戏手柄进行游戏控制。需要安装 ViGEm Bus Driver。
+    /// </summary>
+    public class MaaResourceControllerGamepad
+    {
+        /// <summary>
+        /// 可选。Win32 控制器搜索窗口类名使用的正则表达式。
+        /// </summary>
+        [JsonProperty("class_regex")]
+        public string? ClassRegex { get; set; }
+
+        /// <summary>
+        /// 可选。Win32 控制器搜索窗口标题使用的正则表达式。
+        /// </summary>
+        [JsonProperty("window_regex")]
+        public string? WindowRegex { get; set; }
+
+        /// <summary>
+        /// 可选。虚拟手柄类型，取值为 Xbox360、DualShock4（或 DS4）。不提供则默认使用 Xbox360。
+        /// </summary>
+        [JsonProperty("gamepad_type")]
+        public string? GamepadType { get; set; }
+
+        /// <summary>
+        /// 可选。截图方式，不提供则使用默认。仅当配置了窗口正则时有效。
+        /// </summary>
+        [JsonProperty("screencap")]
+        public object? ScreenCap { get; set; }
+    }
+
     public class MaaInterfaceAgent
     {
         [JsonProperty("child_exec")]
@@ -839,6 +870,8 @@ public partial class MaaInterface
         public MaaResourceControllerWin32? Win32 { get; set; }
         [JsonProperty("playcover")]
         public MaaResourceControllerPlayCover? PlayCover { get; set; }
+        [JsonProperty("gamepad")]
+        public MaaResourceControllerGamepad? Gamepad { get; set; }
 
         /// <summary>显示名称（用于 UI 绑定）</summary>
         [ObservableProperty] [JsonIgnore] private string _displayName = string.Empty;

@@ -1666,6 +1666,15 @@ public class MaaProcessor
     {
         ConnectToMAA(logConfig);
 
+        // 对于 Win32 和 Gamepad 控制器，检查管理员权限
+        if (OperatingSystem.IsWindows() && (controllerType == MaaControllerTypes.Win32 || controllerType == MaaControllerTypes.Gamepad))
+        {
+            if (!CheckTargetProcessAdminPermission())
+            {
+                throw new MaaException("目标进程以管理员权限运行，需要以管理员身份运行本程序");
+            }
+        }
+
         switch (controllerType)
         {
             case MaaControllerTypes.Adb:
@@ -1696,6 +1705,34 @@ public class MaaProcessor
 
                 return new MaaPlayCoverController(Config.PlayCover.PlayCoverAddress, Config.PlayCover.UUID);
 
+            case MaaControllerTypes.Gamepad:
+                // Gamepad 控制器使用 Win32 控制器的配置，但会创建虚拟手柄
+                if (logConfig)
+                {
+                    LoggerHelper.Info($"Gamepad Controller");
+                    LoggerHelper.Info($"Name: {Config.DesktopWindow.Name}");
+                    LoggerHelper.Info($"HWnd: {Config.DesktopWindow.HWnd}");
+                    LoggerHelper.Info($"ScreenCap: {Config.DesktopWindow.ScreenCap}");
+
+                    // 获取 Gamepad 特定配置
+                    var gamepadConfig = Interface?.Controller?.FirstOrDefault(c =>
+                        c.Type?.Equals("gamepad", StringComparison.OrdinalIgnoreCase) == true)?.Gamepad;
+                    if (gamepadConfig != null)
+                    {
+                        LoggerHelper.Info($"GamepadType: {gamepadConfig.GamepadType ?? "Xbox360"}");
+                        LoggerHelper.Info($"ClassRegex: {gamepadConfig.ClassRegex}");
+                        LoggerHelper.Info($"WindowRegex: {gamepadConfig.WindowRegex}");
+                    }
+                }
+
+                // Gamepad 控制器目前使用 Win32 控制器实现
+                // TODO: 当MaaFramework 支持 Gamepad 控制器时，替换为专用实现
+                return new MaaWin32Controller(
+                    Config.DesktopWindow.HWnd,
+                    Config.DesktopWindow.ScreenCap, Config.DesktopWindow.Mouse, Config.DesktopWindow.KeyBoard,
+                    Config.DesktopWindow.Link,
+                    Config.DesktopWindow.Check);
+
             case MaaControllerTypes.Win32:
             default:
                 if (logConfig)
@@ -1716,6 +1753,7 @@ public class MaaProcessor
                     Config.DesktopWindow.Check);
         }
     }
+
 
     public static bool CheckInterface(out string Name, out string NameFallBack, out string Version, out string CustomTitle, out string CustomTitleFallBack)
     {
@@ -2188,7 +2226,7 @@ public class MaaProcessor
     {
         _screencapFailedCount = 0;
     }
-    
+
     public void ResetScreencapFailureLogFlags()
     {
         lock (_screencapLogLock)
@@ -2249,7 +2287,7 @@ public class MaaProcessor
 
         return _screencapFailedCount >= ActionFailedLimit;
     }
-    
+
 
     private string? _tempResourceVersion;
 
@@ -3391,6 +3429,7 @@ public class MaaProcessor
         var tuple = await GetTaskerAndBoolAsync(token);
         return (tuple.Item1 is { IsInitialized: true }, tuple.Item2, tuple.Item3);
     }
+
     private void HandleConnectionFailureAsync(MaaControllerTypes controllerType, CancellationToken token)
     {
         // 如果 token 已取消，不需要再调用 Stop，因为已经在其他地方处理了
@@ -3635,7 +3674,7 @@ public class MaaProcessor
     /// 强制终止 Agent 进程（用于窗口关闭等紧急情况）
     /// </summary>
     /// <param name="taskerToDispose">原tasker</param>
-  private void SafeKillAgentProcess(MaaTasker? taskerToDispose = null)
+    private void SafeKillAgentProcess(MaaTasker? taskerToDispose = null)
     {
         // 获取当前引用的本地副本，避免在检查和使用之间被其他线程修改
         var agentClient = _agentClient;
@@ -4005,12 +4044,24 @@ public class MaaProcessor
         if (string.IsNullOrWhiteSpace(exePath) || !File.Exists(exePath))
             return;
         var processName = Path.GetFileNameWithoutExtension(exePath);
+
+        // 检查当前控制器是否需要管理员权限
+        var requiresAdmin = ShouldStartWithAdminPrivileges();
+
         var startInfo = new ProcessStartInfo
         {
             FileName = exePath,
             UseShellExecute = true,
             CreateNoWindow = false
         };
+
+        // 如果需要管理员权限且当前不是管理员，使用 runas 启动
+        if (requiresAdmin && OperatingSystem.IsWindows() && !AdminHelper.IsRunningAsAdministrator())
+        {
+            startInfo.Verb = "runas";
+            LoggerHelper.Info("以管理员权限启动软件");
+        }
+
         if (Process.GetProcessesByName(processName).Length == 0)
         {
             if (!string.IsNullOrWhiteSpace(InstanceConfiguration.GetValue(ConfigurationKeys.EmulatorConfig, string.Empty)))
@@ -4063,6 +4114,75 @@ public class MaaProcessor
             await Task.Delay(1000, token);
         }
 
+    }
+
+    /// <summary>
+    /// 检查当前控制器是否需要以管理员权限启动软件
+    /// </summary>
+    private bool ShouldStartWithAdminPrivileges()
+    {
+        var controllerType = Instances.TaskQueueViewModel.CurrentController;
+        if (controllerType != MaaControllerTypes.Win32 && controllerType != MaaControllerTypes.Gamepad)
+            return false;
+
+        var controllerConfig = Interface?.Controller?.FirstOrDefault(c =>
+            c.Type != null && c.Type.Equals(controllerType.ToJsonKey(), StringComparison.OrdinalIgnoreCase));
+
+        return controllerConfig?.PermissionRequired == true;
+    }
+
+    /// <summary>
+    /// 检查目标进程是否以管理员权限运行（用于直接连接时的权限检查）
+    /// 如果目标进程以管理员权限运行，而当前程序不是管理员，则返回 false
+    /// </summary>
+    private bool CheckTargetProcessAdminPermission()
+    {
+        if (!OperatingSystem.IsWindows())
+            return true;
+
+        var controllerType = Instances.TaskQueueViewModel.CurrentController;
+        if (controllerType != MaaControllerTypes.Win32 && controllerType != MaaControllerTypes.Gamepad)
+            return true;
+
+        var controllerConfig = Interface?.Controller?.FirstOrDefault(c =>
+            c.Type != null && c.Type.Equals(controllerType.ToJsonKey(), StringComparison.OrdinalIgnoreCase));
+
+        // 如果配置了permission_required，检查目标窗口的进程是否以管理员权限运行
+        if (controllerConfig?.PermissionRequired == true)
+        {
+            // 如果当前程序已经是管理员，则无需检查
+            if (AdminHelper.IsRunningAsAdministrator())
+                return true;
+
+            // 检查目标窗口的进程是否以管理员权限运行
+            var hwnd = Config.DesktopWindow.HWnd;
+            if (hwnd != IntPtr.Zero)
+            {
+                try
+                {
+                    if (AdminHelper.IsWindowProcessRunningAsAdministrator(hwnd) == true)
+                    {
+                        // 目标进程以管理员权限运行，但当前程序不是管理员
+                        LoggerHelper.Warning("目标进程以管理员权限运行，需要以管理员身份运行本程序");
+                        DispatcherHelper.RunOnMainThread(() =>
+                        {
+                            ToastHelper.Error(
+                                LangKeys.AdminPermissionRequired.ToLocalization(),
+                                LangKeys.AdminPermissionRequiredDetail.ToLocalization());
+                        });
+                        return false;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LoggerHelper.Warning($"检查目标进程管理员权限失败: {ex.Message}");
+                    // 检查失败时，假设不需要管理员权限
+                    return true;
+                }
+            }
+        }
+
+        return true;
     }
 
     #endregion

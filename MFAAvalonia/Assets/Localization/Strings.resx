@@ -1520,12 +1520,18 @@
     <data name="TaskRemark" xml:space="preserve">
         <value>备注</value>
     </data>
-    <data name="TaskRemarkPlaceholder" xml:space="preserve">
-        <value>输入备注（可选）</value>
-    </data>
-    <data name="PlatformNotSupportedOperation" xml:space="preserve">
-        <value>当前平台不支持该操作</value>
-    </data>
-
-</root>
+        <data name="TaskRemarkPlaceholder" xml:space="preserve">
+            <value>输入备注（可选）</value>
+        </data>
+        <data name="PlatformNotSupportedOperation" xml:space="preserve">
+            <value>当前平台不支持该操作</value>
+        </data>
+        <data name="AdminPermissionRequired" xml:space="preserve">
+            <value>需要管理员权限</value>
+        </data>
+        <data name="AdminPermissionRequiredDetail" xml:space="preserve">
+            <value>目标进程以管理员权限运行，请以管理员身份重新启动本程序</value>
+        </data>
+    
+    </root>
 

@@ -138,6 +138,9 @@ public partial class TaskQueueViewModel : ViewModelBase
         if (type.Contains("win32", StringComparison.OrdinalIgnoreCase))
             return OperatingSystem.IsWindows();
 
+        if (type.Contains("gamepad", StringComparison.OrdinalIgnoreCase))
+            return OperatingSystem.IsWindows();
+
         if (type.Contains("playcover", StringComparison.OrdinalIgnoreCase))
             return OperatingSystem.IsMacOS();
 
