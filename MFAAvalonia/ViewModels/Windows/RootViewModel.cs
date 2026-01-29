@@ -90,13 +90,13 @@ public partial class RootViewModel : ViewModelBase
         TempResourceUpdateAction?.Invoke();
     }
     
-    partial void OnLockControllerChanged(bool value)
-    {
-        if (value)
+        partial void OnLockControllerChanged(bool value)
         {
-            Instances.TaskQueueViewModel.ShouldShow = (int)(MaaProcessor.Interface?.Controller?.FirstOrDefault()?.Type).ToMaaControllerTypes(Instances.TaskQueueViewModel.CurrentController);
+            if (value && Instances.TaskQueueViewModel.SelectedController != null)
+            {
+                Instances.TaskQueueViewModel.ShouldShow = (int)Instances.TaskQueueViewModel.SelectedController.ControllerType;
+            }
         }
-    }
 
     public void CheckDebug()
     {

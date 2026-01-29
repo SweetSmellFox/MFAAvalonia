@@ -412,7 +412,7 @@
                                 </DataTemplate>
                             </ComboBox.ItemTemplate>
                             <ComboBox.SelectionBoxItemTemplate>
-                                <DataTemplate>
+                                <DataTemplate x:DataType="maa:MaaInterface+MaaResourceController">
                                     <Grid ColumnDefinitions="Auto,*,Auto">
                                         <controls:DisplayIcon Grid.Column="0" IconSource="{Binding ResolvedIcon}"
                                                               IconSize="20" IsVisible="{Binding HasIcon}"
@@ -776,24 +776,24 @@
                                         </Grid>
                                     </DataTemplate>
                                 </ComboBox.ItemTemplate>
-                                <ComboBox.SelectionBoxItemTemplate>
-                                    <DataTemplate>
-                                        <Grid ColumnDefinitions="Auto,*,Auto">
-                                            <controls:DisplayIcon Grid.Column="0" IconSource="{Binding ResolvedIcon}"
-                                                                  IconSize="20" IsVisible="{Binding HasIcon}"
-                                                                  Margin="0,0,6,0"
-                                                                  VerticalAlignment="Center" />
-                                            <TextBlock Background="Transparent" Foreground="{DynamicResource SukiText}"
-                                                       Grid.Column="1"
-                                                       Text="{Binding DisplayName}"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       VerticalAlignment="Center" />
-                                            <controls:TooltipBlock MaxWidth="40" Grid.Column="2"
-                                                                   IsVisible="{Binding HasDescription}"
-                                                                   TooltipText="{Binding DisplayDescription}" />
-                                        </Grid>
-                                    </DataTemplate>
-                                </ComboBox.SelectionBoxItemTemplate>
+                                                <ComboBox.SelectionBoxItemTemplate>
+                                                    <DataTemplate x:DataType="maa:MaaInterface+MaaResourceController">
+                                                        <Grid ColumnDefinitions="Auto,*,Auto">
+                                                            <controls:DisplayIcon Grid.Column="0" IconSource="{Binding ResolvedIcon}"
+                                                                                  IconSize="20" IsVisible="{Binding HasIcon}"
+                                                                                  Margin="0,0,6,0"
+                                                                                  VerticalAlignment="Center" />
+                                                            <TextBlock Background="Transparent" Foreground="{DynamicResource SukiText}"
+                                                                       Grid.Column="1"
+                                                                       Text="{Binding DisplayName}"
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       VerticalAlignment="Center" />
+                                                            <controls:TooltipBlock MaxWidth="40" Grid.Column="2"
+                                                                                   IsVisible="{Binding HasDescription}"
+                                                                                   TooltipText="{Binding DisplayDescription}" />
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ComboBox.SelectionBoxItemTemplate>
                             </ComboBox>
                         </Grid>
 

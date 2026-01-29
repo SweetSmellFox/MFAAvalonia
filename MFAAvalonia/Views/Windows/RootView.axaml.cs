@@ -187,16 +187,16 @@ public partial class RootView : SukiWindow
         bool showTime = true) =>
         MaaProcessor.Instance.AddLog(content, brush, weight, showTime);
 
-
     public static void AddLog(string content,
         IBrush? brush = null,
         string weight = "Regular",
         bool changeColor = true,
         bool showTime = true)
-        =>
-            MaaProcessor.Instance.AddLog(content, brush, weight, changeColor, showTime);
+        => MaaProcessor.Instance.AddLog(content, brush, weight, changeColor, showTime);
+
     public static void AddLogByKeys(string key, IBrush? brush = null, bool transformKey = true, params string[] formatArgsKeys)
         => MaaProcessor.Instance.AddLogByKey(key, brush, true, transformKey, formatArgsKeys);
+
     public static void AddLogByKey(string key, IBrush? brush = null, bool changeColor = true, bool transformKey = true, params string[] formatArgsKeys)
         => MaaProcessor.Instance.AddLogByKey(key, brush, changeColor, transformKey, formatArgsKeys);
     public static void AddMarkdown(string key, IBrush? brush = null, bool changeColor = true, bool transformKey = true, params string[] formatArgsKeys)
@@ -291,7 +291,14 @@ public partial class RootView : SukiWindow
                         }
 
                         GlobalConfiguration.SetValue(ConfigurationKeys.NoAutoStart, bool.FalseString);
-                        Instances.RootViewModel.LockController = (MaaProcessor.Interface?.Controller?.Count ?? 0) == 1;
+
+                        // 重新初始化控制器选项，确保 ControllerOptions 包含正确的控制器列表
+                        // 因为 TaskQueueViewModel.Initialize() 可能在 MaaProcessor.Interface初始化之前被调用
+                        Instances.TaskQueueViewModel.InitializeControllerOptions();
+
+                        // 只有当 SelectedController 不为 null 时才锁定控制器
+                        // Instances.RootViewModel.LockController = (MaaProcessor.Interface?.Controller?.Count ?? 0) == 1
+                        //     && Instances.TaskQueueViewModel.SelectedController != null;
 
                         ConfigurationManager.Current.SetValue(ConfigurationKeys.EnableEdit, ConfigurationManager.Current.GetValue(ConfigurationKeys.EnableEdit, false));
                         DragItemViewModel? tempTask = null;

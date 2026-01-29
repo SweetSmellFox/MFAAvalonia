@@ -80,53 +80,61 @@ public partial class TaskQueueViewModel : ViewModelBase
     /// 初始化控制器列表
     /// 从MaaInterface.Controller加载，如果为空则使用默认的Adb和Win32
     /// </summary>
-    public void InitializeControllerOptions()
-    {
-        try
+        public void InitializeControllerOptions()
         {
-            var controllers = MaaProcessor.Interface?.Controller;
-            if (controllers is { Count: > 0 })
+            try
             {
-                var filteredControllers = controllers
-                    .Where(IsControllerSupportedOnCurrentSystem)
-                    .ToList();
-
-                if (filteredControllers.Count > 0)
+                var controllers = MaaProcessor.Interface?.Controller;
+                if (controllers is { Count: > 0 })
                 {
-                    // 从interface配置中加载控制器列表
-                    foreach (var controller in filteredControllers)
+                    var filteredControllers = controllers
+                        .Where(IsControllerSupportedOnCurrentSystem)
+                        .ToList();
+    
+                    if (filteredControllers.Count > 0)
                     {
-                        controller.InitializeDisplayName();
+                        // 从interface配置中加载控制器列表
+                        foreach (var controller in filteredControllers)
+                        {
+                            controller.InitializeDisplayName();
+                        }
+                        ControllerOptions = new ObservableCollection<MaaInterface.MaaResourceController>(filteredControllers);
                     }
-                    ControllerOptions = new ObservableCollection<MaaInterface.MaaResourceController>(filteredControllers);
+                    else
+                    {
+                        // 过滤后为空则使用默认控制器
+                        var defaultControllers = CreateDefaultControllers();
+                        ControllerOptions = new ObservableCollection<MaaInterface.MaaResourceController>(defaultControllers);
+                    }
                 }
                 else
                 {
-                    // 过滤后为空则使用默认控制器
+                    // 使用默认的Adb和Win32控制器
                     var defaultControllers = CreateDefaultControllers();
                     ControllerOptions = new ObservableCollection<MaaInterface.MaaResourceController>(defaultControllers);
                 }
+    
+                // 根据当前控制器类型选择对应的控制器
+                // 使用 PostOnMainThread 延迟设置 SelectedController，确保 ComboBox 已完成 ItemsSource 更新
+                var targetController = ControllerOptions.FirstOrDefault(c => c.ControllerType == CurrentController)
+                    ?? ControllerOptions.FirstOrDefault();
+                DispatcherHelper.PostOnMainThread(() =>
+                {
+                    SelectedController = targetController;
+                });
             }
-            else
+            catch (Exception e)
             {
-                // 使用默认的Adb和Win32控制器
+                LoggerHelper.Error(e);
+                // 出错时使用默认控制器
                 var defaultControllers = CreateDefaultControllers();
                 ControllerOptions = new ObservableCollection<MaaInterface.MaaResourceController>(defaultControllers);
+                DispatcherHelper.PostOnMainThread(() =>
+                {
+                    SelectedController = ControllerOptions.FirstOrDefault();
+                });
             }
-
-            // 根据当前控制器类型选择对应的控制器
-            SelectedController = ControllerOptions.FirstOrDefault(c => c.ControllerType == CurrentController)
-                ?? ControllerOptions.FirstOrDefault();
         }
-        catch (Exception e)
-        {
-            LoggerHelper.Error(e);
-            // 出错时使用默认控制器
-            var defaultControllers = CreateDefaultControllers();
-            ControllerOptions = new ObservableCollection<MaaInterface.MaaResourceController>(defaultControllers);
-            SelectedController = ControllerOptions.FirstOrDefault();
-        }
-    }
 
     /// <summary>
     /// 判断控制器是否支持当前系统
@@ -168,6 +176,14 @@ public partial class TaskQueueViewModel : ViewModelBase
             };
             win32Controller.InitializeDisplayName();
             controllers.Add(win32Controller);
+
+            var gamePadController = new MaaInterface.MaaResourceController
+            {
+                Name = "Gamepad",
+                Type = MaaControllerTypes.Gamepad.ToJsonKey()
+            };
+            gamePadController.InitializeDisplayName();
+            controllers.Add(gamePadController);
         }
         if (OperatingSystem.IsMacOS())
         {
@@ -908,6 +924,9 @@ public partial class TaskQueueViewModel : ViewModelBase
 
     private void UpdateDeviceList(ObservableCollection<object> devices, int index)
     {
+        // 使用同步方式更新设备列表，确保在 AutoDetectDevice 返回前设备已更新
+        // 这对于 Win32 连接失败后重试时正确检测窗口至关重要
+        //DispatcherHelper.RunOnMainThread 已经是同步的（使用 Dispatcher.UIThread.Invoke）
         DispatcherHelper.RunOnMainThread(() =>
         {
             Devices = devices;
@@ -1082,7 +1101,7 @@ public partial class TaskQueueViewModel : ViewModelBase
             MaaProcessor.Instance.Config.PlayCover = savedConfig;
         }
     }
-    
+
     private void HandleDetectionError(Exception ex, MaaControllerTypes controllerType)
     {
         var targetKey = controllerType switch
@@ -1131,13 +1150,14 @@ public partial class TaskQueueViewModel : ViewModelBase
             ChangedDevice(savedDevice);
             return;
         }
-        
+
         if (refresh
-                || CurrentController != MaaControllerTypes.Adb
-                || !ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.RememberAdb, true)
-                || MaaProcessor.Instance.Config.AdbDevice.AdbPath != "adb"
-                || !ConfigurationManager.CurrentInstance.TryGetValue(ConfigurationKeys.AdbDevice, out AdbDeviceInfo savedDevice1,
-                    new UniversalEnumConverter<AdbInputMethods>(), new UniversalEnumConverter<AdbScreencapMethods>())) {
+            || CurrentController != MaaControllerTypes.Adb
+            || !ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.RememberAdb, true)
+            || MaaProcessor.Instance.Config.AdbDevice.AdbPath != "adb"
+            || !ConfigurationManager.CurrentInstance.TryGetValue(ConfigurationKeys.AdbDevice, out AdbDeviceInfo savedDevice1,
+                new UniversalEnumConverter<AdbInputMethods>(), new UniversalEnumConverter<AdbScreencapMethods>()))
+        {
             _refreshCancellationTokenSource?.Cancel();
             _refreshCancellationTokenSource = new CancellationTokenSource();
             if (inTask)
@@ -1526,117 +1546,117 @@ public partial class TaskQueueViewModel : ViewModelBase
     /// <summary>
     /// 更新 Live View 图像（仿 WPF：直接写入缓冲）
     /// </summary>
-        /// <summary>
-        /// 更新 Live View 图像（仿 WPF：直接写入缓冲）
-        /// </summary>
-        public async Task UpdateLiveViewImageAsync(MaaImageBuffer? buffer)
+    /// <summary>
+    /// 更新 Live View 图像（仿 WPF：直接写入缓冲）
+    /// </summary>
+    public async Task UpdateLiveViewImageAsync(MaaImageBuffer? buffer)
+    {
+        if (!await _liveViewSemaphore.WaitAsync(0))
         {
-            if (!await _liveViewSemaphore.WaitAsync(0))
+            if (++_liveViewSemaphoreFailCount < 3)
             {
-                if (++_liveViewSemaphoreFailCount < 3)
-                {
-                    buffer?.Dispose();
-                    return;
-                }
-    
-                _liveViewSemaphoreFailCount = 0;
-    
-                if (_liveViewSemaphoreCurrentCount < LiveViewSemaphoreMaxCount)
-                {
-                    _liveViewSemaphoreCurrentCount++;
-                    _liveViewSemaphore.Release();
-                    LoggerHelper.Info($"LiveView Semaphore Full, increase semaphore count to {_liveViewSemaphoreCurrentCount}");
-                }
-    
                 buffer?.Dispose();
                 return;
             }
-    
-            try
+
+            _liveViewSemaphoreFailCount = 0;
+
+            if (_liveViewSemaphoreCurrentCount < LiveViewSemaphoreMaxCount)
             {
-                var count = Interlocked.Increment(ref _liveViewImageCount);
-                var index = count % _liveViewImageCache.Length;
-    
-                if (buffer == null)
-                {
-                    await Dispatcher.UIThread.InvokeAsync(() =>
-                    {
-                        LiveViewImage = null;
-                        _liveViewWriteableBitmap?.Dispose();
-                        _liveViewWriteableBitmap = null;
-                        Array.Fill(_liveViewImageCache, null);
-                        _liveViewImageNewestCount = 0;
-                        _liveViewImageCount = 0;
-                    });
-                    return;
-                }
-    
-                if (!buffer.TryGetRawData(out var rawData, out var width, out var height, out _))
-                {
-                    return;
-                }
-    
-                if (rawData == IntPtr.Zero || width <= 0 || height <= 0)
-                {
-                    return;
-                }
-    
-                if (buffer.Channels is not (3 or 4))
-                {
-                    return;
-                }
-    
-                if (count <= _liveViewImageNewestCount)
-                {
-                    return;
-                }
-    
-                // 关键修复：在 UI 线程调用中使用 buffer，确保在使用期间不会被释放
-                // 使用 Invoke 而不是 InvokeAsync，确保同步执行完成后再释放 buffer
+                _liveViewSemaphoreCurrentCount++;
+                _liveViewSemaphore.Release();
+                LoggerHelper.Info($"LiveView Semaphore Full, increase semaphore count to {_liveViewSemaphoreCurrentCount}");
+            }
+
+            buffer?.Dispose();
+            return;
+        }
+
+        try
+        {
+            var count = Interlocked.Increment(ref _liveViewImageCount);
+            var index = count % _liveViewImageCache.Length;
+
+            if (buffer == null)
+            {
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    try
-                    {
-                        // 再次验证指针有效性（防止在等待期间失效）
-                        if (rawData != IntPtr.Zero && width > 0 && height > 0)
-                        {
-                            _liveViewImageCache[index] = WriteBgrToBitmap(rawData, width, height, buffer.Channels, _liveViewImageCache[index]);
-                            LiveViewImage = _liveViewImageCache[index];
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        LoggerHelper.Warning($"LiveView WriteBgrToBitmap failed: {ex.Message}");
-                    }
+                    LiveViewImage = null;
+                    _liveViewWriteableBitmap?.Dispose();
+                    _liveViewWriteableBitmap = null;
+                    Array.Fill(_liveViewImageCache, null);
+                    _liveViewImageNewestCount = 0;
+                    _liveViewImageCount = 0;
                 });
-    
-                Interlocked.Exchange(ref _liveViewImageNewestCount, count);
-                _liveViewSemaphoreFailCount = 0;
-    
-                var now = DateTime.UtcNow;
-                Interlocked.Increment(ref _liveViewFrameCount);
-                var totalSeconds = (now - _liveViewFpsWindowStart).TotalSeconds;
-                if (totalSeconds >= 1)
+                return;
+            }
+
+            if (!buffer.TryGetRawData(out var rawData, out var width, out var height, out _))
+            {
+                return;
+            }
+
+            if (rawData == IntPtr.Zero || width <= 0 || height <= 0)
+            {
+                return;
+            }
+
+            if (buffer.Channels is not (3 or 4))
+            {
+                return;
+            }
+
+            if (count <= _liveViewImageNewestCount)
+            {
+                return;
+            }
+
+            // 关键修复：在 UI 线程调用中使用 buffer，确保在使用期间不会被释放
+            // 使用 Invoke 而不是 InvokeAsync，确保同步执行完成后再释放 buffer
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                try
                 {
-                    var frameCount = Interlocked.Exchange(ref _liveViewFrameCount, 0);
-                    _liveViewFpsWindowStart = now;
-                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    // 再次验证指针有效性（防止在等待期间失效）
+                    if (rawData != IntPtr.Zero && width > 0 && height > 0)
                     {
-                        LiveViewFps = frameCount / totalSeconds;
-                    });
+                        _liveViewImageCache[index] = WriteBgrToBitmap(rawData, width, height, buffer.Channels, _liveViewImageCache[index]);
+                        LiveViewImage = _liveViewImageCache[index];
+                    }
                 }
-            }
-            catch (Exception ex)
+                catch (Exception ex)
+                {
+                    LoggerHelper.Warning($"LiveView WriteBgrToBitmap failed: {ex.Message}");
+                }
+            });
+
+            Interlocked.Exchange(ref _liveViewImageNewestCount, count);
+            _liveViewSemaphoreFailCount = 0;
+
+            var now = DateTime.UtcNow;
+            Interlocked.Increment(ref _liveViewFrameCount);
+            var totalSeconds = (now - _liveViewFpsWindowStart).TotalSeconds;
+            if (totalSeconds >= 1)
             {
-                LoggerHelper.Warning($"LiveView update failed: {ex.Message}");
-            }
-            finally
-            {
-                buffer?.Dispose();
-                _liveViewSemaphore.Release();
+                var frameCount = Interlocked.Exchange(ref _liveViewFrameCount, 0);
+                _liveViewFpsWindowStart = now;
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    LiveViewFps = frameCount / totalSeconds;
+                });
             }
         }
-    
+        catch (Exception ex)
+        {
+            LoggerHelper.Warning($"LiveView update failed: {ex.Message}");
+        }
+        finally
+        {
+            buffer?.Dispose();
+            _liveViewSemaphore.Release();
+        }
+    }
+
 
     private static WriteableBitmap WriteBgrToBitmap(IntPtr bgrData, int width, int height, int channels, WriteableBitmap? targetBitmap)
     {
@@ -1746,7 +1766,7 @@ public partial class TaskQueueViewModel : ViewModelBase
         {
             ConfigurationManager.SwitchConfiguration(value);
         }
-    }
-}
 
-#endregion
+    }
+    #endregion
+}
