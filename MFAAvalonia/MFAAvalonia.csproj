@@ -34,10 +34,10 @@
     <!-- Version -->
     <PropertyGroup>
         <ApplicationRevision>0</ApplicationRevision>
-        <ApplicationVersion>2.6.0</ApplicationVersion>
+        <ApplicationVersion>2.6.1</ApplicationVersion>
         <Version>1.1</Version>
-        <FileVersion>2.6.0</FileVersion>
-        <AssemblyVersion>2.6.0</AssemblyVersion>
+        <FileVersion>2.6.1</FileVersion>
+        <AssemblyVersion>2.6.1</AssemblyVersion>
         <InformationalVersion>0.0.1</InformationalVersion>
     </PropertyGroup>
 
@@ -60,7 +60,7 @@
         <PackageReference Include="FluentIcons.Avalonia.Fluent" Version="2.0.316.1" />
         <PackageReference Include="Lang.Avalonia" Version="11.3.9" />
         <PackageReference Include="Maa.AgentBinary" Version="1.2.0" />
-        <PackageReference Include="Maa.Framework" Version="5.4.0" />
+        <PackageReference Include="Maa.Framework" Version="5.4.0-preview.1" />
         <PackageReference Include="Maa.Framework.Runtimes" Version="5.6.0-alpha.5" />
         <PackageReference Include="MailKit" Version="4.14.1" />
         <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="5.0.0" />
