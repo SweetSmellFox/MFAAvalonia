@@ -458,6 +458,18 @@ public partial class MaaInterface
 
             return (true, null);
         }
+
+        public void Merge(MaaInterfaceOption other)
+        {
+             if (other == null) return;
+             if (!string.IsNullOrEmpty(other.Label)) Label = other.Label;
+             if (!string.IsNullOrEmpty(other.Description)) Description = other.Description;
+             if (!string.IsNullOrEmpty(other.Icon)) Icon = other.Icon;
+             if (other.Cases != null) Cases = other.Cases;
+             if (other.Inputs != null) Inputs = other.Inputs;
+             if (other.PipelineOverride != null) PipelineOverride = other.PipelineOverride;
+             if (!string.IsNullOrEmpty(other.DefaultCase)) DefaultCase = other.DefaultCase;
+        }
     }
 
     public class MaaInterfaceSelectAdvanced
@@ -641,6 +653,27 @@ public partial class MaaInterface
         public MaaInterfaceTask Clone()
         {
             return JsonConvert.DeserializeObject<MaaInterfaceTask>(ToString()) ?? new MaaInterfaceTask();
+        }
+
+        public void Merge(MaaInterfaceTask other)
+        {
+             if (other == null) return;
+             // Name is essentially the key, so we don't need to merge it if we found it by key
+             if (!string.IsNullOrEmpty(other.Label)) Label = other.Label;
+             if (!string.IsNullOrEmpty(other.DisplayNameOverride)) DisplayNameOverride = other.DisplayNameOverride;
+             if (!string.IsNullOrEmpty(other.Remark)) Remark = other.Remark;
+             if (!string.IsNullOrEmpty(other.Entry)) Entry = other.Entry;
+             if (other.Check != null) Check = other.Check;
+             if (!string.IsNullOrEmpty(other.Description)) Description = other.Description;
+             if (!string.IsNullOrEmpty(other.Icon)) Icon = other.Icon;
+             if (other.Resource != null) Resource = other.Resource;
+             if (other.Controller != null) Controller = other.Controller;
+             if (other.Document != null) Document = other.Document;
+             if (other.Repeatable != null) Repeatable = other.Repeatable;
+             if (other.RepeatCount != null) RepeatCount = other.RepeatCount;
+             if (other.Advanced != null) Advanced = other.Advanced;
+             if (other.Option != null) Option = other.Option;
+             if (other.PipelineOverride != null) PipelineOverride = other.PipelineOverride;
         }
     }
 
@@ -864,6 +897,10 @@ public partial class MaaInterface
         [JsonProperty("permission_required")]
         public bool? PermissionRequired { get; set; }
         
+        [JsonConverter(typeof(GenericSingleOrListConverter<string>))]
+        [JsonProperty("attach_resource_path")]
+        public List<string>? AttachResourcePath { get; set; }
+        
         [JsonProperty("adb")]
         public MaaResourceControllerAdb? Adb { get; set; }
         [JsonProperty("win32")]
@@ -946,6 +983,10 @@ public partial class MaaInterface
 
     [JsonProperty("interface_version")]
     public int? InterfaceVersion { get; set; }
+
+    [JsonProperty("import")]
+    [JsonConverter(typeof(GenericSingleOrListConverter<string>))]
+    public List<string>? Import { get; set; }
 
     /// <summary>
     /// 多语言支持配置，键为语言代码，值为对应的翻译文件路径（相对于 interface.json 同目录）
@@ -1156,6 +1197,135 @@ public partial class MaaInterface
         return sb.ToString();
     }
 
+    /// <summary>
+    /// 将另一个 MaaInterface 合并到当前实例中 (传入的 other 实例优先级更高，会覆盖当前实例的同名字段)
+    /// </summary>
+    public void Merge(MaaInterface? other)
+    {
+        if (other == null) return;
+
+        if (other.InterfaceVersion != null) InterfaceVersion = other.InterfaceVersion;
+        if (!string.IsNullOrEmpty(other.RID)) RID = other.RID;
+        if (other.Multiplatform != null) Multiplatform = other.Multiplatform;
+        if (!string.IsNullOrEmpty(other.Name)) Name = other.Name;
+        if (!string.IsNullOrEmpty(other.Label)) Label = other.Label;
+        if (!string.IsNullOrEmpty(other.Version)) Version = other.Version;
+        if (!string.IsNullOrEmpty(other.MFAMaxVersion)) MFAMaxVersion = other.MFAMaxVersion;
+        if (!string.IsNullOrEmpty(other.MFAMinVersion)) MFAMinVersion = other.MFAMinVersion;
+        if (!string.IsNullOrEmpty(other.Welcome)) Welcome = other.Welcome;
+        if (!string.IsNullOrEmpty(other.Message)) Message = other.Message;
+        if (!string.IsNullOrEmpty(other.Github)) Github = other.Github;
+        if (!string.IsNullOrEmpty(other.Url)) Url = other.Url;
+        if (!string.IsNullOrEmpty(other.Title)) Title = other.Title;
+        if (!string.IsNullOrEmpty(other.CustomTitle)) CustomTitle = other.CustomTitle;
+        if (!string.IsNullOrEmpty(other.DefaultController)) DefaultController = other.DefaultController;
+        if (other.LockController) LockController = other.LockController;
+        if (!string.IsNullOrEmpty(other.Contact)) Contact = other.Contact;
+        if (!string.IsNullOrEmpty(other.Description)) Description = other.Description;
+        if (!string.IsNullOrEmpty(other.License)) License = other.License;
+        if (other.Agent != null) Agent = other.Agent;
+
+        Advanced = MergeDictionaries(Advanced, other.Advanced);
+        Option = MergeDictionaries(Option, other.Option);
+        Languages = MergeDictionaries(Languages, other.Languages);
+        
+        // Merge AdditionalData
+        if (other.AdditionalData != null)
+        {
+            foreach (var kvp in other.AdditionalData)
+            {
+                AdditionalData[kvp.Key] = kvp.Value;
+            }
+        }
+
+        Controller = MergeLists(Controller, other.Controller, c => c.Name);
+        Resource = MergeLists(Resource, other.Resource, r => r.Name);
+        Task = MergeTasks(Task, other.Task);
+    }
+
+    private static Dictionary<TK, TV>? MergeDictionaries<TK, TV>(Dictionary<TK, TV>? first, Dictionary<TK, TV>? second) where TK : notnull
+    {
+        if (first == null && second == null) return null;
+        if (first == null) return new Dictionary<TK, TV>(second!);
+        if (second == null) return new Dictionary<TK, TV>(first);
+
+        var result = new Dictionary<TK, TV>(first);
+        foreach (var kvp in second)
+        {
+            if (typeof(TV) == typeof(MaaInterfaceOption) && result.TryGetValue(kvp.Key, out var existingVal) && existingVal is MaaInterfaceOption opt1 && kvp.Value is MaaInterfaceOption opt2)
+            {
+                opt1.Merge(opt2);
+            }
+            else
+            {
+                result[kvp.Key] = kvp.Value;
+            }
+        }
+        return result;
+    }
+
+    private static List<MaaInterfaceTask>? MergeTasks(List<MaaInterfaceTask>? first, List<MaaInterfaceTask>? second)
+    {
+        if (first == null && second == null) return null;
+        if (first == null) return new List<MaaInterfaceTask>(second!);
+        if (second == null) return new List<MaaInterfaceTask>(first);
+
+        // 深拷贝一份 first
+        var result = first.Select(t => t.Clone()).ToList();
+
+        foreach (var item in second)
+        {
+            var key = item.Name;
+            if (!string.IsNullOrEmpty(key))
+            {
+                var existingItem = result.FirstOrDefault(i => i.Name == key);
+                if (existingItem != null)
+                {
+                    existingItem.Merge(item);
+                }
+                else
+                {
+                    result.Add(item);
+                }
+            }
+            else
+            {
+                result.Add(item);
+            }
+        }
+        return result;
+    }
+
+    private static List<T>? MergeLists<T>(List<T>? first, List<T>? second, Func<T, string?> keySelector)
+    {
+        if (first == null && second == null) return null;
+        if (first == null) return new List<T>(second!);
+        if (second == null) return new List<T>(first);
+
+        var result = new List<T>(first);
+        
+        foreach (var item in second)
+        {
+            var key = keySelector(item);
+            if (!string.IsNullOrEmpty(key))
+            {
+                var index = result.FindIndex(i => keySelector(i) == key);
+                if (index >= 0)
+                {
+                    result[index] = item;
+                }
+                else
+                {
+                    result.Add(item);
+                }
+            }
+            else
+            {
+                result.Add(item);
+            }
+        }
+        return result;
+    }
 
     public override string? ToString()
     {

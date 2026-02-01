@@ -1,0 +1,96 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:other="clr-namespace:MFAAvalonia.ViewModels.Other"
+             xmlns:suki="https://github.com/kikipoulet/SukiUI"
+             xmlns:avalonia1="clr-namespace:FluentIcons.Avalonia;assembly=FluentIcons.Avalonia"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="50"
+             x:Class="MFAAvalonia.Views.UserControls.InstanceTabBar"
+             x:DataType="other:InstanceTabBarViewModel">
+    
+    <UserControl.Styles>
+        <Style Selector="Border.InstanceTab">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0,0,0,2"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="CornerRadius" Value="4,4,0,0"/>
+        </Style>
+        <Style Selector="Border.InstanceTab:pointerover">
+            <Setter Property="Background" Value="{DynamicResource SukiLightBorderBrush}"/>
+        </Style>
+        <Style Selector="Border.InstanceTab.Active">
+            <Setter Property="BorderBrush" Value="{DynamicResource SukiPrimaryColor}"/>
+            <Setter Property="Background" Value="{DynamicResource SukiCardBackground}"/>
+        </Style>
+        <Style Selector="Border.InstanceTab.Active TextBlock">
+            <Setter Property="FontWeight" Value="Bold"/>
+        </Style>
+        <Style Selector="Ellipse.PulseAnimation">
+            <Style.Animations>
+                <Animation Duration="0:0:1.5" IterationCount="INFINITE" Easing="CubicEaseInOut">
+                    <KeyFrame Cue="0%">
+                        <Setter Property="Opacity" Value="1" />
+                    </KeyFrame>
+                    <KeyFrame Cue="50%">
+                        <Setter Property="Opacity" Value="0.4" />
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                        <Setter Property="Opacity" Value="1" />
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid ColumnDefinitions="*,Auto">
+        <ScrollViewer x:Name="TabScrollViewer" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
+            <ItemsControl ItemsSource="{Binding Tabs}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" Spacing="4"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Classes="InstanceTab" 
+                                Classes.Active="{Binding IsActive}"
+                                PointerPressed="OnTabPointerPressed">
+                            <Border.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="重命名" 
+                                              Command="{Binding $parent[UserControl].((other:InstanceTabBarViewModel)DataContext).RenameInstanceCommand}"
+                                              CommandParameter="{Binding .}"/>
+                                    <MenuItem Header="关闭" 
+                                              Command="{Binding $parent[UserControl].((other:InstanceTabBarViewModel)DataContext).CloseInstanceCommand}"
+                                              CommandParameter="{Binding .}"/>
+                                </ContextMenu>
+                            </Border.ContextMenu>
+                            
+                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Name}" 
+                                           VerticalAlignment="Center"/>
+                                <Ellipse Width="8" Height="8"
+                                         Fill="LimeGreen"
+                                         IsVisible="{Binding IsRunning}"
+                                         VerticalAlignment="Center"
+                                         Classes="PulseAnimation"/>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <!-- + 按钮 -->
+        <Button Grid.Column="1" 
+                Classes="Basic"
+                Margin="8,0,0,0"
+                Command="{Binding AddInstanceCommand}"
+                ToolTip.Tip="新建实例">
+             <avalonia1:FluentIcon Icon="Add" IconSize="Size16" />
+        </Button>
+    </Grid>
+</UserControl>

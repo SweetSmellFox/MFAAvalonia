@@ -48,7 +48,10 @@ public partial class AboutUserControl : UserControl
             return;
         }
 
-        MaaProcessor.Instance.SetTasker();
+        foreach (var processor in MaaProcessor.Processors)
+        {
+            processor.SetTasker();
+        }
 
         var baseDirectory = AppContext.BaseDirectory;
         var debugDirectory = Path.Combine(baseDirectory, "debug");

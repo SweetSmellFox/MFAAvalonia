@@ -92,15 +92,17 @@ public partial class RootViewModel : ViewModelBase
     
         partial void OnLockControllerChanged(bool value)
         {
-            if (value && Instances.TaskQueueViewModel.SelectedController != null)
+            var vm = Instances.InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel;
+            if (value && vm?.SelectedController != null)
             {
-                Instances.TaskQueueViewModel.ShouldShow = (int)Instances.TaskQueueViewModel.SelectedController.ControllerType;
+                vm.ShouldShow = (int)vm.SelectedController.ControllerType;
             }
         }
 
     public void CheckDebug()
     {
-        if (IsDebugMode && _shouldTip && !MaaProcessor.Instance.IsV3)
+        var vm = Instances.InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel;
+        if (IsDebugMode && _shouldTip && vm != null && !vm.Processor.IsV3)
         {
             DispatcherHelper.PostOnMainThread(() =>
             {

@@ -42,7 +42,7 @@ public partial class SettingsViewModel : ViewModelBase
             Instances.RootViewModel.ToggleVisibleCommand);
 
         SetHotKey(ref _hotKeyLinkStart, _hotKeyLinkStart, ConfigurationKeys.LinkStart,
-            Instances.TaskQueueViewModel.ToggleCommand);
+            new RelayCommand(() => Instances.InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel?.ToggleCommand.Execute(null)));
     }
 
     #region 配置
@@ -110,7 +110,7 @@ public partial class SettingsViewModel : ViewModelBase
     public MFAHotKey HotKeyLinkStart
     {
         get => _hotKeyLinkStart;
-        set => SetHotKey(ref _hotKeyLinkStart, value, ConfigurationKeys.LinkStart, Instances.TaskQueueViewModel.ToggleCommand);
+        set => SetHotKey(ref _hotKeyLinkStart, value, ConfigurationKeys.LinkStart, new RelayCommand(() => Instances.InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel?.ToggleCommand.Execute(null)));
     }
 
     public void SetHotKey(ref MFAHotKey value, MFAHotKey? newValue, string type, ICommand command)

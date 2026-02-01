@@ -539,7 +539,7 @@
                                   Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
                         </Button>
                         <ContentControl
-                            Content="{Binding IsConnected, Converter={StaticResource ConnectedConditionConverter}, Source={x:Static helper:Instances.TaskQueueViewModel}}" />
+                            Content="{Binding IsConnected, Converter={StaticResource ConnectedConditionConverter}}" />
                         <Border x:Name="TaskToggleBorder" Height="30"
                                 CornerRadius="999"
                                 ClipToBounds="True"
@@ -904,7 +904,7 @@
                                       Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
                             </Button>
                             <ContentControl
-                                Content="{Binding IsConnected, Converter={StaticResource ConnectedConditionConverterCompact}, Source={x:Static helper:Instances.TaskQueueViewModel}}" />
+                                Content="{Binding IsConnected, Converter={StaticResource ConnectedConditionConverterCompact}}" />
                         </StackPanel>
                     </Grid>
                 </Grid>
@@ -1056,8 +1056,7 @@
                                 ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.StartTask}}">
                             <Button.IsVisible>
                                 <MultiBinding Converter="{x:Static converters:BooleanAndConverter.NegateSecond}">
-                                    <Binding Path="IsCompactMode"
-                                             Source="{x:Static helper:Instances.TaskQueueViewModel}" />
+                                    <Binding Path="IsCompactMode" />
                                     <Binding Path="IsRunning"
                                              Source="{x:Static helper:Instances.RootViewModel}" />
                                 </MultiBinding>
@@ -1084,8 +1083,7 @@
                                 ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.StopTask}}">
                             <Button.IsVisible>
                                 <MultiBinding Converter="{x:Static converters:BooleanAndConverter.Instance}">
-                                    <Binding Path="IsCompactMode"
-                                             Source="{x:Static helper:Instances.TaskQueueViewModel}" />
+                                    <Binding Path="IsCompactMode" />
                                     <Binding Path="IsRunning"
                                              Source="{x:Static helper:Instances.RootViewModel}" />
                                 </MultiBinding>
@@ -1228,7 +1226,7 @@
                                Text="{markup:I18n {x:Static helper:LangKeys.LiveView}}"
                                VerticalAlignment="Center" />
                 </dashboard:DashboardCard.TitleContent>
-                <Grid IsVisible="{Binding IsLiveViewExpanded, Source={x:Static helper:Instances.TaskQueueViewModel}}"
+                <Grid IsVisible="{Binding IsLiveViewExpanded}"
                       Margin="0,8,0,0"
                       HorizontalAlignment="Center"
                       VerticalAlignment="Top">
@@ -1242,8 +1240,8 @@
                             VerticalAlignment="Center">
                         <Border CornerRadius="12" ClipToBounds="True">
                             <Image
-                                Source="{Binding LiveViewImage, Source={x:Static helper:Instances.TaskQueueViewModel}}"
-                                IsVisible="{Binding LiveViewImage, Source={x:Static helper:Instances.TaskQueueViewModel}, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                Source="{Binding LiveViewImage}"
+                                IsVisible="{Binding LiveViewImage, Converter={x:Static ObjectConverters.IsNotNull}}"
                                 Stretch="Uniform"
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center" />
@@ -1268,7 +1266,6 @@
                                     <Binding Path="IsRunning"
                                              Source="{x:Static helper:Instances.RootViewModel}" />
                                     <Binding Path="LiveViewImage"
-                                             Source="{x:Static helper:Instances.TaskQueueViewModel}"
                                              Converter="{x:Static ObjectConverters.IsNotNull}" />
                                 </MultiBinding>
                             </Grid.IsVisible>
@@ -1347,7 +1344,7 @@
                                            Foreground="{DynamicResource SukiText}" />
                                 <TextBlock Text=": " FontSize="11" Foreground="{DynamicResource SukiText}" />
                                 <TextBlock
-                                    Text="{Binding CurrentTaskName, Source={x:Static helper:Instances.TaskQueueViewModel}}"
+                                    Text="{Binding CurrentTaskName}"
                                     FontSize="11"
                                     Foreground="{DynamicResource SukiText}" />
                             </StackPanel>
@@ -1356,7 +1353,7 @@
                         <Grid Grid.Row="1" Grid.Column="0"
                               HorizontalAlignment="Left" Margin="8 0 0 8"
                               VerticalAlignment="Bottom"
-                              IsVisible="{Binding LiveViewImage, Source={x:Static helper:Instances.TaskQueueViewModel}, Converter={x:Static ObjectConverters.IsNotNull}}">
+                              IsVisible="{Binding LiveViewImage, Converter={x:Static ObjectConverters.IsNotNull}}">
                             <Border Background="{DynamicResource SukiCardBackground}"
                                     BorderBrush="{DynamicResource SukiControlBorderBrush}"
                                     BorderThickness="1"
@@ -1365,7 +1362,7 @@
                             <TextBlock Margin="8,4"
                                        FontSize="11"
                                        Foreground="{DynamicResource SukiText}"
-                                       Text="{Binding LiveViewFps, Source={x:Static helper:Instances.TaskQueueViewModel}, StringFormat='FPS: {0:F1}'}" />
+                                       Text="{Binding LiveViewFps, StringFormat='FPS: {0:F1}'}" />
 
                         </Grid>
                     </Grid>

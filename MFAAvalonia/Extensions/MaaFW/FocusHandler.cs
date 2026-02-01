@@ -2,7 +2,8 @@ using Avalonia.Media;
 using MaaFramework.Binding.Notification;
 using MFAAvalonia.Helper;
 using MFAAvalonia.Helper.Converters;
-using MFAAvalonia.Helper.ValueType;
+
+using MFAAvalonia.ViewModels.Pages;
 using MFAAvalonia.Views.Pages;
 using MFAAvalonia.Views.Windows;
 using Newtonsoft.Json;
@@ -20,10 +21,12 @@ namespace MFAAvalonia.Extensions.MaaFW;
 public class FocusHandler
 {
     private AutoInitDictionary autoInitDictionary;
+    private readonly TaskQueueViewModel _viewModel;
 
-    public FocusHandler(AutoInitDictionary autoInitDictionary)
+    public FocusHandler(AutoInitDictionary autoInitDictionary, TaskQueueViewModel viewModel)
     {
         this.autoInitDictionary = autoInitDictionary;
+        _viewModel = viewModel;
     }
 
     public void UpdateDictionary(AutoInitDictionary dictionary)
@@ -148,7 +151,7 @@ public class FocusHandler
                 {
                     var template = item.Value<string>();
                     var displayText = ReplacePlaceholders(template!.ResolveContentAsync().Result, detailsObj);
-                    RootView.AddMarkdown(TaskQueueView.ConvertCustomMarkup(displayText));
+                    _viewModel.AddMarkdown(TaskQueueView.ConvertCustomMarkup(displayText));
                 }
             }
         }
@@ -157,7 +160,7 @@ public class FocusHandler
         {
             var template = templateToken.Value<string>();
             var displayText = ReplacePlaceholders(template!.ResolveContentAsync().Result, detailsObj);
-            RootView.AddMarkdown(TaskQueueView.ConvertCustomMarkup(displayText));
+            _viewModel.AddMarkdown(TaskQueueView.ConvertCustomMarkup(displayText));
         }
     }
 
@@ -176,7 +179,7 @@ public class FocusHandler
                     foreach (var line in focus.Succeeded)
                     {
                         var (text, color) = ParseColorText(line);
-                        RootView.AddLog(HandleStringsWithVariables(text), color == null ? null : BrushHelper.ConvertToBrush(color));
+                        _viewModel.AddLog(HandleStringsWithVariables(text), color == null ? null : BrushHelper.ConvertToBrush(color));
                     }
                 }
                 break;
@@ -187,7 +190,7 @@ public class FocusHandler
                     foreach (var line in focus.Failed)
                     {
                         var (text, color) = ParseColorText(line);
-                        RootView.AddLog(HandleStringsWithVariables(text), color == null ? null : BrushHelper.ConvertToBrush(color));
+                        _viewModel.AddLog(HandleStringsWithVariables(text), color == null ? null : BrushHelper.ConvertToBrush(color));
                     }
                 }
                 break;
@@ -208,7 +211,7 @@ public class FocusHandler
                     foreach (var line in focus.Start)
                     {
                         var (text, color) = ParseColorText(line);
-                        RootView.AddLog(HandleStringsWithVariables(text), color == null ? null : BrushHelper.ConvertToBrush(color));
+                        _viewModel.AddLog(HandleStringsWithVariables(text), color == null ? null : BrushHelper.ConvertToBrush(color));
                     }
                 }
                 break;
@@ -305,7 +308,7 @@ public class FocusHandler
     /// </summary>
     public static string HandleStringsWithVariables(string content, AutoInitDictionary autoInitDictionary)
     {
-        var handler = new FocusHandler(autoInitDictionary);
+        var handler = new FocusHandler(autoInitDictionary, null!);
         return handler.HandleStringsWithVariables(content);
     }
 }

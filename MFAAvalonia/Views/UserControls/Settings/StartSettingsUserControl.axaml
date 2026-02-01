@@ -101,7 +101,7 @@
                                 BorderBrush="Transparent"
                                 BorderThickness="0"
                                 IsVisible="{calcBinding:Binding 'CurrentController == maa:MaaControllerTypes.Adb',
-                                            Source={x:Static helper:Instances.TaskQueueViewModel}}"
+                                            Source={x:Static helper:Instances.InstanceTabBarViewModel}, Path=ActiveTab.TaskQueueViewModel}"
                                 Command="{Binding QuickSettingsCommand}"
                                 Height="40"
                                 HorizontalAlignment="Center"

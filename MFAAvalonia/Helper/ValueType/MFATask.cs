@@ -1,6 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using MaaFramework.Binding;
 using MFAAvalonia.Extensions.MaaFW;
+using MFAAvalonia.ViewModels.Pages;
 using MFAAvalonia.Views.Windows;
 using MFAAvalonia.Helper;
 using Serilog;
@@ -35,6 +36,8 @@ public partial class MFATask : ObservableObject
     // [ObservableProperty] private Dictionary<string, MaaNode> _tasks = new();
     [ObservableProperty] private bool _isUpdateRelated;
 
+    public TaskQueueViewModel? OwnerViewModel { get; set; }
+
     public async Task<MFATaskStatus> Run(CancellationToken token)
     {
         try
@@ -46,8 +49,8 @@ public partial class MFATask : ObservableObject
                 token.ThrowIfCancellationRequested();
                 if (Type == MFATaskType.MAAFW)
                 {
-                    RootView.AddLogByKeys(LangKeys.TaskStart, null, true, LanguageHelper.GetLocalizedString(Name));
-                    Instances.TaskQueueViewModel.SetCurrentTaskName(LanguageHelper.GetLocalizedString(Name));
+                    (OwnerViewModel ?? Instances.InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel)?.AddLogByKey(LangKeys.TaskStart, (Avalonia.Media.IBrush?)null, true, true, LanguageHelper.GetLocalizedString(Name));
+                    (OwnerViewModel ?? Instances.InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel)?.SetCurrentTaskName(LanguageHelper.GetLocalizedString(Name));
                 }
                 await Action();
             }

@@ -4,7 +4,9 @@ using MaaFramework.Binding.Custom;
 using MFAAvalonia.Helper;
 using MFAAvalonia.Views.Windows;
 using System;
+using System.Linq;
 using System.Threading;
+using MFAAvalonia.ViewModels.Pages;
 
 namespace MFAAvalonia.Extensions.MaaFW.Custom;
 
@@ -52,21 +54,22 @@ public class MemoryLeakTestAction : IMaaCustomAction
             }
         }
 
-        RootView.AddLogByColor($"[内存测试]开始测试，迭代次数: {iterations}", "Orange");
+        var vm = GetViewModel(context);
+        vm?.AddLog($"[内存测试]开始测试，迭代次数: {iterations}", "Orange");
 
         var startMemory = GC.GetTotalMemory(false);
         var startTime = DateTime.Now;
 
         LoggerHelper.Info($"[内存测试]初始内存: {startMemory / (1024 * 1024)} MB");
-        RootView.AddLogByColor($"[内存测试]初始内存: {startMemory / (1024 * 1024)} MB", "Cyan");
+        vm?.AddLog($"[内存测试]初始内存: {startMemory / (1024 * 1024)} MB", "Cyan");
 
         for (int i = 0; i < iterations; i++)
         {
             // 检查是否被取消
-            if (MaaProcessor.Instance.CancellationTokenSource?.IsCancellationRequested == true)
-            {
-                throw new OperationCanceledException();
-            }
+            // if (MaaProcessor.Instance.CancellationTokenSource?.IsCancellationRequested == true)
+            // {
+            //     throw new OperationCanceledException();
+            // }
 
             // 高频截图测试
             TestScreenshot(context, i);
@@ -86,7 +89,7 @@ public class MemoryLeakTestAction : IMaaCustomAction
                 var message = $"[内存测试]迭代 {i + 1}/{iterations}, " + $"当前内存: {currentMemory / (1024 * 1024)} MB, " + $"增长: {memoryGrowth / (1024 * 1024)} MB, " + $"耗时: {elapsed.TotalSeconds:F1}s";
 
                 LoggerHelper.Info(message);
-                RootView.AddLogByColor(message, memoryGrowth > 100 * 1024 * 1024 ? "OrangeRed" : "LightGreen");
+                vm?.AddLog(message, memoryGrowth > 100 * 1024 * 1024 ? "OrangeRed" : "LightGreen");
             }
         }
 
@@ -95,13 +98,13 @@ public class MemoryLeakTestAction : IMaaCustomAction
         var totalGrowth = endMemory - startMemory;
         var totalTime = DateTime.Now - startTime;
 
-        RootView.AddLogByColor($"[内存测试]测试完成!", "Gold");
-        RootView.AddLogByColor($"[内存测试]总迭代: {iterations}", "Cyan");
-        RootView.AddLogByColor($"[内存测试]初始内存: {startMemory / (1024 * 1024)} MB", "Cyan");
-        RootView.AddLogByColor($"[内存测试]结束内存: {endMemory / (1024 * 1024)} MB", "Cyan");
-        RootView.AddLogByColor($"[内存测试]内存增长: {totalGrowth / (1024 * 1024)} MB", totalGrowth > 50 * 1024 * 1024 ? "OrangeRed" : "LightGreen");
-        RootView.AddLogByColor($"[内存测试]总耗时: {totalTime.TotalSeconds:F1}s", "Cyan");
-        RootView.AddLogByColor($"[内存测试]平均每次迭代内存增长: {(double)totalGrowth / iterations / 1024:F2} KB", "Cyan");
+        vm?.AddLog($"[内存测试]测试完成!", "Gold");
+        vm?.AddLog($"[内存测试]总迭代: {iterations}", "Cyan");
+        vm?.AddLog($"[内存测试]初始内存: {startMemory / (1024 * 1024)} MB", "Cyan");
+        vm?.AddLog($"[内存测试]结束内存: {endMemory / (1024 * 1024)} MB", "Cyan");
+        vm?.AddLog($"[内存测试]内存增长: {totalGrowth / (1024 * 1024)} MB", totalGrowth > 50 * 1024 * 1024 ? "OrangeRed" : "LightGreen");
+        vm?.AddLog($"[内存测试]总耗时: {totalTime.TotalSeconds:F1}s", "Cyan");
+        vm?.AddLog($"[内存测试]平均每次迭代内存增长: {(double)totalGrowth / iterations / 1024:F2} KB", "Cyan");
 
         // 强制 GC 后再次检查
         GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, true, true);
@@ -111,12 +114,14 @@ public class MemoryLeakTestAction : IMaaCustomAction
         var afterGcMemory = GC.GetTotalMemory(true);
         var leakedMemory = afterGcMemory - startMemory;
 
-        RootView.AddLogByColor($"[内存测试]GC后内存: {afterGcMemory / (1024 * 1024)} MB", "Cyan");
-        RootView.AddLogByColor($"[内存测试]疑似泄漏: {leakedMemory / (1024 * 1024)} MB",
+        vm?.AddLog($"[内存测试]GC后内存: {afterGcMemory / (1024 * 1024)} MB", "Cyan");
+        vm?.AddLog($"[内存测试]疑似泄漏: {leakedMemory / (1024 * 1024)} MB",
             leakedMemory > 20 * 1024 * 1024 ? "OrangeRed" : "LightGreen");
 
         return true;
     }
+
+    private TaskQueueViewModel? GetViewModel(IMaaContext context) => MaaProcessor.Processors.FirstOrDefault(p => p.MaaTasker == context.Tasker)?.ViewModel;
 
     /// <summary>
     /// 高频截图测试
@@ -140,7 +145,8 @@ public class MemoryLeakTestAction : IMaaCustomAction
         var height = imageBuffer.Height;
 
 
-        RootView.AddLog($"[内存测试]高频截图 #{iteration}: {width}x{height}");
+        var vm = GetViewModel(context);
+        vm?.AddLog($"[内存测试]高频截图 #{iteration}: {width}x{height}", (Avalonia.Media.IBrush?)null);
 
         // imageBuffer 会在 using 块结束时自动释放
     }
@@ -158,7 +164,8 @@ public class MemoryLeakTestAction : IMaaCustomAction
         context.Click(x, y);
 
 
-        RootView.AddLog($"[内存测试]高频点击 #{iteration}: ({x},{y})");
+        var vm = GetViewModel(context);
+        vm?.AddLog($"[内存测试]高频点击 #{iteration}: ({x},{y})");
 
     }
 }

@@ -94,7 +94,7 @@ public partial class PerformanceUserControlModel : ViewModelBase
                 }
                 GpuOptions.InsertRange(1, gpus);
                 ConfigurationManager.Current.SetValue(ConfigurationKeys.GPUs, GpuOptions);
-                MaaProcessor.Instance.SetTasker();
+                MaaProcessorManager.Instance.Current.SetTasker();
             }
 #endif
         }
@@ -109,7 +109,7 @@ public partial class PerformanceUserControlModel : ViewModelBase
                 if (GpuIndex > 0 && GpuIndex < GpuOptions.Count - 1)
                 {
                     GpuIndex = 0;
-                    MaaProcessor.Instance.SetTasker();
+                    MaaProcessorManager.Instance.Current.SetTasker();
                 }
                 while (GpuOptions.Count > 2)
                 {
@@ -193,15 +193,15 @@ public partial class PerformanceUserControlModel : ViewModelBase
             {
                 if (_gpuInitCompleted && Instances.IsResolved<RootViewModel>())
                 {
-                    ChangeGpuOption(MaaProcessor.Instance.MaaTasker?.Resource, value);
-                    MaaProcessor.Instance.SetTasker();
+                    ChangeGpuOption(MaaProcessorManager.Instance.Current.MaaTasker?.Resource, value);
+                    MaaProcessorManager.Instance.Current.SetTasker();
                 }
             });
             return;
         }
 
-        ChangeGpuOption(MaaProcessor.Instance.MaaTasker?.Resource, value);
-        MaaProcessor.Instance.SetTasker();
+        ChangeGpuOption(MaaProcessorManager.Instance.Current.MaaTasker?.Resource, value);
+        MaaProcessorManager.Instance.Current.SetTasker();
     }
 
     public void ChangeGpuOption(MaaResource? resource, GpuDeviceOption? option)

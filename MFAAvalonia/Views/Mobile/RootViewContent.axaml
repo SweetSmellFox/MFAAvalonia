@@ -36,7 +36,7 @@
                                                Header="{markup:I18n {x:Static helper:LangKeys.Home}}"
                                                Icon="{fluent:FluentIcon Icon=TasksApp,
                                                                IconVariant=Regular}"
-                                               PageContent="{extensions:ServiceProvider ServiceType={x:Type pages:TaskQueueView}}" />
+                                               PageContent="{extensions:ServiceProvider ServiceType={x:Type pages:InstanceContainerView}}" />
                         <suki:SukiSideMenuItem IsContentMovable="False"
                                                Header="{markup:I18n {x:Static helper:LangKeys.ScreenshotPage}}"
                                                Icon="{fluent:FluentIcon Icon=Screenshot,

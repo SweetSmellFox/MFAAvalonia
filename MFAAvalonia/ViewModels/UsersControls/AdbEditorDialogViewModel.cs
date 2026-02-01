@@ -68,8 +68,12 @@ public partial class AdbEditorDialogViewModel : ObservableObject
     [RelayCommand]
     public void Save()
     {
-        Instances.TaskQueueViewModel.Devices = [Output];
-        Instances.TaskQueueViewModel.CurrentDevice = Output;
+        var vm = Instances.InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel;
+        if (vm != null)
+        {
+            vm.Devices = [Output];
+            vm.CurrentDevice = Output;
+        }
 
         Dialog.Dismiss();
     }

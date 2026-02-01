@@ -432,7 +432,9 @@ public static class MaaExtensions
         }
         else
         {
-            RootView.AddLog("识别失败！");
+            // Instances.TaskQueueViewModel.AddLog("识别失败！", (IBrush?)null);
+            var processor = MaaProcessor.Processors.FirstOrDefault(p => p.MaaTasker == maaContext.Tasker);
+            processor?.ViewModel?.AddLog("识别失败！", (IBrush?)null);
         }
 
         LoggerHelper.Info($"识别结果: {result}");

@@ -34,7 +34,7 @@ public partial class ScreenshotView : UserControl
     //
     // private void Screenshot(object? sender, RoutedEventArgs e)
     // {
-    //     var imageData = MaaProcessor.Instance.GetBitmapImage();
+    //     var imageData = Instances.TaskQueueViewModel.Processor.GetBitmapImage();
     //     if (imageData == null)
     //     {
     //         ToastHelper.Error("获取图片失败");

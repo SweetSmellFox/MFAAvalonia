@@ -15,7 +15,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <StackPanel Spacing="20">
         <suki:GlassCard
-            IsVisible="{calcBinding:Binding 'CurrentController == maa:MaaControllerTypes.Adb', Source={x:Static helper:Instances.TaskQueueViewModel}}"
+            IsVisible="{calcBinding:Binding 'CurrentController == maa:MaaControllerTypes.Adb', Source={x:Static helper:Instances.InstanceTabBarViewModel}, Path=ActiveTab.TaskQueueViewModel}"
             Margin="0,25,0,0" Padding="25,10,25,10">
             <StackPanel>
                 <DockPanel>
@@ -151,7 +151,7 @@
         </suki:GlassCard>
         <suki:GlassCard
             IsVisible="{calcBinding:Binding 'CurrentController == maa:MaaControllerTypes.Win32',
-                                            Source={x:Static helper:Instances.TaskQueueViewModel}}"
+                                            Source={x:Static helper:Instances.InstanceTabBarViewModel}, Path=ActiveTab.TaskQueueViewModel}"
             Margin="0,25,0,0"
             Padding="25,10,25,10">
             <StackPanel Spacing="15">

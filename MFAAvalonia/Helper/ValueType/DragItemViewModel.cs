@@ -2,6 +2,7 @@
 using MFAAvalonia.Configuration;
 using MFAAvalonia.Extensions;
 using MFAAvalonia.Extensions.MaaFW;
+using MFAAvalonia.ViewModels.Pages;
 using Newtonsoft.Json;
 using System;
 using System.Linq;
@@ -10,6 +11,9 @@ namespace MFAAvalonia.Helper.ValueType;
 
 public partial class DragItemViewModel : ObservableObject
 {
+    [JsonIgnore]
+    public TaskQueueViewModel? OwnerViewModel { get; set; }
+
     public DragItemViewModel(MaaInterface.MaaInterfaceTask? interfaceItem)
     {
         InterfaceItem = interfaceItem;
@@ -77,8 +81,8 @@ public partial class DragItemViewModel : ObservableObject
                 SetProperty(ref _isCheckedWithNull, value);
                 if (InterfaceItem != null)
                     InterfaceItem.Check = _isCheckedWithNull;
-                ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.TaskItems,
-                    Instances.TaskQueueViewModel.TaskItemViewModels.ToList().Select(model => model.InterfaceItem));
+                (OwnerViewModel?.Processor.InstanceConfiguration ?? ConfigurationManager.CurrentInstance).SetValue(ConfigurationKeys.TaskItems,
+                    (OwnerViewModel ?? Instances.InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel)?.TaskItemViewModels.ToList().Select(model => model.InterfaceItem));
             }
         }
     }
@@ -105,7 +109,7 @@ public partial class DragItemViewModel : ObservableObject
         set
         {
             SetProperty(ref _enableSetting, value);
-            Instances.TaskQueueView.SetOption(this, value);
+            OwnerViewModel?.RequestSetOption(this, value);
         }
     }
 
@@ -232,7 +236,7 @@ public partial class DragItemViewModel : ObservableObject
 
         try
         {
-            var resourceName = Instances.TaskQueueViewModel?.CurrentResource;
+            var resourceName = (OwnerViewModel ?? Instances.InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel)?.CurrentResource;
             UpdateResourceSupport(resourceName);
 
             var controllerName = GetCurrentControllerName();
@@ -244,9 +248,9 @@ public partial class DragItemViewModel : ObservableObject
         }
     }
 
-    private static string? GetCurrentControllerName()
+    private string? GetCurrentControllerName()
     {
-        var currentControllerType = Instances.TaskQueueViewModel?.CurrentController ?? MaaControllerTypes.None;
+        var currentControllerType = (OwnerViewModel ?? Instances.InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel)?.CurrentController ?? MaaControllerTypes.None;
         var controllerTypeKey = currentControllerType.ToJsonKey();
 
         var controller = MaaProcessor.Interface?.Controller?.Find(c =>
@@ -325,13 +329,13 @@ public partial class DragItemViewModel : ObservableObject
         if (IsResourceOptionItem && ResourceItem != null)
         {
             // 克隆资源设置项
-            clone = new DragItemViewModel(ResourceItem);
+            clone = new DragItemViewModel(ResourceItem) { OwnerViewModel = this.OwnerViewModel };
         }
         else
         {
             // 克隆普通任务项
             MaaInterface.MaaInterfaceTask? clonedInterfaceItem = InterfaceItem?.Clone();
-            clone = new(clonedInterfaceItem);
+            clone = new(clonedInterfaceItem) { OwnerViewModel = this.OwnerViewModel };
         }
 
         // Copy all other properties to the new instance

@@ -34,7 +34,7 @@ public static class FileLogExporter
                 LangKeys.StopTaskBeforeExportLog.ToLocalization());
             return;
         }
-        MaaProcessor.Instance.SetTasker();
+        MaaProcessorManager.Instance.Current.SetTasker();
 
         if (storageProvider == null)
             throw new ArgumentNullException(nameof(storageProvider));

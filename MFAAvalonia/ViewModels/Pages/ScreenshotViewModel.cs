@@ -21,7 +21,7 @@ public partial class ScreenshotViewModel : ViewModelBase
     [RelayCommand]
     private void Screenshot()
     {
-        // if (MaaProcessor.Instance.MaaTasker == null)
+        // if (Instances.TaskQueueViewModel.Processor.MaaTasker == null)
         // {
         //     ToastHelper.Warn(LangKeys.Warning.ToLocalization(), (Instances.TaskQueueViewModel.CurrentController == MaaControllerTypes.Adb
         //         ? LangKeys.Emulator.ToLocalization()
@@ -30,22 +30,25 @@ public partial class ScreenshotViewModel : ViewModelBase
         // }
         try
         {
-            if (MaaProcessor.Instance.MaaTasker is not { IsInitialized: true })
+            var vm = Instances.InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel;
+            if (vm == null) return;
+
+            if (vm.Processor.MaaTasker is not { IsInitialized: true })
             {
-                ToastHelper.Info(LangKeys.Tip.ToLocalization(), LangKeys.ConnectingTo.ToLocalizationFormatted(true, Instances.TaskQueueViewModel.CurrentController == MaaControllerTypes.Adb ? "Emulator" : "Window"));
-                MaaProcessor.Instance.TaskQueue.Enqueue(new MFATask
+                ToastHelper.Info(LangKeys.Tip.ToLocalization(), LangKeys.ConnectingTo.ToLocalizationFormatted(true, vm.CurrentController == MaaControllerTypes.Adb ? "Emulator" : "Window"));
+                vm.Processor.TaskQueue.Enqueue(new MFATask
                 {
                     Name = "截图前启动",
                     Type = MFATask.MFATaskType.MFA,
-                    Action = async () => await MaaProcessor.Instance.TestConnecting(),
+                    Action = async () => await vm.Processor.TestConnecting(),
                 });
-                MaaProcessor.Instance.TaskQueue.Enqueue(new MFATask
+                vm.Processor.TaskQueue.Enqueue(new MFATask
                 {
                     Name = "截图任务",
                     Type = MFATask.MFATaskType.MFA,
                     Action = async () => await TaskManager.RunTaskAsync(() =>
                     {
-                        var bitmap = MaaProcessor.Instance.GetLiveView();
+                        var bitmap = vm.Processor.GetLiveView();
                         if (bitmap == null)
                             ToastHelper.Warn(LangKeys.ScreenshotFailed.ToLocalization());
 
@@ -58,13 +61,13 @@ public partial class ScreenshotViewModel : ViewModelBase
                         }));
                     }, name: "截图测试"),
                 });
-                MaaProcessor.Instance.Start(true, checkUpdate: false);
+                vm.Processor.Start(true, checkUpdate: false);
 
             }
             else
                 TaskManager.RunTaskAsync(() =>
                 {
-                    var bitmap = MaaProcessor.Instance.GetLiveViewCached();
+                    var bitmap = vm.Processor.GetLiveViewCached();
                     if (bitmap == null)
                         ToastHelper.Warn(LangKeys.ScreenshotFailed.ToLocalization());
 

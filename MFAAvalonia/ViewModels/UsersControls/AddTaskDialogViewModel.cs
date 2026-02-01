@@ -56,8 +56,9 @@ public partial class AddTaskDialogViewModel : ViewModelBase
             if (output.InterfaceItem.Option != null)
                 output.InterfaceItem.Option.ForEach(option => TaskLoader.SetDefaultOptionValue(MaaProcessor.Interface, option));
 
-            Instances.TaskQueueViewModel.TaskItemViewModels.Add(output);
-            ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.TaskItems, Instances.TaskQueueViewModel.TaskItemViewModels.ToList().Select(model => model.InterfaceItem));
+            output.OwnerViewModel = Instances.InstanceTabBarViewModel.ActiveTab.TaskQueueViewModel;
+            Instances.InstanceTabBarViewModel.ActiveTab.TaskQueueViewModel.TaskItemViewModels.Add(output);
+            ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.TaskItems, Instances.InstanceTabBarViewModel.ActiveTab.TaskQueueViewModel.TaskItemViewModels.ToList().Select(model => model.InterfaceItem));
             ToastHelper.Info(LangKeys.Tip.ToLocalization(), LangKeys.TaskAddedToast.ToLocalizationFormatted(false, output.Name));
         }
 

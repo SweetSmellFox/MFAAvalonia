@@ -217,4 +217,20 @@ public static class ConfigurationKeys
     public static bool IsInstanceScoped(string key) => InstanceScopedKeys.Contains(key);
 
     #endregion
+
+    #region 多实例管理
+
+    /// <summary>实例ID列表（逗号分隔）</summary>
+    public const string InstanceList = "Instances.List";
+
+    /// <summary>实例显示顺序（逗号分隔的ID）</summary>
+    public const string InstanceOrder = "Instances.Order";
+
+    /// <summary>最后激活的实例ID</summary>
+    public const string LastActiveInstance = "Instances.LastActive";
+
+    /// <summary>实例名称模板：Instance.{id}.Name</summary>
+    public const string InstanceNameTemplate = "Instance.{0}.Name";
+
+    #endregion
 }

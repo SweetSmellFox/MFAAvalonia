@@ -9,6 +9,7 @@ using MFAAvalonia.Configuration;
 using MFAAvalonia.Extensions;
 using MFAAvalonia.Extensions.MaaFW;
 using MFAAvalonia.Utilities.Attributes;
+using MFAAvalonia.ViewModels.Other;
 using MFAAvalonia.ViewModels.Pages;
 using MFAAvalonia.ViewModels.UsersControls.Settings;
 using MFAAvalonia.ViewModels.Windows;
@@ -366,8 +367,8 @@ public static partial class Instances
 
     public static IClipboard? Clipboard => TopLevel?.Clipboard;
 
-    private static TaskQueueView _taskQueueView;
-    private static TaskQueueViewModel _taskQueueViewModel;
+    private static InstanceContainerView _instanceContainerView;
+    private static InstanceTabBarViewModel _instanceTabBarViewModel;
     private static SettingsView _settingsView;
     private static SettingsViewModel _settingsViewModel;
     private static ResourcesView _resourcesView;
@@ -583,7 +584,9 @@ public static partial class Instances
 
         await DispatcherHelper.RunOnMainThreadAsync(() =>
         {
-            var task = TaskQueueViewModel;
+            var task = InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel;
+            if (task == null) return;
+
             task.CurrentConfiguration = ConfigurationManager.GetCurrentConfiguration();
             task.TaskItemViewModels = new();
             task.CurrentController = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.CurrentController, MaaControllerTypes.Adb, MaaControllerTypes.None,
@@ -594,21 +597,15 @@ public static partial class Instances
         await UpdateProgressAsync(80);
         await Task.Delay(30);
 
-        await DispatcherHelper.RunOnMainThreadAsync(() =>
-        {
-            if (IsResolved<TaskQueueView>())
-            {
-                TaskQueueView.ResetOptionPanels();
-            }
-        });
         await UpdateProgressAsync(85);
         await Task.Delay(40);
 
         await DispatcherHelper.RunOnMainThreadAsync(() =>
         {
-            var task = TaskQueueViewModel;
+            var task = InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel;
+            if (task == null) return;
 
-            MaaProcessor.Instance.InitializeData();
+            task.Processor.InitializeData();
 
             task.InitializeControllerOptions();
             // 先从配置中读取目标资源，然后传入 UpdateResourcesForController
@@ -624,21 +621,18 @@ public static partial class Instances
                     || ConfigurationManager.Maa.GetValue(ConfigurationKeys.ShowHitDraw, false);
             }
 
-            if (IsResolved<TaskQueueView>())
+            var selected = task.TaskItemViewModels.FirstOrDefault(i => i.IsResourceOptionItem)
+                ?? task.TaskItemViewModels.FirstOrDefault(i => i.InterfaceItem?.Advanced is { Count: > 0 }
+                    || i.InterfaceItem?.Option is { Count: > 0 }
+                    || !string.IsNullOrWhiteSpace(i.InterfaceItem?.Description)
+                    || i.InterfaceItem?.Document != null
+                    || i.InterfaceItem?.Repeatable == true);
+            if (selected != null)
             {
-                var selected = task.TaskItemViewModels.FirstOrDefault(i => i.IsResourceOptionItem)
-                    ?? task.TaskItemViewModels.FirstOrDefault(i => i.InterfaceItem?.Advanced is { Count: > 0 }
-                        || i.InterfaceItem?.Option is { Count: > 0 }
-                        || !string.IsNullOrWhiteSpace(i.InterfaceItem?.Description)
-                        || i.InterfaceItem?.Document != null
-                        || i.InterfaceItem?.Repeatable == true);
-                if (selected != null)
-                {
-                    selected.EnableSetting = true;
-                }
+                selected.EnableSetting = true;
             }
 
-            MaaProcessor.Instance.SetTasker();
+            task.Processor.SetTasker();
         });
         await UpdateProgressAsync(95);
         await Task.Delay(40);

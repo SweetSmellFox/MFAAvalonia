@@ -1,0 +1,50 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:MFAAvalonia.ViewModels.Other"
+             xmlns:helper="clr-namespace:MFAAvalonia.Helper"
+             xmlns:markup="https://codewf.com" 
+             mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="200"
+             x:Class="MFAAvalonia.Views.UserControls.RenameInstanceDialog"
+             x:DataType="vm:RenameInstanceDialogViewModel"
+             MinWidth="340"
+             MinHeight="220">
+    <StackPanel Margin="15,10,15,0" Orientation="Vertical" Spacing="8">
+        <TextBlock
+            FontSize="18"
+            FontWeight="DemiBold"
+            Text="{markup:I18n {x:Static helper:LangKeys.TaskRename}}" />
+
+        <TextBlock
+            FontSize="12"
+            FontWeight="DemiBold"
+            Margin="0,6,0,0"
+            Text="{markup:I18n {x:Static helper:LangKeys.EditTaskDialog_TaskName_Title}}" />
+
+        <TextBox
+            Text="{Binding Name}"
+            Watermark="{markup:I18n {x:Static helper:LangKeys.TaskRenamePlaceholder}}" />
+
+        <StackPanel
+            HorizontalAlignment="Center"
+            Margin="0,25,0,5"
+            Orientation="Horizontal"
+            Spacing="20">
+            <Button
+                BorderThickness="0"
+                Classes="Flat"
+                Command="{Binding ConfirmCommand}"
+                Content="{markup:I18n {x:Static helper:LangKeys.Confirm}}"
+                FontSize="11"
+                MinHeight="30"
+                Width="90" />
+            <Button
+                Command="{Binding CancelCommand}"
+                Content="{markup:I18n {x:Static helper:LangKeys.ButtonCancel}}"
+                FontSize="11"
+                MinHeight="30"
+                Width="90" />
+        </StackPanel>
+    </StackPanel>
+</UserControl>

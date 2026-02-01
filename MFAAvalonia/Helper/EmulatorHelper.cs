@@ -24,12 +24,12 @@ public static class EmulatorHelper
     /// 一个根据连接配置判断使用关闭模拟器的方式的方法
     /// </summary>
     /// <returns>是否关闭成功</returns>
-    public static bool KillEmulatorModeSwitcher()
+    public static bool KillEmulatorModeSwitcher(MaaProcessor processor)
     {
         try
         {
             string emulatorMode = "None";
-            var windowName = MaaProcessor.Instance.Config.AdbDevice.Name;
+            var windowName = processor.Config.AdbDevice.Name;
             if (windowName.Contains("MuMuPlayer12") || windowName.Contains("MuMu"))
                 emulatorMode = "MuMuEmulator12";
             else if (windowName.Contains("Nox"))
@@ -45,12 +45,12 @@ public static class EmulatorHelper
 
             return emulatorMode switch
             {
-                "Nox" => KillEmulatorNox(),
-                "LDPlayer" => KillEmulatorLdPlayer(),
-                "XYAZ" => KillEmulatorXyaz(),
-                "BlueStacks" => KillEmulatorBlueStacks(),
-                "MuMuEmulator12" => KillEmulatorMuMuEmulator12(),
-                _ => KillEmulatorByWindow(),
+                "Nox" => KillEmulatorNox(processor),
+                "LDPlayer" => KillEmulatorLdPlayer(processor),
+                "XYAZ" => KillEmulatorXyaz(processor),
+                "BlueStacks" => KillEmulatorBlueStacks(processor),
+                "MuMuEmulator12" => KillEmulatorMuMuEmulator12(processor),
+                _ => KillEmulatorByWindow(processor),
             };
         }
         catch (Exception e)
@@ -64,9 +64,9 @@ public static class EmulatorHelper
     /// 一个用于调用 MuMu12 模拟器控制台关闭 MuMu12 的方法
     /// </summary>
     /// <returns>是否关闭成功</returns>
-    private static bool KillEmulatorMuMuEmulator12()
+    private static bool KillEmulatorMuMuEmulator12(MaaProcessor processor)
     {
-        string address = MaaProcessor.Instance.Config.AdbDevice.AdbSerial;
+        string address = processor.Config.AdbDevice.AdbSerial;
         int emuIndex;
         if (address == "127.0.0.1:16384")
         {
@@ -186,20 +186,20 @@ public static class EmulatorHelper
             }
 
             LoggerHelper.Warning($"Console process at index {emuIndex} did not exit within the specified timeout. Killing emulator by window. Console path: {consolePath}");
-            return KillEmulatorByWindow();
+            return KillEmulatorByWindow(processor);
         }
 
         LoggerHelper.Error("MuMuManager.exe not found in expected locations (new or old). Trying to kill emulator by window.");
-        return KillEmulatorByWindow();
+        return KillEmulatorByWindow(processor);
     }
 
     /// <summary>
     /// 一个用于调用雷电模拟器控制台关闭雷电模拟器的方法
     /// </summary>
     /// <returns>是否关闭成功</returns>
-    private static bool KillEmulatorLdPlayer()
+    private static bool KillEmulatorLdPlayer(MaaProcessor processor)
     {
-        string address = MaaProcessor.Instance.Config.AdbDevice.AdbSerial;
+        string address = processor.Config.AdbDevice.AdbSerial;
         int emuIndex;
         if (address.Contains(':'))
         {
@@ -275,20 +275,20 @@ public static class EmulatorHelper
             }
 
             LoggerHelper.Warning($"Console process at index {emuIndex} did not exit within the specified timeout. Killing emulator by window. Console path: {consolePath}");
-            return KillEmulatorByWindow();
+            return KillEmulatorByWindow(processor);
         }
 
         LoggerHelper.Error($"`{consolePath}` not found, try to kill emulator by window.");
-        return KillEmulatorByWindow();
+        return KillEmulatorByWindow(processor);
     }
 
     /// <summary>
     /// 一个用于调用夜神模拟器控制台关闭夜神模拟器的方法
     /// </summary>
     /// <returns>是否关闭成功</returns>
-    private static bool KillEmulatorNox()
+    private static bool KillEmulatorNox(MaaProcessor processor)
     {
-        string address = MaaProcessor.Instance.Config.AdbDevice.AdbSerial;
+        string address = processor.Config.AdbDevice.AdbSerial;
         int emuIndex;
         if (address == "127.0.0.1:62001")
         {
@@ -358,20 +358,20 @@ public static class EmulatorHelper
             }
 
             LoggerHelper.Warning($"Console process at index {emuIndex} did not exit within the specified timeout. Killing emulator by window. Console path: {consolePath}");
-            return KillEmulatorByWindow();
+            return KillEmulatorByWindow(processor);
         }
 
         LoggerHelper.Error($"`{consolePath}` not found, try to kill emulator by window.");
-        return KillEmulatorByWindow();
+        return KillEmulatorByWindow(processor);
     }
 
     /// <summary>
     /// 一个用于调用逍遥模拟器控制台关闭逍遥模拟器的方法
     /// </summary>
     /// <returns>是否关闭成功</returns>
-    private static bool KillEmulatorXyaz()
+    private static bool KillEmulatorXyaz(MaaProcessor processor)
     {
-        string address = MaaProcessor.Instance.Config.AdbDevice.AdbSerial;
+        string address = processor.Config.AdbDevice.AdbSerial;
         if (!address.Contains(':'))
         {
             LoggerHelper.Error($"Unsupported address format: {address}");
@@ -434,18 +434,18 @@ public static class EmulatorHelper
             }
 
             LoggerHelper.Warning($"Console process at index {emuIndex} did not exit within the specified timeout. Killing emulator by window. Console path: {consolePath}");
-            return KillEmulatorByWindow();
+            return KillEmulatorByWindow(processor);
         }
 
         LoggerHelper.Error($"`{consolePath}` not found, try to kill emulator by window.");
-        return KillEmulatorByWindow();
+        return KillEmulatorByWindow(processor);
     }
 
     /// <summary>
     /// 一个用于关闭蓝叠模拟器的方法
     /// </summary>
     /// <returns>是否关闭成功</returns>
-    private static bool KillEmulatorBlueStacks()
+    private static bool KillEmulatorBlueStacks(MaaProcessor processor)
     {
         Process[] processes = Process.GetProcessesByName("HD-Player");
         if (processes.Length <= 0)
@@ -482,11 +482,11 @@ public static class EmulatorHelper
         if (File.Exists(consolePath))
         {
             LoggerHelper.Info($"`{consolePath}` has been found. This may be the BlueStacks China emulator, try to kill the emulator by window.");
-            return KillEmulatorByWindow();
+            return KillEmulatorByWindow(processor);
         }
 
         LoggerHelper.Info($"`{consolePath}` not found. This may be the BlueStacks International emulator, try to kill the emulator by the port.");
-        if (KillEmulator())
+        if (KillEmulator(processor))
         {
             return true;
         }
@@ -516,7 +516,7 @@ public static class EmulatorHelper
     /// Kills emulator by Window hwnd.
     /// </summary>
     /// <returns>Whether the operation is successful.</returns>
-    private static bool KillEmulatorByWindow()
+    private static bool KillEmulatorByWindow(MaaProcessor processor)
     {
         int pid = 0;
         var windowNames = new[]
@@ -566,7 +566,7 @@ public static class EmulatorHelper
 
         if (pid == 0)
         {
-            return KillEmulator();
+            return KillEmulator(processor);
         }
 
         try
@@ -579,7 +579,7 @@ public static class EmulatorHelper
                 if (emulator.WaitForExit(5000))
                 {
                     LoggerHelper.Info($"Emulator with process ID {pid} killed successfully.");
-                    KillEmulator();
+                    KillEmulator(processor);
                     return true;
                 }
 
@@ -589,7 +589,7 @@ public static class EmulatorHelper
 
             // 尽管已经成功 CloseMainWindow()，再次尝试 killEmulator()
             // Refer to https://github.com/MaaAssistantArknights/MaaAssistantArknights/pull/1878
-            KillEmulator();
+            KillEmulator(processor);
 
             // 已经成功 CloseMainWindow()，所以不管 killEmulator() 的结果如何，都返回 true
             return true;
@@ -599,17 +599,17 @@ public static class EmulatorHelper
             LoggerHelper.Error($"Kill emulator by window error: {ex.Message}");
         }
 
-        return KillEmulator();
+        return KillEmulator(processor);
     }
 
     /// <summary>
     /// Kills emulator.
     /// </summary>
     /// <returns>Whether the operation is successful.</returns>
-    public static bool KillEmulator()
+    public static bool KillEmulator(MaaProcessor processor)
     {
         //  int pid = 0;
-        string address = MaaProcessor.Instance.Config.AdbDevice.AdbSerial;
+        string address = processor.Config.AdbDevice.AdbSerial;
         var port = address.StartsWith("127") && address.Length > 10 ? address[10..] : "5555";
         LoggerHelper.Info($"address: {address}, port: {port}");
 

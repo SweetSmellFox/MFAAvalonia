@@ -1184,7 +1184,7 @@ public sealed class DashboardCardGrid : Panel
 
     private static IEnumerable<string> GetCurrentResourcePaths()
     {
-        var model = Instances.TaskQueueViewModel;
+        var model = Instances.InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel;
         if (model == null)
         {
             return Array.Empty<string>();

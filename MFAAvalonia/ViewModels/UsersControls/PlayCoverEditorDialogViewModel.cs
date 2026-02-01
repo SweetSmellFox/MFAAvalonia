@@ -2,6 +2,7 @@
 using CommunityToolkit.Mvvm.Input;
 using MFAAvalonia.Configuration;
 using MFAAvalonia.Extensions.MaaFW;
+using MFAAvalonia.Helper;
 using SukiUI.Dialogs;
 
 namespace MFAAvalonia.ViewModels.UsersControls;
@@ -30,9 +31,9 @@ public partial class PlayCoverEditorDialogViewModel : ObservableObject
             UUID = string.IsNullOrWhiteSpace(PlayCoverBundleIdentifier) ? "maa.playcover" : PlayCoverBundleIdentifier
         };
 
-        MaaProcessor.Instance.Config.PlayCover = config;
+        Instances.InstanceTabBarViewModel.ActiveTab.Processor.Config.PlayCover = config;
         ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.PlayCoverConfig, config);
-        MaaProcessor.Instance.SetTasker();
+        Instances.InstanceTabBarViewModel.ActiveTab.Processor.SetTasker();
 
         Dialog.Dismiss();
     }

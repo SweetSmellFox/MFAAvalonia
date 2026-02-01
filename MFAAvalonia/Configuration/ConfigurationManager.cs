@@ -22,7 +22,7 @@ public static class ConfigurationManager
         "config");
     public static readonly MFAConfiguration Maa = new("Maa", "maa_option", new Dictionary<string, object>());
     public static MFAConfiguration Current = new("Default", "config", new Dictionary<string, object>());
-    public static InstanceConfiguration CurrentInstance => MaaProcessor.Instance.InstanceConfiguration;
+    public static InstanceConfiguration CurrentInstance => MaaProcessorManager.Instance?.Current?.InstanceConfiguration ?? new InstanceConfiguration("Default");
 
     public static AvaloniaList<MFAConfiguration> Configs { get; } = LoadConfigurations();
 
@@ -91,7 +91,7 @@ public static class ConfigurationManager
             Instances.RootViewModel.SetConfigSwitchingState(true);
             Instances.RootViewModel.SetConfigSwitchProgress(5);
         });
-        await Task.Run(() => MaaProcessor.Instance.SetTasker());
+        await Task.Run(() => MaaProcessorManager.Instance.Current.SetTasker());
         await Task.Delay(60);
 
         try

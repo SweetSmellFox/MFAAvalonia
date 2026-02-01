@@ -201,10 +201,14 @@ public partial class TimerSettingsUserControlModel : ViewModelBase
             var timer = Timers.FirstOrDefault(t => t.TimerId == timerId, null);
             if (timer != null)
             {
-                if (Instances.TimerSettingsUserControlModel.ForceScheduledStart && Instances.RootViewModel.IsRunning)
-                    Instances.TaskQueueViewModel.StopTask(Instances.TaskQueueViewModel.StartTask);
-                else
-                    Instances.TaskQueueViewModel.StartTask();
+                var vm = Instances.InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel;
+                if (vm != null)
+                {
+                    if (Instances.TimerSettingsUserControlModel.ForceScheduledStart && Instances.RootViewModel.IsRunning)
+                        vm.StopTask(vm.StartTask);
+                    else
+                        vm.StartTask();
+                }
             }
         }
     }
