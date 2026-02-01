@@ -395,12 +395,12 @@ public static partial class Instances
     private static StartSettingsUserControlModel _startSettingsUserControlModel;
     private static AboutUserControl _aboutUserControl;
     private static HotKeySettingsUserControl _hotKeySettingsUserControl;
-    public static void ReloadConfigurationForSwitch()
+    public static void ReloadConfigurationForSwitch(bool refreshTask = true)
     {
-        _ = ReloadConfigurationForSwitchAsync();
+        _ = ReloadConfigurationForSwitchAsync(refreshTask);
     }
 
-    public static async Task ReloadConfigurationForSwitchAsync()
+    public static async Task ReloadConfigurationForSwitchAsync(bool refreshTask = true)
     {
         static Task UpdateProgressAsync(double value) =>
             DispatcherHelper.RunOnMainThreadAsync(() => Instances.RootViewModel.SetConfigSwitchProgress(value));
@@ -563,6 +563,16 @@ public static partial class Instances
                 external.CustomWebhookPayloadTemplate = ConfigurationManager.Current.GetDecrypt(ConfigurationKeys.ExternalNotificationCustomWebhookPayloadTemplate, "{\"message\": \"{message}\"}");
             }
 
+            if (IsResolved<TimerSettingsUserControlModel>())
+            {
+                var timer = TimerSettingsUserControlModel;
+                var activeTaskVM = InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel;
+                if (activeTaskVM != null)
+                {
+                    timer.UpdateCurrentInstance(activeTaskVM.TimerModel);
+                }
+            }
+
             if (IsResolved<VersionUpdateSettingsUserControlModel>())
             {
                 var version = VersionUpdateSettingsUserControlModel;
@@ -582,58 +592,61 @@ public static partial class Instances
         await UpdateProgressAsync(72);
         await Task.Delay(30);
 
-        await DispatcherHelper.RunOnMainThreadAsync(() =>
+        if (refreshTask)
         {
-            var task = InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel;
-            if (task == null) return;
-
-            task.CurrentConfiguration = ConfigurationManager.GetCurrentConfiguration();
-            task.TaskItemViewModels = new();
-            task.CurrentController = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.CurrentController, MaaControllerTypes.Adb, MaaControllerTypes.None,
-                new Converters.UniversalEnumConverter<MaaControllerTypes>());
-            task.EnableLiveView = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.EnableLiveView, true);
-            task.LiveViewRefreshRate = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.LiveViewRefreshRate, 30.0);
-        });
-        await UpdateProgressAsync(80);
-        await Task.Delay(30);
-
-        await UpdateProgressAsync(85);
-        await Task.Delay(40);
-
-        await DispatcherHelper.RunOnMainThreadAsync(() =>
-        {
-            var task = InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel;
-            if (task == null) return;
-
-            task.Processor.InitializeData();
-
-            task.InitializeControllerOptions();
-            // 先从配置中读取目标资源，然后传入 UpdateResourcesForController
-            // 这样可以确保在配置切换时正确恢复资源，而不是总是选择第一个
-            var targetResource = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.Resource, string.Empty);
-            task.UpdateResourcesForController(targetResource);
-            task.TryReadAdbDeviceFromConfig(false, false, false);
-
-            if (IsResolved<RootViewModel>())
+            await DispatcherHelper.RunOnMainThreadAsync(() =>
             {
-                RootViewModel.IsDebugMode = ConfigurationManager.Maa.GetValue(ConfigurationKeys.Recording, false)
-                    || ConfigurationManager.Maa.GetValue(ConfigurationKeys.SaveDraw, false)
-                    || ConfigurationManager.Maa.GetValue(ConfigurationKeys.ShowHitDraw, false);
-            }
+                var task = InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel;
+                if (task == null) return;
 
-            var selected = task.TaskItemViewModels.FirstOrDefault(i => i.IsResourceOptionItem)
-                ?? task.TaskItemViewModels.FirstOrDefault(i => i.InterfaceItem?.Advanced is { Count: > 0 }
-                    || i.InterfaceItem?.Option is { Count: > 0 }
-                    || !string.IsNullOrWhiteSpace(i.InterfaceItem?.Description)
-                    || i.InterfaceItem?.Document != null
-                    || i.InterfaceItem?.Repeatable == true);
-            if (selected != null)
+                task.CurrentConfiguration = ConfigurationManager.GetCurrentConfiguration();
+                task.TaskItemViewModels = new();
+                task.CurrentController = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.CurrentController, MaaControllerTypes.Adb, MaaControllerTypes.None,
+                    new Converters.UniversalEnumConverter<MaaControllerTypes>());
+                task.EnableLiveView = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.EnableLiveView, true);
+                task.LiveViewRefreshRate = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.LiveViewRefreshRate, 30.0);
+            });
+            await UpdateProgressAsync(80);
+            await Task.Delay(30);
+
+            await UpdateProgressAsync(85);
+            await Task.Delay(40);
+
+            await DispatcherHelper.RunOnMainThreadAsync(() =>
             {
-                selected.EnableSetting = true;
-            }
+                var task = InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel;
+                if (task == null) return;
 
-            task.Processor.SetTasker();
-        });
+                task.Processor.InitializeData();
+
+                task.InitializeControllerOptions();
+                // 先从配置中读取目标资源，然后传入 UpdateResourcesForController
+                // 这样可以确保在配置切换时正确恢复资源，而不是总是选择第一个
+                var targetResource = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.Resource, string.Empty);
+                task.UpdateResourcesForController(targetResource);
+                task.TryReadAdbDeviceFromConfig(); // 使用默认参数 (true, false, true) 以启用指纹匹配和自动检测，避免直接读取配置失败导致列表为空
+
+                if (IsResolved<RootViewModel>())
+                {
+                    RootViewModel.IsDebugMode = ConfigurationManager.Maa.GetValue(ConfigurationKeys.Recording, false)
+                        || ConfigurationManager.Maa.GetValue(ConfigurationKeys.SaveDraw, false)
+                        || ConfigurationManager.Maa.GetValue(ConfigurationKeys.ShowHitDraw, false);
+                }
+
+                var selected = task.TaskItemViewModels.FirstOrDefault(i => i.IsResourceOptionItem)
+                    ?? task.TaskItemViewModels.FirstOrDefault(i => i.InterfaceItem?.Advanced is { Count: > 0 }
+                        || i.InterfaceItem?.Option is { Count: > 0 }
+                        || !string.IsNullOrWhiteSpace(i.InterfaceItem?.Description)
+                        || i.InterfaceItem?.Document != null
+                        || i.InterfaceItem?.Repeatable == true);
+                if (selected != null)
+                {
+                    selected.EnableSetting = true;
+                }
+
+                task.Processor.SetTasker();
+            });
+        }
         await UpdateProgressAsync(95);
         await Task.Delay(40);
     }

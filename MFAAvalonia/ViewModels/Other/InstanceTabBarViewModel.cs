@@ -70,7 +70,7 @@ public partial class InstanceTabBarViewModel : ViewModelBase
 
         if (MaaProcessorManager.Instance.SwitchCurrent(processor.InstanceId))
         {
-            Instances.ReloadConfigurationForSwitch();
+            Instances.ReloadConfigurationForSwitch(false);
         }
     }
 

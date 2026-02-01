@@ -60,8 +60,8 @@
         <PackageReference Include="FluentIcons.Avalonia.Fluent" Version="2.0.316.1" />
         <PackageReference Include="Lang.Avalonia" Version="11.3.9" />
         <PackageReference Include="Maa.AgentBinary" Version="1.2.0" />
-        <PackageReference Include="Maa.Framework" Version="5.4.0-preview.1" />
-        <PackageReference Include="Maa.Framework.Runtimes" Version="5.6.0-alpha.4" />
+        <PackageReference Include="Maa.Framework" Version="5.4.0" />
+        <PackageReference Include="Maa.Framework.Runtimes" Version="5.6.0-alpha.5" />
         <PackageReference Include="MailKit" Version="4.14.1" />
         <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="5.0.0" />
         <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" />

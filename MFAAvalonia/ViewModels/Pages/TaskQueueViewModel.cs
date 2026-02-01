@@ -34,6 +34,7 @@ public partial class TaskQueueViewModel : ViewModelBase
 {
     private readonly MaaProcessor _processorField;
     public MaaProcessor Processor => _processorField;
+    public TimerModel TimerModel { get; private set; }
 
     public TaskQueueViewModel() : this(MaaProcessorManager.Instance.Current.InstanceId)
     {
@@ -42,6 +43,7 @@ public partial class TaskQueueViewModel : ViewModelBase
     public TaskQueueViewModel(string instanceId)
     {
         _processorField = new MaaProcessor(instanceId);
+        TimerModel = new TimerModel(this);
         _currentController = _processorField.InstanceConfiguration.GetValue(ConfigurationKeys.CurrentController, MaaControllerTypes.Adb, MaaControllerTypes.None, new UniversalEnumConverter<MaaControllerTypes>());
         _enableLiveView = _processorField.InstanceConfiguration.GetValue(ConfigurationKeys.EnableLiveView, true);
         _liveViewRefreshRate = _processorField.InstanceConfiguration.GetValue(ConfigurationKeys.LiveViewRefreshRate, 30.0);
