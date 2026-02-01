@@ -24,7 +24,7 @@ public class MemoryLeakTestAction : IMaaCustomAction
 
     private readonly Random _random = new();
 
-    public bool Run(in IMaaContext context, in RunArgs args, in RunResults results)
+    public bool Run<T>(T context, in RunArgs args, in RunResults results) where T : IMaaContext
     {
         try
         {
