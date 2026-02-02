@@ -295,14 +295,41 @@ public class Program
                 }
 
                 // 最多等待30秒
-                var exited = mainProcess.WaitForExit(5000);
+                // 循环检查，每500ms检查一次
+                int timeoutChunks = 60; // 60 * 500ms = 30s
+                for (int i = 0; i < timeoutChunks; i++)
+                {
+                    if (mainProcess.HasExited)
+                    {
+                        Log("主程序已成功退出");
+                        return;
+                    }
+                    if (i % 2 == 0) // 每1秒记录一次
+                        Log($"正在等待主程序退出... ({i / 2 + 1}s)");
+                    Thread.Sleep(500);
+                }
+
+                // 尝试等待最后一次
+                var exited = mainProcess.WaitForExit(1000);
                 if (exited)
                 {
                     Log("主程序已成功退出");
                 }
                 else
                 {
-                    Log("警告：主程序在5秒内未正常退出，尝试强制继续");
+                    Log("警告：主程序在30秒内未正常退出，尝试强制继续");
+                    try
+                    {
+                         // 尝试杀掉进程
+                         Log("尝试强制结束主进程...");
+                         mainProcess.Kill();
+                         mainProcess.WaitForExit(1000);
+                         Log("主进程已强制结束");
+                    }
+                    catch(Exception killEx)
+                    {
+                        Log($"无法结束主进程: {killEx.Message}");
+                    }
                 }
             }
             catch (ArgumentException)
@@ -385,22 +412,37 @@ public class Program
 
     private static void HandleFileTransfer(string source, string dest)
     {
-        try
+        int maxRetries = 5;
+        for (int i = 0; i < maxRetries; i++)
         {
-            Log($"复制文件: {source} -> {dest}");
-            // 创建目标目录（如果不存在）
-            var destDir = Path.GetDirectoryName(dest);
-            if (destDir != null)
-                Directory.CreateDirectory(destDir);
-            File.Copy(source, dest, true); // 覆盖已存在的文件
-
+            try
+            {
+                Log($"复制文件: {source} -> {dest}");
+                // 创建目标目录（如果不存在）
+                var destDir = Path.GetDirectoryName(dest);
+                if (destDir != null)
+                    Directory.CreateDirectory(destDir);
+                File.Copy(source, dest, true); // 覆盖已存在的文件
+                SetUnixPermissions(dest);
+                return; // 成功则返回
+            }
+            catch (IOException ioEx)
+            {
+                // 如果是文件占用导致的IO异常，等待后重试
+                Log($"文件可能被占用，正在重试 ({i + 1}/{maxRetries}): {source} -> {dest}, 错误: {ioEx.Message}");
+                Thread.Sleep(1000 * (i + 1)); // 递增等待时间
+            }
+            catch (Exception ex)
+            {
+                Log($"{source} 文件复制失败: {ex.Message}");
+                if (i == maxRetries - 1) throw; // 最后一次尝试仍然失败，抛出异常
+            }
         }
-        catch (Exception ex)
-        {
-            Log($"{source} 文件复制失败: {ex.Message}");
-        }
-
-        SetUnixPermissions(dest);
+        
+        // 如果重试多次后仍然失败
+        string errorMsg = $"无法复制文件 {source} 到 {dest}，已重试 {maxRetries} 次。";
+        Log(errorMsg);
+        throw new Exception(errorMsg);
     }
 
     private static void HandleDirectoryTransfer(string source, string dest)

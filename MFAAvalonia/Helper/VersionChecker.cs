@@ -917,33 +917,53 @@ public static class VersionChecker
                 await HandleAnnouncementFile(sourceFile, targetFile, cancellationToken);
             }
 
-            // 10. 目标文件已存在：先备份删除
-            if (File.Exists(targetFile))
+            // 10 & 11. 异步复制文件（含重试机制）
+            int maxRetries = 5;
+            bool copySuccess = false;
+            for (int i = 0; i < maxRetries; i++)
             {
-                DeleteFileWithBackup(targetFile);
-            }
-
-            // 11. 异步复制文件（包装同步方法为异步，避免阻塞调用线程）
-            try
-            {
-                await Task.Run(() =>
+                try
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    File.Copy(sourceFile, targetFile, overwrite: true);
-                }, cancellationToken);
+                    await Task.Run(() =>
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        
+                        // 尝试备份/删除目标文件
+                        if (File.Exists(targetFile))
+                        {
+                            DeleteFileWithBackup(targetFile);
+                            // 如果DeleteFileWithBackup失败（文件仍存在），手动抛出异常以触发重试
+                            if (File.Exists(targetFile))
+                            {
+                                throw new IOException($"Unable to delete/backup existing file: {targetFile}");
+                            }
+                        }
 
-                // 12. 设置目标文件为普通属性（清除只读/隐藏等限制）
-                File.SetAttributes(targetFile, FileAttributes.Normal);
+                        File.Copy(sourceFile, targetFile, overwrite: true);
+                    }, cancellationToken);
+
+                    // 12. 设置目标文件为普通属性（清除只读/隐藏等限制）
+                    File.SetAttributes(targetFile, FileAttributes.Normal);
+                    copySuccess = true;
+                    break;
+                }
+                catch (IOException ex) when (!cancellationToken.IsCancellationRequested)
+                {
+                    // 文件被锁定时，记录警告并重试
+                    LoggerHelper.Warning($"Failed to copy file (may be locked), attempt {i+1}/{maxRetries}: {sourceFile} -> {targetFile}, error: {ex.Message}");
+                    await Task.Delay(1000, cancellationToken);
+                }
+                catch (UnauthorizedAccessException ex)
+                {
+                    // 权限不足时，记录警告并重试
+                    LoggerHelper.Warning($"Access denied when copying file, attempt {i+1}/{maxRetries}: {sourceFile} -> {targetFile}, error: {ex.Message}");
+                    await Task.Delay(1000, cancellationToken);
+                }
             }
-            catch (IOException ex) when (!cancellationToken.IsCancellationRequested)
+            
+            if (!copySuccess)
             {
-                // 文件被锁定时，记录警告但继续处理其他文件
-                LoggerHelper.Warning($"Failed to copy file (may be locked): {sourceFile} -> {targetFile}, error: {ex.Message}");
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                // 权限不足时，记录警告但继续处理其他文件
-                LoggerHelper.Warning($"Access denied when copying file: {sourceFile} -> {targetFile}, error: {ex.Message}");
+                throw new IOException($"Failed to copy file after {maxRetries} attempts: {sourceFile} -> {targetFile}");
             }
 
             // 13. 更新进度条（线程安全）
@@ -1172,115 +1192,33 @@ public static class VersionChecker
             UniversalExtractor.Extract(tempZip, extractDir);
 
             SetText(textBlock, LangKeys.ApplyingUpdate.ToLocalization());
-            // 执行安全更新
+            // 执行更新
             SetProgress(progress, 40);
-            var utf8Bytes = Encoding.UTF8.GetBytes(AppContext.BaseDirectory);
-            var utf8BaseDirectory = Encoding.UTF8.GetString(utf8Bytes);
-            var sourceBytes = Encoding.UTF8.GetBytes(extractDir);
-            var sourceDirectory = Encoding.UTF8.GetString(sourceBytes);
+            
+            // 准备备份目录
+            var backupDir = Path.Combine(AppContext.BaseDirectory, "backup", DateTime.Now.ToString("yyyyMMddHHmmss"));
+            Directory.CreateDirectory(backupDir);
 
+            // 执行文件替换
             SetProgress(progress, 60);
-            string updaterName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-                ? "MFAUpdater.exe"
-                : "MFAUpdater";
-            // 构建完整路径
-            string sourceUpdaterPath = Path.Combine(sourceDirectory, updaterName); // 源目录路径
-            string targetUpdaterPath = Path.Combine(utf8BaseDirectory, updaterName); // 目标目录路径
-            bool update = true;
-            try
-            {
-                if (File.Exists(targetUpdaterPath) && File.Exists(sourceUpdaterPath))
-                {
-                    // 在非Windows系统上，先为源更新器设置执行权限
-                    if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                    {
-                        LoggerHelper.Info($"macOS/Linux系统，尝试为源更新器设置执行权限: {sourceUpdaterPath}");
-                        try
-                        {
-                            var chmodSourceProcess = Process.Start("/bin/chmod", $"+x \"{sourceUpdaterPath}\"");
-                            if (chmodSourceProcess != null)
-                            {
-                                await chmodSourceProcess.WaitForExitAsync();
-                                LoggerHelper.Info($"为源更新器设置执行权限: {sourceUpdaterPath}");
-                            }
-                        }
-                        catch (Exception chmodEx)
-                        {
-                            LoggerHelper.Warning($"设置源更新器权限失败: {chmodEx.Message}");
-                        }
-                    }
-
-                    var targetVersion = GetVersionFromCommand(targetUpdaterPath);
-                    if (string.IsNullOrWhiteSpace(targetVersion))
-                    {
-                        var targetVersionInfo = FileVersionInfo.GetVersionInfo(targetUpdaterPath);
-                        targetVersion = targetVersionInfo.FileVersion;
-                    }
-                    var sourceVersion = GetVersionFromCommand(sourceUpdaterPath);
-
-                    if (string.IsNullOrWhiteSpace(sourceVersion))
-                    {
-                        var sourceVersionInfo = FileVersionInfo.GetVersionInfo(sourceUpdaterPath);
-                        sourceVersion = sourceVersionInfo.FileVersion;
-                    }
-
-                    LoggerHelper.Info("Target Updater Version: " + targetVersion);
-                    LoggerHelper.Info("Source Updater Version: " + sourceVersion);
-                    // 使用Version类比较版本
-                    if (Version.TryParse(targetVersion, out var vTarget) && Version.TryParse(sourceVersion, out var vSource))
-                    {
-                        int result = vTarget.CompareTo(vSource);
-                        if (result < 0)
-                        {
-                            if (File.Exists(sourceUpdaterPath) && !RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                            {
-                                var chmodProcess = Process.Start("/bin/chmod", $"+x {sourceDirectory}");
-                                await chmodProcess?.WaitForExitAsync();
-                            }
-                        }
-                        else if (result > 0)
-                        {
-                            update = false;
-                        }
-                    }
-
-                }
-
-                // 验证源文件存在性
-                if (!File.Exists(sourceUpdaterPath))
-                {
-                    LoggerHelper.Error($"更新器在源目录缺失: {sourceUpdaterPath}");
-                    update = false;
-                }
-            }
-            catch (IOException ex)
-            {
-                update = false;
-                LoggerHelper.Error($"文件操作失败: {ex.Message} (错误代码: {ex.HResult})");
-                throw new InvalidOperationException("文件复制过程中发生I/O错误", ex);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                update = false;
-                LoggerHelper.Error($"权限不足: {ex.Message}");
-                throw new SecurityException("文件访问权限被拒绝", ex);
-            }
-            catch (Exception ex)
-            {
-                update = true;
-                LoggerHelper.Error($"操作失败: {ex.Message} (具体: {ex})");
-            }
-            if (update)
-            {
-                File.Copy(sourceUpdaterPath, targetUpdaterPath, overwrite: true);
-                LoggerHelper.Info($"成功复制更新器到目标目录: {targetUpdaterPath}");
-            }
+            await ReplaceFilesWithRetry(extractDir, backupDir);
+            
             SetProgress(progress, 100);
+            
+            // 获取当前可执行文件名以重启
+            string exeName = Process.GetCurrentProcess().MainModule?.FileName ?? string.Empty;
+             if (string.IsNullOrEmpty(exeName) || !File.Exists(exeName))
+            {
+                 // 如果获取失败，尝试构建默认路径
+                 var processName = Process.GetCurrentProcess().ProcessName;
+                 var extension = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? ".exe" : "";
+                 exeName = Path.Combine(AppContext.BaseDirectory, processName + extension);
+            }
 
-            await ApplySecureUpdate(sourceDirectory, utf8BaseDirectory, $"{Assembly.GetEntryAssembly().GetName().Name}{(RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? ".exe" : "")}",
-                Process.GetCurrentProcess().MainModule.ModuleName);
-
-            Thread.Sleep(500);
+            // 在重启前给一点时间
+            await Task.Delay(500);
+            
+            await RestartApplicationAsync(exeName);
         }
         finally
         {
@@ -1512,6 +1450,10 @@ public static class VersionChecker
                         Directory.CreateDirectory(Path.GetDirectoryName(backupPath));
                         File.Move(targetPath, backupPath, overwrite: true);
                     }
+                    // 确保目标目录存在
+                    var destDir = Path.GetDirectoryName(targetPath);
+                    if (!Directory.Exists(destDir)) Directory.CreateDirectory(destDir);
+                    
                     File.Move(file, targetPath, overwrite: true);
                     break;
                 }
