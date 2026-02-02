@@ -572,7 +572,7 @@
                                         Foreground="White">
                                     <Grid Margin="12 2">
                                         <WrapPanel
-                                            IsVisible="{Binding !IsRunning, Source={x:Static helper:Instances.RootViewModel}}">
+                                            IsVisible="{Binding !IsRunning}">
                                             <Path Data="{StaticResource PlayGeometry}"
                                                   Fill="White"
                                                   Width="12"
@@ -584,7 +584,7 @@
                                                        Text="{markup:I18n {x:Static helper:LangKeys.StartTask}}" />
                                         </WrapPanel>
                                         <WrapPanel
-                                            IsVisible="{Binding IsRunning, Source={x:Static helper:Instances.RootViewModel}}">
+                                            IsVisible="{Binding IsRunning}">
                                             <Path Data="{StaticResource StopGeometry}"
                                                   Fill="White"
                                                   Width="12"
@@ -711,7 +711,7 @@
                                         Foreground="White">
                                     <Grid Margin="12 2">
                                         <WrapPanel
-                                            IsVisible="{Binding !IsRunning, Source={x:Static helper:Instances.RootViewModel}}">
+                                            IsVisible="{Binding !IsRunning}">
                                             <Path Data="{StaticResource PlayGeometry}"
                                                   Fill="White"
                                                   Width="12"
@@ -723,7 +723,7 @@
                                                        Text="{markup:I18n {x:Static helper:LangKeys.StartTask}}" />
                                         </WrapPanel>
                                         <WrapPanel
-                                            IsVisible="{Binding IsRunning, Source={x:Static helper:Instances.RootViewModel}}">
+                                            IsVisible="{Binding IsRunning}">
                                             <Path Data="{StaticResource StopGeometry}"
                                                   Fill="White"
                                                   Width="12"
@@ -1057,8 +1057,7 @@
                             <Button.IsVisible>
                                 <MultiBinding Converter="{x:Static converters:BooleanAndConverter.NegateSecond}">
                                     <Binding Path="IsCompactMode" />
-                                    <Binding Path="IsRunning"
-                                             Source="{x:Static helper:Instances.RootViewModel}" />
+                                    <Binding Path="IsRunning" />
                                 </MultiBinding>
                             </Button.IsVisible>
                             <Path Data="{StaticResource PlayGeometry}"
@@ -1084,8 +1083,7 @@
                             <Button.IsVisible>
                                 <MultiBinding Converter="{x:Static converters:BooleanAndConverter.Instance}">
                                     <Binding Path="IsCompactMode" />
-                                    <Binding Path="IsRunning"
-                                             Source="{x:Static helper:Instances.RootViewModel}" />
+                                    <Binding Path="IsRunning" />
                                 </MultiBinding>
                             </Button.IsVisible>
                             <Path Data="{StaticResource StopGeometry}"
@@ -1263,8 +1261,7 @@
                               VerticalAlignment="Top">
                             <Grid.IsVisible>
                                 <MultiBinding Converter="{x:Static converters:BooleanAndConverter.Instance}">
-                                    <Binding Path="IsRunning"
-                                             Source="{x:Static helper:Instances.RootViewModel}" />
+                                    <Binding Path="IsRunning" />
                                     <Binding Path="LiveViewImage"
                                              Converter="{x:Static ObjectConverters.IsNotNull}" />
                                 </MultiBinding>

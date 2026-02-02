@@ -429,8 +429,10 @@ public class MaaProcessor
 
         TaskQueue.CountChanged += (_, args) =>
         {
-            if (args.NewValue > 0)
-                Instances.RootViewModel.IsRunning = true;
+            DispatcherHelper.PostOnMainThread(() =>
+            {
+                Instances.RootViewModel.IsRunning = Processors.Any(p => p.TaskQueue.Count > 0);
+            });
 
             if (_taskQueueTotal <= 0)
             {
@@ -3733,8 +3735,6 @@ public class MaaProcessor
                 CancelOperations(status == MFATask.MFATaskStatus.STOPPED && !_agentStarted && (_agentClient != null || _agentProcess != null));
 
                 TaskQueue.Clear();
-
-                DispatcherHelper.PostOnMainThread(() => Instances.RootViewModel.IsRunning = false);
 
                 ExecuteStopCore(finished, async () =>
                 {

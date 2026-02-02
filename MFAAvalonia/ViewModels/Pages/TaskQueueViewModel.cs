@@ -53,10 +53,27 @@ public partial class TaskQueueViewModel : ViewModelBase
         _liveViewTimer.Elapsed += OnLiveViewTimerElapsed;
         UpdateLiveViewTimerInterval();
         _liveViewTimer.Start();
+
+        IsRunning = _processorField.TaskQueue.Count > 0;
+        _processorField.TaskQueue.CountChanged += OnTaskQueueCountChanged;
         
         // Re-initialize with the correct processor since base constructor might have used Current
         Initialize();
     }
+
+    private void OnTaskQueueCountChanged(object? sender, ObservableQueue<MFATask>.CountChangedEventArgs e)
+    {
+        DispatcherHelper.RunOnMainThread(() =>
+        {
+            IsRunning = e.NewValue > 0;
+        });
+    }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Idle))]
+    private bool _isRunning;
+
+    public bool Idle => !IsRunning;
 
     [ObservableProperty] private bool _isCompactMode = false;
 
@@ -280,6 +297,7 @@ public partial class TaskQueueViewModel : ViewModelBase
 
     protected override void Initialize()
     {
+        if (_processorField == null) return;
         try
         {
             _isSyncing = true;
@@ -319,7 +337,7 @@ public partial class TaskQueueViewModel : ViewModelBase
     [RelayCommand]
     private void Toggle()
     {
-        if (Instances.RootViewModel.IsRunning)
+        if (IsRunning)
             StopTask();
         else
             StartTask();
@@ -327,7 +345,7 @@ public partial class TaskQueueViewModel : ViewModelBase
 
     public void StartTask()
     {
-        if (Instances.RootViewModel.IsRunning)
+        if (IsRunning)
         {
             ToastHelper.Warn(LangKeys.ConfirmExitTitle.ToLocalization());
             LoggerHelper.Warning(LangKeys.ConfirmExitTitle.ToLocalization());
