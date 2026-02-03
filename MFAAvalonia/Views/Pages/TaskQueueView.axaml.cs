@@ -465,7 +465,8 @@ public partial class TaskQueueView : UserControl
                 var newPanel = CommonPanelCache.GetOrAdd(cacheKey, key =>
                 {
                     var p = new StackPanel();
-                    GenerateResourceOptionPanelContent(p, dragItem);
+                    new TaskOptionGenerator(vm, SaveConfiguration).GenerateResourceOptionPanelContent(p, dragItem);
+                    // GenerateResourceOptionPanelContent(p, dragItem);
                     CommonOptionSettings.Children.Add(p);
                     return p;
                 });
@@ -480,7 +481,8 @@ public partial class TaskQueueView : UserControl
                 var newPanel = CommonPanelCache.GetOrAdd(cacheKey, key =>
                 {
                     var p = new StackPanel();
-                    GeneratePanelContent(p, dragItem);
+                    new TaskOptionGenerator(vm, SaveConfiguration).GeneratePanelContent(p, dragItem);
+                    // GeneratePanelContent(p, dragItem);
                     CommonOptionSettings.Children.Add(p);
                     return p;
                 });
@@ -493,7 +495,8 @@ public partial class TaskQueueView : UserControl
                     var commonPanel = CommonPanelCache.GetOrAdd(cacheKey, key =>
                     {
                         var p = new StackPanel();
-                        GenerateCommonPanelContent(p, dragItem);
+                        new TaskOptionGenerator(vm, SaveConfiguration).GenerateCommonPanelContent(p, dragItem);
+                        // GenerateCommonPanelContent(p, dragItem);
                         CommonOptionSettings.Children.Add(p);
                         return p;
                     });
@@ -502,7 +505,8 @@ public partial class TaskQueueView : UserControl
                 var advancedPanel = AdvancedPanelCache.GetOrAdd(cacheKey, key =>
                 {
                     var p = new StackPanel();
-                    GenerateAdvancedPanelContent(p, dragItem);
+                    new TaskOptionGenerator(vm, SaveConfiguration).GenerateAdvancedPanelContent(p, dragItem);
+                    // GenerateAdvancedPanelContent(p, dragItem);
                     AdvancedOptionSettings.Children.Add(p);
                     return p;
                 });
