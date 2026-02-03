@@ -1525,5 +1525,74 @@
         <data name="AdminPermissionRequiredDetail" xml:space="preserve">
             <value>The target process is running with administrator privileges. Please restart this application as administrator.</value>
         </data>
+        <data name="StartupErrorTitle" xml:space="preserve">
+            <value>Startup Failed</value>
+        </data>
+        <data name="StartupErrorMessage" xml:space="preserve">
+            <value>{0} Failed
+    
+    Error Message:
+    {1}
+    
+    Details:
+    {2}</value>
+        </data>
+        <data name="MSVC2022Missing" xml:space="preserve">
+            <value>Missing runtime detected. Please try to download and install the latest Microsoft Visual C++ Redistributable (x64).</value>
+        </data>
+        <data name="MSVC2022DownloadLink" xml:space="preserve">
+            <value>Download Link: https://aka.ms/vs/17/release/vc_redist.x64.exe</value>
+        </data>
+        <data name="DownloadNowConfirmation" xml:space="preserve">
+            <value>Download now?</value>
+        </data>
+        <data name="RuntimeMissingTitle" xml:space="preserve">
+            <value>Runtime Missing</value>
+        </data>
+        <data name="RuntimeMissingWarning" xml:space="preserve">
+            <value>System Component Missing</value>
+        </data>
+        <data name="RuntimeMissingDescription" xml:space="preserve">
+            <value>MFAAvalonia requires Microsoft Visual C++ Redistributable (x64) to run.</value>
+        </data>
+        <data name="DownloadAndInstall" xml:space="preserve">
+            <value>Download and Install</value>
+        </data>
+        <data name="DownloadingStatus" xml:space="preserve">
+            <value>Downloading Runtime Library...</value>
+        </data>
+        <data name="InstallingStatus" xml:space="preserve">
+            <value>Waiting for installation to complete, please complete the operation in the popped up installation window.</value>
+        </data>
+        <data name="InstallSuccess" xml:space="preserve">
+            <value>Installation Completed. Please restart the application.</value>
+        </data>
+        <data name="DownloadError" xml:space="preserve">
+            <value>Error: {0}</value>
+        </data>
+        <data name="Retry" xml:space="preserve">
+            <value>Retry</value>
+        </data>
+        <data name="Close" xml:space="preserve">
+            <value>Close</value>
+        </data>
+        <data name="RuntimeMissingPrompt" xml:space="preserve">
+            <value>Click the button below to automatically download and run the installer, please note to click install in the popped up window.</value>
+        </data>
+        <data name="TempDirWarningTitle" xml:space="preserve">
+            <value>Wrong Program Location</value>
+        </data>
+        <data name="TempDirWarningMain" xml:space="preserve">
+            <value>It seems you double-clicked the program inside the zip file.</value>
+        </data>
+        <data name="TempDirWarningDesc" xml:space="preserve">
+            <value>The program is running in a temporary directory and may be lost when closed. Please extract the zip file to a folder first, then run the program inside.</value>
+        </data>
+        <data name="TempDirWarningHint" xml:space="preserve">
+            <value>Tip: It is recommended to extract to a dedicated folder, e.g. "D:\MFA", avoid Desktop or Download folders for better management.</value>
+        </data>
+        <data name="ExitProgram" xml:space="preserve">
+            <value>Exit Program</value>
+        </data>
     </root>
 

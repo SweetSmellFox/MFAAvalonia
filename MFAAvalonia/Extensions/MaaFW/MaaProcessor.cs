@@ -547,9 +547,12 @@ public class MaaProcessor
 
                 // 下面的代码引用了 Instances.TaskQueueViewModel，现在它指向 Current VM。
                 // 我们保留这个行为，或者改为遍历 MaaProcessorManager.Instances 并刷新它们的 VM。
-                MaaProcessorManager.Instance.Current.ViewModel?.InitializeControllerOptions();
-                
-                DispatcherHelper.PostOnMainThread(() => MaaProcessorManager.Instance.Current.ViewModel?.InitializeControllerOptions());
+                if (MaaProcessorManager.IsInstanceCreated)
+                {
+                    MaaProcessorManager.Instance.Current.ViewModel?.InitializeControllerOptions();
+
+                    DispatcherHelper.PostOnMainThread(() => MaaProcessorManager.Instance.Current.ViewModel?.InitializeControllerOptions());
+                }
 
                 // 异步加载 Contact 和 Description 内容
                 _ = LoadContactAndDescriptionAsync(value);
@@ -1777,14 +1780,14 @@ public class MaaProcessor
                     Path.Combine(AppContext.BaseDirectory, "libs", "MaaAgentBinary")
                 );
 
-            case MaaControllerTypes.PlayCover:
-                if (logConfig)
-                {
-                    LoggerHelper.Info($"PlayCover Address: {Config.PlayCover.PlayCoverAddress}");
-                    LoggerHelper.Info($"PlayCover BundleId: {Config.PlayCover.UUID}");
-                }
-
-                return new MaaPlayCoverController(Config.PlayCover.PlayCoverAddress, Config.PlayCover.UUID);
+            // case MaaControllerTypes.PlayCover:
+            //     if (logConfig)
+            //     {
+            //         LoggerHelper.Info($"PlayCover Address: {Config.PlayCover.PlayCoverAddress}");
+            //         LoggerHelper.Info($"PlayCover BundleId: {Config.PlayCover.UUID}");
+            //     }
+            //
+            //     return new MaaPlayCoverController(Config.PlayCover.PlayCoverAddress, Config.PlayCover.UUID);
 
             case MaaControllerTypes.Gamepad:
                 // Gamepad 控制器使用 Win32 控制器的配置，但会创建虚拟手柄

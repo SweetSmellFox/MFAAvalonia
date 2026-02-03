@@ -1504,4 +1504,94 @@
     <data name="PlatformNotSupportedOperation" xml:space="preserve">
         <value>當前平台不支援該操作</value>
     </data>
+    <data name="TempDirWarningTitle" xml:space="preserve">
+        <value>程式位置不正確</value>
+    </data>
+    <data name="TempDirWarningMain" xml:space="preserve">
+        <value>你好像直接雙擊壓縮檔裡的程式了</value>
+    </data>
+    <data name="TempDirWarningDesc" xml:space="preserve">
+        <value>程式現在在暫存目錄裡執行著呢，一關掉可能就沒了。先把壓縮檔解壓到一個資料夾裡，再開啟裡面的程式吧。</value>
+    </data>
+    <data name="TempDirWarningHint" xml:space="preserve">
+        <value>小提示：建議解壓到一個專門的資料夾，比如「D:\MFA」，別放桌面或者下載資料夾，那樣更方便管理。</value>
+    </data>
+    <data name="ExitProgram" xml:space="preserve">
+        <value>退出程式</value>
+    </data>
+    <data name="MSVC2022Missing" xml:space="preserve">
+        <value>檢測到缺少運行庫 Runtime，請嘗試下載並安裝最新 Microsoft Visual C++ Redistributable (x64) 運行庫。</value>
+    </data>
+    <data name="MSVC2022DownloadLink" xml:space="preserve">
+        <value>下載連結：https://aka.ms/vs/17/release/vc_redist.x64.exe</value>
+    </data>
+    <data name="DownloadNowConfirmation" xml:space="preserve">
+        <value>是否立即下載？</value>
+    </data>
+    <data name="RuntimeMissingTitle" xml:space="preserve">
+        <value>缺少運行庫</value>
+    </data>
+    <data name="RuntimeMissingWarning" xml:space="preserve">
+        <value>缺少系統組件</value>
+    </data>
+    <data name="RuntimeMissingDescription" xml:space="preserve">
+        <value>MFAAvalonia 需要 Microsoft Visual C++ Redistributable (x64) 才能運行。</value>
+    </data>
+    <data name="DownloadAndInstall" xml:space="preserve">
+        <value>下載並安裝</value>
+    </data>
+    <data name="DownloadingStatus" xml:space="preserve">
+        <value>正在下載執行階段庫...</value>
+    </data>
+    <data name="InstallingStatus" xml:space="preserve">
+        <value>正在等待安裝完成，請在彈出的安裝視窗中完成操作。</value>
+    </data>
+    <data name="InstallSuccess" xml:space="preserve">
+        <value>安裝完成，請重啟應用程式。</value>
+    </data>
+    <data name="DownloadError" xml:space="preserve">
+        <value>錯誤: {0}</value>
+    </data>
+    <data name="Retry" xml:space="preserve">
+        <value>重試</value>
+    </data>
+    <data name="Close" xml:space="preserve">
+        <value>關閉</value>
+    </data>
+    <data name="RuntimeMissingPrompt" xml:space="preserve">
+        <value>點擊下方按鈕自動下載並執行安裝程式，請注意在彈出的視窗中點擊安裝。</value>
+    </data>
+    <data name="AdminPermissionRequired" xml:space="preserve">
+        <value>需要管理員權限</value>
+    </data>
+    <data name="AdminPermissionRequiredDetail" xml:space="preserve">
+        <value>目標進程以管理員權限運行，請以管理員身份重新啓動本程序</value>
+    </data>
+    <data name="FontScaleValue" xml:space="preserve">
+        <value>{0}%</value>
+    </data>
+    <data name="FontScaleTitle" xml:space="preserve">
+        <value>字體大小縮放</value>
+    </data>
+    <data name="FontScaleDescription" xml:space="preserve">
+        <value>調整界面字體的整體縮放比例，所有字體將按比例放大或縮小。</value>
+    </data>
+    <data name="ResourceLayoutUpdatedContent" xml:space="preserve">
+        <value>檢測到資源佈局文件更新，已應用最新佈局並覆蓋當前佈局。</value>
+    </data>
+    <data name="ResourceLayoutUpdatedTitle" xml:space="preserve">
+        <value>資源佈局更新</value>
+    </data>
+    <data name="StartupErrorMessage" xml:space="preserve">
+        <value>{0}失敗
+    
+    錯誤信息：
+    {1}
+    
+    詳細信息：
+    {2}</value>
+    </data>
+    <data name="StartupErrorTitle" xml:space="preserve">
+        <value>啓動失敗</value>
+    </data>
 </root>

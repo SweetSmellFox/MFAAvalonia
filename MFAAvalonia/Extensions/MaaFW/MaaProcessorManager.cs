@@ -10,6 +10,7 @@ public sealed class MaaProcessorManager
 {
     private static readonly Lazy<MaaProcessorManager> LazyInstance = new(() => new MaaProcessorManager());
     public static MaaProcessorManager Instance => LazyInstance.Value;
+    public static bool IsInstanceCreated => LazyInstance.IsValueCreated;
 
     private readonly Dictionary<string, MaaProcessor> _instances = new();
     private readonly Dictionary<string, string> _instanceNames = new();

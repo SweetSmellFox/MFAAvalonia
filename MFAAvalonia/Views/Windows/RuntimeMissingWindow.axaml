@@ -1,0 +1,94 @@
+<suki:SukiWindow xmlns="https://github.com/avaloniaui"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                 xmlns:helper="using:MFAAvalonia.Helper"
+                 xmlns:markupExtensions="https://codewf.com"
+                 xmlns:suki="https://github.com/kikipoulet/SukiUI"
+                 mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="200"
+                 x:Class="MFAAvalonia.Views.Windows.RuntimeMissingWindow"
+                 Title="{markupExtensions:I18n {x:Static helper:LangKeys.RuntimeMissingTitle}}"
+                 SizeToContent="WidthAndHeight"
+                 WindowStartupLocation="CenterScreen"
+                 CanResize="False"
+                 SystemDecorations="BorderOnly"
+                 ExtendClientAreaToDecorationsHint="True"
+                 ExtendClientAreaChromeHints="NoChrome"
+                 ExtendClientAreaTitleBarHeightHint="-1"
+                 Background="Transparent" Icon="{Binding Source={x:Static helper:IconHelper.WindowIcon}}"
+                 TransparencyLevelHint="Mica, AcrylicBlur, Blur">
+    <suki:SukiWindow.LogoContent>
+        <Image
+            Height="25"
+            Source="{x:Static helper:IconHelper.Icon}"
+            Stretch="Uniform"
+            Width="28" />
+    </suki:SukiWindow.LogoContent>
+    <Grid RowDefinitions="Auto,*,Auto" Margin="20,15">
+        <!-- Icon/Title -->
+        <StackPanel Grid.Row="0" Spacing="15" Orientation="Horizontal" HorizontalAlignment="Left">
+            <TextBlock Text="⚠️" FontSize="30" HorizontalAlignment="Left" VerticalAlignment="Center" />
+            <TextBlock x:Name="WarningText"
+                       Foreground="{DynamicResource SukiText}"
+                       FontSize="22"
+                       FontWeight="SemiBold" VerticalAlignment="Center"
+                       HorizontalAlignment="Left"
+                       Text="{markupExtensions:I18n {x:Static helper:LangKeys.RuntimeMissingWarning}}" />
+        </StackPanel>
+        <!-- Content -->
+        <StackPanel Grid.Row="1" VerticalAlignment="Center" Spacing="10" Margin="0,30,0,10">
+            <TextBlock x:Name="DescriptionText"
+                       Text="{markupExtensions:I18n {x:Static helper:LangKeys.RuntimeMissingDescription}}"
+                       Foreground="{DynamicResource SukiLowText}"
+                       FontSize="14"
+                       TextWrapping="Wrap"
+                       TextAlignment="Left"
+                       LineHeight="22" />
+            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <suki:Loading x:Name="StatusLoading" IsVisible="False" Width="20" Height="20" />
+                <TextBlock x:Name="StatusText"
+                           Text="{markupExtensions:I18n {x:Static helper:LangKeys.RuntimeMissingPrompt}}"
+                           Foreground="{DynamicResource SukiMuteText}"
+                           FontSize="12"
+                           TextWrapping="Wrap"
+                           TextAlignment="Left"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+
+        </StackPanel>
+        <!-- Actions -->
+        <StackPanel Grid.Row="2" Spacing="15">
+            <StackPanel Spacing="5">
+                <DockPanel x:Name="DownloadInfoGrid" LastChildFill="False" IsVisible="False">
+                    <TextBlock x:Name="DownloadSizeText"
+                               Foreground="{DynamicResource SukiMuteText}"
+                               FontSize="12" DockPanel.Dock="Left" />
+                    <TextBlock x:Name="DownloadSpeedText"
+                               Foreground="{DynamicResource SukiMuteText}"
+                               FontSize="12" DockPanel.Dock="Right" />
+                </DockPanel>
+                <ProgressBar x:Name="DownloadProgress"
+                             Height="4"
+                             Margin="0,0,0,15"
+                             IsVisible="False"
+                             Background="{DynamicResource SukiLightBorderBrush}"
+                             Foreground="{DynamicResource SukiPrimaryColor}"
+                             Minimum="0" Maximum="100"
+                             CornerRadius="2" />
+            </StackPanel>
+            
+            <Button x:Name="DownloadButton"
+                    Content="{markupExtensions:I18n {x:Static helper:LangKeys.DownloadAndInstall}}"
+                    HorizontalAlignment="Right"
+                    HorizontalContentAlignment="Center"
+                    Click="OnDownloadClick"
+                    Background="{DynamicResource SukiPrimaryColor}"
+                    Foreground="White"
+                    FontSize="14"
+                    FontWeight="Medium"
+                    Padding="10"
+                    CornerRadius="10"
+                    Cursor="Hand" />
+        </StackPanel>
+    </Grid>
+</suki:SukiWindow>

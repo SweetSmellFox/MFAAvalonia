@@ -1,0 +1,68 @@
+<suki:SukiWindow xmlns="https://github.com/avaloniaui"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                 xmlns:helper="using:MFAAvalonia.Helper"
+                 xmlns:markupExtensions="https://codewf.com"
+                 xmlns:suki="https://github.com/kikipoulet/SukiUI"
+                 mc:Ignorable="d" d:DesignWidth="520" d:DesignHeight="360"
+                 x:Class="MFAAvalonia.Views.Windows.TempDirWarningWindow"
+                 Title="{markupExtensions:I18n {x:Static helper:LangKeys.TempDirWarningTitle}}"
+                 SizeToContent="WidthAndHeight"
+                 WindowStartupLocation="CenterScreen"
+                 CanResize="False"
+                 SystemDecorations="BorderOnly"
+                 ExtendClientAreaToDecorationsHint="True"
+                 ExtendClientAreaChromeHints="NoChrome"
+                 ExtendClientAreaTitleBarHeightHint="-1"
+                 Background="Transparent"  Icon="{Binding Source={x:Static helper:IconHelper.WindowIcon}}"
+                 TransparencyLevelHint="Mica, AcrylicBlur, Blur">
+    <suki:SukiWindow.LogoContent>
+        <Image
+            Height="25"
+            Source="{x:Static helper:IconHelper.Icon}"
+            Stretch="Uniform"
+            Width="28" />
+    </suki:SukiWindow.LogoContent>
+    <Grid RowDefinitions="Auto,*,Auto" Margin="20,15">
+        <!-- ~1~ Icon/Title @1@ -->
+        <!-- <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="10" Margin="0,10,0,0"> -->
+        <!--     <TextBlock Text="⚠️" FontSize="20" VerticalAlignment="Center" Foreground="{DynamicResource SukiWarningColor}"/> -->
+        <!--     <TextBlock Text="{markupExtensions:I18n {x:Static helper:LangKeys.TempDirWarningTitle}}" -->
+        <!--                FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="{DynamicResource SukiText}"/> -->
+        <!-- </StackPanel> -->
+
+        <!-- Content -->
+        <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="15">
+            <Border Background="#FFF8E1" CornerRadius="50" Width="80" Height="80" HorizontalAlignment="Center">
+                 <TextBlock Text="📂" FontSize="40" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource SukiWarningColor}"/>
+            </Border>
+            <TextBlock Text="{markupExtensions:I18n {x:Static helper:LangKeys.TempDirWarningMain}}"
+                       FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" TextAlignment="Center" Foreground="{DynamicResource SukiText}"/>
+
+            <TextBlock Text="{markupExtensions:I18n {x:Static helper:LangKeys.TempDirWarningDesc}}"
+                       FontSize="14" Foreground="{DynamicResource SukiLowText}" TextWrapping="Wrap" MaxWidth="400" TextAlignment="Center" HorizontalAlignment="Center" LineHeight="20"/>
+
+             <Border Background="{DynamicResource SukiLightBorderBrush}" CornerRadius="8" Padding="15" Margin="0,15,0,0" MaxWidth="480">
+                 <TextBlock Text="{markupExtensions:I18n {x:Static helper:LangKeys.TempDirWarningHint}}"
+                            FontSize="12" Foreground="{DynamicResource SukiMuteText}" TextWrapping="Wrap" />
+             </Border>
+        </StackPanel>
+
+        <!-- Actions -->
+        <StackPanel Grid.Row="2" HorizontalAlignment="Right" Margin="0,0,0,10">
+            <Button x:Name="ExitButton"
+                    Content="{markupExtensions:I18n {x:Static helper:LangKeys.ExitProgram}}"
+                    HorizontalContentAlignment="Center"
+                    Click="OnExitClick"
+                    Background="{DynamicResource SukiPrimaryColor}"
+                    Foreground="White"
+                    FontSize="14"
+                    FontWeight="Medium"
+                    Padding="20,8"
+                    CornerRadius="10"
+                    Cursor="Hand" />
+        </StackPanel>
+    </Grid>
+
+</suki:SukiWindow>

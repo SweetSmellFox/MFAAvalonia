@@ -512,5 +512,21 @@ public static class LangKeys
 		public static readonly string ResourceLayoutUpdatedContent = "ResourceLayoutUpdatedContent";
 		public static readonly string AdminPermissionRequired = "AdminPermissionRequired";
 		public static readonly string AdminPermissionRequiredDetail = "AdminPermissionRequiredDetail";
+		public static readonly string RuntimeMissingTitle = "RuntimeMissingTitle";
+		public static readonly string RuntimeMissingWarning = "RuntimeMissingWarning";
+		public static readonly string RuntimeMissingDescription = "RuntimeMissingDescription";
+		public static readonly string RuntimeMissingPrompt = "RuntimeMissingPrompt";
+		public static readonly string DownloadAndInstall = "DownloadAndInstall";
+		public static readonly string DownloadingStatus = "DownloadingStatus";
+		public static readonly string InstallingStatus = "InstallingStatus";
+		public static readonly string InstallSuccess = "InstallSuccess";
+		public static readonly string DownloadError = "DownloadError";
+		public static readonly string Retry = "Retry";
+		public static readonly string Close = "Close";
+		public static readonly string TempDirWarningTitle = "TempDirWarningTitle";
+		public static readonly string TempDirWarningMain = "TempDirWarningMain";
+		public static readonly string TempDirWarningDesc = "TempDirWarningDesc";
+		public static readonly string TempDirWarningHint = "TempDirWarningHint";
+		public static readonly string ExitProgram = "ExitProgram";
 	
 }

@@ -1532,6 +1532,75 @@
         <data name="AdminPermissionRequiredDetail" xml:space="preserve">
             <value>目标进程以管理员权限运行，请以管理员身份重新启动本程序</value>
         </data>
+        <data name="StartupErrorTitle" xml:space="preserve">
+            <value>启动失败</value>
+        </data>
+        <data name="StartupErrorMessage" xml:space="preserve">
+            <value>{0}失败
+    
+    错误信息：
+    {1}
+    
+    详细信息：
+    {2}</value>
+        </data>
+        <data name="MSVC2022Missing" xml:space="preserve">
+            <value>检测到缺少运行库 Runtime，请尝试下载并安装最新 Microsoft Visual C++ Redistributable (x64) 运行库。</value>
+        </data>
+        <data name="MSVC2022DownloadLink" xml:space="preserve">
+            <value>下载链接：https://aka.ms/vs/17/release/vc_redist.x64.exe</value>
+        </data>
+        <data name="DownloadNowConfirmation" xml:space="preserve">
+            <value>是否立即下载？</value>
+        </data>
+        <data name="RuntimeMissingTitle" xml:space="preserve">
+            <value>缺少运行库</value>
+        </data>
+        <data name="RuntimeMissingWarning" xml:space="preserve">
+            <value>缺少系统组件</value>
+        </data>
+        <data name="RuntimeMissingDescription" xml:space="preserve">
+            <value>MFAAvalonia 需要 Microsoft Visual C++ Redistributable (x64) 才能运行。</value>
+        </data>
+        <data name="DownloadAndInstall" xml:space="preserve">
+            <value>下载并安装</value>
+        </data>
+        <data name="DownloadingStatus" xml:space="preserve">
+            <value>正在下载运行库...</value>
+        </data>
+        <data name="InstallingStatus" xml:space="preserve">
+            <value>正在等待安装完成，请在弹出的安装窗口中完成操作。</value>
+        </data>
+        <data name="InstallSuccess" xml:space="preserve">
+            <value>安装完成，请重启应用程序。</value>
+        </data>
+        <data name="DownloadError" xml:space="preserve">
+            <value>错误: {0}</value>
+        </data>
+        <data name="Retry" xml:space="preserve">
+            <value>重试</value>
+        </data>
+        <data name="Close" xml:space="preserve">
+            <value>关闭</value>
+        </data>
+        <data name="RuntimeMissingPrompt" xml:space="preserve">
+            <value>点击下方按钮自动下载并运行安装程序，请注意在弹出的窗口中点击安装。</value>
+        </data>
+        <data name="TempDirWarningTitle" xml:space="preserve">
+            <value>程序位置不对</value>
+        </data>
+        <data name="TempDirWarningMain" xml:space="preserve">
+            <value>你好像直接双击压缩包里的程序了</value>
+        </data>
+        <data name="TempDirWarningDesc" xml:space="preserve">
+            <value>程序现在在临时目录里跑着呢，一关掉可能就没了。先把压缩包解压到一个文件夹里，再打开里面的程序吧。</value>
+        </data>
+        <data name="TempDirWarningHint" xml:space="preserve">
+            <value>小提示：建议解压到一个专门的文件夹，比如「D:\MFA」，别放桌面或者下载文件夹，那样更方便管理。</value>
+        </data>
+        <data name="ExitProgram" xml:space="preserve">
+            <value>退出程序</value>
+        </data>
     
     </root>
 

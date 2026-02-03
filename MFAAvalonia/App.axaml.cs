@@ -29,6 +29,8 @@ using System.Runtime.InteropServices;
 using System.Security.Authentication;
 using System.Text;
 using System.Threading.Tasks;
+using System.Diagnostics;
+using System.Net.Http;
 
 namespace MFAAvalonia;
 
@@ -44,12 +46,22 @@ public partial class App : Application
     /// </summary>
     private static AvaloniaMemoryCracker? _memoryCracker;
 
-        /// <summary>
-        /// 标记是否已经显示过启动错误对话框（确保只显示一次）
-        /// 使用 int 类型以便使用 Interlocked 原子操作
-        /// 0 = 未显示，1 = 已显示
-        /// </summary>
-        private static int _hasShownStartupError = 0;
+    /// <summary>
+    /// 标记是否已经显示过启动错误对话框（确保只显示一次）
+    /// 使用 int 类型以便使用 Interlocked 原子操作
+    /// 0 = 未显示，1 = 已显示
+    /// </summary>
+    private static int _hasShownStartupError = 0;
+
+    /// <summary>
+    /// 是否处于运行库缺失模式（仅显示下载窗口）
+    /// </summary>
+    public static bool IsRuntimeMissingMode = false;
+
+    /// <summary>
+    /// 是否处于临时目录运行模式（显示警告窗口）
+    /// </summary>
+    public static bool IsTempDirMode = false;
 
     public override void Initialize()
     {
@@ -83,6 +95,26 @@ public partial class App : Application
     {
         try
         {
+            if (IsRuntimeMissingMode)
+            {
+                if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop1)
+                {
+                    desktop1.MainWindow = new RuntimeMissingWindow();
+                }
+                base.OnFrameworkInitializationCompleted();
+                return;
+            }
+
+            if (IsTempDirMode)
+            {
+                if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktopTemp)
+                {
+                    desktopTemp.MainWindow = new TempDirWarningWindow();
+                }
+                base.OnFrameworkInitializationCompleted();
+                return;
+            }
+
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
                 desktop.ShutdownRequested += OnShutdownRequested;
@@ -241,7 +273,7 @@ public partial class App : Application
         return views
 
             // Add pages
-            .AddView<InstanceContainerView,InstanceTabBarViewModel>(services)
+            .AddView<InstanceContainerView, InstanceTabBarViewModel>(services)
             .AddView<TaskQueueView, TaskQueueViewModel>(services)
             .AddView<ResourcesView, ResourcesViewModel>(services)
             .AddView<SettingsView, SettingsViewModel>(services)
@@ -492,7 +524,7 @@ public partial class App : Application
 
         return false;
     }
-    
+
     /// <summary>
     /// 显示启动错误并退出应用（确保只显示一次）
     /// 使用 Interlocked 原子操作确保线程安全
@@ -510,30 +542,217 @@ public partial class App : Application
 
         try
         {
-            var message = $"MFAAvalonia {stage}失败\n\n错误信息：\n{exception.Message}\n\n详细信息：\n{exception}";
-            
+            // 尝试获取本地化标题和消息格式
+            var title = LanguageHelper.GetLocalizedString("StartupErrorTitle");
+            if (string.IsNullOrEmpty(title) || title == "StartupErrorTitle")
+                title = "启动失败";
+
+            var format = LanguageHelper.GetLocalizedString("StartupErrorMessage");
+            if (string.IsNullOrEmpty(format) || format == "StartupErrorMessage")
+                format = "{0}失败\n\n错误信息：\n{1}\n\n详细信息：\n{2}";
+
+            var message = string.Format(format, stage, exception.Message, exception);
+
+            string? downloadUrl = null;
+
+            // Windows: 检测 MSVC 2022 缺失问题
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                // Windows: 使用 MessageBox
-                var shortMessage = message.Length > 500
-                    ? message.Substring(0, 500) + "...\n\n详细信息请查看日志文件。"
-                    : message;
-                
-                MessageBox(IntPtr.Zero, shortMessage, "MFAAvalonia 启动失败", 0x10); // MB_ICONERROR
-            }
-            else
-            {
-                // Linux/macOS: 输出到控制台
-                Console.Error.WriteLine("=== MFAAvalonia 启动失败 ===");
-                Console.Error.WriteLine(message);
+                var baseEx = exception;
+                var isDllNotFound = false;
+
+                // 解包 TypeInitializationException
+                if (baseEx is TypeInitializationException && baseEx.InnerException != null)
+                    baseEx = baseEx.InnerException;
+
+
+                // 启发式检测：如果包含 MaaFramework 且是 加载错误
+                var exStr = exception.ToString();
+                if ((exStr.Contains("MaaFramework") || exStr.Contains("MaaCore")) && (exStr.Contains("DllNotFoundException") || baseEx is DllNotFoundException))
+                {
+                    isDllNotFound = true;
+                }
+
+                if (isDllNotFound)
+                {
+                    try
+                    {
+                        // 尝试显示自定义下载窗口
+                        void ShowRuntimeWindow()
+                        {
+                            var win = new RuntimeMissingWindow();
+                            win.Show();
+
+                            // 启动消息循环等待窗口关闭（窗口内部处理下载和退出）
+                            var cts = new System.Threading.CancellationTokenSource();
+                            win.Closed += (s, e) => cts.Cancel();
+                            Dispatcher.UIThread.MainLoop(cts.Token);
+                        }
+
+                        if (Dispatcher.UIThread.CheckAccess())
+                        {
+                            ShowRuntimeWindow();
+                            Environment.Exit(1);
+                            return;
+                        }
+                        else
+                        {
+                            var tcs = new TaskCompletionSource<bool>();
+                            Dispatcher.UIThread.Post(() =>
+                            {
+                                try
+                                {
+                                    ShowRuntimeWindow();
+                                    tcs.TrySetResult(true);
+                                }
+                                catch (Exception ex)
+                                {
+                                    tcs.TrySetException(ex);
+                                }
+                            });
+
+                            if (tcs.Task.Wait(15000)) // 等待15秒防止死锁
+                            {
+                                Environment.Exit(1);
+                                return;
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        LoggerHelper.Error($"无法显示 RuntimeMissingWindow: {ex}");
+                        if (isDllNotFound)
+                        {
+                            // 尝试显示自定义下载窗口
+                            try
+                            {
+                                // 如果我们在UI线程且App正常，直接显示
+                                if (Application.Current != null && Dispatcher.UIThread.CheckAccess())
+                                {
+                                    var win = new RuntimeMissingWindow();
+                                    win.Closed += (s, e) => Environment.Exit(1);
+                                    win.Show();
+                                    // 启动嵌套循环以阻塞退出
+                                    Dispatcher.UIThread.MainLoop(System.Threading.CancellationToken.None);
+                                    return;
+                                }
+
+                                // 当 SkiaSharp 等底层渲染库缺失时，Avalonia 无法启动 UI，因此 RuntimeMissingWindow 也无法显示。
+                                // 这里不再尝试无效的重启，而是直接回退到原生消息框，并确保消息框内容友好。
+                            }
+                            catch
+                            {
+                                // 降级处理：如果在尝试显示窗口时失败，回退到MessageBox
+                            }
+
+                            downloadUrl = "https://aka.ms/vs/17/release/vc_redist.x64.exe";
+
+                            // 优化错误信息：如果是缺运行库，只显示友好提示，不显示吓人的堆栈信息
+                            // 这解决了“截图内容”问题
+                            var msvcMsg = LanguageHelper.GetLocalizedString("MSVC2022Missing");
+                            if (string.IsNullOrEmpty(msvcMsg) || msvcMsg == "MSVC2022Missing")
+                                msvcMsg = "检测到缺少运行库 Runtime，请尝试下载并安装最新 Microsoft Visual C++ Redistributable (x64) 运行库。";
+
+                            var link = LanguageHelper.GetLocalizedString("MSVC2022DownloadLink");
+                            if (string.IsNullOrEmpty(link) || link == "MSVC2022DownloadLink")
+                                link = "下载链接：" + downloadUrl;
+
+                            var confirmStr = LanguageHelper.GetLocalizedString("DownloadNowConfirmation");
+                            if (string.IsNullOrEmpty(confirmStr) || confirmStr == "DownloadNowConfirmation")
+                                confirmStr = "是否立即下载？";
+
+                            // 重写 message，仅包含友好提示
+                            message = $"{msvcMsg}\n{link}\n\n{confirmStr}";
+                        }
+                    }
+
+                    // 输出到控制台（作为备份）
+                    Console.Error.WriteLine($"=== MFAAvalonia {title} ===");
+                    Console.Error.WriteLine(message);
+
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                    {
+                        // Windows: 使用 MessageBox
+                        var shortMessage = message.Length > 2048
+                            ? message.Substring(0, 2048) + "...\n\n(Log truncated)"
+                            : message;
+
+                        if (downloadUrl != null)
+                        {
+                            // MB_YESNO | MB_ICONERROR = 0x04 | 0x10 = 0x14
+                            if (MessageBox(IntPtr.Zero, shortMessage, $"MFAAvalonia {title}", 0x14) == 6) // IDYES = 6
+                            {
+                                Process.Start(new ProcessStartInfo(downloadUrl)
+                                {
+                                    UseShellExecute = true
+                                });
+                            }
+                        }
+                        else
+                        {
+                            MessageBox(IntPtr.Zero, shortMessage, $"MFAAvalonia {title}", 0x10); // MB_ICONERROR
+                        }
+                    }
+                }
+                else
+                {
+                    // Linux/macOS: 尝试显示原生对话框
+                    try
+                    {
+                        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                        {
+                            var escapedMessage = message.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\r");
+                            var escapedTitle = title.Replace("\\", "\\\\").Replace("\"", "\\\"");
+                            var psi = new ProcessStartInfo
+                            {
+                                FileName = "osascript",
+                                Arguments = $"-e \"display alert \\\"{escapedTitle}\\\" message \\\"{escapedMessage}\\\" as critical\"",
+                                UseShellExecute = false,
+                                CreateNoWindow = true
+                            };
+                            Process.Start(psi)?.WaitForExit();
+                        }
+                        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                        {
+                            // 尝试 zenity
+                            try
+                            {
+                                var psi = new ProcessStartInfo
+                                {
+                                    FileName = "zenity",
+                                    Arguments = $"--error --text=\"{message.Replace("\"", "\\\"")}\" --title=\"{title}\"",
+                                    UseShellExecute = true
+                                };
+                                Process.Start(psi)?.WaitForExit();
+                            }
+                            catch
+                            {
+                                // 尝试 kdialog
+                                var psi = new ProcessStartInfo
+                                {
+                                    FileName = "kdialog",
+                                    Arguments = $"--error \"{message.Replace("\"", "\\\"")}\" --title \"{title}\"",
+                                    UseShellExecute = true
+                                };
+                                Process.Start(psi)?.WaitForExit();
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // 忽略跨平台对话框启动失败，已在上方输出到 Console
+                    }
+                }
             }
         }
-        catch
+        catch (Exception ex)
         {
-            Console.Error.WriteLine("=== MFAAvalonia 启动失败 ===");
+            Console.Error.WriteLine("=== MFAAvalonia Startup Failed (Fatal) ===");
+            Console.Error.WriteLine(ex.ToString());
+            Console.Error.WriteLine("Original Exception:");
             Console.Error.WriteLine(exception.ToString());
         }
-        
+
         Environment.Exit(1);
     }
 
