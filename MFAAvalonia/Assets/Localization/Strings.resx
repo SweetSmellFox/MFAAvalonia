@@ -1131,6 +1131,9 @@
     <data name="MirrorCdkMismatch" xml:space="preserve">
         <value>CDK 类型与资源不匹配</value>
     </data>
+    <data name="Monitor" xml:space="preserve">
+        <value>总控台</value>
+    </data>
     <data name="StartingAgent" xml:space="preserve">
             <value>正在启动 Agent(耗时可能较久)</value>
         </data>

@@ -275,6 +275,7 @@ public partial class App : Application
             // Add pages
             .AddView<InstanceContainerView, InstanceTabBarViewModel>(services)
             .AddView<TaskQueueView, TaskQueueViewModel>(services)
+            .AddView<MonitorView, MonitorViewModel>(services)
             .AddView<ResourcesView, ResourcesViewModel>(services)
             .AddView<SettingsView, SettingsViewModel>(services)
             .AddView<ScreenshotView, ScreenshotViewModel>(services)

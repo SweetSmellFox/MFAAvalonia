@@ -1,0 +1,72 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:pages="clr-namespace:MFAAvalonia.ViewModels.Pages"
+             xmlns:suki="https://github.com/kikipoulet/SukiUI"
+             xmlns:fluent="clr-namespace:FluentIcons.Avalonia.Fluent.Markup;assembly=FluentIcons.Avalonia.Fluent"
+             xmlns:helper="clr-namespace:MFAAvalonia.Helper"
+             xmlns:markup="https://codewf.com"
+             xmlns:calcBinding="clr-namespace:CalcBinding;assembly=CalcBindingAva"
+             xmlns:avalonia="clr-namespace:FluentIcons.Avalonia;assembly=FluentIcons.Avalonia"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="MFAAvalonia.Views.Pages.MonitorView"
+             x:DataType="pages:MonitorViewModel">
+    <ScrollViewer>
+        <ItemsControl ItemsSource="{Binding Items}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <suki:GlassCard Margin="10" Width="360" Height="240" IsInteractive="True" Command="{Binding SwitchCommand}">
+                        <suki:GlassCard.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="{markup:I18n {x:Static helper:LangKeys.StartTask}}"
+                                          Command="{Binding StartTaskCommand}"
+                                          IsVisible="{calcBinding:Binding 'IsConnected and !IsRunning'}" />
+                                <MenuItem Header="{markup:I18n {x:Static helper:LangKeys.StopTask}}"
+                                          Command="{Binding StopTaskCommand}"
+                                          IsVisible="{calcBinding:Binding 'IsConnected and IsRunning'}" />
+                                <MenuItem Header="{markup:I18n {x:Static helper:LangKeys.Reconnect}}"
+                                          Command="{Binding ConnectCommand}"
+                                          IsVisible="{calcBinding:Binding '!IsConnected'}" />
+                            </ContextMenu>
+                        </suki:GlassCard.ContextMenu>
+                        <Grid RowDefinitions="*,Auto">
+                            <!-- Image Area -->
+                            <Image Grid.Row="0" Source="{Binding Image}" Stretch="Uniform" IsVisible="{Binding HasImage}"/>
+                            
+                            <!-- Placeholder -->
+                            <Grid Grid.Row="0" IsVisible="{Binding !HasImage}" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <avalonia:FluentIcon Icon="Desktop" Width="80" Height="80" Foreground="{DynamicResource SukiLowText}"/>
+                            </Grid>
+
+                            <!-- LIVE Badge -->
+                            <Border Grid.Row="0" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="10"
+                                    Background="{DynamicResource SukiPrimaryColor}" CornerRadius="4" Padding="6,2" IsVisible="{Binding IsRunning}">
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <Ellipse Width="6" Height="6" Fill="White"/>
+                                    <TextBlock Text="LIVE" Foreground="White" FontWeight="Bold" FontSize="12"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Footer -->
+                            <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,10,0,0">
+                                <TextBlock Grid.Column="0" Text="{Binding Name}" FontWeight="SemiBold" FontSize="16" TextTrimming="CharacterEllipsis"/>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                                    <Ellipse Width="8" Height="8" Fill="{DynamicResource SukiSuccessColor}" IsVisible="{Binding IsConnected}"/>
+                                    <Ellipse Width="8" Height="8" Fill="{DynamicResource SukiDangerColor}" IsVisible="{Binding !IsConnected}"/>
+                                    <TextBlock Text="{markup:I18n {x:Static helper:LangKeys.Connected}}" IsVisible="{Binding IsConnected}" FontSize="12" Foreground="{DynamicResource SukiLowText}"/>
+                                    <TextBlock Text="{markup:I18n {x:Static helper:LangKeys.Unconnected}}" IsVisible="{Binding !IsConnected}" FontSize="12" Foreground="{DynamicResource SukiLowText}"/>
+                                </StackPanel>
+                            </Grid>
+                        </Grid>
+                    </suki:GlassCard>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </ScrollViewer>
+</UserControl>

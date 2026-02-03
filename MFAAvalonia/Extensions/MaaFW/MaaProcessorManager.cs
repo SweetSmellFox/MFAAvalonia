@@ -256,6 +256,12 @@ public sealed class MaaProcessorManager
 
         lock (_lock)
         {
+            // 确保 Interface 已加载，避免 TaskQueueViewModel 初始化时 ControllerOptions 为空
+            if (MaaProcessor.Interface == null)
+            {
+                MaaProcessor.ReadInterface();
+            }
+
             // 1. 加载/创建配置中的实例
             foreach (var id in ids)
             {

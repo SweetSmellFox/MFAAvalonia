@@ -35,8 +35,15 @@
                         <suki:SukiSideMenuItem IsContentMovable="False"
                                                Header="{markup:I18n {x:Static helper:LangKeys.Home}}"
                                                Icon="{fluent:FluentIcon Icon=TasksApp,
-                                                               IconVariant=Regular}"
+                                                                IconVariant=Regular}"
                                                PageContent="{extensions:ServiceProvider ServiceType={x:Type pages:InstanceContainerView}}" />
+                        <suki:SukiSideMenuItem IsContentMovable="False"
+                                               Header="{markup:I18n {x:Static helper:LangKeys.Monitor}}"
+                                               PageContent="{extensions:ServiceProvider ServiceType={x:Type pages:MonitorView}}">
+                            <suki:SukiSideMenuItem.Icon>
+                                <PathIcon Data="{StaticResource AppsGeometry}" Width="16" Height="16" />
+                            </suki:SukiSideMenuItem.Icon>
+                        </suki:SukiSideMenuItem>
                         <suki:SukiSideMenuItem IsContentMovable="False"
                                                Header="{markup:I18n {x:Static helper:LangKeys.ScreenshotPage}}"
                                                Icon="{fluent:FluentIcon Icon=Screenshot,

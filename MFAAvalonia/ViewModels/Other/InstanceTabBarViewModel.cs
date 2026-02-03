@@ -24,23 +24,43 @@ public partial class InstanceTabBarViewModel : ViewModelBase
     public InstanceTabBarViewModel()
     {
         ReloadTabs();
+        MaaProcessor.Processors.CollectionChanged += (_, _) =>
+        {
+            DispatcherHelper.PostOnMainThread(ReloadTabs);
+        };
     }
 
     public void ReloadTabs()
     {
-        Tabs.Clear();
-        foreach (var processor in MaaProcessorManager.Instance.Instances)
+        var processors = MaaProcessor.Processors.ToList();
+        
+        // Use smart sync instead of clear/add to preserve view state
+        var toRemove = Tabs.Where(t => !processors.Contains(t.Processor)).ToList();
+        foreach (var t in toRemove)
         {
-            Tabs.Add(new InstanceTabViewModel(processor));
+            Tabs.Remove(t);
+        }
+
+        foreach (var processor in processors)
+        {
+            if (Tabs.All(t => t.Processor != processor))
+            {
+                Tabs.Add(new InstanceTabViewModel(processor));
+            }
         }
         
         var current = MaaProcessorManager.Instance.Current;
-        var tab = Tabs.FirstOrDefault(t => t.InstanceId == current.InstanceId);
-        if (tab != null)
+        if (current != null)
         {
-            _activeTab = tab;
-            OnPropertyChanged(nameof(ActiveTab));
-            tab.IsActive = true;
+            var tab = Tabs.FirstOrDefault(t => t.InstanceId == current.InstanceId);
+            if (tab != null && ActiveTab != tab)
+            {
+                ActiveTab = tab;
+            }
+        }
+        else if (Tabs.Count > 0 && ActiveTab == null)
+        {
+            ActiveTab = Tabs.First();
         }
     }
 

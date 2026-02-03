@@ -373,9 +373,11 @@ public static partial class Instances
     private static SettingsViewModel _settingsViewModel;
     private static ResourcesView _resourcesView;
     private static ResourcesViewModel _resourcesViewModel;
+    private static MonitorView _monitorView;
+    private static MonitorViewModel _monitorViewModel;
     private static ScreenshotView _screenshotView;
     private static ScreenshotViewModel _screenshotViewModel;
-
+    
     private static ConnectSettingsUserControl _connectSettingsUserControl;
     private static ConnectSettingsUserControlModel _connectSettingsUserControlModel;
     private static GuiSettingsUserControl _guiSettingsUser;

@@ -155,13 +155,14 @@ public partial class TaskQueueViewModel : ViewModelBase
                 TaskLoader.InitializeResourceSelectOptions(resource, MaaProcessor.Interface, Processor.InstanceConfiguration);
             }
             
+            var resourceToSelect = targetResource ?? CurrentResource;
             CurrentResources = new ObservableCollection<MaaInterface.MaaInterfaceResource>(filteredResources);
             
-            if (targetResource != null)
+            if (!string.IsNullOrWhiteSpace(resourceToSelect) && CurrentResources.Any(r => r.Name == resourceToSelect))
             {
-                 CurrentResource = targetResource;
+                 CurrentResource = resourceToSelect;
             }
-            else if (!string.IsNullOrWhiteSpace(CurrentResource) && CurrentResources.All(r => r.Name != CurrentResource))
+            else
             {
                  CurrentResource = CurrentResources.FirstOrDefault()?.Name ?? "Default";
             }
