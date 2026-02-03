@@ -4207,6 +4207,17 @@ public class MaaProcessor
     {
         if (string.IsNullOrWhiteSpace(exePath) || !File.Exists(exePath))
             return;
+
+        if (OperatingSystem.IsWindows() && exePath.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
+        {
+            var resolved = ResolveShortcut(exePath);
+            if (!string.IsNullOrEmpty(resolved) && File.Exists(resolved))
+            {
+                LoggerHelper.Info($"Resolve shortcut: {exePath} -> {resolved}");
+                exePath = resolved;
+            }
+        }
+
         var processName = Path.GetFileNameWithoutExtension(exePath);
 
         // 检查当前控制器是否需要管理员权限
@@ -4278,6 +4289,26 @@ public class MaaProcessor
             await Task.Delay(1000, token);
         }
 
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static string? ResolveShortcut(string path)
+    {
+        try
+        {
+            var type = Type.GetTypeFromProgID("WScript.Shell");
+            if (type != null)
+            {
+                dynamic shell = Activator.CreateInstance(type);
+                dynamic shortcut = shell.CreateShortcut(path);
+                return shortcut.TargetPath;
+            }
+        }
+        catch (Exception ex)
+        {
+            LoggerHelper.Warning($"Resolve shortcut failed: {ex.Message}");
+        }
+        return null;
     }
 
     /// <summary>
