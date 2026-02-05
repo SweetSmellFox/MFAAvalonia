@@ -81,6 +81,9 @@ public partial class DragItemViewModel : ObservableObject
                 SetProperty(ref _isCheckedWithNull, value);
                 if (InterfaceItem != null)
                     InterfaceItem.Check = _isCheckedWithNull;
+
+                if (ConfigurationManager.IsSwitching) return;
+
                 (OwnerViewModel?.Processor.InstanceConfiguration ?? ConfigurationManager.CurrentInstance).SetValue(ConfigurationKeys.TaskItems,
                     (OwnerViewModel ?? Instances.InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel)?.TaskItemViewModels.ToList().Select(model => model.InterfaceItem));
             }

@@ -332,6 +332,7 @@ public partial class TaskQueueViewModel : ViewModelBase
 
     partial void OnTaskItemViewModelsChanged(ObservableCollection<DragItemViewModel> value)
     {
+        if (ConfigurationManager.IsSwitching) return;
         Processor.InstanceConfiguration.SetValue(ConfigurationKeys.TaskItems, value.ToList().Select(model => model.InterfaceItem));
     }
 
