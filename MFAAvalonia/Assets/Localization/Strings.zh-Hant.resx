@@ -1597,4 +1597,7 @@
     <data name="StartupErrorTitle" xml:space="preserve">
         <value>啓動失敗</value>
     </data>
+    <data name="PreventSleep" xml:space="preserve">
+        <value>執行時防止螢幕關閉</value>
+    </data>
 </root>

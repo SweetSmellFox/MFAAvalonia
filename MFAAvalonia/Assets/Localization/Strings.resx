@@ -1601,9 +1601,12 @@
         <data name="TempDirWarningHint" xml:space="preserve">
             <value>小提示：建议解压到一个专门的文件夹，比如「D:\MFA」，别放桌面或者下载文件夹，那样更方便管理。</value>
         </data>
-        <data name="ExitProgram" xml:space="preserve">
-            <value>退出程序</value>
-        </data>
-    
+    <data name="ExitProgram" xml:space="preserve">
+        <value>退出程序</value>
+    </data>
+    <data name="PreventSleep" xml:space="preserve">
+        <value>运行时阻止息屏</value>
+    </data>
+
     </root>
 

@@ -1591,8 +1591,11 @@
         <data name="TempDirWarningHint" xml:space="preserve">
             <value>Tip: It is recommended to extract to a dedicated folder, e.g. "D:\MFA", avoid Desktop or Download folders for better management.</value>
         </data>
-        <data name="ExitProgram" xml:space="preserve">
-            <value>Exit Program</value>
-        </data>
+    <data name="ExitProgram" xml:space="preserve">
+        <value>Exit Program</value>
+    </data>
+    <data name="PreventSleep" xml:space="preserve">
+        <value>Prevent Sleep</value>
+    </data>
     </root>
 

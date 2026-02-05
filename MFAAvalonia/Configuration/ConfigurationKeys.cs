@@ -42,6 +42,7 @@ public static class ConfigurationKeys
     public const string UseDirectML = "UseDirectML";
     public const string GPUOption = "GPUOption";
     public const string GPUs = "GPUs";
+    public const string PreventSleep = "PreventSleep";
 
     #endregion
 

@@ -122,6 +122,15 @@ public partial class PerformanceUserControlModel : ViewModelBase
 
     });
 
+    [ObservableProperty] private bool _preventSleep = ConfigurationManager.Current.GetValue(ConfigurationKeys.PreventSleep, false);
+
+    partial void OnPreventSleepChanged(bool value) => HandlePropertyChanged(ConfigurationKeys.PreventSleep, value, (v) =>
+    {
+        SystemSleepHelper.ApplyPreventSleep(v);
+    });
+
+    public bool IsWindows => OperatingSystem.IsWindows();
+
     public class GpuDeviceOption
     {
         public static GpuDeviceOption Auto = new(InferenceDevice.Auto);

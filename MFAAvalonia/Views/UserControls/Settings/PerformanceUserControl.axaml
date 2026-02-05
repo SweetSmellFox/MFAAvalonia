@@ -41,6 +41,19 @@
             <CheckBox Margin="0 0 0 8" IsChecked="{Binding UseDirectML}" IsVisible="{Binding  IsDirectMLSupported}" HorizontalAlignment="Center"
                       Content="{markup:I18n {x:Static helper:LangKeys.UseDirectMLSupportedDevice}}" VerticalAlignment="Center"> 
             </CheckBox>
+            <DockPanel IsVisible="{Binding IsWindows}">
+                <ToggleSwitch
+                    Classes="Switch"
+                    DockPanel.Dock="Right"
+                    IsChecked="{Binding PreventSleep}"
+                    VerticalAlignment="Center" />
+                <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
+                    <TextBlock
+                        FontSize="16"
+                        FontWeight="DemiBold"
+                        Text="{markup:I18n {x:Static helper:LangKeys.PreventSleep}}" />
+                </StackPanel>
+            </DockPanel>
         </StackPanel>
     </suki:GlassCard>
 </UserControl>

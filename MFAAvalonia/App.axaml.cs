@@ -72,6 +72,7 @@ public partial class App : Application
             AvaloniaXamlLoader.Load(this);
             LanguageHelper.Initialize();
             ConfigurationManager.Initialize();
+            SystemSleepHelper.ApplyPreventSleep();
             FontService.Initialize();
 
             // 保存引用以便在退出时正确释放
