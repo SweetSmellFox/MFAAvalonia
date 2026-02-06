@@ -5,6 +5,7 @@
              xmlns:other="clr-namespace:MFAAvalonia.ViewModels.Other"
              xmlns:suki="https://github.com/kikipoulet/SukiUI"
              xmlns:avalonia1="clr-namespace:FluentIcons.Avalonia;assembly=FluentIcons.Avalonia"
+             xmlns:fluent="clr-namespace:FluentIcons.Avalonia.Fluent;assembly=FluentIcons.Avalonia.Fluent"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="50"
              x:Class="MFAAvalonia.Views.UserControls.InstanceTabBar"
              x:DataType="other:InstanceTabBarViewModel">
@@ -98,7 +99,7 @@
                 Margin="8,0,0,0"
                 Command="{Binding AddInstanceCommand}"
                 ToolTip.Tip="新建实例">
-             <avalonia1:FluentIcon Icon="Add" IconSize="Size16" />
+             <fluent:FluentIcon Icon="Add" IconSize="Size16" />
         </Button>
     </Grid>
 </UserControl>

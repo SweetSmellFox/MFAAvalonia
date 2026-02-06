@@ -9,6 +9,7 @@
              xmlns:markup="https://codewf.com"
              xmlns:calcBinding="clr-namespace:CalcBinding;assembly=CalcBindingAva"
              xmlns:avalonia="clr-namespace:FluentIcons.Avalonia;assembly=FluentIcons.Avalonia"
+             xmlns:fluent1="clr-namespace:FluentIcons.Avalonia.Fluent;assembly=FluentIcons.Avalonia.Fluent"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="MFAAvalonia.Views.Pages.MonitorView"
              x:DataType="pages:MonitorViewModel">
@@ -41,7 +42,7 @@
                             
                             <!-- Placeholder -->
                             <Grid Grid.Row="0" IsVisible="{Binding !HasImage}" VerticalAlignment="Center" HorizontalAlignment="Center">
-                                <avalonia:FluentIcon Icon="Desktop" Width="80" Height="80" Foreground="{DynamicResource SukiLowText}"/>
+                                <fluent1:FluentIcon Icon="Desktop" Width="80" Height="80" Foreground="{DynamicResource SukiLowText}"/>
                             </Grid>
 
                             <!-- LIVE Badge -->

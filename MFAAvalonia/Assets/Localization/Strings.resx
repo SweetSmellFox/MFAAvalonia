@@ -1607,6 +1607,9 @@
     <data name="PreventSleep" xml:space="preserve">
         <value>运行时阻止息屏</value>
     </data>
+    <data name="Search" xml:space="preserve">
+        <value>搜索...</value>
+    </data>
 
     </root>
 

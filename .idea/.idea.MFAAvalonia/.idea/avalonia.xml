@@ -27,7 +27,7 @@
         <entry key="MFAAvalonia/Views/UserControls/AdbEditorDialogView.axaml" value="MFAAvalonia.Desktop/MFAAvalonia.Desktop.csproj" />
         <entry key="MFAAvalonia/Views/UserControls/AddTaskDialogView.axaml" value="MFAAvalonia.Desktop/MFAAvalonia.Desktop.csproj" />
         <entry key="MFAAvalonia/Views/UserControls/CustomThemeDialogView.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
-        <entry key="MFAAvalonia/Views/UserControls/Dashboard/DashboardCard.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
+        <entry key="MFAAvalonia/Views/UserControls/Dashboard/DashboardCard.axaml" value="MFAAvalonia.Desktop/MFAAvalonia.Desktop.csproj" />
         <entry key="MFAAvalonia/Views/UserControls/Dashboard/DashboardPanel.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="MFAAvalonia/Views/UserControls/Dashboard/DashboardWidgetContainer.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="MFAAvalonia/Views/UserControls/Dashboard/UserControl1.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
@@ -42,16 +42,16 @@
         <entry key="MFAAvalonia/Views/UserControls/RenameInstanceDialog.axaml" value="MFAAvalonia.Desktop/MFAAvalonia.Desktop.csproj" />
         <entry key="MFAAvalonia/Views/UserControls/SchedulePicker.axaml" value="MFAAvalonia.Desktop/MFAAvalonia.Desktop.csproj" />
         <entry key="MFAAvalonia/Views/UserControls/Settings/AboutUserControl.axaml" value="MFAAvalonia.Desktop/MFAAvalonia.Desktop.csproj" />
-        <entry key="MFAAvalonia/Views/UserControls/Settings/ConfigurationMgrUserControl.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
+        <entry key="MFAAvalonia/Views/UserControls/Settings/ConfigurationMgrUserControl.axaml" value="MFAAvalonia.Desktop/MFAAvalonia.Desktop.csproj" />
         <entry key="MFAAvalonia/Views/UserControls/Settings/ConnectSettingsUserControl.axaml" value="MFAAvalonia.Desktop/MFAAvalonia.Desktop.csproj" />
         <entry key="MFAAvalonia/Views/UserControls/Settings/ExternalNotificationSettingsUserControl.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="MFAAvalonia/Views/UserControls/Settings/GameSettingsUserControl.axaml" value="MFAAvalonia.Desktop/MFAAvalonia.Desktop.csproj" />
-        <entry key="MFAAvalonia/Views/UserControls/Settings/GuiSettingsUserControl.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
+        <entry key="MFAAvalonia/Views/UserControls/Settings/GuiSettingsUserControl.axaml" value="MFAAvalonia.Desktop/MFAAvalonia.Desktop.csproj" />
         <entry key="MFAAvalonia/Views/UserControls/Settings/HotKeySettingsUserControl.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="MFAAvalonia/Views/UserControls/Settings/MultiInstanceEditorDialogView.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
-        <entry key="MFAAvalonia/Views/UserControls/Settings/PerformanceUserControl.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
+        <entry key="MFAAvalonia/Views/UserControls/Settings/PerformanceUserControl.axaml" value="MFAAvalonia.Desktop/MFAAvalonia.Desktop.csproj" />
         <entry key="MFAAvalonia/Views/UserControls/Settings/StartSettingsUserControl.axaml" value="MFAAvalonia.Desktop/MFAAvalonia.Desktop.csproj" />
-        <entry key="MFAAvalonia/Views/UserControls/Settings/TimerSettingsUserControl.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
+        <entry key="MFAAvalonia/Views/UserControls/Settings/TimerSettingsUserControl.axaml" value="MFAAvalonia.Desktop/MFAAvalonia.Desktop.csproj" />
         <entry key="MFAAvalonia/Views/UserControls/Settings/VersionUpdateSettingsUserControl.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="MFAAvalonia/Views/UserControls/TaskRemarkDialogView.axaml" value="MFAAvalonia.Desktop/MFAAvalonia.Desktop.csproj" />
         <entry key="MFAAvalonia/Views/UserControls/TooltipBlock.axaml" value="MFAAvalonia.Desktop/MFAAvalonia.Desktop.csproj" />
@@ -83,7 +83,7 @@
         <entry key="SukiUI/Controls/InfoBadge.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="SukiUI/Controls/InfoBar.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="SukiUI/Controls/PasswordBox.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
-        <entry key="SukiUI/Controls/PropertyGrid/PropertyGrid.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
+        <entry key="SukiUI/Controls/PropertyGrid/PropertyGrid.axaml" value="MFAAvalonia.Desktop/MFAAvalonia.Desktop.csproj" />
         <entry key="SukiUI/Controls/PropertyGrid/PropertyGridDialog.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="SukiUI/Controls/PropertyGrid/PropertyGridTemplateSelector.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="SukiUI/Controls/PropertyGrid/PropertyGridWindow.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
@@ -93,7 +93,7 @@
         <entry key="SukiUI/Controls/SukiImageViewer.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="SukiUI/Controls/SukiMainHost.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="SukiUI/Controls/SukiSideMenu.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
-        <entry key="SukiUI/Controls/SukiSideMenuItem.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
+        <entry key="SukiUI/Controls/SukiSideMenuItem.axaml" value="MFAAvalonia.Desktop/MFAAvalonia.Desktop.csproj" />
         <entry key="SukiUI/Controls/SukiStackPage.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="SukiUI/Controls/SukiToast.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="SukiUI/Controls/SukiWindow.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
@@ -113,7 +113,7 @@
         <entry key="SukiUI/Theme/ColorPicker.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="SukiUI/Theme/Colors.xaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="SukiUI/Theme/ComboBoxItemStyle.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
-        <entry key="SukiUI/Theme/ComboBoxStyles.xaml" value="MFAAvalonia/MFAAvalonia.csproj" />
+        <entry key="SukiUI/Theme/ComboBoxStyles.xaml" value="MFAAvalonia.Desktop/MFAAvalonia.Desktop.csproj" />
         <entry key="SukiUI/Theme/ContextMenu.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="SukiUI/Theme/DataGridStyle.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="SukiUI/Theme/DatePicker.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />

@@ -530,5 +530,6 @@ public static class LangKeys
 		public static readonly string TempDirWarningHint = "TempDirWarningHint";
 		public static readonly string ExitProgram = "ExitProgram";
 	public static readonly string PreventSleep = "PreventSleep";
+	public static readonly string Search = "Search";
 	
 }

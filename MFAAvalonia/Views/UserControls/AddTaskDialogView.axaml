@@ -6,14 +6,13 @@
     x:DataType="settings:AddTaskDialogViewModel"
     xmlns="https://github.com/avaloniaui"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:fluent="clr-namespace:FluentIcons.Avalonia.Fluent.Markup;assembly=FluentIcons.Avalonia.Fluent"
     xmlns:helper="clr-namespace:MFAAvalonia.Helper"
     xmlns:markup="https://codewf.com"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:settings="clr-namespace:MFAAvalonia.ViewModels.UsersControls.Settings"
     xmlns:controls="clr-namespace:MFAAvalonia.Views.UserControls"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:avalonia="clr-namespace:FluentIcons.Avalonia;assembly=FluentIcons.Avalonia">
+    xmlns:fluent="clr-namespace:FluentIcons.Avalonia.Fluent;assembly=FluentIcons.Avalonia.Fluent">
     <StackPanel Margin="15,10,15,0" Orientation="Vertical">
         <StackPanel Height="26" Orientation="Horizontal">
             <TextBlock
@@ -31,7 +30,7 @@
             Watermark="{markup:I18n {x:Static helper:LangKeys.EnterTaskName}}"
             x:Name="SearchBar">
             <TextBox.InnerRightContent>
-                <avalonia:FluentIcon
+                <fluent:FluentIcon
                     Foreground="{DynamicResource SukiLowText}"
                     Icon="Search"
                     IconSize="Size16" />

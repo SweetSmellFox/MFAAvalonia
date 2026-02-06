@@ -19,6 +19,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Lang.Avalonia.MarkupExtensions;
+using SukiUI.Extensions;
 using Action = System.Action;
 
 namespace MFAAvalonia.Helper;
@@ -490,7 +491,9 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
         
         UpdateSubOptions(option.Index ?? 0);
         ComboBoxExtensions.SetDisableNavigationOnLostFocus(comboBox, true);
-
+        ComboBoxExtensions.SetCanSearch(comboBox, true);
+        ComboBoxExtensions.SetSearchMemberPath(comboBox, "DisplayName");
+        comboBox.Bind(ComboBoxExtensions.SearchWatermarkProperty, new I18nBinding(LangKeys.Search));
         // Header
         var labelPanel = CreateLabelPanel(option.DisplayName, option.Name, interfaceOption.Description, interfaceOption.Document);
         var icon = CreateIcon(interfaceOption);

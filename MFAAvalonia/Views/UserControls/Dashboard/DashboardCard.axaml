@@ -11,6 +11,7 @@
                 xmlns:calcBinding="clr-namespace:CalcBinding;assembly=CalcBindingAva"
                 xmlns:markup="https://codewf.com"
                 xmlns:helper="clr-namespace:MFAAvalonia.Helper"
+                xmlns:fluent="clr-namespace:FluentIcons.Avalonia.Fluent;assembly=FluentIcons.Avalonia.Fluent"
                 mc:Ignorable="d"
                 d:DesignWidth="300"
                 d:DesignHeight="220"
@@ -22,7 +23,7 @@
             <Setter Property="Cursor" Value="SizeAll" />
         </Style>
 
-        <Style Selector="dashboard|DashboardCard /template/ avalonia1|FluentIcon#CollapseIcon">
+        <Style Selector="dashboard|DashboardCard /template/ fluent|FluentIcon#CollapseIcon">
             <Setter Property="RenderTransformOrigin" Value="50%,50%" />
             <Setter Property="RenderTransform" Value="rotate(0deg)" />
             <Setter Property="Transitions">
@@ -33,7 +34,7 @@
             </Setter>
         </Style>
 
-        <Style Selector="dashboard|DashboardCard[IsCollapsed=true] /template/ avalonia1|FluentIcon#CollapseIcon">
+        <Style Selector="dashboard|DashboardCard[IsCollapsed=true] /template/ fluent|FluentIcon#CollapseIcon">
             <Setter Property="RenderTransform" Value="rotate(180deg)" />
         </Style>
 
@@ -262,7 +263,7 @@
                                             CornerRadius="4" ClipToBounds="False"
                                             HorizontalAlignment="Right" VerticalAlignment="Center"
                                             Click="OnCollapseButtonClick">
-                                        <avalonia1:FluentIcon x:Name="CollapseIcon"
+                                        <fluent:FluentIcon x:Name="CollapseIcon"
                                                               Icon="ChevronUp"
                                                               IconSize="Size16" />
                                     </Button>

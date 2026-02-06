@@ -34,6 +34,7 @@ using MaaFramework.Binding;
 using MFAAvalonia.Views.Windows;
 using Newtonsoft.Json.Linq;
 using SukiUI.Dialogs;
+using SukiUI.Extensions;
 using System.Threading.Tasks;
 
 namespace MFAAvalonia.Views.Pages;

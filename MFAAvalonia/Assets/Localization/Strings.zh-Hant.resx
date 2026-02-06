@@ -1600,4 +1600,7 @@
     <data name="PreventSleep" xml:space="preserve">
         <value>執行時防止螢幕關閉</value>
     </data>
+    <data name="Search" xml:space="preserve">
+        <value>搜尋...</value>
+    </data>
 </root>

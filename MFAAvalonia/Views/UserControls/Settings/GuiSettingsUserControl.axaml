@@ -9,7 +9,7 @@
     xmlns:controls="clr-namespace:MFAAvalonia.Views.UserControls.Settings"
     xmlns:converters="clr-namespace:MFAAvalonia.Helper.Converters"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:extensions="clr-namespace:MFAAvalonia.Extensions"
+    xmlns:extensions="clr-namespace:SukiUI.Extensions;assembly=SukiUI"
     xmlns:helper="clr-namespace:MFAAvalonia.Helper"
     xmlns:markup="https://codewf.com"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -18,7 +18,8 @@
     xmlns:suki="https://github.com/kikipoulet/SukiUI"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:fluent="clr-namespace:FluentIcons.Avalonia.Fluent.Markup;assembly=FluentIcons.Avalonia.Fluent"
-    xmlns:avalonia="clr-namespace:FluentIcons.Avalonia;assembly=FluentIcons.Avalonia">
+    xmlns:avalonia="clr-namespace:FluentIcons.Avalonia;assembly=FluentIcons.Avalonia"
+    xmlns:fluent1="clr-namespace:FluentIcons.Avalonia.Fluent;assembly=FluentIcons.Avalonia.Fluent">
     <UserControl.Resources>
         <ContextMenu x:Key="ThemeColorContextMenu">
             <MenuItem Click="Delete"
@@ -192,7 +193,7 @@
                             Margin="7,0,8,0"
                             Padding="0"
                             ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.ButtonClear}}">
-                            <avalonia:FluentIcon Height="18"
+                            <fluent1:FluentIcon Height="18"
                                                  Icon="ArrowSync"
                                                  IconSize="Size16"
                                                  IconVariant="Regular" />

@@ -6,7 +6,6 @@
     x:DataType="settings:StartSettingsUserControlModel"
     xmlns="https://github.com/avaloniaui"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:extensions="clr-namespace:MFAAvalonia.Extensions"
     xmlns:fluent="clr-namespace:FluentIcons.Avalonia.Fluent.Markup;assembly=FluentIcons.Avalonia.Fluent"
     xmlns:helper="clr-namespace:MFAAvalonia.Helper"
     xmlns:markup="https://codewf.com"
@@ -15,7 +14,9 @@
     xmlns:suki="https://github.com/kikipoulet/SukiUI"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:calcBinding="clr-namespace:CalcBinding;assembly=CalcBindingAva"
-    xmlns:maa="clr-namespace:MFAAvalonia.Extensions.MaaFW">
+    xmlns:maa="clr-namespace:MFAAvalonia.Extensions.MaaFW"
+    xmlns:extensions="clr-namespace:SukiUI.Extensions;assembly=SukiUI"
+    xmlns:extensions1="clr-namespace:MFAAvalonia.Extensions">
     <StackPanel Spacing="25">
         <suki:GlassCard Padding="25">
             <StackPanel Spacing="8">
@@ -61,7 +62,7 @@
                         HorizontalAlignment="Center"
                         Text="{Binding SoftwarePath}"
                         Width="215"
-                        extensions:DragDropExtensions.EnableFileDragDrop="True">
+                        extensions1:DragDropExtensions.EnableFileDragDrop="True">
                         <TextBox.InnerRightContent>
                             <Button
                                 BorderBrush="Transparent"

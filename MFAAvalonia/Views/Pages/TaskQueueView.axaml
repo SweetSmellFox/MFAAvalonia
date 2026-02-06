@@ -10,7 +10,7 @@
              xmlns:calcBinding="clr-namespace:CalcBinding;assembly=CalcBindingAva"
              xmlns:converters="clr-namespace:MFAAvalonia.Helper.Converters"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:ex="clr-namespace:MFAAvalonia.Extensions"
+             xmlns:ex="clr-namespace:SukiUI.Extensions;assembly=SukiUI"
              xmlns:valueType="clr-namespace:MFAAvalonia.Helper.ValueType"
              xmlns:maa="clr-namespace:MFAAvalonia.Extensions.MaaFW"
              xmlns:markup="https://codewf.com"
@@ -24,10 +24,10 @@
              xmlns:interaction="using:Avalonia.Xaml.Interactivity"
              xmlns:avalonia="https://github.com/whistyun/Markdown.Avalonia.Tight"
              xmlns:helper="clr-namespace:MFAAvalonia.Helper"
-             xmlns:avalonia1="clr-namespace:FluentIcons.Avalonia;assembly=FluentIcons.Avalonia"
-             xmlns:fluent="clr-namespace:FluentIcons.Avalonia.Fluent;assembly=FluentIcons.Avalonia.Fluent"
+             xmlns:avalonia1="clr-namespace:FluentIcons.Avalonia.Fluent;assembly=FluentIcons.Avalonia.Fluent"
              xmlns:other="clr-namespace:MFAAvalonia.ViewModels.Other"
-             xmlns:dashboard="clr-namespace:MFAAvalonia.Views.UserControls.Dashboard">
+             xmlns:dashboard="clr-namespace:MFAAvalonia.Views.UserControls.Dashboard"
+             xmlns:extensions="clr-namespace:MFAAvalonia.Extensions">
     <Design.DataContext>
         <pages:TaskQueueViewModel />
     </Design.DataContext>
@@ -958,8 +958,8 @@
                               HorizontalAlignment="Stretch"
                               VerticalAlignment="Stretch"
                               VerticalScrollBarVisibility="Auto"
-                              OpacityMask="{Binding (ex:ScrollViewerExtensions.EdgeFadeMask), ElementName=SettingsContent}"
-                              ex:ScrollViewerExtensions.EnableEdgeFade="True">
+                              OpacityMask="{Binding (extensions:ScrollViewerExtensions.EdgeFadeMask), ElementName=SettingsContent}"
+                              extensions:ScrollViewerExtensions.EnableEdgeFade="True">
                     <Grid>
                         <StackPanel IsVisible="{calcBinding:Binding 'IsCommon'}"
                                     x:Name="CommonOptionSettings"
@@ -1003,7 +1003,7 @@
                                 Padding="0"
                                 ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.SelectAll}}"
                                 Width="16">
-                            <fluent:FluentIcon Icon="SelectAllOn" IconSize="Size16" IconVariant="Regular" />
+                            <avalonia1:FluentIcon Icon="SelectAllOn" IconSize="Size16" IconVariant="Regular" />
                         </Button>
                         <Button Classes="BasicTight TaskQueueBasicTight"
                                 ClipToBounds="False"
@@ -1014,7 +1014,7 @@
                                 Padding="0"
                                 ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.DeselectAll}}"
                                 Width="16">
-                            <fluent:FluentIcon Icon="SelectAllOff" IconSize="Size16" IconVariant="Regular" />
+                            <avalonia1:FluentIcon Icon="SelectAllOff" IconSize="Size16" IconVariant="Regular" />
                         </Button>
                         <Button Classes="BasicTight TaskQueueBasicTight"
                                 ClipToBounds="False"
@@ -1024,7 +1024,7 @@
                                 Margin="7,0,0,0"
                                 Padding="0"
                                 ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.AddTask}}">
-                            <fluent:FluentIcon Icon="AddSquareMultiple" IconSize="Size16" IconVariant="Regular" />
+                            <avalonia1:FluentIcon Icon="AddSquareMultiple" IconSize="Size16" IconVariant="Regular" />
                         </Button>
                         <Button Classes="BasicTight TaskQueueBasicTight SyncButton"
                                 Command="{Binding ResetTasksCommand}"
@@ -1099,10 +1099,10 @@
                 <Grid>
                     <ListBox Classes="Fluent"
                              DragDrop.AllowDrop="{Binding Idle,Source={x:Static helper:Instances.RootViewModel}}"
-                             ex:DragDropExtensions.EnableDragDrop="True"
-                             ex:DragDropExtensions.DragStartThreshold="2"
-                             ex:DragDropExtensions.EnableAnimation="True"
-                             ex:ScrollViewerExtensions.EnableEdgeFade="True"
+                             extensions:DragDropExtensions.EnableDragDrop="True"
+                             extensions:DragDropExtensions.DragStartThreshold="2"
+                             extensions:DragDropExtensions.EnableAnimation="True"
+                             extensions:ScrollViewerExtensions.EnableEdgeFade="True"
                              ItemsSource="{Binding Path=TaskItemViewModels}"
                              Margin="0,3,0,0"
                              MinHeight="150"
@@ -1125,7 +1125,7 @@
                             <DataTemplate>
                                 <Grid ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.TooltipDragLabel}}"
                                       Background="Transparent"
-                                      ex:DragDropExtensions.LimitDragDrop="True"
+                                      extensions:DragDropExtensions.LimitDragDrop="True"
                                       ColumnDefinitions="*,Auto"
                                       ContextMenu="{StaticResource TaskMenu}"
                                       x:Name="ListGrid">
@@ -1133,9 +1133,9 @@
                                               Content="{Binding }"
                                               Grid.Column="0"
                                               MinWidth="150"
-                                              ex:CheckBoxExtensions.EnableRightClickNull="{Binding !IsResourceOptionItem}"
+                                              extensions:CheckBoxExtensions.EnableRightClickNull="{Binding !IsResourceOptionItem}"
                                               HorizontalAlignment="Left"
-                                              ex:CheckBoxExtensions.LimitDragDrop="True"
+                                              extensions:CheckBoxExtensions.LimitDragDrop="True"
                                               IsEnabled="{Binding !IsResourceOptionItem}"
                                               IsChecked="{Binding IsCheckedWithNull}">
                                         <CheckBox.ContentTemplate>
@@ -1161,9 +1161,9 @@
                                                  BorderThickness="0"
                                                  IsChecked="{Binding EnableSetting}"
                                                  Grid.Column="1"
-                                                 ex:IconElement.Width="16"
-                                                 ex:IconElement.Height="16"
-                                                 ex:IconElement.Geometry="{x:Static suki:Icons.Setting}"
+                                                 extensions:IconElement.Width="16"
+                                                 extensions:IconElement.Height="16"
+                                                 extensions:IconElement.Geometry="{x:Static suki:Icons.Setting}"
                                                  GroupName="TaskSettings"
                                                  IsVisible="{Binding IsVisible}"
                                                  HorizontalContentAlignment="Right" />
@@ -1195,7 +1195,7 @@
                                              x:Name="Introduction"
                                              Margin="10,5,10,5">
                     <mdxaml:MarkdownScrollViewer.Engine>
-                        <ex:MarkdownExtension />
+                        <extensions:MarkdownExtension />
                     </mdxaml:MarkdownScrollViewer.Engine>
                     <mdxaml:MarkdownScrollViewer.Styles>
                         <StyleInclude Source="avares://MFAAvalonia.Core/Assets/Style/MdXamlDocStyle.axaml" />
@@ -1425,8 +1425,8 @@
                               Margin="15,8,10,5"
                               VerticalAlignment="Top"
                               VerticalContentAlignment="Top"
-                              ex:ScrollViewerExtensions.AutoScroll="True"
-                              ex:ScrollViewerExtensions.PanningMode="VerticalOnly">
+                              extensions:ScrollViewerExtensions.AutoScroll="True"
+                              extensions:ScrollViewerExtensions.PanningMode="VerticalOnly">
                     <ItemsControl ItemsSource="{Binding Path=LogItemViewModels}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -1462,7 +1462,7 @@
                                                             Markdown="{Binding Content}"
                                                             Margin="0,4.8,0,0">
                                                         <mdxaml:MarkdownScrollViewer.Engine>
-                                                            <ex:MarkdownExtension />
+                                                            <extensions:MarkdownExtension />
                                                         </mdxaml:MarkdownScrollViewer.Engine>
                                                         <mdxaml:MarkdownScrollViewer.Styles>
                                                             <StyleInclude
@@ -1533,8 +1533,8 @@
         <!--             </suki:GlassCard.Resources> -->
         <!--             <ScrollViewer x:Name="PopupSettingsContent" -->
         <!--                           VerticalScrollBarVisibility="Auto" -->
-        <!--                           OpacityMask="{Binding (ex:ScrollViewerExtensions.EdgeFadeMask), ElementName=PopupSettingsContent}" -->
-        <!--                           ex:ScrollViewerExtensions.EnableEdgeFade="True"> -->
+        <!--                           OpacityMask="{Binding (extensions:ScrollViewerExtensions.EdgeFadeMask), ElementName=PopupSettingsContent}" -->
+        <!--                           extensions:ScrollViewerExtensions.EnableEdgeFade="True"> -->
         <!--                 <Grid RowDefinitions="Auto,Auto"> -->
         <!--                     <suki:GroupBox Grid.Row="0" IsVisible="{Binding HasPopupSettings}" -->
         <!--                                    SeparatorMargin="{Binding ShowSettings, Converter={StaticResource PopupIfConditionConverter}}"> -->
@@ -1591,7 +1591,7 @@
         <!--                             <mdxaml:MarkdownScrollViewer x:Name="PopupIntroduction" -->
         <!--                                                          Markdown="{Binding PopupIntroductionContent}"> -->
         <!--                                 <mdxaml:MarkdownScrollViewer.Engine> -->
-        <!--                                     <ex:MarkdownExtension /> -->
+        <!--                                     <extensions:MarkdownExtension /> -->
         <!--                                 </mdxaml:MarkdownScrollViewer.Engine> -->
         <!--                                 <mdxaml:MarkdownScrollViewer.Styles> -->
         <!--                                     <StyleInclude -->

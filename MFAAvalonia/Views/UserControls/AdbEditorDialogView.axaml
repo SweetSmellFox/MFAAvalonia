@@ -8,14 +8,14 @@
     xmlns="https://github.com/avaloniaui"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:extensions="clr-namespace:MFAAvalonia.Extensions"
-    xmlns:fluent="clr-namespace:FluentIcons.Avalonia.Fluent.Markup;assembly=FluentIcons.Avalonia.Fluent"
     xmlns:helper="clr-namespace:MFAAvalonia.Helper"
     xmlns:markup="https://codewf.com"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:suki="https://github.com/kikipoulet/SukiUI"
     xmlns:usersControls="clr-namespace:MFAAvalonia.ViewModels.UsersControls" 
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:avalonia="clr-namespace:FluentIcons.Avalonia;assembly=FluentIcons.Avalonia">
+    xmlns:avalonia="clr-namespace:FluentIcons.Avalonia;assembly=FluentIcons.Avalonia"
+    xmlns:fluent="clr-namespace:FluentIcons.Avalonia.Fluent;assembly=FluentIcons.Avalonia.Fluent">
     <StackPanel Margin="5" Width="450">
         <TextBlock
             FontSize="18"
@@ -52,7 +52,7 @@
                 Margin="0,0,5,0"
                 
                 ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.Load}}">
-                <avalonia:FluentIcon
+                <fluent:FluentIcon
                     Height="25"
                     Icon="FolderArrowLeft"
                     IconSize="Size16"
