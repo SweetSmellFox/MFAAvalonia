@@ -168,9 +168,15 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
 
     private Control CreateInputControl(MaaInterface.MaaInterfaceSelectOption option, MaaInterface.MaaInterfaceOption interfaceOption)
     {
+        var hasOptionDescription = !string.IsNullOrWhiteSpace(GetTooltipText(interfaceOption.Description, interfaceOption.Document));
+        var isSingleInput = interfaceOption.Inputs?.Count == 1;
+        
+        // 单输入且有 option description 时，需要显示 header，所以使用与多输入相同的 margin
+        var needsHeader = !isSingleInput || hasOptionDescription;
+        
         var container = new StackPanel
         {
-            Margin = interfaceOption.Inputs.Count == 1 ? new Thickness(0) : new Thickness(10, 3, 10, 3),
+            Margin = needsHeader ? new Thickness(10, 3, 10, 3) : new Thickness(0),
             Spacing = 4
         };
 
@@ -179,8 +185,8 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
 
         interfaceOption.InitializeIcon();
 
-        // Header for multi-input options
-        if (interfaceOption.Inputs.Count > 1)
+        // Header for multi-input options OR single input with option description
+        if (needsHeader)
         {
             container.Children.Add(CreateOptionHeader(interfaceOption));
         }
@@ -218,14 +224,19 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
     {
         var grid = CreateBaseGrid();
         
-        // Adjust margin for single input case for alignment
-        if (interfaceOption.Inputs.Count == 1)
+        // Adjust margin based on whether header is shown
+        var hasOptionDescription = !string.IsNullOrWhiteSpace(GetTooltipText(interfaceOption.Description, interfaceOption.Document));
+        var needsHeader = interfaceOption.Inputs.Count > 1 || hasOptionDescription;
+        
+        if (needsHeader)
         {
-            grid.Margin = new Thickness(10, 6, 10, 6);
+            // When header is shown, container already has margin, so grid needs no extra left/right margin
+            grid.Margin = new Thickness(0, 3, 0, 3);
         }
         else
         {
-            grid.Margin = new Thickness(0, 3, 0, 3);
+            // Single input without header needs its own margin
+            grid.Margin = new Thickness(10, 6, 10, 6);
         }
 
         // TextBox
@@ -252,8 +263,8 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
         // Label Panel
         var labelPanel = CreateLabelPanel(input.DisplayName, input.Name, input.Description);
 
-        // Icon (Show only if single input)
-        if (interfaceOption.Inputs.Count == 1)
+        // Icon (Show only if single input WITHOUT header, because header already has icon)
+        if (!needsHeader)
         {
             var icon = CreateIcon(interfaceOption);
             icon.Margin = new Thickness(10, 0, 6, 0); // specific margin for single input layout
@@ -277,6 +288,10 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
         MaaInterface.MaaInterfaceSelectOption option,
         MaaInterface.MaaInterfaceOption interfaceOption)
     {
+        // Adjust margin based on whether header is shown
+        var hasOptionDescription = !string.IsNullOrWhiteSpace(GetTooltipText(interfaceOption.Description, interfaceOption.Document));
+        var needsHeader = interfaceOption.Inputs.Count > 1 || hasOptionDescription;
+        
         var grid = new Grid
         {
             ColumnDefinitions =
@@ -285,7 +300,7 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
                 new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) },
                 new ColumnDefinition { Width = GridLength.Auto }
             },
-            Margin = new Thickness(10, 6, 10, 6)
+            Margin = needsHeader ? new Thickness(0, 3, 0, 3) : new Thickness(10, 6, 10, 6)
         };
 
         bool isChecked = currentValue.Equals("true", StringComparison.OrdinalIgnoreCase) || currentValue == "1";
@@ -719,7 +734,7 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
         {
             Orientation = Orientation.Horizontal,
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(5, 4, 5, 4)
+            Margin = new Thickness(0, 4, 0, 4)
         };
 
         var icon = CreateIcon(interfaceOption);
@@ -734,6 +749,16 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
         headerText.Bind(TextBlock.TextProperty, new ResourceBindingWithFallback(interfaceOption.DisplayName, interfaceOption.Name));
         headerText.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("SukiText"));
         headerPanel.Children.Add(headerText);
+
+        // 添加 TooltipBlock 显示 Option 级别的 Description
+        var tooltipText = GetTooltipText(interfaceOption.Description, interfaceOption.Document);
+        if (!string.IsNullOrWhiteSpace(tooltipText))
+        {
+            var docBlock = new TooltipBlock();
+            docBlock.Bind(TooltipBlock.TooltipTextProperty, new ResourceBinding(tooltipText));
+            docBlock.Margin = new Thickness(4, 0, 0, 0);
+            headerPanel.Children.Add(docBlock);
+        }
 
         return headerPanel;
     }
