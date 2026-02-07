@@ -159,13 +159,13 @@
                                                     BorderThickness="1,1,1,1"
                                                     BoxShadow="{DynamicResource SukiSmallPopupShadow}"
                                                     CornerRadius="{DynamicResource SmallCornerRadius}">
-                                                <Panel Background="{DynamicResource PopupGradientBrush}">
+                                                <Grid Background="{DynamicResource PopupGradientBrush}">
                                                     <suki:GlassCard Margin="-1"
                                                                     CornerRadius="{DynamicResource SmallCornerRadius}"
                                                                     IsAnimated="False" />
-                                                    <StackPanel Orientation="Vertical">
+                                                    <Grid RowDefinitions="Auto,*">
                                                         <!-- 搜索框，根据CanSearch附加属性显示 -->
-                                                        <TextBox Name="PART_SearchBox"
+                                                        <TextBox Grid.Row="0" Name="PART_SearchBox"
                                                                  Margin="4"
                                                                  Watermark="{TemplateBinding extensions:ComboBoxExtensions.SearchWatermark}"
                                                                  IsVisible="{TemplateBinding extensions:ComboBoxExtensions.CanSearch}">
@@ -176,16 +176,17 @@
                                                                     IconSize="Size16" />
                                                             </TextBox.InnerRightContent>
                                                         </TextBox>
-                                                        <ScrollViewer
+                                                        <ScrollViewer Grid.Row="1"
+                                                            MaxHeight="{calcBinding:Binding 'MaxDropDownHeight - 60', RelativeSource={RelativeSource TemplatedParent}}"
                                                             HorizontalScrollBarVisibility="{TemplateBinding ScrollViewer.HorizontalScrollBarVisibility}"
                                                             VerticalScrollBarVisibility="{TemplateBinding ScrollViewer.VerticalScrollBarVisibility}">
 
                                                             <ItemsPresenter Name="PART_ItemsPresenter"
-                                                                            Margin="0,3,0,0"
+                                                                            Margin="0,3,0,3"
                                                                             ItemsPanel="{TemplateBinding ItemsPanel}" />
                                                         </ScrollViewer>
-                                                    </StackPanel>
-                                                </Panel>
+                                                    </Grid>
+                                                </Grid>
                                             </Border>
                                         </Panel>
                                     </Border>
