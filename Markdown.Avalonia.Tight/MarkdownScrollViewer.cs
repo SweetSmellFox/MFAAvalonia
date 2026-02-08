@@ -892,7 +892,17 @@ namespace Markdown.Avalonia
         private static readonly Regex s_codeBlockEndRegex = new Regex(@"^(\s*)(```|~~~)\s*$", RegexOptions.Compiled);
 
         /// <summary>
-        /// 查找安全的分割点（不在代码块中间）
+        /// HTML 块级标签开始的正则表达式（匹配 details, summary, div 等）
+        /// </summary>
+        private static readonly Regex s_htmlBlockStartRegex = new Regex(@"^\s*<(details|summary|div|section|article|aside|nav|header|footer|main|figure|figcaption|blockquote|pre|table|ul|ol|dl)(\s[^>]*)?>", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+        /// <summary>
+        /// HTML 块级标签结束的正则表达式
+        /// </summary>
+        private static readonly Regex s_htmlBlockEndRegex = new Regex(@"</(details|summary|div|section|article|aside|nav|header|footer|main|figure|figcaption|blockquote|pre|table|ul|ol|dl)>\s*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+        /// <summary>
+        /// 查找安全的分割点（不在代码块或 HTML 块级标签中间）
         /// </summary>
         /// <param name="lines">所有行</param>
         /// <param name="targetLine">目标行号</param>
@@ -902,9 +912,12 @@ namespace Markdown.Avalonia
             if (targetLine >= lines.Length)
                 return lines.Length;
 
-            // 检查从开始到目标行是否在代码块内
+            // 跟踪代码块状态
             bool inCodeBlock = false;
-            string? codeBlockMarker = null; // 记录代码块使用的标记（``` 或 ~~~）
+            string? codeBlockMarker = null;
+            
+            // 跟踪 HTML 块级标签状态（使用栈来处理嵌套）
+            var htmlTagStack = new Stack<string>();
             int lastSafePoint = 0;
 
             for (int i = 0; i < targetLine && i < lines.Length; i++)
@@ -914,28 +927,36 @@ namespace Markdown.Avalonia
                 if (!inCodeBlock)
                 {
                     // 检查是否是代码块开始
-                    var startMatch = s_codeBlockStartRegex.Match(line);
-                    if (startMatch.Success)
+                    var codeStartMatch = s_codeBlockStartRegex.Match(line);
+                    if (codeStartMatch.Success)
                     {
                         inCodeBlock = true;
-                        codeBlockMarker = startMatch.Groups[2].Value;
+                        codeBlockMarker = codeStartMatch.Groups[2].Value;
+                        continue;
                     }
-                    else
+
+                    // 检查 HTML 块级标签
+                    CheckHtmlTags(line, htmlTagStack);
+
+                    // 只有在不在任何块级结构内时才是安全点
+                    if (htmlTagStack.Count == 0)
                     {
-                        // 不在代码块内，这是一个安全点
                         lastSafePoint = i + 1;
                     }
                 }
                 else
                 {
                     // 在代码块内，检查是否是代码块结束
-                    var endMatch = s_codeBlockEndRegex.Match(line);
-                    if (endMatch.Success && endMatch.Groups[2].Value == codeBlockMarker)
+                    var codeEndMatch = s_codeBlockEndRegex.Match(line);
+                    if (codeEndMatch.Success && codeEndMatch.Groups[2].Value == codeBlockMarker)
                     {
                         inCodeBlock = false;
                         codeBlockMarker = null;
-                        // 代码块结束后是安全点
-                        lastSafePoint = i + 1;
+                        // 代码块结束后，如果没有未闭合的 HTML 标签，是安全点
+                        if (htmlTagStack.Count == 0)
+                        {
+                            lastSafePoint = i + 1;
+                        }
                     }
                 }
             }
@@ -943,23 +964,92 @@ namespace Markdown.Avalonia
             // 如果目标行在代码块内，需要找到代码块结束的位置
             if (inCodeBlock)
             {
-                // 继续向后查找代码块结束
                 for (int i = targetLine; i < lines.Length; i++)
                 {
                     var line = lines[i];
                     var endMatch = s_codeBlockEndRegex.Match(line);
                     if (endMatch.Success && endMatch.Groups[2].Value == codeBlockMarker)
                     {
-                        // 找到代码块结束，返回结束行的下一行
-                        return i + 1;
+                        // 继续检查后续是否有未闭合的 HTML 标签
+                        return FindHtmlSafePoint(lines, i + 1, htmlTagStack);
                     }
                 }
-                // 如果没找到结束标记，返回所有行（整个文档）
                 return lines.Length;
             }
 
-            // 如果目标行不在代码块内，返回目标行
+            // 如果目标行在 HTML 块级标签内，需要找到标签结束的位置
+            if (htmlTagStack.Count > 0)
+            {
+                return FindHtmlSafePoint(lines, targetLine, htmlTagStack);
+            }
+
             return targetLine;
+        }
+
+        /// <summary>
+        /// 检查一行中的 HTML 块级标签，更新标签栈
+        /// </summary>
+        private void CheckHtmlTags(string line, Stack<string> tagStack)
+        {
+            // 检查开始标签
+            var startMatches = s_htmlBlockStartRegex.Matches(line);
+            foreach (Match match in startMatches)
+            {
+                var tagName = match.Groups[1].Value.ToLowerInvariant();
+                tagStack.Push(tagName);
+            }
+
+            // 检查结束标签
+            var endMatches = s_htmlBlockEndRegex.Matches(line);
+            foreach (Match match in endMatches)
+            {
+                var tagName = match.Groups[1].Value.ToLowerInvariant();
+                // 从栈中移除匹配的标签
+                if (tagStack.Count > 0 && tagStack.Peek() == tagName)
+                {
+                    tagStack.Pop();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 从指定行开始查找 HTML 安全分割点
+        /// </summary>
+        private int FindHtmlSafePoint(string[] lines, int startLine, Stack<string> tagStack)
+        {
+            for (int i = startLine; i < lines.Length; i++)
+            {
+                var line = lines[i];
+                
+                // 跳过代码块
+                var codeStartMatch = s_codeBlockStartRegex.Match(line);
+                if (codeStartMatch.Success)
+                {
+                    var marker = codeStartMatch.Groups[2].Value;
+                    // 找到代码块结束
+                    for (int j = i + 1; j < lines.Length; j++)
+                    {
+                        var endMatch = s_codeBlockEndRegex.Match(lines[j]);
+                        if (endMatch.Success && endMatch.Groups[2].Value == marker)
+                        {
+                            i = j;
+                            break;
+                        }
+                    }
+                    continue;
+                }
+
+                CheckHtmlTags(line, tagStack);
+
+                // 如果所有标签都已闭合，这是一个安全点
+                if (tagStack.Count == 0)
+                {
+                    return i + 1;
+                }
+            }
+
+            // 如果没找到安全点，返回所有行
+            return lines.Length;
         }
         /// <summary>
         /// 异步继续渐进式渲染（优化版本）

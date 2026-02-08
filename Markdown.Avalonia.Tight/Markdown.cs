@@ -37,6 +37,17 @@ namespace Markdown.Avalonia
         private const int _nestDepth = 6;
 
         /// <summary>
+        /// 最大递归深度限制，防止栈溢出
+        /// </summary>
+        private const int _maxRecursionDepth = 50;
+
+        /// <summary>
+        /// 线程本地的递归深度计数器
+        /// </summary>
+        [ThreadStatic]
+        private static int _currentRecursionDepth;
+
+        /// <summary>
         /// Tabs are automatically converted to spaces as part of the transform  
         /// this constant determines how "wide" those tabs become in spaces  
         /// </summary>
@@ -1132,6 +1143,35 @@ namespace Markdown.Avalonia
         }
 
         /// <summary>
+        /// 提取HTML标签的内部内容（去除开始和结束标签）
+        /// 例如：&lt;details&gt;内容&lt;/details&gt; → 内容
+        /// </summary>
+        private string ExtractHtmlInnerContent(string html, string tagName)
+        {
+            if (string.IsNullOrEmpty(html) || string.IsNullOrEmpty(tagName))
+                return string.Empty;
+
+            // 查找开始标签的结束位置
+            int openTagEnd = html.IndexOf('>');
+            if (openTagEnd == -1)
+                return string.Empty;
+
+            // 查找结束标签的开始位置
+            string closeTag = $"</{tagName}>";
+            int closeTagStart = html.LastIndexOf(closeTag, StringComparison.OrdinalIgnoreCase);
+            if (closeTagStart == -1)
+                return string.Empty;
+
+            // 提取内部内容
+            int contentStart = openTagEnd + 1;
+            int contentLength = closeTagStart - contentStart;
+            if (contentLength <= 0)
+                return string.Empty;
+
+            return html.Substring(contentStart, contentLength);
+        }
+
+        /// <summary>
         /// 处理HTML解析，区分行级和块级标签
         /// - 行级标签（如 font、span）：直接返回 CInline 元素
         /// - 块级标签（如 div）：包装成 CInlineUIContainer
@@ -1143,6 +1183,14 @@ namespace Markdown.Avalonia
         {
             var rtn = new List<CInline>();
 
+            // 递归深度检查，防止栈溢出
+            if (_currentRecursionDepth >= _maxRecursionDepth)
+            {
+                // 超过最大递归深度，直接返回纯文本
+                rtn.Add(new CRun { Text = text });
+                return rtn;
+            }
+
             // 检查是否为 HTML 标签
             string tagName = GetHtmlTagName(text);
 
@@ -1151,46 +1199,58 @@ namespace Markdown.Avalonia
                 // 判断是行级还是块级标签
                 if (IsBlockHtmlTag(tagName))
                 {
-                    // 块级标签：使用块级解析器处理，然后包装成 CInlineUIContainer
-                    var parseStatus = new ParseStatus(_supportTextAlignment);
-                    var blockElements = new List<DocumentElement>();
-                    int blockParseIndex = 0;
-                    int textLength = text.Length;
-
-                    ProcessBlockGamut(text, ref blockParseIndex, textLength, parseStatus, blockElements);
-
-                    foreach (var blockElement in blockElements)
+                    // 对于 details/summary 等特殊标签，提取内部内容进行解析
+                    string innerContent = ExtractHtmlInnerContent(text, tagName);
+                    
+                    if (!string.IsNullOrEmpty(innerContent))
                     {
-                        var innerControl = blockElement.Control;
-                        innerControl.VerticalAlignment = VerticalAlignment.Top;
-                        innerControl.Margin = new Thickness(0,8,0,0);
+                        // 块级标签：解析内部内容，然后包装成 CInlineUIContainer
+                        var parseStatus = new ParseStatus(_supportTextAlignment);
+                        var blockElements = new List<DocumentElement>();
+                        int blockParseIndex = 0;
+                        int contentLength = innerContent.Length;
 
-                        if (innerControl is Panel panel)
+                        _currentRecursionDepth++;
+                        try
                         {
-                            foreach (var child in panel.Children)
-                            {
-                                child.VerticalAlignment = VerticalAlignment.Top;
-                                child.Margin = new Thickness(0);
-                            }
+                            ProcessBlockGamut(innerContent, ref blockParseIndex, contentLength, parseStatus, blockElements);
+                        }
+                        finally
+                        {
+                            _currentRecursionDepth--;
                         }
 
-                        var inlineUIContainer = new CInlineUIContainer(innerControl)
+                        foreach (var blockElement in blockElements)
                         {
-                            TextVerticalAlignment = TextVerticalAlignment.Center,
-                        };
-                        rtn.Add(inlineUIContainer);
-                    }
+                            var innerControl = blockElement.Control;
+                            innerControl.VerticalAlignment = VerticalAlignment.Top;
+                            innerControl.Margin = new Thickness(0, 8, 0, 0);
 
-                    if (blockParseIndex < textLength)
+                            if (innerControl is Panel panel)
+                            {
+                                foreach (var child in panel.Children)
+                                {
+                                    child.VerticalAlignment = VerticalAlignment.Top;
+                                    child.Margin = new Thickness(0);
+                                }
+                            }
+
+                            var inlineUIContainer = new CInlineUIContainer(innerControl)
+                            {
+                                TextVerticalAlignment = TextVerticalAlignment.Center,
+                            };
+                            rtn.Add(inlineUIContainer);
+                        }
+                    }
+                    else
                     {
-                        string remainingText = text.Substring(blockParseIndex);
-                        OriginalRunSpanRest(remainingText, 0, remainingText.Length, 0, rtn);
+                        // 无法提取内部内容，直接作为文本处理
+                        OriginalRunSpanRest(text, 0, text.Length, 0, rtn);
                     }
                 }
                 else
                 {
                     // 行级标签（如 font、span）：直接使用行级解析器处理
-                    // 不包装成 CInlineUIContainer，保持文本流的正确布局
                     OriginalRunSpanRest(text, 0, text.Length, 0, rtn);
                 }
             }
@@ -1375,10 +1435,18 @@ namespace Markdown.Avalonia
         private static readonly Regex _newlinesMultiple = new(@"\n{2,}", RegexOptions.Compiled);
 
         /// <summary>
-        /// splits on two or more newlines, to form "paragraphs";    
+        /// splits on two or more newlines, to form "paragraphs";
         /// </summary>
         private IEnumerable<DocumentElement> FormParagraphs(string text, ParseStatus status)
         {
+            // 递归深度检查，防止栈溢出
+            if (_currentRecursionDepth >= _maxRecursionDepth)
+            {
+                // 超过最大递归深度，直接返回纯文本，不再递归解析
+                yield return new CTextBlockElement(new[] { new CRun { Text = text } }, ParagraphClass);
+                yield break;
+            }
+
             var trimemdText = _newlinesLeadingTrailing.Replace(text, "");
 
             string[] grafs = trimemdText == "" ? new string[0] : _newlinesMultiple.Split(trimemdText);
@@ -1410,13 +1478,19 @@ namespace Markdown.Avalonia
                     }
                 }
 
-                var inlines = PrivateRunSpanGamut(chip);
-                var ctbox = indiAlignment.HasValue ? new CTextBlockElement(inlines, ParagraphClass, indiAlignment.Value) : new CTextBlockElement(inlines, ParagraphClass);
-
-                yield return ctbox;
+                _currentRecursionDepth++;
+                try
+                {
+                    var inlines = PrivateRunSpanGamut(chip);
+                    var ctbox = indiAlignment.HasValue ? new CTextBlockElement(inlines, ParagraphClass, indiAlignment.Value) : new CTextBlockElement(inlines, ParagraphClass);
+                    yield return ctbox;
+                }
+                finally
+                {
+                    _currentRecursionDepth--;
+                }
             }
         }
-
         #endregion
 
         #region grammer - image or href
