@@ -563,6 +563,9 @@ public static partial class Instances
                 external.CustomWebhookUrl = ConfigurationManager.Current.GetDecrypt(ConfigurationKeys.ExternalNotificationCustomWebhookUrl, string.Empty);
                 external.CustomWebhookContentType = ConfigurationManager.Current.GetDecrypt(ConfigurationKeys.ExternalNotificationCustomWebhookContentType, "application/json");
                 external.CustomWebhookPayloadTemplate = ConfigurationManager.Current.GetDecrypt(ConfigurationKeys.ExternalNotificationCustomWebhookPayloadTemplate, "{\"message\": \"{message}\"}");
+                external.EnabledCustom = ConfigurationManager.Current.GetValue(ConfigurationKeys.ExternalNotificationEnableCustomMessage, false);
+                external.CustomSuccessText = ConfigurationManager.Current.GetValue(ConfigurationKeys.ExternalNotificationCustomSuccessText, string.Empty);
+                external.CustomFailureText = ConfigurationManager.Current.GetValue(ConfigurationKeys.ExternalNotificationCustomFailureText, string.Empty);
             }
 
             if (IsResolved<TimerSettingsUserControlModel>())

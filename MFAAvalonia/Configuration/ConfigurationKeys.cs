@@ -139,6 +139,9 @@ public static class ConfigurationKeys
     public const string ExternalNotificationCustomWebhookUrl = "ExternalNotificationCustomWebhookUrl";
     public const string ExternalNotificationCustomWebhookContentType = "ExternalNotificationCustomWebhookContentType";
     public const string ExternalNotificationCustomWebhookPayloadTemplate = "ExternalNotificationCustomWebhookPayloadTemplate";
+    public const string ExternalNotificationEnableCustomMessage = "ExternalNotificationEnableCustomMessage";
+    public const string ExternalNotificationCustomSuccessText = "ExternalNotificationCustomSuccessText";
+    public const string ExternalNotificationCustomFailureText = "ExternalNotificationCustomFailureText";
 
     #endregion
 
