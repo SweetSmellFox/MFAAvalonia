@@ -72,8 +72,17 @@ public partial class MaaInterface
         private void UpdateDisplayName()
         {
             DisplayName = LanguageHelper.GetLocalizedDisplayName(Label, Name ?? string.Empty);
-            DisplayDescription = LanguageHelper.GetLocalizedString(Description.ResolveContentAsync().Result);
-            HasDescription = !string.IsNullOrWhiteSpace(DisplayDescription);
+            try
+            {
+                DisplayDescription = LanguageHelper.GetLocalizedString(Description.ResolveContentAsync().Result);
+                HasDescription = !string.IsNullOrWhiteSpace(DisplayDescription);
+            }
+            catch (Exception ex)
+            {
+                LoggerHelper.Warning($"Failed to resolve option case description for '{Name}': {ex.Message}");
+                DisplayDescription = string.Empty;
+                HasDescription = false;
+            }
             UpdateIcon();
         }
 
@@ -754,8 +763,17 @@ public partial class MaaInterface
         private void UpdateDisplayName()
         {
             DisplayName = LanguageHelper.GetLocalizedDisplayName(Label, Name ?? string.Empty);
-            DisplayDescription = LanguageHelper.GetLocalizedString(Description.ResolveContentAsync().Result);
-            HasDescription = !string.IsNullOrWhiteSpace(DisplayDescription);
+            try
+            {
+                DisplayDescription = LanguageHelper.GetLocalizedString(Description.ResolveContentAsync().Result);
+                HasDescription = !string.IsNullOrWhiteSpace(DisplayDescription);
+            }
+            catch (Exception ex)
+            {
+                LoggerHelper.Warning($"Failed to resolve resource description for '{Name}': {ex.Message}");
+                DisplayDescription = string.Empty;
+                HasDescription = false;
+            }
             UpdateIcon();
         }
 
@@ -958,8 +976,17 @@ public partial class MaaInterface
                 DisplayName = ControllerType.ToResourceKey().ToLocalization();
             }
 
-            DisplayDescription = LanguageHelper.GetLocalizedString(Description.ResolveContentAsync().Result);
-            HasDescription = !string.IsNullOrWhiteSpace(DisplayDescription);
+            try
+            {
+                DisplayDescription = LanguageHelper.GetLocalizedString(Description.ResolveContentAsync().Result);
+                HasDescription = !string.IsNullOrWhiteSpace(DisplayDescription);
+            }
+            catch (Exception ex)
+            {
+                LoggerHelper.Warning($"Failed to resolve controller description for '{Name}': {ex.Message}");
+                DisplayDescription = string.Empty;
+                HasDescription = false;
+            }
 
             UpdateIcon();
         }
