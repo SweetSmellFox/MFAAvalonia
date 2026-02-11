@@ -60,6 +60,7 @@ public static class ConfigurationKeys
     public const string RetryOnDisconnected = "RetryOnDisconnected";
     public const string RetryOnDisconnectedWin32 = "RetryOnDisconnectedWin32";
     public const string AutoDetectOnConnectionFailed = "AutoDetectOnConnectionFailed";
+    public const string AutoConnectAfterRefresh = "AutoConnectAfterRefresh";
     public const string AdbDevice = "AdbDevice";
     public const string PlayCoverConfig = "PlayCoverConfig";
     public const string CurrentController = "CurrentController";
@@ -207,6 +208,7 @@ public static class ConfigurationKeys
         RetryOnDisconnected,
         RetryOnDisconnectedWin32,
         AutoDetectOnConnectionFailed,
+        AutoConnectAfterRefresh,
         AdbDevice,
         PlayCoverConfig,
         CurrentController,

@@ -813,6 +813,9 @@
     <data name="AutoDetectOnConnectionFailed" xml:space="preserve">
         <value>連線失敗時自動重新搜尋可用裝置</value>
     </data>
+    <data name="AutoConnectAfterRefresh" xml:space="preserve">
+        <value>重新整理裝置列表後自動連線</value>
+    </data>
     <data name="RunningSettings" xml:space="preserve">
         <value>執行設定</value>
     </data>

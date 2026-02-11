@@ -134,4 +134,8 @@ public partial class ConnectSettingsUserControlModel : ViewModelBase
     [ObservableProperty] private bool _autoDetectOnConnectionFailed = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.AutoDetectOnConnectionFailed, true);
 
     partial void OnAutoDetectOnConnectionFailedChanged(bool value) => HandlePropertyChanged(ConfigurationKeys.AutoDetectOnConnectionFailed, value);
+
+    [ObservableProperty] private bool _autoConnectAfterRefresh = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.AutoConnectAfterRefresh, true);
+
+    partial void OnAutoConnectAfterRefreshChanged(bool value) => HandlePropertyChanged(ConfigurationKeys.AutoConnectAfterRefresh, value);
 }

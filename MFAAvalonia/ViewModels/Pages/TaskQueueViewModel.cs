@@ -765,6 +765,26 @@ public partial class TaskQueueViewModel : ViewModelBase
         HandleControllerSettings(controllerType);
         token.ThrowIfCancellationRequested();
         UpdateConnectionStatus(devices.Count > 0, controllerType);
+
+        // 刷新后自动连接
+        if (devices.Count > 0
+            && CurrentDevice != null
+            && Instances.ConnectSettingsUserControlModel.AutoConnectAfterRefresh)
+        {
+            try
+            {
+                token.ThrowIfCancellationRequested();
+                Processor.TestConnecting().GetAwaiter().GetResult();
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                LoggerHelper.Warning($"Auto connect after refresh failed: {ex.Message}");
+            }
+        }
     }
 
     private string GetDetectionMessage(MaaControllerTypes controllerType) =>

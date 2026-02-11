@@ -822,6 +822,9 @@
     <data name="AutoDetectOnConnectionFailed" xml:space="preserve">
         <value>连接失败时自动重新搜寻可用设备</value>
     </data>
+    <data name="AutoConnectAfterRefresh" xml:space="preserve">
+        <value>刷新设备列表后自动连接</value>
+    </data>
     <data name="RunningSettings" xml:space="preserve">
         <value>运行设置</value>
     </data>

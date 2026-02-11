@@ -813,6 +813,9 @@
     <data name="AutoDetectOnConnectionFailed" xml:space="preserve">
         <value>Auto detect available devices on connection failed</value>
     </data>
+    <data name="AutoConnectAfterRefresh" xml:space="preserve">
+        <value>Auto connect after refreshing device list</value>
+    </data>
     <data name="RunningSettings" xml:space="preserve">
         <value>Running</value>
     </data>
