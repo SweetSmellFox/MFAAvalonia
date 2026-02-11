@@ -715,7 +715,26 @@ public partial class TaskQueueViewModel : ViewModelBase
         _refreshCancellationTokenSource?.Cancel();
         _refreshCancellationTokenSource = new CancellationTokenSource();
         var controllerType = CurrentController;
-        TaskManager.RunTask(() => AutoDetectDevice(_refreshCancellationTokenSource.Token), _refreshCancellationTokenSource.Token, name: "刷新", handleError: (e) => HandleDetectionError(e, controllerType),
+        TaskManager.RunTask(() =>
+        {
+            AutoDetectDevice(_refreshCancellationTokenSource.Token);
+
+            // 刷新后自动连接（仅按钮触发的刷新）
+            if (CurrentDevice != null
+                && Instances.ConnectSettingsUserControlModel.AutoConnectAfterRefresh)
+            {
+                try
+                {
+                    _refreshCancellationTokenSource.Token.ThrowIfCancellationRequested();
+                    Processor.TestConnecting().GetAwaiter().GetResult();
+                }
+                catch (OperationCanceledException) { throw; }
+                catch (Exception ex)
+                {
+                    LoggerHelper.Warning($"Auto connect after refresh failed: {ex.Message}");
+                }
+            }
+        }, _refreshCancellationTokenSource.Token, name: "刷新", handleError: (e) => HandleDetectionError(e, controllerType),
             catchException: true, shouldLog: true);
     }
 
@@ -765,26 +784,6 @@ public partial class TaskQueueViewModel : ViewModelBase
         HandleControllerSettings(controllerType);
         token.ThrowIfCancellationRequested();
         UpdateConnectionStatus(devices.Count > 0, controllerType);
-
-        // 刷新后自动连接
-        if (devices.Count > 0
-            && CurrentDevice != null
-            && Instances.ConnectSettingsUserControlModel.AutoConnectAfterRefresh)
-        {
-            try
-            {
-                token.ThrowIfCancellationRequested();
-                Processor.TestConnecting().GetAwaiter().GetResult();
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                LoggerHelper.Warning($"Auto connect after refresh failed: {ex.Message}");
-            }
-        }
     }
 
     private string GetDetectionMessage(MaaControllerTypes controllerType) =>
@@ -876,13 +875,40 @@ public partial class TaskQueueViewModel : ViewModelBase
             .FirstOrDefault(c => c.Type?.Equals("win32", StringComparison.OrdinalIgnoreCase) == true);
 
         if (controller?.Win32 == null)
-            return (windows.FindIndex(win => !string.IsNullOrWhiteSpace(win.Name)), windows);
+        {
+            var idx = MatchPreviousWindow(windows);
+            return (idx >= 0 ? idx : Math.Max(0, windows.FindIndex(win => !string.IsNullOrWhiteSpace(win.Name))), windows);
+        }
 
         var filtered = windows.Where(win =>
             !string.IsNullOrWhiteSpace(win.Name)).ToList();
 
         filtered = ApplyRegexFilters(filtered, controller.Win32);
-        return (filtered.Count > 0 ? filtered.IndexOf(filtered.First()) : 0, filtered.ToList());
+
+        var matchedIdx = MatchPreviousWindow(filtered);
+        return (matchedIdx >= 0 ? matchedIdx : (filtered.Count > 0 ? 0 : 0), filtered.ToList());
+    }
+
+    /// <summary>
+    /// 在窗口列表中匹配上次选中的窗口（优先 ClassName+Name 完全匹配，其次 ClassName 匹配）
+    /// </summary>
+    private int MatchPreviousWindow(List<DesktopWindowInfo> windows)
+    {
+        if (CurrentDevice is not DesktopWindowInfo prev || windows.Count == 0)
+            return -1;
+
+        // 优先：ClassName 和 Name 都匹配
+        var exactMatch = windows.FindIndex(w =>
+            string.Equals(w.ClassName, prev.ClassName, StringComparison.Ordinal)
+            && string.Equals(w.Name, prev.Name, StringComparison.Ordinal));
+        if (exactMatch >= 0) return exactMatch;
+
+        // 其次：仅 ClassName 匹配
+        var classMatch = windows.FindIndex(w =>
+            string.Equals(w.ClassName, prev.ClassName, StringComparison.Ordinal));
+        if (classMatch >= 0) return classMatch;
+
+        return -1;
     }
 
 
