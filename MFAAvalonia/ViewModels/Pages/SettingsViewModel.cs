@@ -7,11 +7,8 @@ using MFAAvalonia.Extensions;
 using MFAAvalonia.Extensions.MaaFW;
 using MFAAvalonia.Helper;
 using MFAAvalonia.Helper.ValueType;
-using SukiUI;
-using SukiUI.Enums;
-using SukiUI.Models;
-using System;
-using System.IO;
+using MFAAvalonia.ViewModels.Other;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows.Input;
 
@@ -45,20 +42,26 @@ public partial class SettingsViewModel : ViewModelBase
             new RelayCommand(() => Instances.InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel?.ToggleCommand.Execute(null)));
     }
 
-    #region 配置
+    #region 多开实例管理
 
-    public IAvaloniaReadOnlyList<MFAConfiguration> ConfigurationList { get; set; } = ConfigurationManager.Configs;
+    /// <summary>
+    /// 多开实例列表（用于设置界面的配置管理）
+    /// </summary>
+    public ObservableCollection<InstanceTabViewModel> ConfigurationList => Instances.InstanceTabBarViewModel.Tabs;
 
-    [ObservableProperty] private string? _currentConfiguration = ConfigurationManager.GetCurrentConfiguration();
+    [ObservableProperty] private InstanceTabViewModel? _currentConfiguration;
 
-    partial void OnCurrentConfigurationChanged(string value)
+    partial void OnCurrentConfigurationChanged(InstanceTabViewModel? value)
     {
-        ConfigurationManager.SwitchConfiguration(value);
+        if (value != null)
+        {
+            Instances.InstanceTabBarViewModel.ActiveTab = value;
+        }
     }
 
     public void RefreshCurrentConfiguration()
     {
-        CurrentConfiguration = ConfigurationManager.GetCurrentConfiguration();
+        CurrentConfiguration = Instances.InstanceTabBarViewModel.ActiveTab;
     }
 
     [ObservableProperty] private string _newConfigurationName = string.Empty;
@@ -66,34 +69,39 @@ public partial class SettingsViewModel : ViewModelBase
     [RelayCommand]
     private void AddConfiguration()
     {
-        if (string.IsNullOrWhiteSpace(NewConfigurationName))
+        // 如果用户输入了名称，检查是否已存在
+        if (!string.IsNullOrWhiteSpace(NewConfigurationName))
         {
-            NewConfigurationName = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            var configExists = ConfigurationList.Any(tab =>
+                tab.Name.Equals(NewConfigurationName, System.StringComparison.OrdinalIgnoreCase));
+            
+            if (configExists)
+            {
+                ToastHelper.Error(LangKeys.ConfigNameAlreadyExists.ToLocalizationFormatted(false, NewConfigurationName));
+                return;
+            }
         }
-
-        var configDPath = Path.Combine(AppContext.BaseDirectory, "config");
-        var configPath = Path.Combine(configDPath, $"{ConfigurationManager.GetActualConfiguration()}.json");
-        var newConfigPath = Path.Combine(configDPath, $"mfa_{NewConfigurationName}.json");
-        bool configExists = Directory.GetFiles(configDPath, "*.json")
-            .Select(Path.GetFileNameWithoutExtension)
-            .Any(name => name.Equals(NewConfigurationName, StringComparison.OrdinalIgnoreCase));
-
-        if (configExists)
+        
+        // 添加新的多开实例
+        Instances.InstanceTabBarViewModel.AddInstanceCommand.Execute(null);
+        
+        // 如果用户输入了名称，则设置实例名称
+        if (!string.IsNullOrWhiteSpace(NewConfigurationName))
         {
-            ToastHelper.Error(LangKeys.ConfigNameAlreadyExists.ToLocalizationFormatted(false, NewConfigurationName));
-            return;
+            var newTab = Instances.InstanceTabBarViewModel.ActiveTab;
+            if (newTab != null)
+            {
+                MaaProcessorManager.Instance.SetInstanceName(newTab.InstanceId, NewConfigurationName);
+                newTab.UpdateName();
+            }
+            NewConfigurationName = string.Empty;
         }
-        if (File.Exists(configPath))
-        {
-            var content = File.ReadAllText(configPath);
-            File.WriteAllText(newConfigPath, content);
-
-            ConfigurationManager.Add(NewConfigurationName);
-            ToastHelper.Success(LangKeys.ConfigAddedSuccessfully.ToLocalizationFormatted(false, NewConfigurationName));
-        }
+        
+        ToastHelper.Success(LangKeys.ConfigAddedSuccessfully.ToLocalizationFormatted(false,
+            Instances.InstanceTabBarViewModel.ActiveTab?.Name ?? ""));
     }
 
-    #endregion 配置
+    #endregion 多开实例管理
 
     #region HotKey
     [ObservableProperty] private bool _enableHotKey = true;

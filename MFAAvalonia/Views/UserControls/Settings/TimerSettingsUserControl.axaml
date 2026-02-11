@@ -6,7 +6,7 @@
     x:DataType="settings:TimerSettingsUserControlModel"
     xmlns="https://github.com/avaloniaui"
     xmlns:calcBinding="clr-namespace:CalcBinding;assembly=CalcBindingAva"
-    xmlns:configuration="clr-namespace:MFAAvalonia.Configuration"
+    xmlns:other="clr-namespace:MFAAvalonia.ViewModels.Other"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:helper="clr-namespace:MFAAvalonia.Helper"
     xmlns:markup="https://codewf.com"
@@ -24,8 +24,8 @@
         <TextBlock
             FontWeight="SemiBold"
             HorizontalAlignment="Center"
-            IsVisible="{calcBinding:Binding 'ConfigurationList > 0',
-                                            Source={x:Static helper:Instances.SettingsViewModel}}"
+            IsVisible="{calcBinding:Binding 'InstanceList.Count > 1',
+                                            Source={x:Static other:TimerModel.Instance}}"
             Text="{markup:I18n {x:Static helper:LangKeys.GlobalConfigTip}}" />
         <suki:GlassCard Padding="25">
             <StackPanel Spacing="20">
@@ -33,7 +33,7 @@
                     <ToggleSwitch
                         Classes="Switch"
                         DockPanel.Dock="Right"
-                        IsChecked="{Binding ForceScheduledStart}"
+                        IsChecked="{Binding TimerModels.ForceScheduledStart}"
                         IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
                         ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.ForceScheduledStartTip}}"
                         VerticalAlignment="Top" />
@@ -53,7 +53,7 @@
                     <ToggleSwitch
                         Classes="Switch"
                         DockPanel.Dock="Right"
-                        IsChecked="{Binding CustomConfig}"
+                        IsChecked="{Binding TimerModels.CustomConfig}"
                         IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
                         ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.TimerCustomConfigTip}}"
                         VerticalAlignment="Top" />
@@ -115,16 +115,16 @@
                                 VerticalAlignment="Center" />
                         </StackPanel>
                     </DockPanel>
-                    <DockPanel IsVisible="{Binding CustomConfig}">
+                    <DockPanel IsVisible="{Binding TimerModels.CustomConfig}">
                         <ComboBox extensions:ComboBoxExtensions.DisableNavigationOnLostFocus="True"
                                   DisplayMemberBinding="{Binding Name}"
                                   DockPanel.Dock="Right"
                                   Focusable="False"
                                   HorizontalAlignment="Center"
                                   IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
-                                  ItemsSource="{Binding ConfigurationList}"
+                                  ItemsSource="{Binding InstanceList}"
                                   SelectedValue="{Binding TimerModels.Timers[0].TimerConfig}"
-                                  SelectedValueBinding="{Binding Name}"
+                                  SelectedValueBinding="{Binding InstanceId}"
                                   ToolTip.Tip="{Binding TimerModels.Timers[0].TimerName}"
                                   VerticalAlignment="Center"
                                   Width="215" />
@@ -182,16 +182,16 @@
                                 VerticalAlignment="Center" />
                         </StackPanel>
                     </DockPanel>
-                    <DockPanel IsVisible="{Binding CustomConfig}">
+                    <DockPanel IsVisible="{Binding TimerModels.CustomConfig}">
                         <ComboBox extensions:ComboBoxExtensions.DisableNavigationOnLostFocus="True"
                                   DisplayMemberBinding="{Binding Name}"
                                   DockPanel.Dock="Right"
                                   Focusable="False"
                                   HorizontalAlignment="Center"
                                   IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
-                                  ItemsSource="{Binding ConfigurationList}"
+                                  ItemsSource="{Binding InstanceList}"
                                   SelectedValue="{Binding TimerModels.Timers[1].TimerConfig}"
-                                  SelectedValueBinding="{Binding Name}"
+                                  SelectedValueBinding="{Binding InstanceId}"
                                   ToolTip.Tip="{Binding TimerModels.Timers[1].TimerName}"
                                   VerticalAlignment="Center"
                                   Width="215" />
@@ -249,16 +249,16 @@
                                 VerticalAlignment="Center" />
                         </StackPanel>
                     </DockPanel>
-                    <DockPanel IsVisible="{Binding CustomConfig}">
+                    <DockPanel IsVisible="{Binding TimerModels.CustomConfig}">
                         <ComboBox extensions:ComboBoxExtensions.DisableNavigationOnLostFocus="True"
                                   DisplayMemberBinding="{Binding Name}"
                                   DockPanel.Dock="Right"
                                   Focusable="False"
                                   HorizontalAlignment="Center"
                                   IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
-                                  ItemsSource="{Binding ConfigurationList}"
+                                  ItemsSource="{Binding InstanceList}"
                                   SelectedValue="{Binding TimerModels.Timers[2].TimerConfig}"
-                                  SelectedValueBinding="{Binding Name}"
+                                  SelectedValueBinding="{Binding InstanceId}"
                                   ToolTip.Tip="{Binding TimerModels.Timers[2].TimerName}"
                                   VerticalAlignment="Center"
                                   Width="215" />
@@ -316,16 +316,16 @@
                                 VerticalAlignment="Center" />
                         </StackPanel>
                     </DockPanel>
-                    <DockPanel IsVisible="{Binding CustomConfig}">
+                    <DockPanel IsVisible="{Binding TimerModels.CustomConfig}">
                         <ComboBox extensions:ComboBoxExtensions.DisableNavigationOnLostFocus="True"
                                   DisplayMemberBinding="{Binding Name}"
                                   DockPanel.Dock="Right"
                                   Focusable="False"
                                   HorizontalAlignment="Center"
                                   IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
-                                  ItemsSource="{Binding ConfigurationList}"
+                                  ItemsSource="{Binding InstanceList}"
                                   SelectedValue="{Binding TimerModels.Timers[3].TimerConfig}"
-                                  SelectedValueBinding="{Binding Name}"
+                                  SelectedValueBinding="{Binding InstanceId}"
                                   ToolTip.Tip="{Binding TimerModels.Timers[3].TimerName}"
                                   VerticalAlignment="Center"
                                   Width="215" />
@@ -383,16 +383,16 @@
                                 VerticalAlignment="Center" />
                         </StackPanel>
                     </DockPanel>
-                    <DockPanel IsVisible="{Binding CustomConfig}">
+                    <DockPanel IsVisible="{Binding TimerModels.CustomConfig}">
                         <ComboBox extensions:ComboBoxExtensions.DisableNavigationOnLostFocus="True"
                                   DisplayMemberBinding="{Binding Name}"
                                   DockPanel.Dock="Right"
                                   Focusable="False"
                                   HorizontalAlignment="Center"
                                   IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
-                                  ItemsSource="{Binding ConfigurationList}"
+                                  ItemsSource="{Binding InstanceList}"
                                   SelectedValue="{Binding TimerModels.Timers[4].TimerConfig}"
-                                  SelectedValueBinding="{Binding Name}"
+                                  SelectedValueBinding="{Binding InstanceId}"
                                   ToolTip.Tip="{Binding TimerModels.Timers[4].TimerName}"
                                   VerticalAlignment="Center"
                                   Width="215" />
@@ -450,16 +450,16 @@
                                 VerticalAlignment="Center" />
                         </StackPanel>
                     </DockPanel>
-                    <DockPanel IsVisible="{Binding CustomConfig}">
+                    <DockPanel IsVisible="{Binding TimerModels.CustomConfig}">
                         <ComboBox extensions:ComboBoxExtensions.DisableNavigationOnLostFocus="True"
                                   DisplayMemberBinding="{Binding Name}"
                                   DockPanel.Dock="Right"
                                   Focusable="False"
                                   HorizontalAlignment="Center"
                                   IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
-                                  ItemsSource="{Binding ConfigurationList}"
+                                  ItemsSource="{Binding InstanceList}"
                                   SelectedValue="{Binding TimerModels.Timers[5].TimerConfig}"
-                                  SelectedValueBinding="{Binding Name}"
+                                  SelectedValueBinding="{Binding InstanceId}"
                                   ToolTip.Tip="{Binding TimerModels.Timers[5].TimerName}"
                                   VerticalAlignment="Center"
                                   Width="215" />
@@ -517,16 +517,16 @@
                                 VerticalAlignment="Center" />
                         </StackPanel>
                     </DockPanel>
-                    <DockPanel IsVisible="{Binding CustomConfig}">
+                    <DockPanel IsVisible="{Binding TimerModels.CustomConfig}">
                         <ComboBox extensions:ComboBoxExtensions.DisableNavigationOnLostFocus="True"
                                   DisplayMemberBinding="{Binding Name}"
                                   DockPanel.Dock="Right"
                                   Focusable="False"
                                   HorizontalAlignment="Center"
                                   IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
-                                  ItemsSource="{Binding ConfigurationList}"
+                                  ItemsSource="{Binding InstanceList}"
                                   SelectedValue="{Binding TimerModels.Timers[6].TimerConfig}"
-                                  SelectedValueBinding="{Binding Name}"
+                                  SelectedValueBinding="{Binding InstanceId}"
                                   ToolTip.Tip="{Binding TimerModels.Timers[6].TimerName}"
                                   VerticalAlignment="Center"
                                   Width="215" />
@@ -584,16 +584,16 @@
                                 VerticalAlignment="Center" />
                         </StackPanel>
                     </DockPanel>
-                    <DockPanel IsVisible="{Binding CustomConfig}">
+                    <DockPanel IsVisible="{Binding TimerModels.CustomConfig}">
                         <ComboBox extensions:ComboBoxExtensions.DisableNavigationOnLostFocus="True"
                                   DisplayMemberBinding="{Binding Name}"
                                   DockPanel.Dock="Right"
                                   Focusable="False"
                                   HorizontalAlignment="Center"
                                   IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
-                                  ItemsSource="{Binding ConfigurationList}"
+                                  ItemsSource="{Binding InstanceList}"
                                   SelectedValue="{Binding TimerModels.Timers[7].TimerConfig}"
-                                  SelectedValueBinding="{Binding Name}"
+                                  SelectedValueBinding="{Binding InstanceId}"
                                   ToolTip.Tip="{Binding TimerModels.Timers[7].TimerName}"
                                   VerticalAlignment="Center"
                                   Width="215" />

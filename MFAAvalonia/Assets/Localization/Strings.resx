@@ -1610,6 +1610,147 @@
     <data name="Search" xml:space="preserve">
         <value>搜索...</value>
     </data>
+    <data name="Config" xml:space="preserve">
+        <value>配置</value>
+    </data>
+    <data name="TutorialStepConnectTitle" xml:space="preserve">
+        <value>工具栏概览</value>
+    </data>
+    <data name="TutorialStepConnectDesc" xml:space="preserve">
+        <value>这是顶部工具栏，包含资源切换、控制器选择、设备连接等核心功能，接下来逐一介绍。</value>
+    </data>
+    <data name="TutorialStepAddTaskTitle" xml:space="preserve">
+        <value>任务列表</value>
+    </data>
+    <data name="TutorialStepAddTaskDesc" xml:space="preserve">
+        <value>在任务列表中勾选需要执行的任务，拖拽可调整顺序。点击每个任务右侧的设置图标，可在「任务设置」面板中切换查看该任务的详细参数。</value>
+    </data>
+    <data name="TutorialStepMultiConfigTitle" xml:space="preserve">
+        <value>管理多个配置</value>
+    </data>
+    <data name="TutorialStepMultiConfigDesc" xml:space="preserve">
+        <value>第三步，通过顶部标签页新建或切换不同的配置——例如一个用于日常挂机，另一个用于实时小工具，各配置的任务和设备设置互相独立。</value>
+    </data>
+    <data name="TutorialNext" xml:space="preserve">
+        <value>下一步</value>
+    </data>
+    <data name="TutorialPrevious" xml:space="preserve">
+        <value>上一步</value>
+    </data>
+    <data name="TutorialFinish" xml:space="preserve">
+        <value>知道了</value>
+    </data>
+    <data name="TutorialStepTaskOptionsTitle" xml:space="preserve">
+        <value>任务设置</value>
+    </data>
+    <data name="TutorialStepTaskOptionsDesc" xml:space="preserve">
+        <value>这里显示当前选中任务的详细参数设置。在任务列表中点击不同任务右侧的设置图标，此面板会切换显示对应任务的选项。</value>
+    </data>
+    <data name="TutorialStepSettingsTitle" xml:space="preserve">
+        <value>设置</value>
+    </data>
+    <data name="TutorialStepSettingsDesc" xml:space="preserve">
+        <value>点击左侧菜单栏底部的设置图标，可以配置软件的全局选项，包括主题、语言、通知等。</value>
+    </data>
+    <data name="TutorialStepResourceTitle" xml:space="preserve">
+        <value>资源切换</value>
+    </data>
+    <data name="TutorialStepResourceDesc" xml:space="preserve">
+        <value>通过此下拉框切换不同的资源包。不同资源包可能包含不同的任务集合和配置。</value>
+    </data>
+    <data name="TutorialStepControllerTitle" xml:space="preserve">
+        <value>控制器类型</value>
+    </data>
+    <data name="TutorialStepControllerDesc" xml:space="preserve">
+        <value>选择控制器类型：电脑端、电脑端-备选、电脑端-前台或安卓端等，根据你的使用场景选择合适的连接方式。</value>
+    </data>
+    <data name="TutorialStepDeviceTitle" xml:space="preserve">
+        <value>设备选择</value>
+    </data>
+    <data name="TutorialStepDeviceDesc" xml:space="preserve">
+        <value>在此选择要连接的目标设备或窗口。下拉列表会显示当前可用的设备。</value>
+    </data>
+    <data name="TutorialStepConnectionTitle" xml:space="preserve">
+        <value>连接操作</value>
+    </data>
+    <data name="TutorialStepConnectionDesc" xml:space="preserve">
+        <value>这里包含刷新设备列表、重新连接等按钮，以及当前连接状态指示器（绿色表示已连接，红色表示未连接）。点击「开始任务」按钮即可运行已勾选的任务。</value>
+    </data>
+    <data name="TutorialStepLogTitle" xml:space="preserve">
+        <value>运行日志</value>
+    </data>
+    <data name="TutorialStepLogDesc" xml:space="preserve">
+        <value>任务执行过程中的日志信息会显示在这里，方便实时查看运行状态和排查问题。</value>
+    </data>
+    <data name="TutorialStepSelectAllTitle" xml:space="preserve">
+        <value>全选与全不选</value>
+    </data>
+    <data name="TutorialStepSelectAllDesc" xml:space="preserve">
+        <value>这两个按钮可以快速勾选或取消勾选所有任务。左侧为「全选」，右侧为「全不选」。</value>
+    </data>
+    <data name="TutorialStepAddTaskBtnTitle" xml:space="preserve">
+        <value>添加与重置任务</value>
+    </data>
+    <data name="TutorialStepAddTaskBtnDesc" xml:space="preserve">
+        <value>「添加任务」按钮可以将新任务加入列表；「重置任务」按钮可以将任务列表恢复为默认状态。</value>
+    </data>
+    <data name="TutorialStepResetTaskTitle" xml:space="preserve">
+        <value>开始任务</value>
+    </data>
+    <data name="TutorialStepResetTaskDesc" xml:space="preserve">
+        <value>点击此按钮开始执行已勾选的任务。运行中再次点击可停止任务。</value>
+    </data>
+    <data name="TutorialStepTaskInteractTitle" xml:space="preserve">
+        <value>任务交互技巧</value>
+    </data>
+    <data name="TutorialStepTaskInteractDesc" xml:space="preserve">
+        <value>左键点击复选框可勾选/取消任务；右键点击复选框可设为「仅执行一次」（半选状态）。</value>
+    </data>
+    <data name="TutorialStepTaskItemTipTitle" xml:space="preserve">
+        <value>任务项操作</value>
+    </data>
+    <data name="TutorialStepTaskItemTipDesc" xml:space="preserve">
+        <value>右键点击任务项可弹出菜单，支持单独运行、备注和删除操作。点击右侧设置图标可查看该任务的详细参数。</value>
+    </data>
+    <data name="TutorialStepExportLogTitle" xml:space="preserve">
+        <value>导出日志</value>
+    </data>
+    <data name="TutorialStepExportLogDesc" xml:space="preserve">
+        <value>点击此按钮可以将运行日志导出保存到文件，方便排查问题或分享给开发者。</value>
+    </data>
+    <data name="TutorialStepSettingsPageTitle" xml:space="preserve">
+        <value>设置页面</value>
+    </data>
+    <data name="TutorialStepSettingsPageDesc" xml:space="preserve">
+        <value>这是设置页面。左侧或顶部的导航栏可以快速跳转到不同的设置分类，右侧显示对应分类的详细设置项。</value>
+    </data>
+    <data name="TutorialStepStartupSettingsTitle" xml:space="preserve">
+        <value>启动设置</value>
+    </data>
+    <data name="TutorialStepStartupSettingsDesc" xml:space="preserve">
+        <value>在这里可以配置任务开始前和结束后的自动操作、模拟器/游戏启动路径、启动参数和等待时间等。</value>
+    </data>
+    <data name="TutorialStepBeforeAfterTaskTitle" xml:space="preserve">
+        <value>启动前与结束后操作</value>
+    </data>
+    <data name="TutorialStepBeforeAfterTaskDesc" xml:space="preserve">
+        <value>「启动后操作」可在任务开始前自动执行指定操作（如进入特定界面）；「结束后操作」可在所有任务完成后自动执行（如退出游戏、关闭模拟器）。</value>
+    </data>
+    <data name="TutorialStepSoftwarePathTitle" xml:space="preserve">
+        <value>设置启动路径</value>
+    </data>
+    <data name="TutorialStepSoftwarePathDesc" xml:space="preserve">
+        <value>在此填写模拟器或游戏的启动路径，实现全自动挂机。注意：需要在「连接操作」中选择「启动游戏」或「启动并执行」，或在「连接设置」中开启「连接失败时尝试启动」，启动路径才会生效。</value>
+    </data>
+    <data name="TutorialStepRewatchTitle" xml:space="preserve">
+        <value>重新观看教程</value>
+    </data>
+    <data name="TutorialStepRewatchDesc" xml:space="preserve">
+        <value>如果以后需要再次查看使用教程，可以在「设置」→「关于我们」页面底部找到「使用教程」按钮，随时重新观看。</value>
+    </data>
+    <data name="Tutorial" xml:space="preserve">
+        <value>使用教程</value>
+    </data>
 
     </root>
 

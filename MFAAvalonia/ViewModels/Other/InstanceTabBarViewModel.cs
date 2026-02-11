@@ -8,6 +8,7 @@ using MFAAvalonia.Helper.ValueType;
 using SukiUI.Controls;
 using SukiUI.Dialogs;
 using SukiUI.MessageBox;
+using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
@@ -18,8 +19,56 @@ public partial class InstanceTabBarViewModel : ViewModelBase
 {
     public ObservableCollection<InstanceTabViewModel> Tabs { get; } = new();
 
-    [ObservableProperty]
-    private InstanceTabViewModel? _activeTab;
+    [ObservableProperty] private InstanceTabViewModel? _activeTab;
+    [ObservableProperty] private bool _isDropdownOpen;
+
+    [ObservableProperty] private string _searchText = string.Empty;
+
+    public ObservableCollection<InstanceTabViewModel> FilteredTabs { get; } = new();
+
+    partial void OnIsDropdownOpenChanged(bool value)
+    {
+        if (value)
+        {
+            SearchText = string.Empty;
+            RefreshFilteredTabs();
+        }
+    }
+
+    partial void OnSearchTextChanged(string value)
+    {
+        RefreshFilteredTabs();
+    }
+
+    private void RefreshFilteredTabs()
+    {
+        FilteredTabs.Clear();
+        var query = SearchText?.Trim() ?? string.Empty;
+        foreach (var tab in Tabs)
+        {
+            if (string.IsNullOrEmpty(query) || tab.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
+            {
+                FilteredTabs.Add(tab);
+            }
+        }
+    }
+
+    [RelayCommand]
+    private void ToggleDropdown()
+    {
+        IsDropdownOpen = !IsDropdownOpen;
+    }
+
+    [RelayCommand]
+    private void SelectInstance(InstanceTabViewModel? tab)
+    {
+        if (tab != null)
+        {
+            ActiveTab = tab;
+            IsDropdownOpen = false;
+        }
+    }
+
 
     public InstanceTabBarViewModel()
     {
@@ -33,7 +82,7 @@ public partial class InstanceTabBarViewModel : ViewModelBase
     public void ReloadTabs()
     {
         var processors = MaaProcessor.Processors.ToList();
-        
+
         // Use smart sync instead of clear/add to preserve view state
         var toRemove = Tabs.Where(t => !processors.Contains(t.Processor)).ToList();
         foreach (var t in toRemove)
@@ -48,7 +97,7 @@ public partial class InstanceTabBarViewModel : ViewModelBase
                 Tabs.Add(new InstanceTabViewModel(processor));
             }
         }
-        
+
         var current = MaaProcessorManager.Instance.Current;
         if (current != null)
         {
@@ -76,7 +125,6 @@ public partial class InstanceTabBarViewModel : ViewModelBase
             }
         }
     }
-
     private void SwitchToInstance(MaaProcessor processor)
     {
         // 切换前保存当前实例的任务状态
@@ -94,12 +142,25 @@ public partial class InstanceTabBarViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// 通过实例ID切换到指定多开实例（供全局定时器调用）
+    /// </summary>
+    public void SwitchToInstanceById(string instanceId)
+    {
+        var tab = Tabs.FirstOrDefault(t => t.InstanceId == instanceId);
+        if (tab != null)
+        {
+            ActiveTab = tab;
+        }
+    }
+
+
     [RelayCommand]
     private void AddInstance()
     {
         var processor = MaaProcessorManager.Instance.CreateInstance(false);
         processor.InitializeData();
-        
+
         var tab = new InstanceTabViewModel(processor);
         Tabs.Add(tab);
         ActiveTab = tab;
@@ -109,7 +170,7 @@ public partial class InstanceTabBarViewModel : ViewModelBase
     private async Task CloseInstance(InstanceTabViewModel? tab)
     {
         if (tab == null) return;
-        
+
         if (Tabs.Count <= 1)
         {
             ToastHelper.Info("不能关闭最后一个实例");
@@ -118,16 +179,19 @@ public partial class InstanceTabBarViewModel : ViewModelBase
 
         if (tab.IsRunning)
         {
-             var result = await SukiUI.MessageBox.SukiMessageBox.ShowDialog(new SukiMessageBoxHost
-             {
-                 Content = "实例正在运行，确定要停止并关闭吗？",
-                 ActionButtonsPreset = SukiUI.MessageBox.SukiMessageBoxButtons.YesNo,
-                 IconPreset = SukiUI.MessageBox.SukiMessageBoxIcons.Warning
-             }, new SukiUI.MessageBox.SukiMessageBoxOptions { Title = "关闭实例" });
+            var result = await SukiUI.MessageBox.SukiMessageBox.ShowDialog(new SukiMessageBoxHost
+            {
+                Content = "实例正在运行，确定要停止并关闭吗？",
+                ActionButtonsPreset = SukiUI.MessageBox.SukiMessageBoxButtons.YesNo,
+                IconPreset = SukiUI.MessageBox.SukiMessageBoxIcons.Warning
+            }, new SukiUI.MessageBox.SukiMessageBoxOptions
+            {
+                Title = "关闭实例"
+            });
 
-             if (!result.Equals(SukiMessageBoxResult.Yes)) return;
+            if (!result.Equals(SukiMessageBoxResult.Yes)) return;
 
-             tab.Processor.Stop(MFATask.MFATaskStatus.STOPPED);
+            tab.Processor.Stop(MFATask.MFATaskStatus.STOPPED);
         }
 
         if (MaaProcessorManager.Instance.RemoveInstance(tab.InstanceId))
@@ -139,12 +203,12 @@ public partial class InstanceTabBarViewModel : ViewModelBase
             }
         }
     }
-    
+
     [RelayCommand]
     private void RenameInstance(InstanceTabViewModel? tab)
     {
-        if(tab == null) return;
-        
+        if (tab == null) return;
+
         Instances.DialogManager.CreateDialog()
             .WithTitle(LangKeys.TaskRename.ToLocalization())
             .WithViewModel(dialog => new RenameInstanceDialogViewModel(dialog, tab))

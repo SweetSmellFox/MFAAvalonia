@@ -67,10 +67,8 @@ public partial class RootView : SukiWindow
         if (AppRuntime.IsNewInstance)
         {
             MaaProcessorManager.Instance.LoadInstanceConfig();
-            foreach (var instance in MaaProcessorManager.Instance.Instances)
-            {
-                instance.InitializeData();
-            }
+            // 启动懒加载（LoadInstanceConfig 已加载 ActiveTab 实例）
+            _ = MaaProcessorManager.Instance.StartLazyLoadingAsync();
         }
     }
 

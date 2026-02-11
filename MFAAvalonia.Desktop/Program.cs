@@ -44,13 +44,13 @@ sealed class Program
             Directory.SetCurrentDirectory(AppContext.BaseDirectory);
             PrivatePathHelper.CleanupDuplicateLibraries(AppContext.BaseDirectory, AppContext.GetData("SubdirectoriesToProbe") as string);
             PrivatePathHelper.SetupNativeLibraryResolver();
-            
+
             List<string> resultDirectories = new();
-            
+
             string baseDirectory = AppContext.BaseDirectory;
-            
+
             string runtimesPath = Path.Combine(baseDirectory, "runtimes");
-            
+
             if (!Directory.Exists(runtimesPath))
             {
                 try
@@ -71,8 +71,8 @@ sealed class Program
 
                 foreach (var filePath in maaFiles)
                 {
-                    var fileDirectory = Path.GetDirectoryName(filePath);
-                    if (!resultDirectories.Contains(fileDirectory) && fileDirectory?.Contains(VersionChecker.GetNormalizedArchitecture()) == true)
+                    var fileDirectory = Path.GetDirectoryName(filePath) ?? string.Empty;
+                    if (!resultDirectories.Contains(fileDirectory) && fileDirectory.Contains(VersionChecker.GetNormalizedArchitecture()))
                     {
                         resultDirectories.Add(fileDirectory);
                     }
@@ -235,7 +235,7 @@ sealed class Program
         {
             var tempPath = Path.GetTempPath();
             var currentPath = AppContext.BaseDirectory;
-            
+
             if (string.IsNullOrEmpty(tempPath) || string.IsNullOrEmpty(currentPath))
             {
                 return false;

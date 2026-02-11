@@ -292,13 +292,11 @@
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <!-- 在 TopToolbar Grid 中添加新列，放在资源选择之前 -->
-                    <Grid x:Name="ConfigSelectorPanel" Grid.Column="0" VerticalAlignment="Center"
+                    <!-- 配置切换已移至设置界面，此处注释掉 -->
+                    <!-- <Grid x:Name="ConfigSelectorPanel" Grid.Column="0" VerticalAlignment="Center"
                           ColumnDefinitions="Auto,*">
                         <TextBlock FontSize="12" Grid.Column="0"
                                    FontWeight="Bold" Foreground="{DynamicResource SukiLowText}"
@@ -317,14 +315,13 @@
                                 </DataTemplate>
                             </ComboBox.ItemTemplate>
                         </ComboBox>
-
-                    </Grid>
-                    <!-- ~1~ 添加分隔符 @1@ -->
-                    <Border x:Name="Spliter1" Grid.Column="1" Width="1" Height="30"
-                            Background="{DynamicResource SukiControlBorderBrush}" Margin="20,0" />
-
+                    </Grid> -->
+                    <!-- 分隔符已注释 -->
+                    <!-- <Border x:Name="Spliter1" Grid.Column="1" Width="1" Height="30"
+                            Background="{DynamicResource SukiControlBorderBrush}" Margin="20,0" /> -->
+    
                     <!-- 左侧：资源选择 -->
-                    <Grid x:Name="ResourceSelectorPanel" Grid.Column="2" VerticalAlignment="Center"
+                    <Grid x:Name="ResourceSelectorPanel" Grid.Column="0" VerticalAlignment="Center"
                           ColumnDefinitions="Auto,*">
                         <TextBlock FontSize="12" Grid.Column="0"
                                    FontWeight="Bold" Foreground="{DynamicResource SukiLowText}"
@@ -377,11 +374,11 @@
                     </Grid>
 
                     <!-- 中间：分隔符 -->
-                    <Border Grid.Column="3" Width="1" Height="30" Background="{DynamicResource SukiControlBorderBrush}"
+                    <Border Grid.Column="1" Width="1" Height="30" Background="{DynamicResource SukiControlBorderBrush}"
                             x:Name="Spliter2"
                             Margin="20,0" />
                     <!-- 控制器类型选择 -->
-                    <Grid x:Name="ControllerSelectorPanel" Grid.Column="4" VerticalAlignment="Center"
+                    <Grid x:Name="ControllerSelectorPanel" Grid.Column="2" VerticalAlignment="Center"
                           ColumnDefinitions="Auto,*">
                         <TextBlock Grid.Column="0" FontSize="12"
                                    FontWeight="Bold" Foreground="{DynamicResource SukiLowText}"
@@ -432,7 +429,7 @@
                         </ComboBox>
                     </Grid>
                     <!-- 右侧：连接设置 -->
-                    <Grid x:Name="DeviceSelectorPanel" Grid.Column="5" HorizontalAlignment="Stretch"
+                    <Grid x:Name="DeviceSelectorPanel" Grid.Column="3" HorizontalAlignment="Stretch"
                           MinWidth="200"
                           IsVisible="{calcBinding:Binding 'CurrentController != maa:MaaControllerTypes.PlayCover'}">
                         <Grid.ColumnDefinitions>
@@ -469,7 +466,7 @@
                             </ComboBox.DataTemplates>
                         </ComboBox>
                     </Grid>
-                    <StackPanel x:Name="ConnectionButtonsPanel" Grid.Column="6" Orientation="Horizontal"
+                    <StackPanel x:Name="ConnectionButtonsPanel" Grid.Column="4" Orientation="Horizontal"
                                 VerticalAlignment="Center" Spacing="4">
                         <StackPanel.Resources>
                             <markup:IfConditionConverter x:Key="ConnectedConditionConverter">
@@ -602,8 +599,9 @@
                     </StackPanel>
                 </Grid>
                 <Grid x:Name="TopToolbarCompact" IsVisible="False" RowDefinitions="Auto,Auto">
-                    <Grid x:Name="TopToolbarCompactRow1" Grid.Row="0" ColumnDefinitions="*,Auto,*,Auto">
-                        <Grid x:Name="ConfigSelectorPanelCompact" Grid.Column="0" VerticalAlignment="Center"
+                    <Grid x:Name="TopToolbarCompactRow1" Grid.Row="0" ColumnDefinitions="*,Auto">
+                        <!-- 配置切换已移至设置界面，此处注释掉 -->
+                        <!-- <Grid x:Name="ConfigSelectorPanelCompact" Grid.Column="0" VerticalAlignment="Center"
                               ColumnDefinitions="Auto,*">
                             <TextBlock FontSize="12" Grid.Column="0"
                                        FontWeight="Bold" Foreground="{DynamicResource SukiLowText}"
@@ -622,12 +620,12 @@
                                     </DataTemplate>
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
-                        </Grid>
+                        </Grid> -->
+                        <!-- 分隔符已注释 -->
+                        <!-- <Border x:Name="Spliter1Compact" Grid.Column="1" Width="1" Height="30"
+                                Background="{DynamicResource SukiControlBorderBrush}" Margin="20,0" /> -->
 
-                        <Border x:Name="Spliter1Compact" Grid.Column="1" Width="1" Height="30"
-                                Background="{DynamicResource SukiControlBorderBrush}" Margin="20,0" />
-
-                        <Grid x:Name="ResourceSelectorPanelCompact" Grid.Column="2" VerticalAlignment="Center"
+                        <Grid x:Name="ResourceSelectorPanelCompact" Grid.Column="0" VerticalAlignment="Center"
                               ColumnDefinitions="Auto,*">
                             <TextBlock FontSize="12" Grid.Column="0"
                                        FontWeight="Bold" Foreground="{DynamicResource SukiLowText}"
@@ -679,7 +677,7 @@
                             </ComboBox>
                         </Grid>
 
-                        <Border Grid.Column="3" x:Name="TaskToggleBorder1"
+                        <Border Grid.Column="1" x:Name="TaskToggleBorder1"
                                 CornerRadius="999"
                                 ClipToBounds="True" Height="30"
                                 Margin="2,0,0,0"

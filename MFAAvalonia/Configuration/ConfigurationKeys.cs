@@ -179,6 +179,7 @@ public static class ConfigurationKeys
     public const string MainWindowPositionX = "UI.MainWindow.PositionX";
     public const string MainWindowPositionY = "UI.MainWindow.PositionY";
     public const string MainWindowMaximized = "UI.MainWindow.Maximized";
+    public const string HasCompletedFirstUseTutorial = "UI.HasCompletedFirstUseTutorial";
 
     #endregion
 

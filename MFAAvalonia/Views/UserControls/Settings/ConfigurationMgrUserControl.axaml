@@ -28,8 +28,7 @@
                               IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
                               IsHitTestVisible="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
                               ItemsSource="{Binding ConfigurationList}"
-                              SelectedValue="{Binding CurrentConfiguration}"
-                              SelectedValueBinding="{Binding Name}"
+                              SelectedItem="{Binding CurrentConfiguration}"
                               VerticalAlignment="Center"
                               Width="215"
                               x:Name="SwitchConfigComboBox">

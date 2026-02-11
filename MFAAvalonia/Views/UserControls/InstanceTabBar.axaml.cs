@@ -44,4 +44,18 @@ public partial class InstanceTabBar : UserControl
             }
         }
     }
+
+    private void OnDropdownItemPressed(object? sender, PointerPressedEventArgs e)
+    {
+        // 仅处理左键点击
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
+
+        if (sender is Border border && border.DataContext is InstanceTabViewModel tab)
+        {
+            if (DataContext is InstanceTabBarViewModel viewModel)
+            {
+                viewModel.SelectInstanceCommand.Execute(tab);
+            }
+        }
+    }
 }

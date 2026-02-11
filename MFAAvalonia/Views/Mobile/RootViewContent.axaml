@@ -12,6 +12,7 @@
     xmlns:pages="clr-namespace:MFAAvalonia.Views.Pages"
     xmlns:suki="https://github.com/kikipoulet/SukiUI"
     xmlns:windows="clr-namespace:MFAAvalonia.ViewModels.Windows"
+    xmlns:controls="clr-namespace:MFAAvalonia.Views.UserControls"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     d:DesignHeight="600"
     d:DesignWidth="360"
@@ -71,5 +72,8 @@
                 </suki:SukiSideMenu>
             </Grid>
         </LayoutTransformControl>
+
+        <!-- First-use tutorial overlay -->
+        <controls:TeachingTipOverlay x:Name="TutorialOverlay" />
     </Grid>
 </UserControl>

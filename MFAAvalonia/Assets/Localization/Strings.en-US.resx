@@ -1600,5 +1600,146 @@
     <data name="Search" xml:space="preserve">
         <value>Search...</value>
     </data>
+    <data name="Config" xml:space="preserve">
+        <value>Config</value>
+    </data>
+    <data name="TutorialStepConnectTitle" xml:space="preserve">
+        <value>Toolbar Overview</value>
+    </data>
+    <data name="TutorialStepConnectDesc" xml:space="preserve">
+        <value>This is the top toolbar containing resource switching, controller selection, device connection and more. Let's walk through each one.</value>
+    </data>
+    <data name="TutorialStepAddTaskTitle" xml:space="preserve">
+        <value>Task List</value>
+    </data>
+    <data name="TutorialStepAddTaskDesc" xml:space="preserve">
+        <value>Check the tasks you want to run in the task list. Drag to reorder. Click the settings icon on the right side of each task to view its detailed parameters in the Task Settings panel.</value>
+    </data>
+    <data name="TutorialStepMultiConfigTitle" xml:space="preserve">
+        <value>Manage Configurations</value>
+    </data>
+    <data name="TutorialStepMultiConfigDesc" xml:space="preserve">
+        <value>Step 3: Create or switch configurations via the top tab bar — e.g. one for daily automation, another for real-time tools. Each config has independent tasks and device settings.</value>
+    </data>
+    <data name="TutorialNext" xml:space="preserve">
+        <value>Next</value>
+    </data>
+    <data name="TutorialPrevious" xml:space="preserve">
+        <value>Previous</value>
+    </data>
+    <data name="TutorialFinish" xml:space="preserve">
+        <value>Got it</value>
+    </data>
+    <data name="TutorialStepTaskOptionsTitle" xml:space="preserve">
+        <value>Task Settings</value>
+    </data>
+    <data name="TutorialStepTaskOptionsDesc" xml:space="preserve">
+        <value>This panel shows detailed parameter settings for the selected task. Click the settings icon next to different tasks in the task list to switch between their options.</value>
+    </data>
+    <data name="TutorialStepSettingsTitle" xml:space="preserve">
+        <value>Settings</value>
+    </data>
+    <data name="TutorialStepSettingsDesc" xml:space="preserve">
+        <value>Click the settings icon at the bottom of the left sidebar to configure global options like theme, language, and notifications.</value>
+    </data>
+    <data name="TutorialStepResourceTitle" xml:space="preserve">
+        <value>Resource Switching</value>
+    </data>
+    <data name="TutorialStepResourceDesc" xml:space="preserve">
+        <value>Use this dropdown to switch between different resource packs. Different packs may contain different task sets and configurations.</value>
+    </data>
+    <data name="TutorialStepControllerTitle" xml:space="preserve">
+        <value>Controller Type</value>
+    </data>
+    <data name="TutorialStepControllerDesc" xml:space="preserve">
+        <value>Select the controller type: Desktop, Desktop-Alt, Desktop-Foreground, or Android, etc. Choose the connection method that fits your use case.</value>
+    </data>
+    <data name="TutorialStepDeviceTitle" xml:space="preserve">
+        <value>Device Selection</value>
+    </data>
+    <data name="TutorialStepDeviceDesc" xml:space="preserve">
+        <value>Select the target device or window to connect to. The dropdown shows currently available devices.</value>
+    </data>
+    <data name="TutorialStepConnectionTitle" xml:space="preserve">
+        <value>Connection Controls</value>
+    </data>
+    <data name="TutorialStepConnectionDesc" xml:space="preserve">
+        <value>Here you'll find buttons to refresh the device list, reconnect, and a connection status indicator (green = connected, red = disconnected). Click "Start Task" to run your checked tasks.</value>
+    </data>
+    <data name="TutorialStepLogTitle" xml:space="preserve">
+        <value>Run Log</value>
+    </data>
+    <data name="TutorialStepLogDesc" xml:space="preserve">
+        <value>Log messages during task execution are displayed here for real-time monitoring and troubleshooting.</value>
+    </data>
+    <data name="TutorialStepSelectAllTitle" xml:space="preserve">
+        <value>Select All / Deselect All</value>
+    </data>
+    <data name="TutorialStepSelectAllDesc" xml:space="preserve">
+        <value>These two buttons quickly check or uncheck all tasks. The left one is "Select All" and the right one is "Deselect All".</value>
+    </data>
+    <data name="TutorialStepAddTaskBtnTitle" xml:space="preserve">
+        <value>Add &amp; Reset Tasks</value>
+    </data>
+    <data name="TutorialStepAddTaskBtnDesc" xml:space="preserve">
+        <value>The "Add Task" button adds new tasks to the list; the "Reset Tasks" button restores the task list to its default state.</value>
+    </data>
+    <data name="TutorialStepResetTaskTitle" xml:space="preserve">
+        <value>Start Tasks</value>
+    </data>
+    <data name="TutorialStepResetTaskDesc" xml:space="preserve">
+        <value>Click this button to start executing checked tasks. Click again while running to stop.</value>
+    </data>
+    <data name="TutorialStepTaskInteractTitle" xml:space="preserve">
+        <value>Task Interaction Tips</value>
+    </data>
+    <data name="TutorialStepTaskInteractDesc" xml:space="preserve">
+        <value>Left-click the checkbox to check/uncheck a task; right-click the checkbox to set it to "run only once" (indeterminate state).</value>
+    </data>
+    <data name="TutorialStepTaskItemTipTitle" xml:space="preserve">
+        <value>Task Item Actions</value>
+    </data>
+    <data name="TutorialStepTaskItemTipDesc" xml:space="preserve">
+        <value>Right-click a task item to open a context menu for running individually, adding remarks, or deleting. Click the settings icon on the right to view task parameters.</value>
+    </data>
+    <data name="TutorialStepExportLogTitle" xml:space="preserve">
+        <value>Export Log</value>
+    </data>
+    <data name="TutorialStepExportLogDesc" xml:space="preserve">
+        <value>Click this button to export run logs to a file for troubleshooting or sharing with developers.</value>
+    </data>
+    <data name="TutorialStepSettingsPageTitle" xml:space="preserve">
+        <value>Settings Page</value>
+    </data>
+    <data name="TutorialStepSettingsPageDesc" xml:space="preserve">
+        <value>This is the Settings page. Use the side or top navigation bar to quickly jump to different setting categories. The right side shows detailed settings for the selected category.</value>
+    </data>
+    <data name="TutorialStepStartupSettingsTitle" xml:space="preserve">
+        <value>Startup Settings</value>
+    </data>
+    <data name="TutorialStepStartupSettingsDesc" xml:space="preserve">
+        <value>Configure automatic actions before and after tasks, emulator/game launch path, startup parameters, and wait time here.</value>
+    </data>
+    <data name="TutorialStepBeforeAfterTaskTitle" xml:space="preserve">
+        <value>Before &amp; After Task Actions</value>
+    </data>
+    <data name="TutorialStepBeforeAfterTaskDesc" xml:space="preserve">
+        <value>"Before Task" automatically runs a specified action before tasks start (e.g., navigate to a specific screen); "After Task" runs after all tasks complete (e.g., exit game, close emulator).</value>
+    </data>
+    <data name="TutorialStepSoftwarePathTitle" xml:space="preserve">
+        <value>Set Launch Path</value>
+    </data>
+    <data name="TutorialStepSoftwarePathDesc" xml:space="preserve">
+        <value>Set the emulator or game launch path here for fully automated operation. Note: You must select "Launch Game" or "Launch &amp; Execute" in Connection Actions, or enable "Try to launch on connection failure" in Connection Settings for the launch path to take effect.</value>
+    </data>
+    <data name="TutorialStepRewatchTitle" xml:space="preserve">
+        <value>Re-watch Tutorial</value>
+    </data>
+    <data name="TutorialStepRewatchDesc" xml:space="preserve">
+        <value>If you need to review this tutorial later, you can find the "Tutorial" button at the bottom of Settings → About page to re-watch it anytime.</value>
+    </data>
+    <data name="Tutorial" xml:space="preserve">
+        <value>Tutorial</value>
+    </data>
     </root>
 

@@ -8,8 +8,11 @@ using MFAAvalonia.Extensions.MaaFW;
 using MFAAvalonia.Helper;
 using MFAAvalonia.ViewModels.Windows;
 using MFAAvalonia.Views.Windows;
+using Avalonia.VisualTree;
+using MFAAvalonia.Views.Mobile;
 using System;
 using System.IO;
+using System.Linq;
 
 namespace MFAAvalonia.Views.UserControls.Settings;
 
@@ -106,6 +109,12 @@ public partial class AboutUserControl : UserControl
         {
             LicenseView.ShowLicense(viewModel.ResourceLicense);
         }
+    }
+
+    private void StartTutorial_Click(object? sender, RoutedEventArgs e)
+    {
+        var rootContent = this.GetVisualAncestors().OfType<RootViewContent>().FirstOrDefault();
+        rootContent?.TryStartTutorial();
     }
 }
 

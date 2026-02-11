@@ -570,12 +570,7 @@ public static partial class Instances
 
             if (IsResolved<TimerSettingsUserControlModel>())
             {
-                var timer = TimerSettingsUserControlModel;
-                var activeTaskVM = InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel;
-                if (activeTaskVM != null)
-                {
-                    timer.UpdateCurrentInstance(activeTaskVM.TimerModel);
-                }
+                TimerSettingsUserControlModel.RefreshInstances();
             }
 
             if (IsResolved<VersionUpdateSettingsUserControlModel>())

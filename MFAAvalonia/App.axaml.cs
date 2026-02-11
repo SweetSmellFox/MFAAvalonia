@@ -131,6 +131,9 @@ public partial class App : Application
 
                 MaaProcessorManager.Instance.LoadInstanceConfig();
 
+                // 启动懒加载：先加载 ActiveTab，再加载有定时任务的，最后加载其余
+                _ = MaaProcessorManager.Instance.StartLazyLoadingAsync();
+
                 DataTemplates.Add(new ViewLocator(views));
 
                 var window = views.CreateView<RootViewModel>(Services) as Window;
@@ -163,6 +166,9 @@ public partial class App : Application
                 Services = services.BuildServiceProvider();
 
                 MaaProcessorManager.Instance.LoadInstanceConfig();
+
+                // 启动懒加载
+                _ = MaaProcessorManager.Instance.StartLazyLoadingAsync();
 
                 DataTemplates.Add(new ViewLocator(views));
 

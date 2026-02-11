@@ -1,40 +1,26 @@
-﻿using Avalonia.Collections;
-using Avalonia.Threading;
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using MFAAvalonia.Configuration;
-using MFAAvalonia.Extensions;
 using MFAAvalonia.Extensions.MaaFW;
-using MFAAvalonia.Helper;
-using MFAAvalonia.Helper.ValueType;
 using MFAAvalonia.ViewModels.Other;
-using System;
-using System.Linq;
+using System.Collections.ObjectModel;
 
 namespace MFAAvalonia.ViewModels.UsersControls.Settings;
 
 public partial class TimerSettingsUserControlModel : ViewModelBase
 {
-    [ObservableProperty] private bool _customConfig = Convert.ToBoolean(ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.CustomConfig, bool.FalseString));
-    [ObservableProperty] private bool _forceScheduledStart = Convert.ToBoolean(ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.ForceScheduledStart, bool.FalseString));
+    /// <summary>
+    /// 全局定时器模型（所有多开实例共享）
+    /// </summary>
+    public TimerModel TimerModels => TimerModel.Instance;
 
-    [ObservableProperty] private TimerModel? _timerModels;
+    /// <summary>
+    /// 实例列表，供 UI ComboBox 绑定（UI 上仍显示为"配置"）
+    /// </summary>
+    public ObservableCollection<TimerModel.InstanceEntry> InstanceList => TimerModel.Instance.InstanceList;
 
-    partial void OnCustomConfigChanged(bool value)
+    public void RefreshInstances()
     {
-        ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.CustomConfig, value.ToString());
+        TimerModel.Instance.RefreshInstanceList();
+        OnPropertyChanged(nameof(InstanceList));
     }
-
-    partial void OnForceScheduledStartChanged(bool value)
-    {
-        ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.ForceScheduledStart, value.ToString());
-    }
-
-    public void UpdateCurrentInstance(TimerModel model)
-    {
-        CustomConfig = Convert.ToBoolean(ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.CustomConfig, bool.FalseString));
-        ForceScheduledStart = Convert.ToBoolean(ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.ForceScheduledStart, bool.FalseString));
-        TimerModels = model;
-    }
-
-    public IAvaloniaReadOnlyList<MFAConfiguration> ConfigurationList { get; set; } = ConfigurationManager.Configs;
 }

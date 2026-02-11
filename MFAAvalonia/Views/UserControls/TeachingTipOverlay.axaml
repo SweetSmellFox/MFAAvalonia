@@ -1,0 +1,94 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="MFAAvalonia.Views.UserControls.TeachingTipOverlay"
+             IsVisible="False" IsHitTestVisible="True">
+
+    <Grid x:Name="OverlayRoot">
+        <!-- Single dark overlay with cutout clip -->
+        <Border x:Name="OverlayMask"
+                Background="#60000000"
+                IsHitTestVisible="True"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch" />
+
+        <!-- Canvas for positioned elements (arrow + tip), no background so clicks pass through empty areas -->
+        <Canvas x:Name="OverlayCanvas"
+                Width="{Binding #OverlayRoot.Bounds.Width}"
+                Height="{Binding #OverlayRoot.Bounds.Height}">
+
+            <!-- Teaching tip popup -->
+            <Border x:Name="TipBorder"
+                    Background="{DynamicResource SukiPrimaryColor}"
+                    CornerRadius="10"
+                    Padding="20,16"
+                    MaxWidth="360"
+                    MinWidth="240"
+                    IsHitTestVisible="True">
+                <Grid RowDefinitions="Auto,Auto,Auto">
+                    <Button x:Name="CloseButton"
+                            Grid.Row="0"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top"
+                            Margin="0,-8,-12,0"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Cursor="Hand"
+                            Padding="4">
+                        <TextBlock Text="✕"
+                                   Foreground="White"
+                                   FontSize="14"
+                                   Opacity="0.8" />
+                    </Button>
+
+                    <TextBlock x:Name="TipTitle"
+                               Grid.Row="0"
+                               Foreground="White"
+                               FontSize="16"
+                               FontWeight="Bold"
+                               Margin="0,0,24,6" />
+
+                    <TextBlock x:Name="TipDescription"
+                               Grid.Row="1"
+                               Foreground="#E0E0E0"
+                               FontSize="13"
+                               TextWrapping="Wrap"
+                               Margin="0,0,0,14"
+                               LineHeight="20" />
+
+                    <StackPanel Grid.Row="2"
+                                Orientation="Horizontal"
+                                HorizontalAlignment="Right"
+                                Spacing="8">
+                        <Button x:Name="PrevButton"
+                                Background="Transparent"
+                                Foreground="White"
+                                BorderThickness="1"
+                                BorderBrush="#66FFFFFF"
+                                CornerRadius="4"
+                                Padding="14,6"
+                                Cursor="Hand"
+                                FontSize="13"
+                                IsVisible="False" />
+                        <Button x:Name="NextButton"
+                                Background="White"
+                                Foreground="{DynamicResource SukiPrimaryColor}"
+                                BorderThickness="0"
+                                CornerRadius="4"
+                                Padding="14,6"
+                                Cursor="Hand"
+                                FontSize="13"
+                                FontWeight="SemiBold" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Arrow polygon (after TipBorder for higher z-order) -->
+            <Polygon x:Name="TipArrow"
+                     Fill="{DynamicResource SukiPrimaryColor}"
+                     IsVisible="False" />
+        </Canvas>
+    </Grid>
+</UserControl>

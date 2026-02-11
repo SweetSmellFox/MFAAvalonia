@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using MFAAvalonia.Extensions.MaaFW;
 using MFAAvalonia.Helper;
 using MFAAvalonia.Helper.ValueType;
@@ -15,6 +16,7 @@ public partial class InstanceTabViewModel : ViewModelBase
     public TaskQueueViewModel TaskQueueViewModel => MaaProcessorManager.Instance.GetViewModel(InstanceId);
 
     private Control? _view;
+
     public Control View
     {
         get
@@ -35,7 +37,7 @@ public partial class InstanceTabViewModel : ViewModelBase
         Processor = processor;
         InstanceId = processor.InstanceId;
         UpdateName();
-        
+
         IsRunning = processor.TaskQueue.Count > 0;
         processor.TaskQueue.CountChanged += OnTaskCountChanged;
     }
@@ -50,17 +52,22 @@ public partial class InstanceTabViewModel : ViewModelBase
 
     public string InstanceId { get; }
 
-    [ObservableProperty]
-    private string _name = string.Empty;
+    [ObservableProperty] private string _name = string.Empty;
 
-    [ObservableProperty]
-    private bool _isRunning;
+    [ObservableProperty] private bool _isRunning;
 
-    [ObservableProperty]
-    private bool _isActive;
-
+    [ObservableProperty] private bool _isActive;
     public void UpdateName()
     {
         Name = MaaProcessorManager.Instance.GetInstanceName(InstanceId);
+    }
+
+    /// <summary>
+    /// 删除当前多开实例（用于设置界面的配置管理）
+    /// </summary>
+    [RelayCommand]
+    private void DeleteConfiguration()
+    {
+        Instances.InstanceTabBarViewModel.CloseInstanceCommand.Execute(this);
     }
 }
