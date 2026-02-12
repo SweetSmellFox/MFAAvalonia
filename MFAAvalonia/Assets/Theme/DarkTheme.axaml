@@ -7,4 +7,6 @@
     <SolidColorBrush
         x:Key="WhiteBrush"
         Color="Black" />
+    <!--  标签栏背景（半透明，让主题渐变透出来）  -->
+    <SolidColorBrush x:Key="TabBarBackground" Color="#90101018" />
 </ResourceDictionary>

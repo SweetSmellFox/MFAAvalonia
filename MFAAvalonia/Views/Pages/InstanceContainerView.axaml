@@ -10,7 +10,12 @@
              x:Class="MFAAvalonia.Views.Pages.InstanceContainerView"
              x:DataType="other:InstanceTabBarViewModel">
     <Grid RowDefinitions="Auto,*">
-        <controls:InstanceTabBar Grid.Row="0" Margin="15,5,15,0" DataContext="{Binding}"/>
+        <!-- 标签栏区域：浏览器风格深色背景，填满宽度 -->
+        <Border Grid.Row="0"
+                Background="{DynamicResource TabBarBackground}"
+                Padding="12,2,12,0">
+            <controls:InstanceTabBar DataContext="{Binding}"/>
+        </Border>
         
         <ContentControl Grid.Row="1" Content="{Binding ActiveTab.View}" />
     </Grid>
