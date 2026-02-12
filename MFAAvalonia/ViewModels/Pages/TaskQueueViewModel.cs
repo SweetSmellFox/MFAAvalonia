@@ -80,6 +80,12 @@ public partial class TaskQueueViewModel : ViewModelBase
     private bool _isSyncing = false;
     
     /// <summary>
+    /// 标记当前 CurrentDevice 变更是否为程序内部触发（刷新/配置加载等），
+    /// 为 false 时表示用户通过 ComboBox 手动选择设备
+    /// </summary>
+    private bool _suppressAutoConnect = false;
+    
+    /// <summary>
     /// 记录已应用过 interface.json 控制器设置的控制器类型，
     /// 避免每次刷新设备时都用 interface.json 的值覆盖用户配置
     /// </summary>
@@ -601,6 +607,24 @@ public partial class TaskQueueViewModel : ViewModelBase
     partial void OnCurrentDeviceChanged(object? value)
     {
         ChangedDevice(value);
+
+        // 仅 ComboBox 手动选中设备时，根据"刷新后尝试连接"设置自动连接
+        if (!_suppressAutoConnect && !_isSyncing && value != null
+            && Instances.IsResolved<ConnectSettingsUserControlModel>()
+            && Instances.ConnectSettingsUserControlModel.AutoConnectAfterRefresh)
+        {
+            _ =TaskManager.RunTaskAsync(() =>
+            {
+                try
+                {
+                    Processor.TestConnecting().GetAwaiter().GetResult();
+                }
+                catch (Exception ex)
+                {
+                    LoggerHelper.Warning($"Auto connect after device selection failed: {ex.Message}");
+                }
+            }, name: "选中设备后自动连接", catchException: true, shouldLog: true);
+        }
     }
 
     public void ChangedDevice(object? value)
@@ -786,8 +810,16 @@ public partial class TaskQueueViewModel : ViewModelBase
         {
             DispatcherHelper.RunOnMainThread(() =>
             {
-                Devices = [];
-                CurrentDevice = null;
+                _suppressAutoConnect = true;
+                try
+                {
+                    Devices = [];
+                    CurrentDevice = null;
+                }
+                finally
+                {
+                    _suppressAutoConnect = false;
+                }
             });
             SetConnected(false);
             return;
@@ -958,11 +990,19 @@ public partial class TaskQueueViewModel : ViewModelBase
         //DispatcherHelper.RunOnMainThread 已经是同步的（使用 Dispatcher.UIThread.Invoke）
         DispatcherHelper.RunOnMainThread(() =>
         {
-            Devices = devices;
-            if (devices.Count > index)
-                CurrentDevice = devices[index];
-            else
-                CurrentDevice = null;
+            _suppressAutoConnect = true;
+            try
+            {
+                Devices = devices;
+                if (devices.Count > index)
+                    CurrentDevice = devices[index];
+                else
+                    CurrentDevice = null;
+            }
+            finally
+            {
+                _suppressAutoConnect = false;
+            }
         });
     }
 
@@ -1170,16 +1210,32 @@ public partial class TaskQueueViewModel : ViewModelBase
             {
                 DispatcherHelper.RunOnMainThread(() =>
                 {
-                    Devices = [];
-                    CurrentDevice = null;
+                    _suppressAutoConnect = true;
+                    try
+                    {
+                        Devices = [];
+                        CurrentDevice = null;
+                    }
+                    finally
+                    {
+                        _suppressAutoConnect = false;
+                    }
                 });
                 return;
             }
 
             DispatcherHelper.RunOnMainThread(() =>
             {
-                Devices = [savedDevice];
-                CurrentDevice = savedDevice;
+                _suppressAutoConnect = true;
+                try
+                {
+                    Devices = [savedDevice];
+                    CurrentDevice = savedDevice;
+                }
+                finally
+                {
+                    _suppressAutoConnect = false;
+                }
             });
             ChangedDevice(savedDevice);
             return;
@@ -1230,8 +1286,16 @@ public partial class TaskQueueViewModel : ViewModelBase
                 // 使用新搜索到的设备信息（AdbSerial等可能已更新）
                 DispatcherHelper.RunOnMainThread(() =>
                 {
-                    Devices = new ObservableCollection<object>(currentDevices);
-                    CurrentDevice = matchedDevice;
+                    _suppressAutoConnect = true;
+                    try
+                    {
+                        Devices = new ObservableCollection<object>(currentDevices);
+                        CurrentDevice = matchedDevice;
+                    }
+                    finally
+                    {
+                        _suppressAutoConnect = false;
+                    }
                 });
                 ChangedDevice(matchedDevice);
             }
@@ -1253,8 +1317,16 @@ public partial class TaskQueueViewModel : ViewModelBase
             LoggerHelper.Info("Reading saved ADB device from configuration, fingerprint matching disabled.");
             DispatcherHelper.RunOnMainThread(() =>
             {
-                Devices = [savedDevice1];
-                CurrentDevice = savedDevice1;
+                _suppressAutoConnect = true;
+                try
+                {
+                    Devices = [savedDevice1];
+                    CurrentDevice = savedDevice1;
+                }
+                finally
+                {
+                    _suppressAutoConnect = false;
+                }
             });
             ChangedDevice(savedDevice1);
         }
