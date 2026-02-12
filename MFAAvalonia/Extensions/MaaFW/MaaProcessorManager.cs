@@ -360,9 +360,10 @@ public sealed class MaaProcessorManager
     {
         if (!_instances.ContainsKey(id))
         {
-            var processor = CreateInstanceInternal(id, setCurrent: false);
-            processor.InitializeData();
+            CreateInstanceInternal(id, setCurrent: false);
         }
+        // 无论实例是否已存在（如构造函数中创建的 default），都需要确保初始化数据
+        _instances[id].InitializeData();
     }
 
     /// <summary>

@@ -579,5 +579,37 @@ public static class LangKeys
 	public static readonly string TutorialStepRewatchTitle = "TutorialStepRewatchTitle";
 	public static readonly string TutorialStepRewatchDesc = "TutorialStepRewatchDesc";
 	public static readonly string Tutorial = "Tutorial";
+	public static readonly string SpecialTask = "SpecialTask";
+	public static readonly string SpecialTask_Countdown = "SpecialTask_Countdown";
+	public static readonly string SpecialTask_TimedWait = "SpecialTask_TimedWait";
+	public static readonly string SpecialTask_Toast = "SpecialTask_Toast";
+	public static readonly string SpecialTask_CustomProgram = "SpecialTask_CustomProgram";
+	public static readonly string SpecialTask_KillProcess = "SpecialTask_KillProcess";
+	public static readonly string SpecialTask_ComputerOperation = "SpecialTask_ComputerOperation";
+	public static readonly string SpecialTask_Webhook = "SpecialTask_Webhook";
+	public static readonly string SpecialTask_CountdownDesc = "SpecialTask_CountdownDesc";
+	public static readonly string SpecialTask_TimedWaitDesc = "SpecialTask_TimedWaitDesc";
+	public static readonly string SpecialTask_ToastDesc = "SpecialTask_ToastDesc";
+	public static readonly string SpecialTask_CustomProgramDesc = "SpecialTask_CustomProgramDesc";
+	public static readonly string SpecialTask_KillProcessDesc = "SpecialTask_KillProcessDesc";
+	public static readonly string SpecialTask_ComputerOperationDesc = "SpecialTask_ComputerOperationDesc";
+	public static readonly string SpecialTask_WebhookDesc = "SpecialTask_WebhookDesc";
+	public static readonly string SpecialTask_CountdownSeconds = "SpecialTask_CountdownSeconds";
+	public static readonly string SpecialTask_WaitUntilTime = "SpecialTask_WaitUntilTime";
+	public static readonly string SpecialTask_NotificationTitle = "SpecialTask_NotificationTitle";
+	public static readonly string SpecialTask_NotificationContent = "SpecialTask_NotificationContent";
+	public static readonly string SpecialTask_ProgramPath = "SpecialTask_ProgramPath";
+	public static readonly string SpecialTask_Arguments = "SpecialTask_Arguments";
+	public static readonly string SpecialTask_WaitForExit = "SpecialTask_WaitForExit";
+	public static readonly string SpecialTask_ProcessName = "SpecialTask_ProcessName";
+	public static readonly string SpecialTask_OperationType = "SpecialTask_OperationType";
+	public static readonly string SpecialTask_RequestMethod = "SpecialTask_RequestMethod";
+	public static readonly string SpecialTask_RequestBody = "SpecialTask_RequestBody";
+	public static readonly string SpecialTask_SelectProgram = "SpecialTask_SelectProgram";
+	public static readonly string SpecialTask_ProcessNameExample = "SpecialTask_ProcessNameExample";
+	public static readonly string SpecialTask_Shutdown = "SpecialTask_Shutdown";
+	public static readonly string SpecialTask_Restart = "SpecialTask_Restart";
+	public static readonly string SpecialTask_Sleep = "SpecialTask_Sleep";
+	public static readonly string SpecialTask_Hibernate = "SpecialTask_Hibernate";
 	
 }

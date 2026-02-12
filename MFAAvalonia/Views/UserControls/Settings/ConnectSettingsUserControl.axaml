@@ -15,7 +15,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <StackPanel Spacing="20">
         <suki:GlassCard
-            IsVisible="{calcBinding:Binding 'CurrentController == maa:MaaControllerTypes.Adb', Source={x:Static helper:Instances.InstanceTabBarViewModel}, Path=ActiveTab.TaskQueueViewModel}"
+            IsVisible="{calcBinding:Binding 'CurrentControllerType == maa:MaaControllerTypes.Adb'}"
             Margin="0,25,0,0" Padding="25,10,25,10">
             <StackPanel>
                 <DockPanel>
@@ -165,8 +165,7 @@
             </StackPanel>
         </suki:GlassCard>
         <suki:GlassCard
-            IsVisible="{calcBinding:Binding 'CurrentController == maa:MaaControllerTypes.Win32',
-                                            Source={x:Static helper:Instances.InstanceTabBarViewModel}, Path=ActiveTab.TaskQueueViewModel}"
+            IsVisible="{calcBinding:Binding 'CurrentControllerType == maa:MaaControllerTypes.Win32'}"
             Margin="0,25,0,0"
             Padding="25,10,25,10">
             <StackPanel Spacing="15">
@@ -233,6 +232,21 @@
                             FontSize="16"
                             FontWeight="SemiBold"
                             Text="{markup:I18n {x:Static helper:LangKeys.RetryOnDisconnectedWin32}}"
+                            VerticalAlignment="Center" />
+                    </StackPanel>
+                </DockPanel>
+                <DockPanel>
+                    <ToggleSwitch
+                        Classes="Switch"
+                        DockPanel.Dock="Right"
+                        IsChecked="{Binding AutoConnectAfterRefresh}"
+                        IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
+                        VerticalAlignment="Top" />
+                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
+                        <TextBlock
+                            FontSize="16"
+                            FontWeight="SemiBold"
+                            Text="{markup:I18n {x:Static helper:LangKeys.AutoConnectAfterRefresh}}"
                             VerticalAlignment="Center" />
                     </StackPanel>
                 </DockPanel>

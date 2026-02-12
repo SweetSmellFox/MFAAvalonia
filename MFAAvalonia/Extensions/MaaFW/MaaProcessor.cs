@@ -4394,6 +4394,15 @@ public class MaaProcessor
 
         try
         {
+            // 注册内置特殊任务 Action
+            tasker.Resource.Register(new Custom.CountdownAction());
+            tasker.Resource.Register(new Custom.TimedWaitAction());
+            tasker.Resource.Register(new Custom.SystemNotificationAction());
+            tasker.Resource.Register(new Custom.CustomProgramAction());
+            tasker.Resource.Register(new Custom.KillProcessAction());
+            tasker.Resource.Register(new Custom.ComputerOperationAction());
+            tasker.Resource.Register(new Custom.WebhookAction());
+            LoggerHelper.Info("Registered built-in special task actions");
 
             // 获取当前资源的自定义目录
             var currentResource = ViewModel?.CurrentResources

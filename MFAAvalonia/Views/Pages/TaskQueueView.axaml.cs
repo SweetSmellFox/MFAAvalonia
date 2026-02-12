@@ -1554,6 +1554,13 @@ public partial class TaskQueueView : UserControl
         if (!string.IsNullOrWhiteSpace(description))
         {
             var result = description.ResolveContentAsync(transform: false).GetAwaiter().GetResult();
+            // 如果结果与输入相同（未被解析），尝试通过 resx i18n 系统解析（支持特殊任务描述等）
+            if (result == description)
+            {
+                var localized = description.ToLocalization();
+                if (localized != description)
+                    return localized;
+            }
             return result;
         }
 

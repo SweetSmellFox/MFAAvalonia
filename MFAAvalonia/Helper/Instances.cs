@@ -461,31 +461,42 @@ public static partial class Instances
             if (IsResolved<ConnectSettingsUserControlModel>())
             {
                 var connect = ConnectSettingsUserControlModel;
-                connect.RememberAdb = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.RememberAdb, true);
-                connect.UseFingerprintMatching = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.UseFingerprintMatching, true);
-                connect.AdbControlScreenCapType = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.AdbControlScreenCapType, MaaFramework.Binding.AdbScreencapMethods.None,
-                    new System.Collections.Generic.List<MaaFramework.Binding.AdbScreencapMethods>
-                    {
-                        MaaFramework.Binding.AdbScreencapMethods.All,
-                        MaaFramework.Binding.AdbScreencapMethods.Default
-                    }, new Converters.UniversalEnumConverter<MaaFramework.Binding.AdbScreencapMethods>());
-                connect.AdbControlInputType = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.AdbControlInputType, MaaFramework.Binding.AdbInputMethods.None, new System.Collections.Generic.List<MaaFramework.Binding.AdbInputMethods>
+                connect.IsSyncing = true;
+                try
                 {
-                    MaaFramework.Binding.AdbInputMethods.All,
-                    MaaFramework.Binding.AdbInputMethods.Default
-                }, new Converters.UniversalEnumConverter<MaaFramework.Binding.AdbInputMethods>());
-                connect.Win32ControlScreenCapType = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.Win32ControlScreenCapType, MaaFramework.Binding.Win32ScreencapMethod.FramePool, MaaFramework.Binding.Win32ScreencapMethod.None,
-                    new Converters.UniversalEnumConverter<MaaFramework.Binding.Win32ScreencapMethod>());
-                connect.Win32ControlMouseType = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.Win32ControlMouseType, MaaFramework.Binding.Win32InputMethod.SendMessage, MaaFramework.Binding.Win32InputMethod.None,
-                    new Converters.UniversalEnumConverter<MaaFramework.Binding.Win32InputMethod>());
-                connect.Win32ControlKeyboardType = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.Win32ControlKeyboardType, MaaFramework.Binding.Win32InputMethod.SendMessage, MaaFramework.Binding.Win32InputMethod.None,
-                    new Converters.UniversalEnumConverter<MaaFramework.Binding.Win32InputMethod>());
-                connect.RetryOnDisconnected = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.RetryOnDisconnected, false);
-                connect.RetryOnDisconnectedWin32 = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.RetryOnDisconnectedWin32, false);
-                connect.AllowAdbRestart = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.AllowAdbRestart, true);
-                connect.AllowAdbHardRestart = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.AllowAdbHardRestart, true);
-                connect.AutoDetectOnConnectionFailed = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.AutoDetectOnConnectionFailed, true);
-                connect.AutoConnectAfterRefresh = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.AutoConnectAfterRefresh, true);
+                    connect.CurrentControllerType = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.CurrentController,
+                        MaaControllerTypes.Adb, MaaControllerTypes.None,
+                        new Converters.UniversalEnumConverter<MaaControllerTypes>());
+                    connect.RememberAdb = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.RememberAdb, true);
+                    connect.UseFingerprintMatching = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.UseFingerprintMatching, true);
+                    connect.AdbControlScreenCapType = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.AdbControlScreenCapType, MaaFramework.Binding.AdbScreencapMethods.None,
+                        new System.Collections.Generic.List<MaaFramework.Binding.AdbScreencapMethods>
+                        {
+                            MaaFramework.Binding.AdbScreencapMethods.All,
+                            MaaFramework.Binding.AdbScreencapMethods.Default
+                        }, new Converters.UniversalEnumConverter<MaaFramework.Binding.AdbScreencapMethods>());
+                    connect.AdbControlInputType = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.AdbControlInputType, MaaFramework.Binding.AdbInputMethods.None, new System.Collections.Generic.List<MaaFramework.Binding.AdbInputMethods>
+                    {
+                        MaaFramework.Binding.AdbInputMethods.All,
+                        MaaFramework.Binding.AdbInputMethods.Default
+                    }, new Converters.UniversalEnumConverter<MaaFramework.Binding.AdbInputMethods>());
+                    connect.Win32ControlScreenCapType = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.Win32ControlScreenCapType, MaaFramework.Binding.Win32ScreencapMethod.FramePool, MaaFramework.Binding.Win32ScreencapMethod.None,
+                        new Converters.UniversalEnumConverter<MaaFramework.Binding.Win32ScreencapMethod>());
+                    connect.Win32ControlMouseType = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.Win32ControlMouseType, MaaFramework.Binding.Win32InputMethod.SendMessage, MaaFramework.Binding.Win32InputMethod.None,
+                        new Converters.UniversalEnumConverter<MaaFramework.Binding.Win32InputMethod>());
+                    connect.Win32ControlKeyboardType = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.Win32ControlKeyboardType, MaaFramework.Binding.Win32InputMethod.SendMessage, MaaFramework.Binding.Win32InputMethod.None,
+                        new Converters.UniversalEnumConverter<MaaFramework.Binding.Win32InputMethod>());
+                    connect.RetryOnDisconnected = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.RetryOnDisconnected, false);
+                    connect.RetryOnDisconnectedWin32 = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.RetryOnDisconnectedWin32, false);
+                    connect.AllowAdbRestart = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.AllowAdbRestart, true);
+                    connect.AllowAdbHardRestart = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.AllowAdbHardRestart, true);
+                    connect.AutoDetectOnConnectionFailed = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.AutoDetectOnConnectionFailed, true);
+                    connect.AutoConnectAfterRefresh = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.AutoConnectAfterRefresh, true);
+                }
+                finally
+                {
+                    connect.IsSyncing = false;
+                }
             }
 
             if (IsResolved<StartSettingsUserControlModel>())

@@ -3,6 +3,7 @@ using MFAAvalonia.Helper;
 using MFAAvalonia.Helper.ValueType;
 using MFAAvalonia.ViewModels.Other;
 using MFAAvalonia.ViewModels.Pages;
+using MFAAvalonia.ViewModels.UsersControls.Settings;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -278,6 +279,16 @@ public class TaskLoader(MaaInterface? maaInterface, TaskQueueViewModel taskQueue
                 && taskByEntry.TryGetValue(oldItem.InterfaceItem.Entry!, out var byEntry))
             {
                 UpdateExistingItem(oldItem, byEntry, true);
+                updateList.Add(oldItem);
+                continue;
+            }
+
+            // 特殊任务（如倒计时、系统通知等）不在 interface 定义中，但需要保留
+            if (!string.IsNullOrWhiteSpace(oldItem.InterfaceItem?.Entry)
+                && AddTaskDialogViewModel.SpecialActionNames.Contains(oldItem.InterfaceItem.Entry!))
+            {
+                // 强制更新 Description 为当前的 i18n key，兼容旧版保存的文本格式
+                oldItem.InterfaceItem.Description = AddTaskDialogViewModel.GetSpecialTaskDescription(oldItem.InterfaceItem.Entry!);
                 updateList.Add(oldItem);
                 continue;
             }

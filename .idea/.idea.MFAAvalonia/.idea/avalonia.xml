@@ -107,7 +107,7 @@
         <entry key="SukiUI/Locale/zh-hant.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="SukiUI/Theme/AutoCompleteBoxStyles.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="SukiUI/Theme/BorderStyles.xaml" value="MFAAvalonia/MFAAvalonia.csproj" />
-        <entry key="SukiUI/Theme/Button.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
+        <entry key="SukiUI/Theme/Button.axaml" value="MFAAvalonia.Desktop/MFAAvalonia.Desktop.csproj" />
         <entry key="SukiUI/Theme/ButtonLoadingStyles.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="SukiUI/Theme/Calendar/CalendarItem.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="SukiUI/Theme/CheckBoxStyles.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />

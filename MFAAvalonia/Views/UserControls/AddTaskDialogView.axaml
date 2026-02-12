@@ -1,6 +1,6 @@
 ﻿<UserControl
-    d:DesignHeight="450"
-    d:DesignWidth="800"
+    d:DesignHeight="550"
+    d:DesignWidth="500"
     mc:Ignorable="d"
     x:Class="MFAAvalonia.Views.UserControls.AddTaskDialogView"
     x:DataType="settings:AddTaskDialogViewModel"
@@ -13,76 +13,173 @@
     xmlns:controls="clr-namespace:MFAAvalonia.Views.UserControls"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:fluent="clr-namespace:FluentIcons.Avalonia.Fluent;assembly=FluentIcons.Avalonia.Fluent">
-    <StackPanel Margin="15,10,15,0" Orientation="Vertical">
+
+    <UserControl.Styles>
+        <!-- Task row hover -->
+        <Style Selector="Border.taskRow:pointerover">
+            <Setter Property="Background" Value="#08808080" />
+        </Style>
+        <!-- Special chip hover -->
+        <Style Selector="Border.specialChip:pointerover">
+            <Setter Property="BorderBrush" Value="{DynamicResource SukiAccentColor}" />
+        </Style>
+        <!-- Minus border hover -->
+        <Style Selector="Border.minusBorder:pointerover">
+            <Setter Property="Background" Value="#15E74C3C" />
+        </Style>
+    </UserControl.Styles>
+
+    <StackPanel Margin="15,10,15,0" Orientation="Vertical" Width="420">
         <StackPanel Height="26" Orientation="Horizontal">
-            <TextBlock
-                FontSize="12"
-                FontWeight="Medium"
-                Margin="0,0,0,0"
-                Text="{markup:I18n {x:Static helper:LangKeys.Task}}"
-                VerticalAlignment="Center" />
+            <TextBlock FontSize="12" FontWeight="Medium"
+                       Text="{markup:I18n {x:Static helper:LangKeys.Task}}"
+                       VerticalAlignment="Center" />
         </StackPanel>
 
-        <TextBox
-            Margin="4"
-            Tag="{Binding ElementName=ListBoxDemo}"
-            TextChanged="SearchBar_OnSearchStarted"
-            Watermark="{markup:I18n {x:Static helper:LangKeys.EnterTaskName}}"
-            x:Name="SearchBar">
+        <TextBox Margin="4"
+                 TextChanged="SearchBar_OnSearchStarted"
+                 Watermark="{markup:I18n {x:Static helper:LangKeys.EnterTaskName}}"
+                 x:Name="SearchBar">
             <TextBox.InnerRightContent>
-                <fluent:FluentIcon
-                    Foreground="{DynamicResource SukiLowText}"
-                    Icon="Search"
-                    IconSize="Size16" />
+                <fluent:FluentIcon Foreground="{DynamicResource SukiLowText}"
+                                   Icon="Search" IconSize="Size16" />
             </TextBox.InnerRightContent>
         </TextBox>
 
-        <ListBox
-            BorderThickness="0"
-            Height="205"
-            ItemsSource="{Binding Items}"
-            Margin="5"
-            Name="ListBoxDemo"
-            SelectedValue="{Binding Output}"
-            SelectionMode="Single">
-            <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <StackPanel Orientation="Horizontal">
-                        <controls:DisplayIcon IconSource="{Binding ResolvedIcon}"
-                                              IconSize="16"
-                                              IsVisible="{Binding HasIcon}"
-                                              Margin="6,0,0,0"
-                                              VerticalAlignment="Center" />
-                        <TextBlock Margin="6,0,0,0" Text="{Binding Name}" />
-                    </StackPanel>
+        <ScrollViewer Height="200" Margin="5">
+            <ItemsControl ItemsSource="{Binding Items}" x:Name="TaskItemsControl">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="settings:AddTaskItemViewModel">
+                        <Border Margin="2" Padding="6,4" CornerRadius="8"
+                                Background="Transparent"
+                                PointerPressed="TaskItem_OnPointerPressed"
+                                Cursor="Hand"
+                                Classes="taskRow">
+                            <Grid ColumnDefinitions="30,*,28">
+                                <Border Grid.Column="0"
+                                        Width="22" Height="22"
+                                        CornerRadius="11"
+                                        Background="{DynamicResource SukiAccentColor}"
+                                        BoxShadow="0 1 3 0 #30000000"
+                                        IsVisible="{Binding HasCount}"
+                                        PointerPressed="BadgeItem_OnPointerPressed"
+                                        Cursor="Hand"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding AddCount}"
+                                               Foreground="White" FontSize="11"
+                                               FontWeight="SemiBold"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center" />
+                                </Border>
+
+                                <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                            Margin="6,0" VerticalAlignment="Center">
+                                    <controls:DisplayIcon IconSource="{Binding Icon}"
+                                                          IconSize="16"
+                                                          IsVisible="{Binding HasIcon}"
+                                                          Margin="0,0,6,0"
+                                                          VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding Name}"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+
+                                <Border Grid.Column="2"
+                                        Width="22" Height="22"
+                                        CornerRadius="6"
+                                        BoxShadow="0 1 3 0 #25000000"
+                                        Background="Transparent"
+                                        IsVisible="{Binding HasCount}"
+                                        PointerPressed="MinusItem_OnPointerPressed"
+                                        Cursor="Hand"
+                                        Classes="minusBorder"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center">
+                                    <fluent:FluentIcon Icon="Subtract" IconSize="Size12"
+                                                       Foreground="#FFE05555"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center" />
+                                </Border>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <Grid Margin="0,8,0,4">
+            <Separator VerticalAlignment="Center" />
+            <TextBlock Text="{markup:I18n {x:Static helper:LangKeys.SpecialTask}}" FontSize="11"
+                       Foreground="{DynamicResource SukiLowText}"
+                       HorizontalAlignment="Center"
+                       Background="{DynamicResource SukiCardBackground}"
+                       Padding="8,0" />
+        </Grid>
+
+        <ItemsControl ItemsSource="{Binding SpecialTasks}" Margin="5,0">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="settings:AddTaskItemViewModel">
+                    <Border Margin="4,3" Padding="8,4" CornerRadius="14"
+                            BorderBrush="{DynamicResource SukiBorderBrush}"
+                            BorderThickness="1" Background="Transparent"
+                            PointerPressed="TaskItem_OnPointerPressed"
+                            Cursor="Hand"
+                            Classes="specialChip">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="{Binding SpecialIcon}"
+                                       FontSize="14" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding Name}"
+                                       FontSize="12" VerticalAlignment="Center" />
+                            <Border Width="18" Height="18" CornerRadius="9"
+                                    Background="{DynamicResource SukiAccentColor}"
+                                    BoxShadow="0 1 2 0 #25000000"
+                                    IsVisible="{Binding HasCount}"
+                                    PointerPressed="BadgeItem_OnPointerPressed"
+                                    Cursor="Hand"
+                                    Margin="2,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding AddCount}"
+                                           Foreground="White" FontSize="10"
+                                           FontWeight="SemiBold"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </Border>
+                            <Border Width="18" Height="18"
+                                    CornerRadius="5"
+                                    BoxShadow="0 1 2 0 #25000000"
+                                    Background="Transparent"
+                                    IsVisible="{Binding HasCount}"
+                                    PointerPressed="MinusItem_OnPointerPressed"
+                                    Cursor="Hand"
+                                    Classes="minusBorder"
+                                    Margin="2,0,0,0"
+                                    VerticalAlignment="Center">
+                                <fluent:FluentIcon Icon="Subtract" IconSize="Size12"
+                                                   Foreground="#FFE05555"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center" />
+                            </Border>
+                        </StackPanel>
+                    </Border>
                 </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
 
-
-        <StackPanel
-            HorizontalAlignment="Center"
-            Margin="0,8,0,0"
-            Orientation="Horizontal">
-            <Button
-                BorderThickness="0"
-                Classes="Flat"
-                Command="{Binding AddCommand}"
-                Content="{markup:I18n {x:Static helper:LangKeys.ButtonAdd}}"
-                FontSize="11" MinHeight="30"
-                Margin="0,0,0,5"
-                VerticalContentAlignment="Center"
-                Width="90" />
-            <Button
-                Command="{Binding CancelCommand}"
-                Content="{markup:I18n {x:Static helper:LangKeys.ButtonCancel}}"
-                FontSize="11"
-                MinHeight="30"
-                Margin="20,0,10,5"
-                VerticalContentAlignment="Center"
-                Width="90"
-                x:Name="CancelButton" />
+        <StackPanel HorizontalAlignment="Center" Margin="0,10,0,0" Orientation="Horizontal">
+            <Button BorderThickness="0" Classes="Flat"
+                    Command="{Binding AddCommand}"
+                    Content="{markup:I18n {x:Static helper:LangKeys.ButtonAdd}}"
+                    FontSize="11" MinHeight="30" Margin="0,0,0,5"
+                    VerticalContentAlignment="Center" Width="90" />
+            <Button Command="{Binding CancelCommand}"
+                    Content="{markup:I18n {x:Static helper:LangKeys.ButtonCancel}}"
+                    FontSize="11" MinHeight="30" Margin="20,0,10,5"
+                    VerticalContentAlignment="Center" Width="90"
+                    x:Name="CancelButton" />
         </StackPanel>
-
     </StackPanel>
 </UserControl>

@@ -3,16 +3,20 @@ using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
 using Avalonia.Data.Converters;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
+using Avalonia.Platform.Storage;
 using Avalonia.Xaml.Interactivity;
 using MFAAvalonia.Configuration;
 using MFAAvalonia.Extensions;
 using MFAAvalonia.Extensions.MaaFW;
 using MFAAvalonia.Helper.ValueType;
 using MFAAvalonia.ViewModels.Pages;
+using MFAAvalonia.ViewModels.UsersControls.Settings;
 using MFAAvalonia.Views.UserControls;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -29,6 +33,14 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
     
     public void GeneratePanelContent(StackPanel panel, DragItemViewModel dragItem)
     {
+        // 检测是否为特殊任务，如果是则生成特殊任务选项面板
+        var entry = dragItem.InterfaceItem?.Entry;
+        if (!string.IsNullOrEmpty(entry) && AddTaskDialogViewModel.SpecialActionNames.Contains(entry))
+        {
+            GenerateSpecialTaskPanelContent(panel, dragItem);
+            return;
+        }
+
         AddRepeatOption(panel, dragItem);
 
         if (dragItem.InterfaceItem?.Option != null)
@@ -50,6 +62,14 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
 
     public void GenerateCommonPanelContent(StackPanel panel, DragItemViewModel dragItem)
     {
+        // 检测是否为特殊任务，如果是则生成特殊任务选项面板
+        var entry = dragItem.InterfaceItem?.Entry;
+        if (!string.IsNullOrEmpty(entry) && AddTaskDialogViewModel.SpecialActionNames.Contains(entry))
+        {
+            GenerateSpecialTaskPanelContent(panel, dragItem);
+            return;
+        }
+
         AddRepeatOption(panel, dragItem);
 
         if (dragItem.InterfaceItem?.Option != null)
@@ -662,7 +682,7 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
         return grid;
     }
 
-    private StackPanel CreateLabelPanel(string displayName, string? name, string? description, List<string>? document = null, bool isResourceBinding = false)
+    private StackPanel CreateLabelPanel(string displayName, string? name, string? description, List<string>? document = null, bool isResourceBinding = false, bool useI18n = false)
     {
         var stackPanel = new StackPanel
         {
@@ -681,8 +701,10 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
             TextTrimming = TextTrimming.CharacterEllipsis
         };
         
-        if (isResourceBinding)
-            textBlock.Bind(TextBlock.TextProperty, new ResourceBinding(displayName)); // Assuming displayName is a key
+        if (useI18n)
+            textBlock.Bind(TextBlock.TextProperty, new I18nBinding(displayName));
+        else if (isResourceBinding)
+            textBlock.Bind(TextBlock.TextProperty, new ResourceBinding(displayName));
         else
             textBlock.Bind(TextBlock.TextProperty, new ResourceBindingWithFallback(displayName, name));
 
@@ -876,7 +898,17 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
     private static string? GetTooltipText(string? description, List<string>? document)
     {
          if (!string.IsNullOrWhiteSpace(description))
-             return description.ResolveContentAsync(transform: false).GetAwaiter().GetResult();
+         {
+             var result = description.ResolveContentAsync(transform: false).GetAwaiter().GetResult();
+             // 如果结果与输入相同（未被解析），尝试通过 resx i18n 系统解析（支持特殊任务描述等）
+             if (result == description)
+             {
+                 var localized = description.ToLocalization();
+                 if (localized != description)
+                     return localized;
+             }
+             return result;
+         }
              
          if (document is { Count: > 0 })
          {
@@ -961,4 +993,604 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
          
          return grid;
     }
+
+    #region 特殊任务选项面板
+
+    /// <summary>
+    /// 获取特殊任务当前的 custom_action_param JObject
+    /// </summary>
+    private static JObject GetActionParam(DragItemViewModel dragItem)
+    {
+        var entry = dragItem.InterfaceItem?.Entry;
+        if (string.IsNullOrEmpty(entry) || dragItem.InterfaceItem?.PipelineOverride == null)
+            return new JObject();
+
+        if (dragItem.InterfaceItem.PipelineOverride.TryGetValue(entry, out var node) && node is JObject obj)
+        {
+            var paramToken = obj["custom_action_param"];
+            if (paramToken is JObject paramObj)
+                return paramObj;
+            // 兼容旧版序列化为字符串的情况
+            if (paramToken is JValue { Type: JTokenType.String } strVal)
+            {
+                try { return JObject.Parse((string)strVal!); }
+                catch { return new JObject(); }
+            }
+        }
+        return AddTaskDialogViewModel.GetDefaultActionParam(entry);
+    }
+
+    /// <summary>
+    /// 更新特殊任务的 custom_action_param
+    /// </summary>
+    private void UpdateActionParam(DragItemViewModel dragItem, JObject param)
+    {
+        var entry = dragItem.InterfaceItem?.Entry;
+        if (string.IsNullOrEmpty(entry) || dragItem.InterfaceItem?.PipelineOverride == null) return;
+
+        if (dragItem.InterfaceItem.PipelineOverride.TryGetValue(entry, out var node) && node is JObject obj)
+        {
+            obj["custom_action_param"] = param;
+        }
+        saveConfigurationAction();
+    }
+
+    /// <summary>
+    /// 根据 Entry 分发到对应的特殊任务选项面板生成方法
+    /// </summary>
+    private void GenerateSpecialTaskPanelContent(StackPanel panel, DragItemViewModel dragItem)
+    {
+        var entry = dragItem.InterfaceItem?.Entry;
+        if (string.IsNullOrEmpty(entry)) return;
+
+        switch (entry)
+        {
+            case "CountdownAction":
+                AddCountdownOptions(panel, dragItem);
+                break;
+            case "TimedWaitAction":
+                AddTimedWaitOptions(panel, dragItem);
+                break;
+            case "SystemNotificationAction":
+                AddSystemNotificationOptions(panel, dragItem);
+                break;
+            case "CustomProgramAction":
+                AddCustomProgramOptions(panel, dragItem);
+                break;
+            case "KillProcessAction":
+                AddKillProcessOptions(panel, dragItem);
+                break;
+            case "ComputerOperationAction":
+                AddComputerOperationOptions(panel, dragItem);
+                break;
+            case "WebhookAction":
+                AddWebhookOptions(panel, dragItem);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// 倒计时 - seconds (NumericUpDown)
+    /// </summary>
+    private void AddCountdownOptions(StackPanel panel, DragItemViewModel dragItem)
+    {
+        var param = GetActionParam(dragItem);
+        var grid = CreateBaseGrid();
+
+        var label = CreateLabelPanel(LangKeys.SpecialTask_CountdownSeconds, null, null, useI18n: true);
+        label.Margin = new Thickness(10, 0, 0, 0);
+        Grid.SetColumn(label, 0);
+        grid.Children.Add(label);
+
+        var numericUpDown = new NumericUpDown
+        {
+            Value = (int?)param["seconds"] ?? 60,
+            Minimum = 1,
+            Maximum = 86400,
+            Increment = 1,
+            MinWidth = 120,
+            Margin = new Thickness(0, 2, 0, 2),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        BindIdleEnabled(numericUpDown);
+        numericUpDown.ValueChanged += (_, _) =>
+        {
+            param["seconds"] = Convert.ToInt32(numericUpDown.Value);
+            UpdateActionParam(dragItem, param);
+        };
+
+        Grid.SetColumn(numericUpDown, 1);
+        AddResponsiveBehavior(grid, label, numericUpDown);
+        grid.Children.Add(numericUpDown);
+        panel.Children.Add(grid);
+    }
+
+    /// <summary>
+    /// 定时等待 - 等待到指定时间 (hour:minute)
+    /// </summary>
+    private void AddTimedWaitOptions(StackPanel panel, DragItemViewModel dragItem)
+    {
+        var param = GetActionParam(dragItem);
+        var grid = new Grid
+        {
+            ColumnDefinitions =
+            {
+                new ColumnDefinition { Width = GridLength.Auto },
+                new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) },
+                new ColumnDefinition { Width = GridLength.Auto },
+            },
+            Margin = new Thickness(10, 3, 10, 3),
+        };
+
+        var label = CreateLabelPanel(LangKeys.SpecialTask_WaitUntilTime, null, null, useI18n: true);
+        label.Margin = new Thickness(10, 0, 5, 0);
+        Grid.SetColumn(label, 0);
+        grid.Children.Add(label);
+
+        var timePanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 4,
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Right,
+        };
+
+        var hourUpDown = new NumericUpDown
+        {
+            Value = (int?)param["hour"] ?? 0,
+            Minimum = 0,
+            Maximum = 23,
+            Increment = 1,
+            MinWidth = 70,
+            Margin = new Thickness(0, 2, 0, 2),
+            VerticalAlignment = VerticalAlignment.Center,
+            FormatString = "00",
+        };
+        BindIdleEnabled(hourUpDown);
+
+        var separator = new TextBlock
+        {
+            Text = ":",
+            FontSize = 16,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(2, 0, 2, 0),
+        };
+
+        var minuteUpDown = new NumericUpDown
+        {
+            Value = (int?)param["minute"] ?? 0,
+            Minimum = 0,
+            Maximum = 59,
+            Increment = 1,
+            MinWidth = 70,
+            Margin = new Thickness(0, 2, 0, 2),
+            VerticalAlignment = VerticalAlignment.Center,
+            FormatString = "00",
+        };
+        BindIdleEnabled(minuteUpDown);
+
+        hourUpDown.ValueChanged += (_, _) =>
+        {
+            param["hour"] = Convert.ToInt32(hourUpDown.Value);
+            UpdateActionParam(dragItem, param);
+        };
+        minuteUpDown.ValueChanged += (_, _) =>
+        {
+            param["minute"] = Convert.ToInt32(minuteUpDown.Value);
+            UpdateActionParam(dragItem, param);
+        };
+
+        timePanel.Children.Add(hourUpDown);
+        timePanel.Children.Add(separator);
+        timePanel.Children.Add(minuteUpDown);
+
+        Grid.SetColumn(timePanel, 2);
+        grid.Children.Add(timePanel);
+        panel.Children.Add(grid);
+    }
+
+    /// <summary>
+    /// 系统通知 - title + message (TextBox)
+    /// </summary>
+    private void AddSystemNotificationOptions(StackPanel panel, DragItemViewModel dragItem)
+    {
+        var param = GetActionParam(dragItem);
+
+        // 标题
+        var grid1 = CreateBaseGrid();
+        var label1 = CreateLabelPanel(LangKeys.SpecialTask_NotificationTitle, null, null, useI18n: true);
+        label1.Margin = new Thickness(10, 0, 0, 0);
+        Grid.SetColumn(label1, 0);
+        grid1.Children.Add(label1);
+
+        var titleBox = new TextBox
+        {
+            Text = (string?)param["title"] ?? "MFAAvalonia",
+            MinWidth = 120,
+            Margin = new Thickness(0, 2, 0, 2),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        BindIdleEnabled(titleBox);
+        titleBox.TextChanged += (_, _) =>
+        {
+            param["title"] = titleBox.Text ?? "";
+            UpdateActionParam(dragItem, param);
+        };
+        Grid.SetColumn(titleBox, 1);
+        AddResponsiveBehavior(grid1, label1, titleBox);
+        grid1.Children.Add(titleBox);
+        panel.Children.Add(grid1);
+
+        // 内容
+        var grid2 = CreateBaseGrid();
+        var label2 = CreateLabelPanel(LangKeys.SpecialTask_NotificationContent, null, null, useI18n: true);
+        label2.Margin = new Thickness(10, 0, 0, 0);
+        Grid.SetColumn(label2, 0);
+        grid2.Children.Add(label2);
+
+        var messageBox = new TextBox
+        {
+            Text = (string?)param["message"] ?? "",
+            MinWidth = 120,
+            Margin = new Thickness(0, 2, 0, 2),
+            VerticalAlignment = VerticalAlignment.Center,
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.Wrap,
+            MaxHeight = 100,
+        };
+        BindIdleEnabled(messageBox);
+        messageBox.TextChanged += (_, _) =>
+        {
+            param["message"] = messageBox.Text ?? "";
+            UpdateActionParam(dragItem, param);
+        };
+        Grid.SetColumn(messageBox, 1);
+        AddResponsiveBehavior(grid2, label2, messageBox);
+        grid2.Children.Add(messageBox);
+        panel.Children.Add(grid2);
+    }
+
+    /// <summary>
+    /// 自定义程序 - program (TextBox+拖拽+文件选择), arguments (TextBox), wait_for_exit (ToggleSwitch)
+    /// </summary>
+    private void AddCustomProgramOptions(StackPanel panel, DragItemViewModel dragItem)
+    {
+        var param = GetActionParam(dragItem);
+
+        // 程序路径
+        var grid1 = CreateBaseGrid();
+        var label1 = CreateLabelPanel(LangKeys.SpecialTask_ProgramPath, null, null, useI18n: true);
+        label1.Margin = new Thickness(10, 0, 0, 0);
+        Grid.SetColumn(label1, 0);
+        grid1.Children.Add(label1);
+
+        var programBox = new TextBox
+        {
+            Text = (string?)param["program"] ?? "",
+            Margin = new Thickness(0, 2, 0, 2),
+            MinWidth = 120,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        BindIdleEnabled(programBox);
+
+        // InnerRightContent: 文件选择按钮（参考 StartSettings 游戏路径样式）
+        var browseBtn = new Button
+        {
+            BorderBrush = Brushes.Transparent,
+            BorderThickness = new Thickness(0),
+            Height = 20,
+            Width = 30,
+            Padding = new Thickness(-4, 0, 0, 0),
+            Content = new FluentIcons.Avalonia.Fluent.FluentIcon()
+            {
+                Icon = FluentIcons.Common.Icon.FolderArrowLeft,
+                IconSize = FluentIcons.Common.IconSize.Size16,
+            },
+        };
+        browseBtn.Click += async (_, _) =>
+        {
+            var topLevel = TopLevel.GetTopLevel(panel);
+            if (topLevel?.StorageProvider == null) return;
+            var result = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = LangKeys.SpecialTask_SelectProgram.ToLocalization(),
+                AllowMultiple = false,
+            });
+            if (result.Count > 0)
+            {
+                programBox.Text = result[0].Path.LocalPath;
+            }
+        };
+        programBox.InnerRightContent = browseBtn;
+
+        // 支持拖拽
+        DragDrop.SetAllowDrop(programBox, true);
+        programBox.AddHandler(DragDrop.DropEvent, (_, e) =>
+        {
+#pragma warning disable CS0618
+            if (e.Data.GetFiles() is { } files)
+#pragma warning restore CS0618
+            {
+                var file = files.FirstOrDefault();
+                if (file != null)
+                {
+                    programBox.Text = file.Path.LocalPath;
+                }
+            }
+        });
+        programBox.AddHandler(DragDrop.DragOverEvent, (_, e) =>
+        {
+            e.DragEffects = DragDropEffects.Copy;
+        });
+
+        programBox.TextChanged += (_, _) =>
+        {
+            param["program"] = programBox.Text ?? "";
+            UpdateActionParam(dragItem, param);
+        };
+
+        Grid.SetColumn(programBox, 1);
+        AddResponsiveBehavior(grid1, label1, programBox);
+        grid1.Children.Add(programBox);
+        panel.Children.Add(grid1);
+
+        // 附加参数
+        var grid2 = CreateBaseGrid();
+        var label2 = CreateLabelPanel(LangKeys.SpecialTask_Arguments, null, null, useI18n: true);
+        label2.Margin = new Thickness(10, 0, 0, 0);
+        Grid.SetColumn(label2, 0);
+        grid2.Children.Add(label2);
+
+        var argsBox = new TextBox
+        {
+            Text = (string?)param["arguments"] ?? "",
+            MinWidth = 120,
+            Margin = new Thickness(0, 2, 0, 2),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        BindIdleEnabled(argsBox);
+        argsBox.TextChanged += (_, _) =>
+        {
+            param["arguments"] = argsBox.Text ?? "";
+            UpdateActionParam(dragItem, param);
+        };
+        Grid.SetColumn(argsBox, 1);
+        AddResponsiveBehavior(grid2, label2, argsBox);
+        grid2.Children.Add(argsBox);
+        panel.Children.Add(grid2);
+
+        // 等待退出
+        var grid3 = new Grid
+        {
+            ColumnDefinitions =
+            {
+                new ColumnDefinition { Width = GridLength.Auto },
+                new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) },
+                new ColumnDefinition { Width = GridLength.Auto },
+            },
+            Margin = new Thickness(10, 3, 10, 3),
+        };
+        var label3 = CreateLabelPanel(LangKeys.SpecialTask_WaitForExit, null, null, useI18n: true);
+        label3.Margin = new Thickness(10, 0, 5, 0);
+        Grid.SetColumn(label3, 0);
+        grid3.Children.Add(label3);
+
+        var waitToggle = new ToggleSwitch
+        {
+            IsChecked = (bool?)param["wait_for_exit"] ?? false,
+            Classes = { "Switch" },
+            MaxHeight = 60,
+            MaxWidth = 100,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        BindIdleEnabled(waitToggle);
+        waitToggle.IsCheckedChanged += (_, _) =>
+        {
+            param["wait_for_exit"] = waitToggle.IsChecked == true;
+            UpdateActionParam(dragItem, param);
+        };
+        Grid.SetColumn(waitToggle, 2);
+        grid3.Children.Add(waitToggle);
+        panel.Children.Add(grid3);
+    }
+
+    /// <summary>
+    /// 结束进程 - process_name (TextBox)
+    /// </summary>
+    private void AddKillProcessOptions(StackPanel panel, DragItemViewModel dragItem)
+    {
+        var param = GetActionParam(dragItem);
+        var grid = CreateBaseGrid();
+
+        var label = CreateLabelPanel(LangKeys.SpecialTask_ProcessName, null, null, useI18n: true);
+        label.Margin = new Thickness(10, 0, 0, 0);
+        Grid.SetColumn(label, 0);
+        grid.Children.Add(label);
+
+        var textBox = new TextBox
+        {
+            Text = (string?)param["process_name"] ?? "",
+            MinWidth = 120,
+            Margin = new Thickness(0, 2, 0, 2),
+            VerticalAlignment = VerticalAlignment.Center,
+            Watermark = LangKeys.SpecialTask_ProcessNameExample.ToLocalization(),
+        };
+        BindIdleEnabled(textBox);
+        textBox.TextChanged += (_, _) =>
+        {
+            param["process_name"] = textBox.Text ?? "";
+            UpdateActionParam(dragItem, param);
+        };
+
+        Grid.SetColumn(textBox, 1);
+        AddResponsiveBehavior(grid, label, textBox);
+        grid.Children.Add(textBox);
+        panel.Children.Add(grid);
+    }
+
+    /// <summary>
+    /// 电脑操作 - operation (ComboBox: shutdown/restart/sleep/hibernate)
+    /// </summary>
+    private void AddComputerOperationOptions(StackPanel panel, DragItemViewModel dragItem)
+    {
+        var param = GetActionParam(dragItem);
+        var grid = CreateBaseGrid();
+
+        var label = CreateLabelPanel(LangKeys.SpecialTask_OperationType, null, null, useI18n: true);
+        label.Margin = new Thickness(10, 0, 0, 0);
+        Grid.SetColumn(label, 0);
+        grid.Children.Add(label);
+
+        var operations = new List<string> { "shutdown", "restart", "sleep", "hibernate" };
+        var displayNames = new List<string>
+        {
+            LangKeys.SpecialTask_Shutdown.ToLocalization(),
+            LangKeys.SpecialTask_Restart.ToLocalization(),
+            LangKeys.SpecialTask_Sleep.ToLocalization(),
+            LangKeys.SpecialTask_Hibernate.ToLocalization(),
+        };
+
+        var comboBox = new ComboBox
+        {
+            MinWidth = 120,
+            Margin = new Thickness(0, 2, 0, 2),
+            ItemsSource = displayNames,
+            SelectedIndex = Math.Max(0, operations.IndexOf((string?)param["operation"] ?? "shutdown")),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
+        BindIdleEnabled(comboBox);
+        comboBox.SelectionChanged += (_, _) =>
+        {
+            if (comboBox.SelectedIndex >= 0 && comboBox.SelectedIndex < operations.Count)
+            {
+                param["operation"] = operations[comboBox.SelectedIndex];
+                UpdateActionParam(dragItem, param);
+            }
+        };
+
+        Grid.SetColumn(comboBox, 1);
+        AddResponsiveBehavior(grid, label, comboBox);
+        grid.Children.Add(comboBox);
+        panel.Children.Add(grid);
+    }
+
+    /// <summary>
+    /// Webhook - url, method (GET/POST), body, content_type
+    /// </summary>
+    private void AddWebhookOptions(StackPanel panel, DragItemViewModel dragItem)
+    {
+        var param = GetActionParam(dragItem);
+
+        // URL
+        var grid1 = CreateBaseGrid();
+        var label1 = CreateLabelPanel("URL", null, null);
+        label1.Margin = new Thickness(10, 0, 0, 0);
+        Grid.SetColumn(label1, 0);
+        grid1.Children.Add(label1);
+
+        var urlBox = new TextBox
+        {
+            Text = (string?)param["url"] ?? "",
+            MinWidth = 120,
+            Margin = new Thickness(0, 2, 0, 2),
+            VerticalAlignment = VerticalAlignment.Center,
+            Watermark = "https://example.com/webhook",
+        };
+        BindIdleEnabled(urlBox);
+        urlBox.TextChanged += (_, _) =>
+        {
+            param["url"] = urlBox.Text ?? "";
+            UpdateActionParam(dragItem, param);
+        };
+        Grid.SetColumn(urlBox, 1);
+        AddResponsiveBehavior(grid1, label1, urlBox);
+        grid1.Children.Add(urlBox);
+        panel.Children.Add(grid1);
+
+        // Method
+        var grid2 = CreateBaseGrid();
+        var label2 = CreateLabelPanel(LangKeys.SpecialTask_RequestMethod, null, null, useI18n: true);
+        label2.Margin = new Thickness(10, 0, 0, 0);
+        Grid.SetColumn(label2, 0);
+        grid2.Children.Add(label2);
+
+        var methods = new List<string> { "GET", "POST" };
+        var methodCombo = new ComboBox
+        {
+            MinWidth = 120,
+            Margin = new Thickness(0, 2, 0, 2),
+            ItemsSource = methods,
+            SelectedIndex = Math.Max(0, methods.IndexOf((string?)param["method"] ?? "GET")),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
+        BindIdleEnabled(methodCombo);
+        methodCombo.SelectionChanged += (_, _) =>
+        {
+            if (methodCombo.SelectedIndex >= 0)
+            {
+                param["method"] = methods[methodCombo.SelectedIndex];
+                UpdateActionParam(dragItem, param);
+            }
+        };
+        Grid.SetColumn(methodCombo, 1);
+        AddResponsiveBehavior(grid2, label2, methodCombo);
+        grid2.Children.Add(methodCombo);
+        panel.Children.Add(grid2);
+
+        // Body
+        var grid3 = CreateBaseGrid();
+        var label3 = CreateLabelPanel(LangKeys.SpecialTask_RequestBody, null, null, useI18n: true);
+        label3.Margin = new Thickness(10, 0, 0, 0);
+        Grid.SetColumn(label3, 0);
+        grid3.Children.Add(label3);
+
+        var bodyBox = new TextBox
+        {
+            Text = (string?)param["body"] ?? "",
+            MinWidth = 120,
+            Margin = new Thickness(0, 2, 0, 2),
+            VerticalAlignment = VerticalAlignment.Center,
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.Wrap,
+            MaxHeight = 100,
+        };
+        BindIdleEnabled(bodyBox);
+        bodyBox.TextChanged += (_, _) =>
+        {
+            param["body"] = bodyBox.Text ?? "";
+            UpdateActionParam(dragItem, param);
+        };
+        Grid.SetColumn(bodyBox, 1);
+        AddResponsiveBehavior(grid3, label3, bodyBox);
+        grid3.Children.Add(bodyBox);
+        panel.Children.Add(grid3);
+
+        // Content-Type
+        var grid4 = CreateBaseGrid();
+        var label4 = CreateLabelPanel("Content-Type", null, null);
+        label4.Margin = new Thickness(10, 0, 0, 0);
+        Grid.SetColumn(label4, 0);
+        grid4.Children.Add(label4);
+
+        var ctBox = new TextBox
+        {
+            Text = (string?)param["content_type"] ?? "application/json",
+            MinWidth = 120,
+            Margin = new Thickness(0, 2, 0, 2),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        BindIdleEnabled(ctBox);
+        ctBox.TextChanged += (_, _) =>
+        {
+            param["content_type"] = ctBox.Text ?? "";
+            UpdateActionParam(dragItem, param);
+        };
+        Grid.SetColumn(ctBox, 1);
+        AddResponsiveBehavior(grid4, label4, ctBox);
+        grid4.Children.Add(ctBox);
+        panel.Children.Add(grid4);
+    }
+
+    #endregion
 }

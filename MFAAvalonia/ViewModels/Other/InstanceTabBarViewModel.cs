@@ -123,6 +123,13 @@ public partial class InstanceTabBarViewModel : ViewModelBase
             {
                 SwitchToInstance(newValue.Processor);
             }
+            else
+            {
+                // 初始启动时 Current 已匹配，但 ConnectSettingsUserControlModel 的字段初始化器
+                // 可能在 Current 还是 "default" 实例时就已读取，导致枚举类型属性（截图模式、触控模式）
+                // 被错误地设为 Instance.default 的值。此处补一次同步确保 UI 反映正确的实例配置。
+                SyncConnectSettingsForCurrentInstance();
+            }
         }
     }
     private void SwitchToInstance(MaaProcessor processor)
@@ -138,7 +145,65 @@ public partial class InstanceTabBarViewModel : ViewModelBase
 
         if (MaaProcessorManager.Instance.SwitchCurrent(processor.InstanceId))
         {
+            // 同步更新连接设置，确保切换实例后 UI 立即反映新实例的配置
+            SyncConnectSettingsForCurrentInstance();
             Instances.ReloadConfigurationForSwitch(false);
+        }
+    }
+
+    /// <summary>
+    /// 同步更新连接设置 ViewModel，使其反映当前实例的配置。
+    /// 使用 IsSyncing 标志跳过所有副作用（SetTasker、写回配置），仅做纯内存属性赋值。
+    /// </summary>
+    private static void SyncConnectSettingsForCurrentInstance()
+    {
+        if (!Instances.IsResolved<MFAAvalonia.ViewModels.UsersControls.Settings.ConnectSettingsUserControlModel>())
+            return;
+
+        var connect = Instances.ConnectSettingsUserControlModel;
+        var config = MFAAvalonia.Configuration.ConfigurationManager.CurrentInstance;
+
+        connect.IsSyncing = true;
+        try
+        {
+            connect.CurrentControllerType = config.GetValue(MFAAvalonia.Configuration.ConfigurationKeys.CurrentController,
+               MaaControllerTypes.Adb, MaaControllerTypes.None,
+                new MFAAvalonia.Helper.Converters.UniversalEnumConverter<MaaControllerTypes>());
+            connect.RememberAdb = config.GetValue(MFAAvalonia.Configuration.ConfigurationKeys.RememberAdb, true);
+            connect.UseFingerprintMatching = config.GetValue(MFAAvalonia.Configuration.ConfigurationKeys.UseFingerprintMatching, true);
+            connect.AdbControlScreenCapType = config.GetValue(MFAAvalonia.Configuration.ConfigurationKeys.AdbControlScreenCapType,
+                MaaFramework.Binding.AdbScreencapMethods.None,
+                new System.Collections.Generic.List<MaaFramework.Binding.AdbScreencapMethods>
+                {
+                    MaaFramework.Binding.AdbScreencapMethods.All,
+                    MaaFramework.Binding.AdbScreencapMethods.Default
+                }, new MFAAvalonia.Helper.Converters.UniversalEnumConverter<MaaFramework.Binding.AdbScreencapMethods>());
+            connect.AdbControlInputType = config.GetValue(MFAAvalonia.Configuration.ConfigurationKeys.AdbControlInputType,
+                MaaFramework.Binding.AdbInputMethods.None,
+                new System.Collections.Generic.List<MaaFramework.Binding.AdbInputMethods>
+                {
+                    MaaFramework.Binding.AdbInputMethods.All,
+                    MaaFramework.Binding.AdbInputMethods.Default
+                }, new MFAAvalonia.Helper.Converters.UniversalEnumConverter<MaaFramework.Binding.AdbInputMethods>());
+            connect.Win32ControlScreenCapType = config.GetValue(MFAAvalonia.Configuration.ConfigurationKeys.Win32ControlScreenCapType,
+                MaaFramework.Binding.Win32ScreencapMethod.FramePool, MaaFramework.Binding.Win32ScreencapMethod.None,
+                new MFAAvalonia.Helper.Converters.UniversalEnumConverter<MaaFramework.Binding.Win32ScreencapMethod>());
+            connect.Win32ControlMouseType = config.GetValue(MFAAvalonia.Configuration.ConfigurationKeys.Win32ControlMouseType,
+                MaaFramework.Binding.Win32InputMethod.SendMessage, MaaFramework.Binding.Win32InputMethod.None,
+                new MFAAvalonia.Helper.Converters.UniversalEnumConverter<MaaFramework.Binding.Win32InputMethod>());
+            connect.Win32ControlKeyboardType = config.GetValue(MFAAvalonia.Configuration.ConfigurationKeys.Win32ControlKeyboardType,
+                MaaFramework.Binding.Win32InputMethod.SendMessage, MaaFramework.Binding.Win32InputMethod.None,
+                new MFAAvalonia.Helper.Converters.UniversalEnumConverter<MaaFramework.Binding.Win32InputMethod>());
+            connect.RetryOnDisconnected = config.GetValue(MFAAvalonia.Configuration.ConfigurationKeys.RetryOnDisconnected, false);
+            connect.RetryOnDisconnectedWin32 = config.GetValue(MFAAvalonia.Configuration.ConfigurationKeys.RetryOnDisconnectedWin32, false);
+            connect.AllowAdbRestart = config.GetValue(MFAAvalonia.Configuration.ConfigurationKeys.AllowAdbRestart, true);
+            connect.AllowAdbHardRestart = config.GetValue(MFAAvalonia.Configuration.ConfigurationKeys.AllowAdbHardRestart, true);
+            connect.AutoDetectOnConnectionFailed = config.GetValue(MFAAvalonia.Configuration.ConfigurationKeys.AutoDetectOnConnectionFailed, true);
+            connect.AutoConnectAfterRefresh = config.GetValue(MFAAvalonia.Configuration.ConfigurationKeys.AutoConnectAfterRefresh, true);
+        }
+        finally
+        {
+            connect.IsSyncing = false;
         }
     }
 

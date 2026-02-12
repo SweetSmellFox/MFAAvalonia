@@ -1744,5 +1744,101 @@
     <data name="Tutorial" xml:space="preserve">
         <value>Tutorial</value>
     </data>
+    <data name="SpecialTask" xml:space="preserve">
+        <value>Special Tasks</value>
+    </data>
+    <data name="SpecialTask_Countdown" xml:space="preserve">
+        <value>Countdown</value>
+    </data>
+    <data name="SpecialTask_TimedWait" xml:space="preserve">
+        <value>Timed Wait</value>
+    </data>
+    <data name="SpecialTask_Toast" xml:space="preserve">
+        <value>Toast Notification</value>
+    </data>
+    <data name="SpecialTask_CustomProgram" xml:space="preserve">
+        <value>Custom Program</value>
+    </data>
+    <data name="SpecialTask_KillProcess" xml:space="preserve">
+        <value>Kill Process</value>
+    </data>
+    <data name="SpecialTask_ComputerOperation" xml:space="preserve">
+        <value>Computer Operation</value>
+    </data>
+    <data name="SpecialTask_Webhook" xml:space="preserve">
+        <value>Webhook</value>
+    </data>
+    <data name="SpecialTask_CountdownDesc" xml:space="preserve">
+        <value>Continues to the next task after the specified seconds, supports `1~86400` seconds (24 hours), useful for adding delays between tasks.</value>
+    </data>
+    <data name="SpecialTask_TimedWaitDesc" xml:space="preserve">
+        <value>Pauses the task queue until a specified time of day (hour:minute). If the time has already passed today, waits until that time tomorrow.</value>
+    </data>
+    <data name="SpecialTask_ToastDesc" xml:space="preserve">
+        <value>Displays a toast notification with a custom message, useful for alerting when a certain point in the task queue is reached.</value>
+    </data>
+    <data name="SpecialTask_CustomProgramDesc" xml:space="preserve">
+        <value>Launches an external program or script, supports specifying program path and startup arguments, can optionally wait for the program to exit before continuing.</value>
+    </data>
+    <data name="SpecialTask_KillProcessDesc" xml:space="preserve">
+        <value>Terminates a running process by name, useful for closing games or other applications as part of the task flow.</value>
+    </data>
+    <data name="SpecialTask_ComputerOperationDesc" xml:space="preserve">
+        <value>Performs a system-level operation such as shutdown, restart, sleep or hibernate, useful for automated power management after long task runs.</value>
+    </data>
+    <data name="SpecialTask_WebhookDesc" xml:space="preserve">
+        <value>Sends an HTTP request to a specified URL with custom request body, useful for integrating with external services or automation platforms.</value>
+    </data>
+    <data name="SpecialTask_CountdownSeconds" xml:space="preserve">
+        <value>Countdown (seconds)</value>
+    </data>
+    <data name="SpecialTask_WaitUntilTime" xml:space="preserve">
+        <value>Wait until (HH:MM)</value>
+    </data>
+    <data name="SpecialTask_NotificationTitle" xml:space="preserve">
+        <value>Notification Title</value>
+    </data>
+    <data name="SpecialTask_NotificationContent" xml:space="preserve">
+        <value>Notification Content</value>
+    </data>
+    <data name="SpecialTask_ProgramPath" xml:space="preserve">
+        <value>Program Path</value>
+    </data>
+    <data name="SpecialTask_Arguments" xml:space="preserve">
+        <value>Arguments</value>
+    </data>
+    <data name="SpecialTask_WaitForExit" xml:space="preserve">
+        <value>Wait for Exit</value>
+    </data>
+    <data name="SpecialTask_ProcessName" xml:space="preserve">
+        <value>Process Name</value>
+    </data>
+    <data name="SpecialTask_OperationType" xml:space="preserve">
+        <value>Operation Type</value>
+    </data>
+    <data name="SpecialTask_RequestMethod" xml:space="preserve">
+        <value>Request Method</value>
+    </data>
+    <data name="SpecialTask_RequestBody" xml:space="preserve">
+        <value>Request Body</value>
+    </data>
+    <data name="SpecialTask_SelectProgram" xml:space="preserve">
+        <value>Select Program</value>
+    </data>
+    <data name="SpecialTask_ProcessNameExample" xml:space="preserve">
+        <value>e.g.: notepad</value>
+    </data>
+    <data name="SpecialTask_Shutdown" xml:space="preserve">
+        <value>Shutdown</value>
+    </data>
+    <data name="SpecialTask_Restart" xml:space="preserve">
+        <value>Restart</value>
+    </data>
+    <data name="SpecialTask_Sleep" xml:space="preserve">
+        <value>Sleep</value>
+    </data>
+    <data name="SpecialTask_Hibernate" xml:space="preserve">
+        <value>Hibernate</value>
+    </data>
     </root>
 

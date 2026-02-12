@@ -43,6 +43,8 @@ public partial class TaskQueueViewModel : ViewModelBase
     {
         _processorField = new MaaProcessor(instanceId);
         _currentController = _processorField.InstanceConfiguration.GetValue(ConfigurationKeys.CurrentController, MaaControllerTypes.Adb, MaaControllerTypes.None, new UniversalEnumConverter<MaaControllerTypes>());
+        // 初始化为当前控制器类型，避免首次 AutoDetectDevice 时用 interface.json 覆盖用户已保存的配置
+        _lastAppliedControllerSettingsType = _currentController;
         _enableLiveView = _processorField.InstanceConfiguration.GetValue(ConfigurationKeys.EnableLiveView, true);
         _liveViewRefreshRate = _processorField.InstanceConfiguration.GetValue(ConfigurationKeys.LiveViewRefreshRate, 30.0);
         
@@ -76,6 +78,12 @@ public partial class TaskQueueViewModel : ViewModelBase
     [ObservableProperty] private bool _isCompactMode = false;
 
     private bool _isSyncing = false;
+    
+    /// <summary>
+    /// 记录已应用过 interface.json 控制器设置的控制器类型，
+    /// 避免每次刷新设备时都用 interface.json 的值覆盖用户配置
+    /// </summary>
+    private MaaControllerTypes? _lastAppliedControllerSettingsType;
 
     // 竖屏模式下的设置弹窗状态
     [ObservableProperty] private bool _isSettingsPopupOpen = false;
@@ -421,6 +429,12 @@ public partial class TaskQueueViewModel : ViewModelBase
     [RelayCommand]
     private void ResetTasks()
     {
+        // 保留特殊任务（倒计时、系统通知等用户手动添加的自定义 Action 任务）
+        var specialTasks = TaskItemViewModels
+            .Where(t => !string.IsNullOrWhiteSpace(t.InterfaceItem?.Entry)
+                        && ViewModels.UsersControls.Settings.AddTaskDialogViewModel.SpecialActionNames.Contains(t.InterfaceItem.Entry!))
+            .ToList();
+
         // 清空当前任务列表
         TaskItemViewModels.Clear();
 
@@ -429,6 +443,12 @@ public partial class TaskQueueViewModel : ViewModelBase
         {
             // 克隆任务以避免引用问题
             TaskItemViewModels.Add(item.Clone());
+        }
+
+        // 恢复特殊任务到列表末尾
+        foreach (var special in specialTasks)
+        {
+            TaskItemViewModels.Add(special);
         }
 
         // 更新任务的资源支持状态
@@ -628,6 +648,8 @@ public partial class TaskQueueViewModel : ViewModelBase
     {
         if (_isSyncing) return;
         Processor.InstanceConfiguration.SetValue(ConfigurationKeys.CurrentController, value.ToString());
+        if (Instances.IsResolved<ConnectSettingsUserControlModel>())
+            Instances.ConnectSettingsUserControlModel.CurrentControllerType = value;
         UpdateResourcesForController();
         if (value == MaaControllerTypes.PlayCover)
         {
@@ -948,6 +970,11 @@ public partial class TaskQueueViewModel : ViewModelBase
     {
         if (controllerType == MaaControllerTypes.PlayCover)
             return;
+
+        // 同一控制器类型只应用一次 interface.json 的设置，避免每次刷新都覆盖用户配置
+        if (_lastAppliedControllerSettingsType == controllerType)
+            return;
+        _lastAppliedControllerSettingsType = controllerType;
 
         var controller = MaaProcessor.Interface?.Controller?
             .FirstOrDefault(c => c.Type?.Equals(controllerType.ToJsonKey(), StringComparison.OrdinalIgnoreCase) == true);

@@ -1754,6 +1754,102 @@
     <data name="Tutorial" xml:space="preserve">
         <value>使用教程</value>
     </data>
+    <data name="SpecialTask" xml:space="preserve">
+        <value>特殊任务</value>
+    </data>
+    <data name="SpecialTask_Countdown" xml:space="preserve">
+        <value>倒计时</value>
+    </data>
+    <data name="SpecialTask_TimedWait" xml:space="preserve">
+        <value>定时等待</value>
+    </data>
+    <data name="SpecialTask_Toast" xml:space="preserve">
+        <value>通知</value>
+    </data>
+    <data name="SpecialTask_CustomProgram" xml:space="preserve">
+        <value>自定义程序</value>
+    </data>
+    <data name="SpecialTask_KillProcess" xml:space="preserve">
+        <value>结束进程</value>
+    </data>
+    <data name="SpecialTask_ComputerOperation" xml:space="preserve">
+        <value>电脑操作</value>
+    </data>
+    <data name="SpecialTask_Webhook" xml:space="preserve">
+        <value>Webhook</value>
+    </data>
+    <data name="SpecialTask_CountdownDesc" xml:space="preserve">
+        <value>在指定的秒数后继续执行下一个任务，支持 `1~86400` 秒（24小时），可用于任务之间的延迟等待。</value>
+    </data>
+    <data name="SpecialTask_TimedWaitDesc" xml:space="preserve">
+        <value>暂停任务队列，等待到当天指定的时刻（时:分）后再继续执行，若该时刻已过则等待到次日对应时刻。</value>
+    </data>
+    <data name="SpecialTask_ToastDesc" xml:space="preserve">
+        <value>发送应用内 Toast 浮窗通知，可自定义标题和内容，适用于任务完成提醒等场景。</value>
+    </data>
+    <data name="SpecialTask_CustomProgramDesc" xml:space="preserve">
+        <value>启动外部程序或脚本，支持设置程序路径和命令行参数，可选择是否等待程序退出后再继续。</value>
+    </data>
+    <data name="SpecialTask_KillProcessDesc" xml:space="preserve">
+        <value>终止指定名称的进程（不含 `.exe` 后缀），将强制结束所有匹配的进程实例。</value>
+    </data>
+    <data name="SpecialTask_ComputerOperationDesc" xml:space="preserve">
+        <value>执行系统级操作，支持关机、重启、睡眠和休眠，适用于任务完成后自动关机等场景。</value>
+    </data>
+    <data name="SpecialTask_WebhookDesc" xml:space="preserve">
+        <value>发送 HTTP 请求到指定 URL，支持 `GET`/`POST` 方法，可自定义请求体和 Content-Type。</value>
+    </data>
+    <data name="SpecialTask_CountdownSeconds" xml:space="preserve">
+        <value>倒计时（秒）</value>
+    </data>
+    <data name="SpecialTask_WaitUntilTime" xml:space="preserve">
+        <value>等待到（时:分）</value>
+    </data>
+    <data name="SpecialTask_NotificationTitle" xml:space="preserve">
+        <value>通知标题</value>
+    </data>
+    <data name="SpecialTask_NotificationContent" xml:space="preserve">
+        <value>通知内容</value>
+    </data>
+    <data name="SpecialTask_ProgramPath" xml:space="preserve">
+        <value>程序路径</value>
+    </data>
+    <data name="SpecialTask_Arguments" xml:space="preserve">
+        <value>附加参数</value>
+    </data>
+    <data name="SpecialTask_WaitForExit" xml:space="preserve">
+        <value>等待程序退出</value>
+    </data>
+    <data name="SpecialTask_ProcessName" xml:space="preserve">
+        <value>进程名称</value>
+    </data>
+    <data name="SpecialTask_OperationType" xml:space="preserve">
+        <value>操作类型</value>
+    </data>
+    <data name="SpecialTask_RequestMethod" xml:space="preserve">
+        <value>请求方法</value>
+    </data>
+    <data name="SpecialTask_RequestBody" xml:space="preserve">
+        <value>请求体</value>
+    </data>
+    <data name="SpecialTask_SelectProgram" xml:space="preserve">
+        <value>选择程序</value>
+    </data>
+    <data name="SpecialTask_ProcessNameExample" xml:space="preserve">
+        <value>例如: notepad</value>
+    </data>
+    <data name="SpecialTask_Shutdown" xml:space="preserve">
+        <value>关机</value>
+    </data>
+    <data name="SpecialTask_Restart" xml:space="preserve">
+        <value>重启</value>
+    </data>
+    <data name="SpecialTask_Sleep" xml:space="preserve">
+        <value>睡眠</value>
+    </data>
+    <data name="SpecialTask_Hibernate" xml:space="preserve">
+        <value>休眠</value>
+    </data>
 
     </root>
 
