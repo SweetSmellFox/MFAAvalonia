@@ -32,7 +32,9 @@ public class TaskLoader(MaaInterface? maaInterface, TaskQueueViewModel taskQueue
         IList<DragItemViewModel>? oldDrags = null)
     {
         var instanceConfig = taskQueueViewModel.Processor.InstanceConfiguration;
+
         var currentTasks = instanceConfig.GetValue(ConfigurationKeys.CurrentTasks, new List<string>());
+
         if (currentTasks.Any(t => t.Contains(OLD_SEPARATOR) && !t.Contains(NEW_SEPARATOR)))
         {
             currentTasks = currentTasks
@@ -64,6 +66,7 @@ public class TaskLoader(MaaInterface? maaInterface, TaskQueueViewModel taskQueue
         }
 
         var (updateList, removeList) = SynchronizeTaskItems(ref currentTasks, drags, tasks);
+
         instanceConfig.SetValue(ConfigurationKeys.CurrentTasks, currentTasks);
         
         updateList.RemoveAll(d => removeList.Contains(d));
@@ -72,10 +75,12 @@ public class TaskLoader(MaaInterface? maaInterface, TaskQueueViewModel taskQueue
         // 避免非默认实例通过 fallback 读到已更新的 CurrentTasks 但旧的 TaskItems，
         // 导致新任务被误判为"已删除"
         // interface 加载失败时 maaInterface?.Task 为 null，此时不保存以免清空配置
+        // 注意：必须用 .ToList() 物化 LINQ 查询，否则存入 Config 字典的是懒惰 IEnumerable，
+        // 后续 GetValue<List<T>> 无法通过类型转换读取，会返回空列表
         if (maaInterface?.Task != null)
         {
             instanceConfig.SetValue(ConfigurationKeys.TaskItems,
-                updateList.Where(m => !m.IsResourceOptionItem).Select(m => m.InterfaceItem));
+                updateList.Where(m => !m.IsResourceOptionItem).Select(m => m.InterfaceItem).ToList());
         }
 
         UpdateViewModels(updateList, tasks, tasksSource);

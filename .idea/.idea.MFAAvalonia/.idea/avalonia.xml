@@ -11,8 +11,8 @@
         <entry key="MFAAvalonia/Assets/Style/MdXamlBaseStyles.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="MFAAvalonia/Assets/Style/MdXamlDocStyle.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="MFAAvalonia/Assets/Style/MdXamlStyles.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
-        <entry key="MFAAvalonia/Assets/Theme/DarkTheme.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
-        <entry key="MFAAvalonia/Assets/Theme/LightTheme.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
+        <entry key="MFAAvalonia/Assets/Theme/DarkTheme.axaml" value="MFAAvalonia.Desktop/MFAAvalonia.Desktop.csproj" />
+        <entry key="MFAAvalonia/Assets/Theme/LightTheme.axaml" value="MFAAvalonia.Desktop/MFAAvalonia.Desktop.csproj" />
         <entry key="MFAAvalonia/Views/MainWindow.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="MFAAvalonia/Views/Mobile/RootViewContent.axaml" value="MFAAvalonia.Desktop/MFAAvalonia.Desktop.csproj" />
         <entry key="MFAAvalonia/Views/Mobile/RootViewMobile.axaml" value="MFAAvalonia.Desktop/MFAAvalonia.Desktop.csproj" />

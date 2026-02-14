@@ -134,11 +134,13 @@ public partial class RootView : SukiWindow
                     DispatcherHelper.PostOnMainThread(() => Instances.RootViewModel.IsRunning = false);
             }
             // Save current instance tasks
+            // 注意：必须用 .ToList() 物化最终结果，否则存入 Config 字典的是懒惰 IEnumerable，
+            // 后续 GetValue<List<T>> 无法通过类型转换读取，会返回空列表
             var currentVM = Instances.InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel;
             if (currentVM != null)
             {
-                ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.TaskItems,
-                    currentVM.TaskItemViewModels.ToList().Select(model => model.InterfaceItem));
+                currentVM.Processor.InstanceConfiguration.SetValue(ConfigurationKeys.TaskItems,
+                    currentVM.TaskItemViewModels.Where(m => !m.IsResourceOptionItem).Select(model => model.InterfaceItem).ToList());
             }
 
             // 确保窗口大小和位置被立即保存（绕过防抖机制）

@@ -251,7 +251,8 @@ public partial class TaskQueueView : UserControl
         }
 
         vm.TaskItemViewModels.Insert(insertIndex, output);
-        ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.TaskItems, vm.TaskItemViewModels.ToList().Select(model => model.InterfaceItem));
+        vm.Processor.InstanceConfiguration.SetValue(ConfigurationKeys.TaskItems,
+            vm.TaskItemViewModels.Where(m => !m.IsResourceOptionItem).Select(model => model.InterfaceItem));
         listBox.SelectedItem = output;
         ToastHelper.Info(LangKeys.Tip.ToLocalization(), LangKeys.TaskAddedToast.ToLocalizationFormatted(false, output.Name));
     }
@@ -292,7 +293,7 @@ public partial class TaskQueueView : UserControl
                     interfaceItem.Remark = string.IsNullOrWhiteSpace(remark) ? null : remark;
                     taskItemViewModel.RefreshDisplayName();
 
-                    ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.TaskItems,
+                    vm.Processor.InstanceConfiguration.SetValue(ConfigurationKeys.TaskItems,
                         vm.TaskItemViewModels.Where(m => !m.IsResourceOptionItem)
                             .Select(model => model.InterfaceItem));
                 }))
@@ -321,7 +322,24 @@ public partial class TaskQueueView : UserControl
         var deletedName = taskItemViewModel.Name;
         vm.TaskItemViewModels.RemoveAt(index);
         this.SetOption(taskItemViewModel, false);
-        ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.TaskItems, vm.TaskItemViewModels.ToList().Select(model => model.InterfaceItem));
+
+        var instanceConfig = vm.Processor.InstanceConfiguration;
+
+        // 保存 TaskItems 时过滤掉 resource option items（与 SaveConfiguration 保持一致）
+        instanceConfig.SetValue(ConfigurationKeys.TaskItems,
+            vm.TaskItemViewModels.Where(m => !m.IsResourceOptionItem).Select(m => m.InterfaceItem));
+
+        // 同步更新 CurrentTasks：确保被删除任务的 key 保留在 CurrentTasks 中，
+        // 这样 SynchronizeTaskItems 的 deletedTaskKeys 计算（currentTaskSet - existingKeys）
+        // 才能正确识别该任务是"用户已见过但手动删除"的，而非"从未见过的新任务"
+        var deletedKey = $"{taskItemViewModel.InterfaceItem?.Name}{TaskLoader.NEW_SEPARATOR}{taskItemViewModel.InterfaceItem?.Entry}";
+        var currentTasks = instanceConfig.GetValue(ConfigurationKeys.CurrentTasks, new List<string>()) ?? new List<string>();
+        if (!currentTasks.Contains(deletedKey))
+        {
+            currentTasks.Add(deletedKey);
+            instanceConfig.SetValue(ConfigurationKeys.CurrentTasks, currentTasks);
+        }
+
         vm.ShowSettings = false;
         ToastHelper.Info(LangKeys.Tip.ToLocalization(), LangKeys.TaskDeletedToast.ToLocalizationFormatted(false, deletedName));
     }
@@ -2183,8 +2201,10 @@ public partial class TaskQueueView : UserControl
     {
         if (DataContext is not TaskQueueViewModel vm) return;
 
+        var instanceConfig = vm.Processor.InstanceConfiguration;
+
         // 保存普通任务项配置
-        ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.TaskItems,
+        instanceConfig.SetValue(ConfigurationKeys.TaskItems,
             vm.TaskItemViewModels.Where(m => !m.IsResourceOptionItem).Select(m => m.InterfaceItem));
 
         // 保存资源选项配置
@@ -2202,7 +2222,7 @@ public partial class TaskQueueView : UserControl
                 m => m.ResourceItem!.Name ?? string.Empty,
                 m => m.ResourceItem!.SelectOptions!);
 
-        ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.ResourceOptionItems, resourceOptionItems);
+        vm.Processor.InstanceConfiguration.SetValue(ConfigurationKeys.ResourceOptionItems, resourceOptionItems);
     }
 
     public static string ConvertCustomMarkup(string input, string outputFormat = "html")

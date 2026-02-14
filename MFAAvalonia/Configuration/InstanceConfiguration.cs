@@ -32,6 +32,7 @@ public sealed class InstanceConfiguration
     public T GetValue<T>(string key, T defaultValue)
     {
         var scopedKey = ScopedKey(key);
+        
         if (Config.ContainsKey(scopedKey))
         {
             return Config.GetValue<T>(scopedKey, defaultValue);

@@ -17,6 +17,7 @@ public sealed class MaaProcessorManager
     private readonly Dictionary<string, string> _instanceNames = new();
     private readonly List<string> _instanceOrder = new();
     private readonly Dictionary<string, TaskQueueViewModel> _viewModels = new();
+    private readonly HashSet<string> _initializedInstances = new();
     private readonly object _lock = new();
 
     public MaaProcessor Current { get; private set; }
@@ -362,8 +363,12 @@ public sealed class MaaProcessorManager
         {
             CreateInstanceInternal(id, setCurrent: false);
         }
-        // 无论实例是否已存在（如构造函数中创建的 default），都需要确保初始化数据
-        _instances[id].InitializeData();
+
+        // 防止同一实例被重复初始化（如 LoadInstanceConfig 被调用两次）
+        if (_initializedInstances.Add(id))
+        {
+            _instances[id].InitializeData();
+        }
     }
 
     /// <summary>

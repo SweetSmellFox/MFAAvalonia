@@ -18,6 +18,12 @@ public partial class TimerSettingsUserControlModel : ViewModelBase
     /// </summary>
     public ObservableCollection<TimerModel.InstanceEntry> InstanceList => TimerModel.Instance.InstanceList;
 
+    protected override void Initialize()
+    {
+        RefreshInstances();
+        base.Initialize();
+    }
+
     public void RefreshInstances()
     {
         TimerModel.Instance.RefreshInstanceList();

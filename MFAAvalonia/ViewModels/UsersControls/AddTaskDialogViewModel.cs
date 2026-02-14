@@ -97,8 +97,8 @@ public partial class AddTaskDialogViewModel : ViewModelBase
             }
         }
 
-        ConfigurationManager.CurrentInstance.SetValue(ConfigurationKeys.TaskItems,
-            vm.TaskItemViewModels.ToList().Select(model => model.InterfaceItem));
+        vm.Processor.InstanceConfiguration.SetValue(ConfigurationKeys.TaskItems,
+            vm.TaskItemViewModels.Where(m => !m.IsResourceOptionItem).ToList().Select(model => model.InterfaceItem));
 
         var totalAdded = Sources.Sum(s => s.AddCount) + SpecialTasks.Sum(s => s.AddCount);
         if (totalAdded > 0)
