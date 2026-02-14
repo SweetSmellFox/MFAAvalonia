@@ -534,6 +534,9 @@
     <data name="GlobalConfigTip" xml:space="preserve">
         <value>This option page is for global config</value>
     </data>
+    <data name="InstanceConfigTip" xml:space="preserve">
+        <value>This option page is instance-scoped. Current instance: </value>
+    </data>
     <data name="GpuOptionAuto" xml:space="preserve">
         <value>Auto</value>
     </data>

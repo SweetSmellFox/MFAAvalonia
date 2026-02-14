@@ -651,7 +651,8 @@ public partial class TaskQueueViewModel : ViewModelBase
             if (!igoreToast) ToastHelper.Info(LangKeys.WindowSelectionMessage.ToLocalizationFormatted(false, ""), window.Name);
             Processor.Config.DesktopWindow.Name = window.Name;
             Processor.Config.DesktopWindow.HWnd = window.Handle;
-            Processor.SetTasker();
+            // SetTasker 内部会同步等待旧 Tasker 停止（最多 5s+），移到后台线程避免阻塞 UI
+            Task.Run(() => Processor.SetTasker());
         }
         else if (value is AdbDeviceInfo device)
         {
@@ -661,7 +662,8 @@ public partial class TaskQueueViewModel : ViewModelBase
             Processor.Config.AdbDevice.AdbSerial = device.AdbSerial;
             Processor.Config.AdbDevice.Config = device.Config;
             Processor.Config.AdbDevice.Info = device;
-            Processor.SetTasker();
+            // SetTasker 内部会同步等待旧 Tasker 停止（最多 5s+），移到后台线程避免阻塞 UI
+            Task.Run(() => Processor.SetTasker());
             Processor.InstanceConfiguration.SetValue(ConfigurationKeys.AdbDevice, device);
         }
     }
@@ -1367,7 +1369,8 @@ public partial class TaskQueueViewModel : ViewModelBase
 
             if (!string.IsNullOrWhiteSpace(value))
             {
-                Processor.SetTasker();
+                // SetTasker 内部会同步等待旧 Tasker 停止，移到后台线程避免阻塞 UI
+                Task.Run(() => Processor.SetTasker());
             }
 
             SetNewProperty(ref _currentResource, value);

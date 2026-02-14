@@ -1536,6 +1536,15 @@ namespace MFAAvalonia.Assets.Localization {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to 此选项页为实例配置，当前实例：.
+        /// </summary>
+        public static string InstanceConfigTip {
+            get {
+                return ResourceManager.GetString("InstanceConfigTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to 自动.
         /// </summary>
         public static string GpuOptionAuto {

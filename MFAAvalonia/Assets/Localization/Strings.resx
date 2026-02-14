@@ -543,6 +543,9 @@
     <data name="GlobalConfigTip" xml:space="preserve">
         <value>此选项页为全局配置</value>
     </data>
+    <data name="InstanceConfigTip" xml:space="preserve">
+        <value>此选项页为实例配置，当前实例：</value>
+    </data>
     <data name="GpuOptionAuto" xml:space="preserve">
         <value>自动</value>
     </data>

@@ -1719,7 +1719,69 @@ public class MaaProcessor
         {
             _focusHandler ??= new FocusHandler(AutoInitDictionary, ViewModel!);
             _focusHandler.UpdateDictionary(AutoInitDictionary);
-            _focusHandler.DisplayFocus(jObject, args.Message, args.Details);
+
+            // 获取当前截图用于新协议 {image} 占位符替换
+            // 优先通过 GetRecognitionDetail 获取识别结果图片，失败后 fallback 到 GetCachedImage
+            MaaImageBuffer? focusImageBuffer = null;
+            if (tasker != null)
+            {
+                try
+                {
+                    // 先尝试通过 reco_id 获取识别结果图片
+                    var recoIdToken = jObject["reco_id"];
+                    if (recoIdToken != null)
+                    {
+                        var recoId = Convert.ToInt64(recoIdToken.ToString());
+                        if (recoId > 0)
+                        {
+                            try
+                            {
+                                focusImageBuffer = new MaaImageBuffer();
+                                using var imageListBuffer = new MaaImageListBuffer();
+                                using var rect = new MaaRectBuffer();
+                                tasker.GetRecognitionDetail(recoId, out _, out _, out _, rect, out _, focusImageBuffer, imageListBuffer);
+                                if (focusImageBuffer.IsInvalid || focusImageBuffer.IsEmpty)
+                                {
+                                    focusImageBuffer.Dispose();
+                                    focusImageBuffer = null;
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                LoggerHelper.Warning($"HandleCallBack focus GetRecognitionDetail error: {ex.Message}");
+                                focusImageBuffer?.Dispose();
+                                focusImageBuffer = null;
+                            }
+                        }
+                    }
+
+                    // fallback: 如果识别结果图片获取失败，使用 GetCachedImage
+                    if (focusImageBuffer == null)
+                    {
+                        focusImageBuffer = new MaaImageBuffer();
+                        if (!tasker.GetCachedImage(focusImageBuffer))
+                        {
+                            focusImageBuffer.Dispose();
+                            focusImageBuffer = null;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LoggerHelper.Warning($"HandleCallBack focus image error: {ex.Message}");
+                    focusImageBuffer?.Dispose();
+                    focusImageBuffer = null;
+                }
+            }
+
+            try
+            {
+                _focusHandler.DisplayFocus(jObject, args.Message, args.Details, focusImageBuffer);
+            }
+            finally
+            {
+                focusImageBuffer?.Dispose();
+            }
         }
     }
 
@@ -2286,19 +2348,25 @@ public class MaaProcessor
 
     private AdbInputMethods ConfigureAdbInputTypes()
     {
-        return Instances.ConnectSettingsUserControlModel.AdbControlInputType switch
+        var inputType = InstanceConfiguration.GetValue(ConfigurationKeys.AdbControlInputType,
+            AdbInputMethods.None, [AdbInputMethods.All, AdbInputMethods.Default],
+            new UniversalEnumConverter<AdbInputMethods>());
+        return inputType switch
         {
             AdbInputMethods.None => Config.AdbDevice.Info?.InputMethods ?? AdbInputMethods.Default,
-            _ => Instances.ConnectSettingsUserControlModel.AdbControlInputType
+            _ => inputType
         };
     }
 
     private AdbScreencapMethods ConfigureAdbScreenCapTypes()
     {
-        return Instances.ConnectSettingsUserControlModel.AdbControlScreenCapType switch
+        var screenCapType = InstanceConfiguration.GetValue(ConfigurationKeys.AdbControlScreenCapType,
+            AdbScreencapMethods.None, [AdbScreencapMethods.All, AdbScreencapMethods.Default],
+            new UniversalEnumConverter<AdbScreencapMethods>());
+        return screenCapType switch
         {
             AdbScreencapMethods.None => Config.AdbDevice.Info?.ScreencapMethods ?? AdbScreencapMethods.Default,
-            _ => Instances.ConnectSettingsUserControlModel.AdbControlScreenCapType
+            _ => screenCapType
         };
     }
 
@@ -2338,17 +2406,23 @@ public class MaaProcessor
 
     private Win32ScreencapMethod ConfigureWin32ScreenCapTypes()
     {
-        return Instances.ConnectSettingsUserControlModel.Win32ControlScreenCapType;
+        return InstanceConfiguration.GetValue(ConfigurationKeys.Win32ControlScreenCapType,
+            Win32ScreencapMethod.FramePool, Win32ScreencapMethod.None,
+            new UniversalEnumConverter<Win32ScreencapMethod>());
     }
 
     private Win32InputMethod ConfigureWin32MouseInputTypes()
     {
-        return Instances.ConnectSettingsUserControlModel.Win32ControlMouseType;
+        return InstanceConfiguration.GetValue(ConfigurationKeys.Win32ControlMouseType,
+            Win32InputMethod.SendMessage, Win32InputMethod.None,
+            new UniversalEnumConverter<Win32InputMethod>());
     }
 
     private Win32InputMethod ConfigureWin32KeyboardInputTypes()
     {
-        return Instances.ConnectSettingsUserControlModel.Win32ControlKeyboardType;
+        return InstanceConfiguration.GetValue(ConfigurationKeys.Win32ControlKeyboardType,
+            Win32InputMethod.SendMessage, Win32InputMethod.None,
+            new UniversalEnumConverter<Win32InputMethod>());
     }
     private bool FirstTask = true;
     public const string NEW_SEPARATOR = "<|||>";
@@ -3476,7 +3550,7 @@ public class MaaProcessor
             else
                 ToastHelper.Info(LangKeys.Tip.ToLocalization(), LangKeys.ConnectingTo.ToLocalizationFormatted(true, targetKey));
 
-            if (!isPlayCover && ViewModel?.CurrentDevice == null && Instances.ConnectSettingsUserControlModel.AutoDetectOnConnectionFailed && !delayFingerprintMatching)
+            if (!isPlayCover && ViewModel?.CurrentDevice == null && InstanceConfiguration.GetValue(ConfigurationKeys.AutoDetectOnConnectionFailed, true) && !delayFingerprintMatching)
                 ViewModel?.TryReadAdbDeviceFromConfig(false, true);
 
             var tuple = await TryConnectAsync(token);
@@ -3490,10 +3564,10 @@ public class MaaProcessor
             else if (!connected && controllerType == MaaControllerTypes.Win32 && !tuple.Item2 && shouldRetry)
             {
                 await RetryConnectionAsync(CancellationToken.None, showMessage, StartSoftware, LangKeys.TryToStartGame,
-                    Instances.ConnectSettingsUserControlModel.RetryOnDisconnectedWin32,
+                    InstanceConfiguration.GetValue(ConfigurationKeys.RetryOnDisconnectedWin32, false),
                     () =>
                     {
-                        if (Instances.ConnectSettingsUserControlModel.AutoDetectOnConnectionFailed)
+                        if (InstanceConfiguration.GetValue(ConfigurationKeys.AutoDetectOnConnectionFailed, true))
                             ViewModel?.TryReadAdbDeviceFromConfig(false, true);
                     });
             }
@@ -3518,14 +3592,14 @@ public class MaaProcessor
         bool connected = false;
         var retrySteps = new List<Func<CancellationToken, Task<bool>>>
         {
-            async t => await RetryConnectionAsync(t, showMessage, StartSoftware, LangKeys.TryToStartEmulator, Instances.ConnectSettingsUserControlModel.RetryOnDisconnected,
+            async t => await RetryConnectionAsync(t, showMessage, StartSoftware, LangKeys.TryToStartEmulator, InstanceConfiguration.GetValue(ConfigurationKeys.RetryOnDisconnected, false),
                 () =>
                 {
-                    if (Instances.ConnectSettingsUserControlModel.AutoDetectOnConnectionFailed) ViewModel?.TryReadAdbDeviceFromConfig(false, true);
+                    if (InstanceConfiguration.GetValue(ConfigurationKeys.AutoDetectOnConnectionFailed, true)) ViewModel?.TryReadAdbDeviceFromConfig(false, true);
                 }),
             async t => await RetryConnectionAsync(t, showMessage, ReconnectByAdb, LangKeys.TryToReconnect),
-            async t => await RetryConnectionAsync(t, showMessage, RestartAdb, LangKeys.RestartAdb, Instances.ConnectSettingsUserControlModel.AllowAdbRestart),
-            async t => await RetryConnectionAsync(t, showMessage, HardRestartAdb, LangKeys.HardRestartAdb, Instances.ConnectSettingsUserControlModel.AllowAdbHardRestart)
+            async t => await RetryConnectionAsync(t, showMessage, RestartAdb, LangKeys.RestartAdb, InstanceConfiguration.GetValue(ConfigurationKeys.AllowAdbRestart, true)),
+            async t => await RetryConnectionAsync(t, showMessage, HardRestartAdb, LangKeys.HardRestartAdb, InstanceConfiguration.GetValue(ConfigurationKeys.AllowAdbHardRestart, true))
         };
 
         foreach (var step in retrySteps)
@@ -3614,8 +3688,7 @@ public class MaaProcessor
         var job = maa.AppendTask(task, param ?? "{}");
         await TaskManager.RunTaskAsync((Action)(() =>
         {
-            if (Instances
-                .GameSettingsUserControlModel.ContinueRunningWhenError)
+            if (InstanceConfiguration.GetValue(ConfigurationKeys.ContinueRunningWhenError, true))
                 job.Wait();
             else
                 job.Wait().ThrowIfNot(MaaJobStatus.Succeeded);

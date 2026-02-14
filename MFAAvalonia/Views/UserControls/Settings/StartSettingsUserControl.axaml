@@ -18,6 +18,18 @@
     xmlns:extensions="clr-namespace:SukiUI.Extensions;assembly=SukiUI"
     xmlns:extensions1="clr-namespace:MFAAvalonia.Extensions">
     <StackPanel Spacing="25">
+        <StackPanel
+            HorizontalAlignment="Center"
+            IsVisible="{calcBinding:Binding 'Tabs.Count > 1',
+                                            Source={x:Static helper:Instances.InstanceTabBarViewModel}}"
+            Orientation="Horizontal">
+            <TextBlock
+                FontWeight="SemiBold"
+                Text="{markup:I18n {x:Static helper:LangKeys.InstanceConfigTip}}" />
+            <TextBlock
+                FontWeight="SemiBold"
+                Text="{Binding ActiveTab.Name, Source={x:Static helper:Instances.InstanceTabBarViewModel}}" />
+        </StackPanel>
         <suki:GlassCard Padding="25">
             <StackPanel Spacing="8">
                 <DockPanel>
