@@ -68,6 +68,16 @@ public class TaskLoader(MaaInterface? maaInterface, TaskQueueViewModel taskQueue
         
         updateList.RemoveAll(d => removeList.Contains(d));
 
+        // 同步保存 TaskItems，确保多实例 fallback 时 CurrentTasks 和 TaskItems 一致
+        // 避免非默认实例通过 fallback 读到已更新的 CurrentTasks 但旧的 TaskItems，
+        // 导致新任务被误判为"已删除"
+        // interface 加载失败时 maaInterface?.Task 为 null，此时不保存以免清空配置
+        if (maaInterface?.Task != null)
+        {
+            instanceConfig.SetValue(ConfigurationKeys.TaskItems,
+                updateList.Where(m => !m.IsResourceOptionItem).Select(m => m.InterfaceItem));
+        }
+
         UpdateViewModels(updateList, tasks, tasksSource);
     }
 
@@ -250,7 +260,8 @@ public class TaskLoader(MaaInterface? maaInterface, TaskQueueViewModel taskQueue
         IList<DragItemViewModel> drags,
         List<MaaInterface.MaaInterfaceTask> tasks)
     {
-        var currentTaskSet = currentTasks;
+        // 使用 HashSet 去重，解决 currentTasks 可能存在重复项的问题
+        var currentTaskSet = new HashSet<string>(currentTasks);
 
         var removeList = new List<DragItemViewModel>();
         var updateList = new List<DragItemViewModel>();
@@ -299,24 +310,33 @@ public class TaskLoader(MaaInterface? maaInterface, TaskQueueViewModel taskQueue
         var existingKeys = new HashSet<string>(
             updateList.Select(item => $"{item.InterfaceItem?.Name}{NEW_SEPARATOR}{item.InterfaceItem?.Entry}"));
 
+        // 计算用户手动删除的任务集合：
+        // 在 currentTaskSet 中存在（用户见过）但不在 existingKeys 中（不在当前任务列表）的任务
+        var deletedTaskKeys = new HashSet<string>(
+            currentTaskSet.Where(key => !existingKeys.Contains(key)));
+
+        // 用新的 HashSet 重建 currentTasks，确保无重复
+        var newCurrentTasks = new HashSet<string>(existingKeys);
+        // 保留已删除任务的记录，防止重启后被重新添加
+        newCurrentTasks.UnionWith(deletedTaskKeys);
+
         foreach (var task in tasks)
         {
             var historyKey = $"{task.Name}{NEW_SEPARATOR}{task.Entry}";
             
-            // 修改：基于 existingKeys（当前实例的任务列表）来判断是否是新任务
-            // 而不是基于 currentTaskSet（可能从 default 实例回退读取）
-            // 这样可以确保新任务被添加到所有实例中
             if (existingKeys.Contains(historyKey))
             {
-                // 确保 currentTasks 包含这个任务的 key（用于记录用户已见过的任务）
-                if (!currentTaskSet.Contains(historyKey))
-                {
-                    currentTasks.Add(historyKey);
-                }
+                newCurrentTasks.Add(historyKey);
+                continue;
+            }
+            
+            // 用户之前见过并手动删除的任务，不再自动添回
+            if (deletedTaskKeys.Contains(historyKey))
+            {
                 continue;
             }
     
-            // 克隆任务对象，避免多实例共享同一个 MaaInterfaceTask 对象
+            // 真正的新任务：不在 existingKeys 中，也不在 deletedTaskKeys 中
             var clonedTask = task.Clone();
             var newItem = new DragItemViewModel(clonedTask) { OwnerViewModel = taskQueueViewModel };
             if (clonedTask.Option != null)
@@ -325,9 +345,10 @@ public class TaskLoader(MaaInterface? maaInterface, TaskQueueViewModel taskQueue
             }
             updateList.Add(newItem);
             existingKeys.Add(historyKey);
-            currentTasks.Add(historyKey);
+            newCurrentTasks.Add(historyKey);
         }
 
+        currentTasks = newCurrentTasks.ToList();
         return (updateList, removeList);
     }
 
