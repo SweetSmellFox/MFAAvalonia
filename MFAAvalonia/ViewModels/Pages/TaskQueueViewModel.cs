@@ -1605,6 +1605,7 @@ public partial class TaskQueueViewModel : ViewModelBase
 
     private readonly System.Timers.Timer _liveViewTimer;
     private int _liveViewTickInProgress;
+    private bool _liveViewNoImageLogged;
 
     private void UpdateLiveViewTimerInterval()
     {
@@ -1658,8 +1659,23 @@ public partial class TaskQueueViewModel : ViewModelBase
                 }
 
                 var buffer = Processor.GetLiveViewBuffer(false);
-                if (buffer == null) return;
-                
+                if (buffer == null)
+                {
+                    if (!_liveViewNoImageLogged)
+                    {
+                        _liveViewNoImageLogged = true;
+                        var screencapType = Processor.ScreenshotType();
+                        var controllerType = CurrentController;
+                        var reason = controllerType == MaaControllerTypes.Adb
+                            ? "可能原因: 模拟器窗口最小化/屏幕关闭、截图方式不兼容、设备未完全启动"
+                            : "可能原因: 目标窗口最小化/隐藏/被遮挡、截图方式不兼容";
+                        LoggerHelper.Warning($"[LiveView] 已连接但获取画面为空 (截图方式: {screencapType}, 控制器: {controllerType}). {reason}");
+                        AddLog($"warn: 实时画面已连接但无法获取画面 ({screencapType}), {reason}", (IBrush?)null);
+                    }
+                    return;
+                }
+
+                _liveViewNoImageLogged = false;
                 _ = UpdateLiveViewImageAsync(buffer);
             }
             else
@@ -1745,6 +1761,7 @@ public partial class TaskQueueViewModel : ViewModelBase
     partial void OnIsConnectedChanged(bool value)
     {
         OnPropertyChanged(nameof(IsLiveViewVisible));
+        _liveViewNoImageLogged = false;
     }
 
     partial void OnLiveViewImageChanged(Bitmap? value)
