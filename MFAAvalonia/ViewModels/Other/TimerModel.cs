@@ -94,6 +94,20 @@ public partial class TimerModel : ViewModelBase
             if (match.Id != null)
                 entry.Name = match.Name;
         }
+
+        // 为未选择实例的定时器设置默认值（当前激活实例）
+        if (InstanceList.Count > 0)
+        {
+            var currentInstanceId = manager.Current.InstanceId;
+            foreach (var timer in Timers)
+            {
+                if (string.IsNullOrEmpty(timer.TimerConfig)
+                    || InstanceList.All(e => e.InstanceId != timer.TimerConfig))
+                {
+                    timer.TimerConfig = currentInstanceId;
+                }
+            }
+        }
     }
 
     /// <summary>
