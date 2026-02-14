@@ -1871,15 +1871,23 @@ public static class VersionChecker
         };
 
         // 遍历规则计算优先级
+        int basePriority = 0;
         foreach (var (pattern, priority) in patterns)
         {
             if (pattern != null && Regex.IsMatch(fileName, pattern, RegexOptions.IgnoreCase))
             {
-                return priority;
+                basePriority = priority;
+                break;
             }
         }
 
-        return 0;
+        // 文件名包含 "MFA" 时，额外加最高档分数（100）
+        if (fileName.Contains("MFA"))
+        {
+            basePriority += 100;
+        }
+
+        return basePriority;
     }
 
     // 辅助方法：生成匹配模式（支持别名）
