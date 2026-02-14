@@ -42,8 +42,8 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Avalonia.Desktop" Version="11.3.11"/>
-        <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.3.11"/>
+        <PackageReference Include="Avalonia.Desktop" Version="11.3.12"/>
+        <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.3.12"/>
         <PackageReference Include="nulastudio.NetBeauty" Version="2.1.5" />
     </ItemGroup>
 

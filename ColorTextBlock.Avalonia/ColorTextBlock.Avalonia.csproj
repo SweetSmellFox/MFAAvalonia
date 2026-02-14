@@ -20,7 +20,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../SukiUI/SukiUI.csproj" />
-    <PackageReference Include="Avalonia" Version="11.3.11" />
+    <PackageReference Include="Avalonia" Version="11.3.12" />
   </ItemGroup>
 
 </Project>
