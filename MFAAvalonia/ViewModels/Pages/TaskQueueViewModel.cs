@@ -679,6 +679,22 @@ public partial class TaskQueueViewModel : ViewModelBase
         {
             TryReadPlayCoverConfig();
         }
+        
+        // 切换控制器类型时，先取消正在进行的搜索并清空设备列表，
+        // 防止旧控制器类型的设备在搜索期间仍然显示
+        _refreshCancellationTokenSource?.Cancel();
+        _suppressAutoConnect = true;
+        try
+        {
+            Devices = [];
+            CurrentDevice = null;
+        }
+        finally
+        {
+            _suppressAutoConnect = false;
+        }
+        SetConnected(false);
+        
         if (!ConfigurationManager.IsSwitching)
         {
             Refresh();
