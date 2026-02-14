@@ -26,7 +26,7 @@ public sealed class MaaProcessorManager
     {
         // 构造函数初始化默认状态，后续 LoadInstanceConfig 可覆盖
         Current = CreateInstanceInternal("default", setCurrent: true);
-        _instanceNames["default"] = "Default";
+        _instanceNames["default"] = $"{LangKeys.Config.ToLocalization()} 1";
         _instanceOrder.Add("default");
     }
 
