@@ -227,13 +227,13 @@ public class FocusHandler
     {
         string result = template;
 
-        // 替换 {image} 为 MaaImageBuffer 的 base64 编码图片
+        // 替换 {image} 为 Markdown 内联图片（使用 maa://image/ 协议）
         if (result.Contains("{image}") && imageBuffer != null)
         {
-            var base64Image = GetImageBase64(imageBuffer);
-            if (!string.IsNullOrEmpty(base64Image))
+            var imageUrl = StoreImageAndGetUrl(imageBuffer);
+            if (!string.IsNullOrEmpty(imageUrl))
             {
-                result = result.Replace("{image}", base64Image);
+                result = result.Replace("{image}", $"![image]({imageUrl})");
             }
         }
 
@@ -250,9 +250,9 @@ public class FocusHandler
     }
 
     /// <summary>
-    /// 从 MaaImageBuffer 获取 base64 编码的图片数据（Markdown 内联图片格式）
+    /// 将 MaaImageBuffer 存入内存图片存储，返回 maa://image/{key} URL
     /// </summary>
-    private static string? GetImageBase64(MaaImageBuffer imageBuffer)
+    private static string? StoreImageAndGetUrl(MaaImageBuffer imageBuffer)
     {
         try
         {
@@ -267,13 +267,12 @@ public class FocusHandler
                 encodedDataStream.Seek(0, SeekOrigin.Begin);
                 using var memoryStream = new MemoryStream();
                 encodedDataStream.CopyTo(memoryStream);
-                var base64 = Convert.ToBase64String(memoryStream.ToArray());
-                return $"data:image/png;base64,{base64}";
+                return CustomPathResolver.StoreImage(memoryStream.ToArray());
             }
         }
         catch (Exception ex)
         {
-            LoggerHelper.Error($"获取图片 base64 失败: {ex.Message}");
+            LoggerHelper.Error($"存储图片失败: {ex.Message}");
             return null;
         }
     }

@@ -4,6 +4,7 @@ using Markdown.Avalonia.Utils;
 using MFAAvalonia.Extensions;
 using MFAAvalonia.ViewModels.Windows;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -23,6 +24,13 @@ public class CustomPathResolver : IPathResolver
     // 优化HttpClient配置：设置连接池和超时，避免连接耗尽
     private static readonly HttpClient _httpClient;
 
+    /// <summary>
+    /// 内存图片存储：用于 maa://image/{key} 协议，避免 base64 编码开销
+    /// </summary>
+    private static readonly ConcurrentDictionary<string, byte[]> _imageStore = new();
+
+    private const string MaaImageScheme = "maa://image/";
+
     // 保留原属性
     public string? AssetPathRoot { set; private get; }
     public IEnumerable<string>? CallerAssemblyNames { set; private get; }
@@ -34,6 +42,32 @@ public class CustomPathResolver : IPathResolver
     }
 
     /// <summary>
+    /// 存储图片数据并返回 maa://image/{key} URL
+    /// </summary>
+    public static string StoreImage(byte[] imageData)
+    {
+        var key = Guid.NewGuid().ToString("N");
+        _imageStore[key] = imageData;
+        return $"{MaaImageScheme}{key}";
+    }
+
+    /// <summary>
+    /// 移除已存储的图片数据
+    /// </summary>
+    public static void RemoveImage(string key)
+    {
+        _imageStore.TryRemove(key, out _);
+    }
+
+    /// <summary>
+    /// 清除所有已存储的图片数据
+    /// </summary>
+    public static void ClearImages()
+    {
+        _imageStore.Clear();
+    }
+
+    /// <summary>
     /// 重写图片资源解析逻辑：整合新的相对路径解析规则
     /// </summary>
     public async Task<Stream?> ResolveImageResource(string relativeOrAbsolutePath)
@@ -41,6 +75,17 @@ public class CustomPathResolver : IPathResolver
         // 空值校验：避免无效请求
         if (string.IsNullOrWhiteSpace(relativeOrAbsolutePath))
             return null;
+
+        // 处理 maa://image/ 协议：从内存存储中获取图片
+        if (relativeOrAbsolutePath.StartsWith(MaaImageScheme))
+        {
+            var key = relativeOrAbsolutePath.Substring(MaaImageScheme.Length);
+            if (_imageStore.TryRemove(key, out var imageData))
+            {
+                return new MemoryStream(imageData);
+            }
+            return null;
+        }
 
         try
         {

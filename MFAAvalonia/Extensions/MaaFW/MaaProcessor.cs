@@ -1739,8 +1739,8 @@ public class MaaProcessor
                                 focusImageBuffer = new MaaImageBuffer();
                                 using var imageListBuffer = new MaaImageListBuffer();
                                 using var rect = new MaaRectBuffer();
-                                tasker.GetRecognitionDetail(recoId, out _, out _, out _, rect, out _, focusImageBuffer, imageListBuffer);
-                                if (focusImageBuffer.IsInvalid || focusImageBuffer.IsEmpty)
+                                var recoSuccess = tasker.GetRecognitionDetail(recoId, out _, out _, out _, rect, out _, focusImageBuffer, imageListBuffer);
+                                if (!recoSuccess || focusImageBuffer.IsInvalid || focusImageBuffer.IsEmpty)
                                 {
                                     focusImageBuffer.Dispose();
                                     focusImageBuffer = null;
