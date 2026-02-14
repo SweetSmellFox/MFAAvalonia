@@ -651,6 +651,9 @@ public partial class TaskQueueViewModel : ViewModelBase
             if (!igoreToast) ToastHelper.Info(LangKeys.WindowSelectionMessage.ToLocalizationFormatted(false, ""), window.Name);
             Processor.Config.DesktopWindow.Name = window.Name;
             Processor.Config.DesktopWindow.HWnd = window.Handle;
+            // 记录 ClassName 和 WindowName，下次启动时优先匹配
+            Processor.InstanceConfiguration.SetValue(ConfigurationKeys.DesktopWindowClassName, window.ClassName);
+            Processor.InstanceConfiguration.SetValue(ConfigurationKeys.DesktopWindowName, window.Name);
             // SetTasker 内部会同步等待旧 Tasker 停止（最多 5s+），移到后台线程避免阻塞 UI
             Task.Run(() => Processor.SetTasker());
         }
@@ -962,23 +965,45 @@ public partial class TaskQueueViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// 在窗口列表中匹配上次选中的窗口（优先 ClassName+Name 完全匹配，其次 ClassName 匹配）
+    /// 在窗口列表中匹配上次选中的窗口（优先 ClassName+Name 完全匹配，其次 ClassName 匹配）。
+    /// 当 CurrentDevice 为 null（启动初始化时）会从保存的配置中读取上次选中的窗口信息进行匹配，
+    /// 后续刷新时 CurrentDevice 已有值，不会走配置回退逻辑。
     /// </summary>
     private int MatchPreviousWindow(List<DesktopWindowInfo> windows)
     {
-        if (CurrentDevice is not DesktopWindowInfo prev || windows.Count == 0)
+        if (windows.Count == 0)
             return -1;
 
-        // 优先：ClassName 和 Name 都匹配
-        var exactMatch = windows.FindIndex(w =>
-            string.Equals(w.ClassName, prev.ClassName, StringComparison.Ordinal)
-            && string.Equals(w.Name, prev.Name, StringComparison.Ordinal));
-        if (exactMatch >= 0) return exactMatch;
+        // 优先从内存中的当前设备匹配（用于同一会话内的刷新）
+        if (CurrentDevice is DesktopWindowInfo prev)
+        {
+            var exactMatch = windows.FindIndex(w =>
+                string.Equals(w.ClassName, prev.ClassName, StringComparison.Ordinal)
+                && string.Equals(w.Name, prev.Name, StringComparison.Ordinal));
+            if (exactMatch >= 0) return exactMatch;
 
-        // 其次：仅 ClassName 匹配
-        var classMatch = windows.FindIndex(w =>
-            string.Equals(w.ClassName, prev.ClassName, StringComparison.Ordinal));
-        if (classMatch >= 0) return classMatch;
+            var classMatch = windows.FindIndex(w =>
+                string.Equals(w.ClassName, prev.ClassName, StringComparison.Ordinal));
+            if (classMatch >= 0) return classMatch;
+
+            return -1;
+        }
+
+        // 从保存的配置中匹配（用于启动后初始化，CurrentDevice 尚为 null）
+        var savedClassName = Processor.InstanceConfiguration.GetValue(ConfigurationKeys.DesktopWindowClassName, string.Empty);
+        var savedWindowName = Processor.InstanceConfiguration.GetValue(ConfigurationKeys.DesktopWindowName, string.Empty);
+
+        if (!string.IsNullOrEmpty(savedClassName))
+        {
+            var exactMatch = windows.FindIndex(w =>
+                string.Equals(w.ClassName, savedClassName, StringComparison.Ordinal)
+                && string.Equals(w.Name, savedWindowName, StringComparison.Ordinal));
+            if (exactMatch >= 0) return exactMatch;
+
+            var classMatch = windows.FindIndex(w =>
+                string.Equals(w.ClassName, savedClassName, StringComparison.Ordinal));
+            if (classMatch >= 0) return classMatch;
+        }
 
         return -1;
     }

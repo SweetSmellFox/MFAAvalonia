@@ -62,6 +62,8 @@ public static class ConfigurationKeys
     public const string AutoDetectOnConnectionFailed = "AutoDetectOnConnectionFailed";
     public const string AutoConnectAfterRefresh = "AutoConnectAfterRefresh";
     public const string AdbDevice = "AdbDevice";
+    public const string DesktopWindowClassName = "DesktopWindowClassName";
+    public const string DesktopWindowName = "DesktopWindowName";
     public const string PlayCoverConfig = "PlayCoverConfig";
     public const string CurrentController = "CurrentController";
 
@@ -210,6 +212,8 @@ public static class ConfigurationKeys
         AutoDetectOnConnectionFailed,
         AutoConnectAfterRefresh,
         AdbDevice,
+        DesktopWindowClassName,
+        DesktopWindowName,
         PlayCoverConfig,
         CurrentController,
         Resource,
