@@ -54,6 +54,7 @@ public partial class ConnectSettingsUserControlModel : ViewModelBase
             AllowAdbHardRestart = config.GetValue(ConfigurationKeys.AllowAdbHardRestart, true);
             AutoDetectOnConnectionFailed = config.GetValue(ConfigurationKeys.AutoDetectOnConnectionFailed, true);
             AutoConnectAfterRefresh = config.GetValue(ConfigurationKeys.AutoConnectAfterRefresh, true);
+            AgentTcpMode = config.GetValue(ConfigurationKeys.AgentTcpMode, false);
         }
         finally
         {
@@ -239,5 +240,13 @@ public partial class ConnectSettingsUserControlModel : ViewModelBase
     {
         if (IsSyncing) return;
         HandlePropertyChanged(ConfigurationKeys.AutoConnectAfterRefresh, value);
+    }
+
+    [ObservableProperty] private bool _agentTcpMode = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.AgentTcpMode, false);
+
+    partial void OnAgentTcpModeChanged(bool value)
+    {
+        if (IsSyncing) return;
+        HandlePropertyChanged(ConfigurationKeys.AgentTcpMode, value);
     }
 }

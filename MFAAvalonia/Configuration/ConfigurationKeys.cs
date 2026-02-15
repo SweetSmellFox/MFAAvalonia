@@ -61,6 +61,7 @@ public static class ConfigurationKeys
     public const string RetryOnDisconnectedWin32 = "RetryOnDisconnectedWin32";
     public const string AutoDetectOnConnectionFailed = "AutoDetectOnConnectionFailed";
     public const string AutoConnectAfterRefresh = "AutoConnectAfterRefresh";
+    public const string AgentTcpMode = "AgentTcpMode";
     public const string AdbDevice = "AdbDevice";
     public const string DesktopWindowClassName = "DesktopWindowClassName";
     public const string DesktopWindowName = "DesktopWindowName";
@@ -222,7 +223,8 @@ public static class ConfigurationKeys
         Prescript,
         Postscript,
         ContinueRunningWhenError,
-        UseSeparateScreenshotTasker
+        UseSeparateScreenshotTasker,
+        AgentTcpMode
     };
 
     public static bool IsInstanceScoped(string key) => InstanceScopedKeys.Contains(key);

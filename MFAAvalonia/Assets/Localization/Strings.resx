@@ -1149,6 +1149,12 @@
     <data name="AgentStartFailed" xml:space="preserve">
             <value>Agent启动失败</value>
         </data>
+    <data name="AgentTcpMode" xml:space="preserve">
+            <value>通信兼容模式</value>
+        </data>
+    <data name="AgentTcpModeDescription" xml:space="preserve">
+            <value>若启动任务后软件立即闪退，可尝试开启。仅限此情况使用，否则会影响运行效率</value>
+        </data>
     <data name="AgentExecutableNotFound" xml:space="preserve">
         <value>Agent 可执行文件不存在: {0}</value>
     </data>

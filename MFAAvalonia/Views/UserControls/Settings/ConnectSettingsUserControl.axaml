@@ -264,5 +264,25 @@
                 </DockPanel>
             </StackPanel>
         </suki:GlassCard>
+        <suki:GlassCard Margin="0,25,0,0" Padding="25,10,25,10">
+            <DockPanel>
+                <ToggleSwitch
+                    Classes="Switch"
+                    DockPanel.Dock="Right"
+                    IsChecked="{Binding AgentTcpMode}"
+                    IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
+                    VerticalAlignment="Top" />
+                <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
+                    <TextBlock
+                        FontSize="16"
+                        FontWeight="SemiBold"
+                        Text="{markup:I18n {x:Static helper:LangKeys.AgentTcpMode}}" />
+                    <TextBlock
+                        Foreground="{DynamicResource SukiLowText}"
+                        Text="{markup:I18n {x:Static helper:LangKeys.AgentTcpModeDescription}}"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+            </DockPanel>
+        </suki:GlassCard>
     </StackPanel>
 </UserControl>

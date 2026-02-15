@@ -145,8 +145,7 @@ public partial class InstanceTabBarViewModel : ViewModelBase
 
         if (MaaProcessorManager.Instance.SwitchCurrent(processor.InstanceId))
         {
-            // 同步更新连接设置，确保切换实例后 UI 立即反映新实例的配置
-            SyncConnectSettingsForCurrentInstance();
+            // ReloadConfigurationForSwitch(false) 会刷新实例级配置（ConnectSettings 等），无需重复调用 SyncConnectSettingsForCurrentInstance
             Instances.ReloadConfigurationForSwitch(false);
         }
     }
@@ -221,14 +220,15 @@ public partial class InstanceTabBarViewModel : ViewModelBase
 
 
     [RelayCommand]
-    private void AddInstance()
+    private async Task AddInstance()
     {
         var processor = MaaProcessorManager.Instance.CreateInstance(false);
-        processor.InitializeData();
+        await Task.Run(() => processor.InitializeData());
 
-        var tab = new InstanceTabViewModel(processor);
-        Tabs.Add(tab);
-        ActiveTab = tab;
+        // ReloadTabs 已通过 Processors.CollectionChanged 自动添加了 tab，无需手动添加
+        var tab = Tabs.FirstOrDefault(t => t.Processor == processor);
+        if (tab != null)
+            ActiveTab = tab;
     }
 
     [RelayCommand]

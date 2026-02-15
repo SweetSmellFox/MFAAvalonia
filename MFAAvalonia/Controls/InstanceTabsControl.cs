@@ -25,6 +25,7 @@ public class InstanceTabsControl : TabControl
     private ICommand _addItemCommand;
     private ICommand _closeItemCommand;
     private Border? _tabBarBackground;
+    private bool _clipDirty = true;
 
     public static readonly StyledProperty<double> AdjacentHeaderItemOffsetProperty =
         AvaloniaProperty.Register<InstanceTabsControl, double>(nameof(AdjacentHeaderItemOffset), defaultValue: 0);
@@ -107,7 +108,7 @@ public class InstanceTabsControl : TabControl
     public void SetExternalTabBarBackground(Border border)
     {
         _tabBarBackground = border;
-        UpdateTabBarBackgroundClip();
+        InvalidateClip();
     }
 
     protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
@@ -118,8 +119,12 @@ public class InstanceTabsControl : TabControl
         LayoutUpdated += OnLayoutUpdated;
     }
 
+    private void InvalidateClip() => _clipDirty = true;
+
     private void OnLayoutUpdated(object? sender, EventArgs e)
     {
+        if (!_clipDirty) return;
+        _clipDirty = false;
         UpdateTabBarBackgroundClip();
         UpdateNonSelectedTabClips();
     }
@@ -131,8 +136,7 @@ public class InstanceTabsControl : TabControl
     {
         if (tab == _hoveredTab) return;
         _hoveredTab = tab;
-        UpdateTabBarBackgroundClip();
-        UpdateNonSelectedTabClips();
+        InvalidateClip();
     }
 
     /// <summary>
@@ -142,8 +146,7 @@ public class InstanceTabsControl : TabControl
     {
         if (tab != _hoveredTab) return;
         _hoveredTab = null;
-        UpdateTabBarBackgroundClip();
-        UpdateNonSelectedTabClips();
+        InvalidateClip();
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -160,11 +163,7 @@ public class InstanceTabsControl : TabControl
         }
         else if (change.Property == SelectedItemProperty || change.Property == SelectedIndexProperty)
         {
-            Dispatcher.UIThread.Post(() =>
-            {
-                UpdateTabBarBackgroundClip();
-                UpdateNonSelectedTabClips();
-            }, DispatcherPriority.Loaded);
+            InvalidateClip();
         }
     }
 
@@ -375,8 +374,7 @@ public class InstanceTabsControl : TabControl
         Dispatcher.UIThread.Post(() =>
         {
             _tabsPanel.InvalidateMeasure();
-            UpdateTabBarBackgroundClip();
-            UpdateNonSelectedTabClips();
+            InvalidateClip();
         }, DispatcherPriority.Loaded);
 
         e.Handled = true;

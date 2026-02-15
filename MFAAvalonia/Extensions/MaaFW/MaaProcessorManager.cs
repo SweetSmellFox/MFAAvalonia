@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using MFAAvalonia.Configuration;
 using MFAAvalonia.Helper;
 using MFAAvalonia.ViewModels.Pages;
@@ -101,17 +102,35 @@ public sealed class MaaProcessorManager
 
     public bool SwitchCurrent(string instanceId)
     {
+        string? list, order, lastActive;
+        Dictionary<string, string>? names;
+
         lock (_lock)
         {
-            if (_instances.TryGetValue(instanceId, out var processor))
-            {
-                Current = processor;
-                SaveInstanceConfig();
-                return true;
-            }
+            if (!_instances.TryGetValue(instanceId, out var processor))
+                return false;
+
+            Current = processor;
+
+            // 在锁内捕获数据快照，锁外异步写入，避免阻塞 UI 线程
+            list = string.Join(",", _instances.Keys);
+            order = string.Join(",", _instanceOrder);
+            lastActive = Current.InstanceId;
+            names = new Dictionary<string, string>(_instanceNames);
         }
 
-        return false;
+        Task.Run(() =>
+        {
+            GlobalConfiguration.SetValue(ConfigurationKeys.InstanceList, list);
+            GlobalConfiguration.SetValue(ConfigurationKeys.InstanceOrder, order);
+            GlobalConfiguration.SetValue(ConfigurationKeys.LastActiveInstance, lastActive);
+            foreach (var kvp in names)
+            {
+                GlobalConfiguration.SetValue(string.Format(ConfigurationKeys.InstanceNameTemplate, kvp.Key), kvp.Value);
+            }
+        });
+
+        return true;
     }
 
     private MaaProcessor CreateInstanceInternal(string instanceId, bool setCurrent)

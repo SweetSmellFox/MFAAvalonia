@@ -1131,6 +1131,12 @@
     <data name="AgentStartFailed" xml:space="preserve">
         <value>Agent startup failure</value>
     </data>
+    <data name="AgentTcpMode" xml:space="preserve">
+        <value>Communication Compatibility Mode</value>
+    </data>
+    <data name="AgentTcpModeDescription" xml:space="preserve">
+        <value>If the app crashes immediately after starting a task, try enabling this. Only use in this case, otherwise it may affect performance.</value>
+    </data>
     <data name="AgentExecutableNotFound" xml:space="preserve">
         <value>Agent executable file not found: {0}</value>
     </data>

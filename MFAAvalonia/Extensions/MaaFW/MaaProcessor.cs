@@ -421,6 +421,8 @@ public class MaaProcessor
         return null;
     }
 
+    private static bool? _cachedIsV3;
+
     public MaaProcessor(string instanceId)
     {
         InstanceId = instanceId;
@@ -449,25 +451,34 @@ public class MaaProcessor
                 _taskQueueTotal = 0;
             }
         };
-        CheckInterface(out _, out _, out _, out _, out _);
-        try
+
+        // 使用缓存避免每个实例都重复读取 interface.json
+        if (_cachedIsV3.HasValue)
         {
-            var filePath = GetInterfaceFilePath();
-            if (filePath != null)
+            IsV3 = _cachedIsV3.Value;
+        }
+        else
+        {
+            CheckInterface(out _, out _, out _, out _, out _);
+            try
             {
-                var content = File.ReadAllText(filePath);
-                // 使用 JsonLoadSettings 忽略注释，支持 JSONC 格式
-                var @interface = JObject.Parse(content, JsoncLoadSettings);
-                var interfaceVersion = @interface["interface_version"]?.ToString();
-                if (int.TryParse(interfaceVersion, out var result) && result >= 3)
+                var filePath = GetInterfaceFilePath();
+                if (filePath != null)
                 {
-                    IsV3 = true;
+                    var content = File.ReadAllText(filePath);
+                    var @interface = JObject.Parse(content, JsoncLoadSettings);
+                    var interfaceVersion = @interface["interface_version"]?.ToString();
+                    if (int.TryParse(interfaceVersion, out var result) && result >= 3)
+                    {
+                        IsV3 = true;
+                    }
                 }
             }
-        }
-        catch (Exception e)
-        {
-            LoggerHelper.Error(e);
+            catch (Exception e)
+            {
+                LoggerHelper.Error(e);
+            }
+            _cachedIsV3 = IsV3;
         }
     }
     private bool _isClosed = false;
@@ -1252,7 +1263,9 @@ public class MaaProcessor
                 LoggerHelper.Info($"Agent Identifier: {identifier}");
                 try
                 {
-                    _agentClient = MaaAgentClient.Create(identifier, tasker);
+                    _agentClient = InstanceConfiguration.GetValue(ConfigurationKeys.AgentTcpMode, false)
+                        ? MaaAgentClient.CreateTcp(tasker)
+                        : MaaAgentClient.Create(identifier, tasker);
                     var timeOut = Interface?.Agent?.Timeout ?? 120;
                     _agentClient.SetTimeout(TimeSpan.FromSeconds(timeOut < 0 ? int.MaxValue : timeOut));
                     _agentClient.Releasing += (_, _) =>
@@ -1401,7 +1414,9 @@ public class MaaProcessor
                                 // 重新创建 AgentClient
                                 try
                                 {
-                                    _agentClient = MaaAgentClient.Create(identifier, tasker);
+                                    _agentClient = InstanceConfiguration.GetValue(ConfigurationKeys.AgentTcpMode, false)
+                                        ? MaaAgentClient.Create(identifier, tasker)
+                                        : MaaAgentClient.CreateTcp(tasker);
                                     timeOut = Interface?.Agent?.Timeout ?? 120;
                                     _agentClient.SetTimeout(TimeSpan.FromSeconds(timeOut < 0 ? int.MaxValue : timeOut));
                                     _agentClient.Releasing += (_, _) =>
@@ -2092,7 +2107,20 @@ public class MaaProcessor
 
     public bool InitializeData(Collection<DragItemViewModel>? dragItem = null)
     {
-        var (name, back, version, customTitle, fallback) = ReadInterface();
+        // 如果 Interface 已加载（静态缓存），直接提取元数据，避免重复读取和解析 interface.json
+        string name, back, version, customTitle, fallback;
+        if (Interface != null)
+        {
+            name = Interface.Label ?? string.Empty;
+            back = Interface.Name ?? string.Empty;
+            version = Interface.Version ?? string.Empty;
+            customTitle = Interface.Title ?? string.Empty;
+            fallback = Interface.CustomTitle ?? string.Empty;
+        }
+        else
+        {
+            (name, back, version, customTitle, fallback) = ReadInterface();
+        }
         if ((!string.IsNullOrWhiteSpace(name) && !name.Equals("debug", StringComparison.OrdinalIgnoreCase)) || !string.IsNullOrWhiteSpace(back))
             Instances.RootViewModel.ShowResourceKeyAndFallBack(name, back);
         if (!string.IsNullOrWhiteSpace(version) && !version.Equals("debug", StringComparison.OrdinalIgnoreCase))

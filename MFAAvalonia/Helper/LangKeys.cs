@@ -392,6 +392,8 @@ public static class LangKeys
 	public static readonly string StartingAgent = "StartingAgent";
 	public static readonly string AgentConnectionRetry = "AgentConnectionRetry";
 	public static readonly string AgentStartFailed = "AgentStartFailed";
+	public static readonly string AgentTcpMode = "AgentTcpMode";
+	public static readonly string AgentTcpModeDescription = "AgentTcpModeDescription";
 	public static readonly string AgentExecutableNotFound = "AgentExecutableNotFound";
 	public static readonly string Optional = "Optional";
 	public static readonly string ExternalNotificationEnableCustomNotificationMessage = "ExternalNotificationEnableCustomNotificationMessage";
