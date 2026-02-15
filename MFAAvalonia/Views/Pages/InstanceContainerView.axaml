@@ -3,20 +3,9 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:other="clr-namespace:MFAAvalonia.ViewModels.Other"
-             xmlns:pages="clr-namespace:MFAAvalonia.ViewModels.Pages"
-             xmlns:views="clr-namespace:MFAAvalonia.Views.Pages"
              xmlns:controls="clr-namespace:MFAAvalonia.Views.UserControls"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="MFAAvalonia.Views.Pages.InstanceContainerView"
              x:DataType="other:InstanceTabBarViewModel">
-    <Grid RowDefinitions="Auto,*">
-        <!-- 标签栏区域：浏览器风格深色背景，填满宽度 -->
-        <Border Grid.Row="0"
-                Background="{DynamicResource TabBarBackground}"
-                Padding="12,2,12,0">
-            <controls:InstanceTabBar DataContext="{Binding}"/>
-        </Border>
-        
-        <ContentControl Grid.Row="1" Content="{Binding ActiveTab.View}" />
-    </Grid>
+    <controls:InstanceTabBar DataContext="{Binding}"/>
 </UserControl>

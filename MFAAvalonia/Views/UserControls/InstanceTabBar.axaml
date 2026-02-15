@@ -3,68 +3,17 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:other="clr-namespace:MFAAvalonia.ViewModels.Other"
+             xmlns:controls="clr-namespace:MFAAvalonia.Controls"
              xmlns:suki="https://github.com/kikipoulet/SukiUI"
-             xmlns:avalonia1="clr-namespace:FluentIcons.Avalonia;assembly=FluentIcons.Avalonia"
              xmlns:fluent="clr-namespace:FluentIcons.Avalonia.Fluent;assembly=FluentIcons.Avalonia.Fluent"
              xmlns:helper="clr-namespace:MFAAvalonia.Helper"
              xmlns:markup="https://codewf.com"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="50"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="MFAAvalonia.Views.UserControls.InstanceTabBar"
              x:DataType="other:InstanceTabBarViewModel">
-    
+
     <UserControl.Styles>
-        <!-- GlassCard 标签背景：默认隐藏 -->
-        <Style Selector="Panel.TabContainer suki|GlassCard.TabGlass">
-            <Setter Property="IsVisible" Value="False"/>
-        </Style>
-        <!-- 悬停背景：默认隐藏 -->
-        <Style Selector="Panel.TabContainer Border.TabHoverBg">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Transitions">
-                <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.15"/>
-                </Transitions>
-            </Setter>
-        </Style>
-
-        
-        <!-- 标签间分隔线 -->
-        <Style Selector="Panel.TabContainer Border.TabSeparator">
-            <Setter Property="Opacity" Value="0.5"/>
-        </Style>
-        
-        <!-- 悬停：显示浅色背景 -->
-        <Style Selector="Panel.TabContainer:pointerover Border.TabHoverBg">
-            <Setter Property="Background" Value="{DynamicResource SukiCardBackground}"/>
-            <Setter Property="Opacity" Value="0.3"/>
-        </Style>
-
-        
-        <!-- 激活：显示 GlassCard，隐藏悬停背景 -->
-        <Style Selector="Panel.TabContainer.Active suki|GlassCard.TabGlass">
-            <Setter Property="IsVisible" Value="True"/>
-        </Style>
-        <Style Selector="Panel.TabContainer.Active Border.TabHoverBg">
-            <Setter Property="Background" Value="Transparent"/>
-        </Style>
-        <Style Selector="Panel.TabContainer.Active:pointerover Border.TabHoverBg">
-            <Setter Property="Background" Value="Transparent"/>
-        </Style>
-        
-        <!-- 激活标签底部指示线：默认隐藏 -->
-        <Style Selector="Panel.TabContainer Border.TabActiveIndicator">
-            <Setter Property="IsVisible" Value="False"/>
-        </Style>
-        <Style Selector="Panel.TabContainer.Active Border.TabActiveIndicator">
-            <Setter Property="IsVisible" Value="True"/>
-        </Style>
-
-        
-        <!-- 激活标签文字加粗 -->
-        <Style Selector="Panel.TabContainer.Active TextBlock.TabText">
-            <Setter Property="FontWeight" Value="SemiBold"/>
-        </Style>
-        
+        <!-- 运行指示器脉冲动画 -->
         <Style Selector="Ellipse.PulseAnimation">
             <Style.Animations>
                 <Animation Duration="0:0:1.5" IterationCount="INFINITE" Easing="CubicEaseInOut">
@@ -80,7 +29,7 @@
                 </Animation>
             </Style.Animations>
         </Style>
-        
+
         <!-- 展开按钮旋转动画 -->
         <Style Selector="Button.DropdownToggle fluent|FluentIcon">
             <Setter Property="RenderTransform" Value="rotate(0deg)"/>
@@ -93,7 +42,7 @@
         <Style Selector="Button.DropdownToggle.Open fluent|FluentIcon">
             <Setter Property="RenderTransform" Value="rotate(180deg)"/>
         </Style>
-        
+
         <!-- 下拉列表项样式 -->
         <Style Selector="Border.DropdownItem">
             <Setter Property="Background" Value="Transparent"/>
@@ -119,108 +68,66 @@
         </Style>
     </UserControl.Styles>
 
-    <Grid ColumnDefinitions="*,Auto,Auto">
-        <ScrollViewer x:Name="TabScrollViewer" 
-                      HorizontalScrollBarVisibility="Hidden" 
-                      VerticalScrollBarVisibility="Disabled"
-                      ClipToBounds="False">
-            <ItemsControl ItemsSource="{Binding Tabs}" ClipToBounds="False">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <StackPanel x:Name="TabStackPanel" Orientation="Horizontal" Spacing="0" ClipToBounds="False"/>
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Panel Classes="TabContainer"
-                               Classes.Active="{Binding IsActive}"
-                               ClipToBounds="False"
-                               Margin="0,4,0,0"
-                               Cursor="Hand"
-                               PointerEntered="OnTabPointerEntered"
-                               PointerExited="OnTabPointerExited">
-                            
-                            <!-- 激活标签背景：GlassCard（跟随 BackgroundStyle 变化） -->
-                            <suki:GlassCard Classes="TabGlass"
-                                            CornerRadius="8,8,0,0"
-                                            IsAnimated="False"
-                                            BorderThickness="0"
-                                            Padding="0"/>
-                            
-                            <!-- 悬停标签背景 -->
-                            <Border Classes="TabHoverBg"
-                                    CornerRadius="8,8,0,0"
-                                    IsHitTestVisible="False"/>
-                            
-                            <!-- 右侧分隔线 -->
-                            <Border Classes="TabSeparator"
-                                    Width="1" Height="16"
-                                    HorizontalAlignment="Right"
-                                    VerticalAlignment="Center"
-                                    Background="{DynamicResource SukiText}"
-                                    IsHitTestVisible="False"/>
-                            
-                            <!-- 激活标签底部指示线 -->
-                            <Border Classes="TabActiveIndicator"
-                                    Height="2"
-                                    Margin="6,0"
-                                    VerticalAlignment="Bottom"
-                                    CornerRadius="1"
-                                    Background="{DynamicResource SukiPrimaryColor}"
-                                    IsHitTestVisible="False"/>
-                            
-                            <!-- 内容层 -->
-                            <Border Background="Transparent"
-                                    Padding="15,7"
-                                    CornerRadius="8,8,0,0"
-                                    PointerPressed="OnTabPointerPressed">
-                                <Border.ContextMenu>
-                                    <ContextMenu>
-                                        <MenuItem Header="重命名"
-                                                  Command="{Binding $parent[UserControl].((other:InstanceTabBarViewModel)DataContext).RenameInstanceCommand}"
-                                                  CommandParameter="{Binding .}"/>
-                                        <MenuItem Header="关闭"
-                                                  Command="{Binding $parent[UserControl].((other:InstanceTabBarViewModel)DataContext).CloseInstanceCommand}"
-                                                  CommandParameter="{Binding .}"/>
-                                    </ContextMenu>
-                                </Border.ContextMenu>
-                                
-                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                    <TextBlock Classes="TabText"
-                                               Text="{Binding Name}"
-                                               VerticalAlignment="Center"/>
-                                    <Ellipse Width="8" Height="8"
-                                             Fill="LimeGreen"
-                                             IsVisible="{Binding IsRunning}"
-                                             VerticalAlignment="Center"
-                                             Classes="PulseAnimation"/>
-                                </StackPanel>
-                            </Border>
+    <Grid RowDefinitions="Auto,*">
+        <!-- Row 0: 标签栏 = [展开按钮(固定左)] [标签页+添加按钮] -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*">
+            <!-- TabBarBackground 铺满整个标签栏（包括下拉按钮区域），选中标签区域会被 Clip 挖掉 -->
+            <Border x:Name="TabBarBackgroundBorder"
+                    Grid.ColumnSpan="2"
+                    Background="{DynamicResource TabBarBackground}" />
 
-                        </Panel>
+            <!-- 展开按钮（固定最左边） -->
+            <Button Grid.Column="0"
+                    x:Name="DropdownButton"
+                    Classes="DropdownToggle"
+                    Classes.Open="{Binding IsDropdownOpen}"
+                    Theme="{StaticResource DropdownToggleButton}"
+                    VerticalAlignment="Center"
+                    Margin="3,2,4,2"
+                    Command="{Binding ToggleDropdownCommand}"
+                    ToolTip.Tip="选择实例">
+                <fluent:FluentIcon Icon="ChevronDown" IconSize="Size16" />
+            </Button>
+
+            <!-- 标签页控件（动态宽度 + 右侧跟随 + 按钮） -->
+            <controls:InstanceTabsControl Grid.Column="1"
+                                           x:Name="TabsControl"
+                                           Margin="0,4,0,0"
+                                           ItemsSource="{Binding Tabs}"
+                                           SelectedItem="{Binding ActiveTab, Mode=TwoWay}"
+                                           AddItemCommand="{Binding AddInstanceCommand}"
+                                           CloseItemCommand="{Binding CloseInstanceCommand}"
+                                           TabItemWidth="200"
+                                           ShowDefaultAddButton="True">
+                <controls:InstanceTabsControl.ItemTemplate>
+                    <DataTemplate x:DataType="other:InstanceTabViewModel">
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <Ellipse Width="7" Height="7"
+                                     Fill="LimeGreen"
+                                     IsVisible="{Binding IsRunning}"
+                                     VerticalAlignment="Center"
+                                     Classes="PulseAnimation"/>
+                            <TextBlock Text="{Binding Name}"
+                                       VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
                     </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </ScrollViewer>
+                </controls:InstanceTabsControl.ItemTemplate>
+            </controls:InstanceTabsControl>
+        </Grid>
 
-        <!-- 展开按钮 -->
-        <Button x:Name="DropdownButton"
-                Grid.Column="1"
-                Classes="Basic DropdownToggle"
-                Classes.Open="{Binding IsDropdownOpen}"
-                Margin="8,0,0,0"
-                Command="{Binding ToggleDropdownCommand}"
-                ToolTip.Tip="选择实例">
-            <fluent:FluentIcon Icon="ChevronDown" IconSize="Size16" />
-        </Button>
-        
+        <!-- Row 1: 内容区域 -->
+        <ContentControl Grid.Row="1"
+                         Content="{Binding ActiveTab.View}"
+                         Margin="0" />
+
         <!-- 下拉框 Popup -->
         <Popup x:Name="InstanceDropdown"
                IsOpen="{Binding IsDropdownOpen, Mode=TwoWay}"
                PlacementTarget="{Binding #DropdownButton}"
                Placement="Bottom"
                IsLightDismissEnabled="True"
-               HorizontalOffset="-100"
+               HorizontalOffset="0"
                InheritsTransform="True">
             <Border Padding="5,10,5,5">
                 <Border Background="{DynamicResource SukiPopupBackground}"
@@ -281,14 +188,5 @@
                 </Border>
             </Border>
         </Popup>
-
-        <!-- + 按钮 -->
-        <Button Grid.Column="2"
-                Classes="Basic"
-                Margin="8,0,0,0"
-                Command="{Binding AddInstanceCommand}"
-                ToolTip.Tip="新建实例">
-             <fluent:FluentIcon Icon="Add" IconSize="Size16" />
-        </Button>
     </Grid>
 </UserControl>

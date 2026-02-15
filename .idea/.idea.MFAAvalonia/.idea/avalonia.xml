@@ -6,6 +6,7 @@
         <entry key="ColorTextBlock.Avalonia/Views/TempImageView.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="MFAAvalonia/App.axaml" value="MFAAvalonia.Desktop/MFAAvalonia.Desktop.csproj" />
         <entry key="MFAAvalonia/Assets/Style/Geometry.axaml" value="MFAAvalonia.Desktop/MFAAvalonia.Desktop.csproj" />
+        <entry key="MFAAvalonia/Assets/Style/InstanceTabsTheme.axaml" value="MFAAvalonia.Desktop/MFAAvalonia.Desktop.csproj" />
         <entry key="MFAAvalonia/Assets/Style/MdXaml.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="MFAAvalonia/Assets/Style/MdXaml.xaml" value="MFAAvalonia/MFAAvalonia.csproj" />
         <entry key="MFAAvalonia/Assets/Style/MdXamlBaseStyles.axaml" value="MFAAvalonia/MFAAvalonia.csproj" />
