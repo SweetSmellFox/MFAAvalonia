@@ -85,7 +85,7 @@ public partial class DragItemViewModel : ObservableObject
                 if (ConfigurationManager.IsSwitching) return;
 
                 (OwnerViewModel?.Processor.InstanceConfiguration ?? ConfigurationManager.CurrentInstance).SetValue(ConfigurationKeys.TaskItems,
-                    (OwnerViewModel ?? Instances.InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel)?.TaskItemViewModels.ToList().Select(model => model.InterfaceItem));
+                    (OwnerViewModel ?? Instances.InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel)?.TaskItemViewModels.Where(m => !m.IsResourceOptionItem).Select(model => model.InterfaceItem).ToList());
             }
         }
     }

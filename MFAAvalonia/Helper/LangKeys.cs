@@ -614,5 +614,10 @@ public static class LangKeys
 	public static readonly string SpecialTask_Restart = "SpecialTask_Restart";
 	public static readonly string SpecialTask_Sleep = "SpecialTask_Sleep";
 	public static readonly string SpecialTask_Hibernate = "SpecialTask_Hibernate";
+	public static readonly string InstanceSelectTooltip = "InstanceSelectTooltip";
+	public static readonly string InstanceAddTooltip = "InstanceAddTooltip";
+	public static readonly string InstanceCannotCloseLast = "InstanceCannotCloseLast";
+	public static readonly string InstanceRunningCloseConfirm = "InstanceRunningCloseConfirm";
+	public static readonly string InstanceCloseTitle = "InstanceCloseTitle";
 	
 }

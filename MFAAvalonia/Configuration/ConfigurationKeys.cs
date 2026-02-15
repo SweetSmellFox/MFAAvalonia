@@ -242,7 +242,10 @@ public static class ConfigurationKeys
     /// <summary>最后激活的实例ID</summary>
     public const string LastActiveInstance = "Instances.LastActive";
 
-    /// <summary>实例名称模板：Instance.{id}.Name</summary>
+    /// <summary>实例名称（存储在各实例独立 JSON 中）</summary>
+    public const string InstanceName = "InstanceName";
+
+    /// <summary>实例名称模板（旧格式，用于从全局配置迁移）：Instance.{id}.Name</summary>
     public const string InstanceNameTemplate = "Instance.{0}.Name";
 
     #endregion

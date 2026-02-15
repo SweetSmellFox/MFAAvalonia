@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using MFAAvalonia.Configuration;
 using MFAAvalonia.Helper;
+using MFAAvalonia.Helper.Converters;
 using MFAAvalonia.ViewModels.Pages;
 
 namespace MFAAvalonia.Extensions.MaaFW;
@@ -27,7 +29,9 @@ public sealed class MaaProcessorManager
     {
         // 构造函数初始化默认状态，后续 LoadInstanceConfig 可覆盖
         Current = CreateInstanceInternal("default", setCurrent: true);
-        _instanceNames["default"] = $"{LangKeys.Config.ToLocalization()} 1";
+        var defaultName = $"{LangKeys.Config.ToLocalization()} 1";
+        _instanceNames["default"] = defaultName;
+        Current.InstanceConfiguration.SetValue(ConfigurationKeys.InstanceName, defaultName);
         _instanceOrder.Add("default");
     }
 
@@ -83,7 +87,9 @@ public sealed class MaaProcessorManager
                     // 使用i18n的"配置+数字"格式命名
                     var configName = LangKeys.Config.ToLocalization();
                     var nextNumber = GetNextInstanceNumber();
-                    _instanceNames[instanceId] = $"{configName} {nextNumber}";
+                    var name = $"{configName} {nextNumber}";
+                    _instanceNames[instanceId] = name;
+                    processor.InstanceConfiguration.SetValue(ConfigurationKeys.InstanceName, name);
                 }
                 SaveInstanceConfig();
             }
@@ -103,7 +109,6 @@ public sealed class MaaProcessorManager
     public bool SwitchCurrent(string instanceId)
     {
         string? list, order, lastActive;
-        Dictionary<string, string>? names;
 
         lock (_lock)
         {
@@ -113,10 +118,9 @@ public sealed class MaaProcessorManager
             Current = processor;
 
             // 在锁内捕获数据快照，锁外异步写入，避免阻塞 UI 线程
-            list = string.Join(",", _instances.Keys);
+            list = string.Join(",", _instanceOrder);
             order = string.Join(",", _instanceOrder);
             lastActive = Current.InstanceId;
-            names = new Dictionary<string, string>(_instanceNames);
         }
 
         Task.Run(() =>
@@ -124,10 +128,6 @@ public sealed class MaaProcessorManager
             GlobalConfiguration.SetValue(ConfigurationKeys.InstanceList, list);
             GlobalConfiguration.SetValue(ConfigurationKeys.InstanceOrder, order);
             GlobalConfiguration.SetValue(ConfigurationKeys.LastActiveInstance, lastActive);
-            foreach (var kvp in names)
-            {
-                GlobalConfiguration.SetValue(string.Format(ConfigurationKeys.InstanceNameTemplate, kvp.Key), kvp.Value);
-            }
         });
 
         return true;
@@ -237,7 +237,11 @@ public sealed class MaaProcessorManager
         lock (_lock)
         {
             _instanceNames[instanceId] = name;
-            SaveInstanceConfig();
+            // 写入实例独立配置文件
+            if (_instances.TryGetValue(instanceId, out var processor))
+            {
+                processor.InstanceConfiguration.SetValue(ConfigurationKeys.InstanceName, name);
+            }
         }
     }
 
@@ -262,6 +266,9 @@ public sealed class MaaProcessorManager
                     }
                 }
 
+                // 删除实例独立配置文件 config/instances/{id}.json
+                processor.InstanceConfiguration.DeleteConfigFile();
+
                 processor.Dispose();
                 _instances.Remove(instanceId);
                 _instanceNames.Remove(instanceId);
@@ -277,17 +284,13 @@ public sealed class MaaProcessorManager
 
     private void SaveInstanceConfig()
     {
-        var list = string.Join(",", _instances.Keys);
+        // 使用 _instanceOrder 作为实例列表源，因为迁移阶段实例已注册到 _instanceOrder 但尚未创建到 _instances
+        var list = string.Join(",", _instanceOrder);
         var order = string.Join(",", _instanceOrder);
 
         GlobalConfiguration.SetValue(ConfigurationKeys.InstanceList, list);
         GlobalConfiguration.SetValue(ConfigurationKeys.InstanceOrder, order);
         GlobalConfiguration.SetValue(ConfigurationKeys.LastActiveInstance, Current.InstanceId);
-        foreach (var kvp in _instanceNames)
-        {
-            var key = string.Format(ConfigurationKeys.InstanceNameTemplate, kvp.Key);
-            GlobalConfiguration.SetValue(key, kvp.Value);
-        }
     }
     /// <summary>
     /// 需要延迟加载的实例ID列表
@@ -295,8 +298,355 @@ public sealed class MaaProcessorManager
     private readonly List<string> _pendingInstanceIds = new();
     private bool _isLazyLoadingComplete;
 
+    /// <summary>
+    /// 迁移旧的 mfa_*.json 配置文件到多实例系统
+    /// </summary>
+    private void MigrateLegacyConfigs()
+    {
+        var configDir = Path.Combine(AppContext.BaseDirectory, "config");
+        if (!Directory.Exists(configDir)) return;
+
+        var instancesDir = Path.Combine(configDir, "instances");
+        if (!Directory.Exists(instancesDir))
+            Directory.CreateDirectory(instancesDir);
+
+        // 第一步：如果当前活跃配置不是 Default，先把 mfa_xx.json 挪到 config.json
+        MigrateActiveConfig(configDir);
+
+        // 第二步：从 config.json 中提取已有的 Instance.{id}.* scoped keys 到独立文件
+        MigrateScopedKeysToFiles(instancesDir);
+
+        // 第三步：将 config.json 中无前缀的 plain instance-scoped keys 迁移到 default 实例文件
+        MigratePlainKeysToDefaultInstance(instancesDir);
+
+        // 第四步：将剩余的 mfa_*.json 迁移为多实例（直接写入独立文件）
+        MigrateRemainingConfigs(configDir, instancesDir);
+
+        // 迁移完成后，重新加载已创建实例的内存配置（构造函数创建的 default 实例可能已过期）
+        foreach (var processor in _instances.Values)
+        {
+            processor.InstanceConfiguration.ReloadFromDisk();
+        }
+    }
+
+    /// <summary>
+    /// 如果当前活跃配置是 mfa_xx.json，将其内容合并到 config.json 并删除
+    /// </summary>
+    private void MigrateActiveConfig(string configDir)
+    {
+        var configName = ConfigurationManager.ConfigName;
+        if (string.IsNullOrEmpty(configName)
+            || configName.Equals("Default", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        var activeFileName = $"mfa_{configName}";
+        var activeFilePath = Path.Combine(configDir, $"{activeFileName}.json");
+        if (!File.Exists(activeFilePath)) return;
+
+        try
+        {
+            LoggerHelper.Info($"[迁移] 当前活跃配置为 '{configName}'，将 {activeFileName}.json 合并到 config.json...");
+
+            var activeData = ConfigurationManager.Current.Config;
+
+            var defaultConfig = ConfigurationManager.Configs.FirstOrDefault(c =>
+                c.Name.Equals("Default", StringComparison.OrdinalIgnoreCase));
+
+            if (defaultConfig != null)
+            {
+                foreach (var kvp in activeData)
+                {
+                    defaultConfig.Config[kvp.Key] = kvp.Value;
+                }
+
+                JsonHelper.SaveConfig(
+                    defaultConfig.FileName,
+                    defaultConfig.Config,
+                    new MaaInterfaceSelectAdvancedConverter(false),
+                    new MaaInterfaceSelectOptionConverter(false));
+
+                ConfigurationManager.Current = defaultConfig;
+            }
+
+            var activeConfig = ConfigurationManager.Configs.FirstOrDefault(c =>
+                c.FileName.Equals(activeFileName, StringComparison.OrdinalIgnoreCase));
+            if (activeConfig != null)
+                ConfigurationManager.Configs.Remove(activeConfig);
+
+            File.Delete(activeFilePath);
+
+            ConfigurationManager.ConfigName = "Default";
+            ConfigurationManager.SetDefaultConfig("Default");
+
+            LoggerHelper.Info($"[迁移] 已将 {activeFileName}.json 合并到 config.json，DefaultConfig 已重置为 Default");
+        }
+        catch (Exception ex)
+        {
+            LoggerHelper.Error($"[迁移] 合并活跃配置 {activeFileName} 失败", ex);
+        }
+    }
+
+    /// <summary>
+    /// 从 config.json 中提取 Instance.{id}.* scoped keys 到 config/instances/{id}.json
+    /// </summary>
+    private void MigrateScopedKeysToFiles(string instancesDir)
+    {
+        var config = ConfigurationManager.Current.Config;
+        var prefix = "Instance.";
+
+        // 收集所有 Instance.{id}.{key} 格式的键
+        var instanceData = new Dictionary<string, Dictionary<string, object>>();
+        var keysToRemove = new List<string>();
+
+        foreach (var kvp in config)
+        {
+            if (!kvp.Key.StartsWith(prefix)) continue;
+
+            var rest = kvp.Key[prefix.Length..];
+            var dotIndex = rest.IndexOf('.');
+            if (dotIndex <= 0) continue;
+
+            var instanceId = rest[..dotIndex];
+            var key = rest[(dotIndex + 1)..];
+            if (!instanceData.ContainsKey(instanceId))
+                instanceData[instanceId] = new Dictionary<string, object>();
+
+            // Instance.{id}.Name → InstanceName（存入实例独立文件）
+            if (key == "Name")
+            {
+                instanceData[instanceId][ConfigurationKeys.InstanceName] = kvp.Value;
+                keysToRemove.Add(kvp.Key);
+                continue;
+            }
+
+            // 只迁移实例作用域的 key
+            if (!ConfigurationKeys.IsInstanceScoped(key)) continue;
+
+            instanceData[instanceId][key] = kvp.Value;
+            keysToRemove.Add(kvp.Key);
+        }
+
+        if (instanceData.Count == 0) return;
+
+        LoggerHelper.Info($"[迁移] 从 config.json 中提取 {instanceData.Count} 个实例的 scoped keys 到独立文件...");
+
+        foreach (var (instanceId, data) in instanceData)
+        {
+            var instanceFilePath = Path.Combine(instancesDir, $"{instanceId}.json");
+
+            // 如果实例文件已存在，合并（不覆盖已有的）
+            var existingData = new Dictionary<string, object>();
+            if (File.Exists(instanceFilePath))
+            {
+                existingData = JsonHelper.LoadJson(instanceFilePath, new Dictionary<string, object>());
+            }
+
+            foreach (var kvp in data)
+            {
+                if (!existingData.ContainsKey(kvp.Key))
+                    existingData[kvp.Key] = kvp.Value;
+            }
+
+            JsonHelper.SaveJson(
+                instanceFilePath,
+                existingData,
+                new MaaInterfaceSelectAdvancedConverter(false),
+                new MaaInterfaceSelectOptionConverter(false));
+
+            LoggerHelper.Info($"[迁移] 已提取实例 {instanceId} 的配置到独立文件");
+        }
+
+        // 从 config.json 中移除已迁移的 scoped keys
+        foreach (var key in keysToRemove)
+        {
+            config.Remove(key);
+        }
+
+        // 保存清理后的 config.json
+        JsonHelper.SaveConfig(
+            ConfigurationManager.Current.FileName,
+            config,
+            new MaaInterfaceSelectAdvancedConverter(false),
+            new MaaInterfaceSelectOptionConverter(false));
+
+        LoggerHelper.Info("[迁移] 已从 config.json 中清理 scoped keys");
+    }
+
+    /// <summary>
+    /// 将 config.json 中无前缀的 plain instance-scoped keys 迁移到 default 实例文件
+    /// 适用于从最早版本（无多实例）升级的场景
+    /// </summary>
+    private void MigratePlainKeysToDefaultInstance(string instancesDir)
+    {
+        var config = ConfigurationManager.Current.Config;
+        var instanceFilePath = Path.Combine(instancesDir, "default.json");
+
+        var existingData = new Dictionary<string, object>();
+        if (File.Exists(instanceFilePath))
+        {
+            existingData = JsonHelper.LoadJson(instanceFilePath, new Dictionary<string, object>());
+        }
+
+        var keysToRemove = new List<string>();
+        var migrated = false;
+
+        foreach (var key in ConfigurationKeys.InstanceScopedKeys)
+        {
+            // 只迁移实例文件中还没有的 key
+            if (existingData.ContainsKey(key)) continue;
+
+            if (config.TryGetValue(key, out var value))
+            {
+                existingData[key] = value;
+                keysToRemove.Add(key);
+                migrated = true;
+            }
+        }
+
+        if (!migrated) return;
+
+        LoggerHelper.Info($"[迁移] 将 {keysToRemove.Count} 个 plain keys 从 config.json 迁移到 default 实例文件...");
+
+        JsonHelper.SaveJson(
+            instanceFilePath,
+            existingData,
+            new MaaInterfaceSelectAdvancedConverter(false),
+            new MaaInterfaceSelectOptionConverter(false));
+
+        // 从 config.json 中移除已迁移的 plain keys
+        foreach (var key in keysToRemove)
+        {
+            config.Remove(key);
+        }
+
+        JsonHelper.SaveConfig(
+            ConfigurationManager.Current.FileName,
+            config,
+            new MaaInterfaceSelectAdvancedConverter(false),
+            new MaaInterfaceSelectOptionConverter(false));
+
+        LoggerHelper.Info("[迁移] plain keys 迁移完成");
+    }
+
+    /// <summary>
+    /// 将剩余的 mfa_*.json 文件迁移为多实例条目
+    /// 只提取实例作用域的 key（TaskItems、连接设置、运行设置、启动设置等），去掉 Instance.{id}. 前缀
+    /// </summary>
+    private void MigrateRemainingConfigs(string configDir, string instancesDir)
+    {
+        var legacyFiles = Directory.EnumerateFiles(configDir, "mfa_*.json")
+            .Where(f =>
+            {
+                var fn = Path.GetFileNameWithoutExtension(f);
+                return fn != "maa_option";
+            })
+            .ToList();
+
+        if (legacyFiles.Count == 0) return;
+
+        LoggerHelper.Info($"[迁移] 发现 {legacyFiles.Count} 个旧配置文件，开始迁移到多实例...");
+
+        var migrated = false;
+
+        foreach (var file in legacyFiles)
+        {
+            var fileName = Path.GetFileNameWithoutExtension(file);
+
+            try
+            {
+                var legacyData = JsonHelper.LoadJson(file, new Dictionary<string, object>());
+                if (legacyData.Count == 0)
+                {
+                    File.Delete(file);
+                    LoggerHelper.Info($"[迁移] 跳过空配置文件 {fileName}，已删除");
+                    continue;
+                }
+
+                var name = fileName.StartsWith("mfa_") ? fileName["mfa_".Length..] : fileName;
+                var instanceId = CreateUniqueId();
+
+                // 只提取实例作用域的 key
+                var instanceData = new Dictionary<string, object>();
+
+                // 优先从 Instance.{xxx}.{key} 格式的 scoped key 中提取（去掉前缀）
+                var scopedPrefix = "Instance.";
+                foreach (var kvp in legacyData)
+                {
+                    if (!kvp.Key.StartsWith(scopedPrefix)) continue;
+
+                    var rest = kvp.Key[scopedPrefix.Length..];
+                    var dotIndex = rest.IndexOf('.');
+                    if (dotIndex <= 0) continue;
+
+                    var key = rest[(dotIndex + 1)..];
+
+                    // 只迁移实例作用域的 key，优先使用第一个找到的
+                    if (ConfigurationKeys.IsInstanceScoped(key) && !instanceData.ContainsKey(key))
+                    {
+                        instanceData[key] = kvp.Value;
+                    }
+                }
+
+                // 再从无前缀的 plain key 中补充（不覆盖已有的 scoped key）
+                foreach (var key in ConfigurationKeys.InstanceScopedKeys)
+                {
+                    if (!instanceData.ContainsKey(key) && legacyData.TryGetValue(key, out var value))
+                    {
+                        instanceData[key] = value;
+                    }
+                }
+
+                if (instanceData.Count == 0)
+                {
+                    File.Delete(file);
+                    LoggerHelper.Info($"[迁移] 配置文件 {fileName} 无实例作用域数据，已删除");
+                    continue;
+                }
+
+                // 将实例名称也存入实例配置
+                instanceData[ConfigurationKeys.InstanceName] = name;
+
+                // 保存到实例独立文件（使用自定义转换器确保格式正确）
+                var instanceFilePath = Path.Combine(instancesDir, $"{instanceId}.json");
+                JsonHelper.SaveJson(
+                    instanceFilePath,
+                    instanceData,
+                    new MaaInterfaceSelectAdvancedConverter(false),
+                    new MaaInterfaceSelectOptionConverter(false));
+
+                // 注册实例
+                _instanceNames[instanceId] = name;
+                if (!_instanceOrder.Contains(instanceId))
+                    _instanceOrder.Add(instanceId);
+
+                // 从 ConfigurationManager.Configs 中移除旧配置
+                var legacyConfig = ConfigurationManager.Configs.FirstOrDefault(c => c.FileName == fileName);
+                if (legacyConfig != null)
+                    ConfigurationManager.Configs.Remove(legacyConfig);
+
+                File.Delete(file);
+                migrated = true;
+
+                LoggerHelper.Info($"[迁移] 已迁移旧配置 '{name}' → 实例 {instanceId}（提取 {instanceData.Count} 个实例作用域 key）");
+            }
+            catch (Exception ex)
+            {
+                LoggerHelper.Error($"[迁移] 迁移配置文件 {fileName} 失败", ex);
+            }
+        }
+
+        if (migrated)
+        {
+            SaveInstanceConfig();
+            LoggerHelper.Info("[迁移] 旧配置迁移完成");
+        }
+    }
+
     public void LoadInstanceConfig()
     {
+        // 先迁移旧的 mfa_*.json 配置文件
+        MigrateLegacyConfigs();
+
         var listStr = GlobalConfiguration.GetValue(ConfigurationKeys.InstanceList, "");
 
         if (string.IsNullOrEmpty(listStr))
@@ -332,10 +682,38 @@ public sealed class MaaProcessorManager
                 if (!_instanceOrder.Contains(id))
                     _instanceOrder.Add(id);
 
-                var nameKey = string.Format(ConfigurationKeys.InstanceNameTemplate, id);
-                var name = GlobalConfiguration.GetValue(nameKey, "");
+                // 优先从实例独立配置文件读取名称
+                var name = InstanceConfiguration.ReadValueFromFile(id, ConfigurationKeys.InstanceName);
+                var migratedFromGlobal = false;
+                if (string.IsNullOrEmpty(name))
+                {
+                    // 回退：从全局配置的旧格式读取（兼容迁移）
+                    var nameKey = string.Format(ConfigurationKeys.InstanceNameTemplate, id);
+                    name = GlobalConfiguration.GetValue(nameKey, "");
+                    if (!string.IsNullOrEmpty(name))
+                        migratedFromGlobal = true;
+                }
+
                 if (!string.IsNullOrEmpty(name))
+                {
                     _instanceNames[id] = name;
+                    // 如果是从全局配置回退读取的，写入实例文件完成迁移
+                    if (migratedFromGlobal)
+                    {
+                        try
+                        {
+                            var instanceFilePath = Path.Combine(InstanceConfiguration.InstancesDir, $"{id}.json");
+                            var data = File.Exists(instanceFilePath)
+                                ? JsonHelper.LoadJson(instanceFilePath, new Dictionary<string, object>())
+                                : new Dictionary<string, object>();
+                            data[ConfigurationKeys.InstanceName] = name;
+                            JsonHelper.SaveJson(instanceFilePath, data,
+                                new MaaInterfaceSelectAdvancedConverter(false),
+                                new MaaInterfaceSelectOptionConverter(false));
+                        }
+                        catch { /* 迁移失败不影响正常运行 */ }
+                    }
+                }
                 else if (!_instanceNames.ContainsKey(id))
                     _instanceNames[id] = id;
             }

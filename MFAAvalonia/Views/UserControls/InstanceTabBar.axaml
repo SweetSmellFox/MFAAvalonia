@@ -66,6 +66,10 @@
         <Style Selector="Border.DropdownItem.Selected Border.SelectedIndicator">
             <Setter Property="IsVisible" Value="True"/>
         </Style>
+        <!-- + 按钮 tooltip -->
+        <Style Selector="controls|InstanceTabsControl /template/ Button#PART_AddItemButton">
+            <Setter Property="ToolTip.Tip" Value="{markup:I18n {x:Static helper:LangKeys.InstanceAddTooltip}}" />
+        </Style>
     </UserControl.Styles>
 
     <Grid RowDefinitions="Auto,*">
@@ -85,7 +89,7 @@
                     VerticalAlignment="Center"
                     Margin="3,2,4,2"
                     Command="{Binding ToggleDropdownCommand}"
-                    ToolTip.Tip="选择实例">
+                    ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.InstanceSelectTooltip}}">
                 <fluent:FluentIcon Icon="ChevronDown" IconSize="Size16" />
             </Button>
 

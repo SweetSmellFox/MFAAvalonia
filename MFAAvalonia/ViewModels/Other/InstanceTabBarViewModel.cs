@@ -238,7 +238,7 @@ public partial class InstanceTabBarViewModel : ViewModelBase
 
         if (Tabs.Count <= 1)
         {
-            ToastHelper.Info("不能关闭最后一个实例");
+            ToastHelper.Info(LangKeys.InstanceCannotCloseLast.ToLocalization());
             return;
         }
 
@@ -246,12 +246,12 @@ public partial class InstanceTabBarViewModel : ViewModelBase
         {
             var result = await SukiUI.MessageBox.SukiMessageBox.ShowDialog(new SukiMessageBoxHost
             {
-                Content = "实例正在运行，确定要停止并关闭吗？",
+                Content = LangKeys.InstanceRunningCloseConfirm.ToLocalization(),
                 ActionButtonsPreset = SukiUI.MessageBox.SukiMessageBoxButtons.YesNo,
                 IconPreset = SukiUI.MessageBox.SukiMessageBoxIcons.Warning
             }, new SukiUI.MessageBox.SukiMessageBoxOptions
             {
-                Title = "关闭实例"
+                Title = LangKeys.InstanceCloseTitle.ToLocalization()
             });
 
             if (!result.Equals(SukiMessageBoxResult.Yes)) return;

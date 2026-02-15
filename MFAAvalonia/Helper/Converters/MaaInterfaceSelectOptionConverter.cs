@@ -48,7 +48,8 @@ public class MaaInterfaceSelectOptionConverter(bool serializeAsStringArray) : Js
 
                 if (firstElement.Type == JTokenType.Object)
                 {
-                    return token.ToObject<List<MaaInterface.MaaInterfaceSelectOption>>(serializer);
+                    // 不传 serializer 以避免 converter 无限递归
+                    return token.ToObject<List<MaaInterface.MaaInterfaceSelectOption>>();
                 }
 
                 // 处理其他数组元素类型（如 null 元素）

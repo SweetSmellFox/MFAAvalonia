@@ -42,7 +42,8 @@ public class MaaInterfaceSelectAdvancedConverter(bool serializeAsStringArray) : 
 
                 if (firstElement?.Type == JTokenType.Object)
                 {
-                    return token.ToObject<List<MaaInterface.MaaInterfaceSelectAdvanced>>(serializer);
+                    // 不传 serializer 以避免 converter 无限递归
+                    return token.ToObject<List<MaaInterface.MaaInterfaceSelectAdvanced>>();
                 }
 
                 break;

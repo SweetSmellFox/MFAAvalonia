@@ -3,6 +3,8 @@ using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using MFAAvalonia.Controls;
+using MFAAvalonia.Extensions;
+using MFAAvalonia.Helper;
 using MFAAvalonia.ViewModels.Other;
 
 namespace MFAAvalonia.Views.UserControls;
@@ -40,7 +42,7 @@ public partial class InstanceTabBar : UserControl
 
     private ContextMenu CreateTabContextMenu(DragTabItem container)
     {
-        var renameItem = new MenuItem { Header = "重命名" };
+        var renameItem = new MenuItem { Header = LangKeys.TaskRename.ToLocalization() };
         renameItem.Click += (_, _) =>
         {
             if (DataContext is InstanceTabBarViewModel vm)
@@ -51,7 +53,7 @@ public partial class InstanceTabBar : UserControl
             }
         };
 
-        var closeItem = new MenuItem { Header = "关闭" };
+        var closeItem = new MenuItem { Header = LangKeys.ButtonClose.ToLocalization() };
         closeItem.Click += (_, _) =>
         {
             if (DataContext is InstanceTabBarViewModel vm)

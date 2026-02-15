@@ -1859,6 +1859,21 @@
     <data name="SpecialTask_Hibernate" xml:space="preserve">
         <value>休眠</value>
     </data>
+    <data name="InstanceSelectTooltip" xml:space="preserve">
+        <value>选择实例</value>
+    </data>
+    <data name="InstanceAddTooltip" xml:space="preserve">
+        <value>添加实例</value>
+    </data>
+    <data name="InstanceCannotCloseLast" xml:space="preserve">
+        <value>不能关闭最后一个实例</value>
+    </data>
+    <data name="InstanceRunningCloseConfirm" xml:space="preserve">
+        <value>实例正在运行，确定要停止并关闭吗？</value>
+    </data>
+    <data name="InstanceCloseTitle" xml:space="preserve">
+        <value>关闭实例</value>
+    </data>
 
     </root>
 

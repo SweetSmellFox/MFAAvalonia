@@ -1849,5 +1849,20 @@
     <data name="SpecialTask_Hibernate" xml:space="preserve">
         <value>Hibernate</value>
     </data>
+    <data name="InstanceSelectTooltip" xml:space="preserve">
+        <value>Select Instance</value>
+    </data>
+    <data name="InstanceAddTooltip" xml:space="preserve">
+        <value>Add Instance</value>
+    </data>
+    <data name="InstanceCannotCloseLast" xml:space="preserve">
+        <value>Cannot close the last instance</value>
+    </data>
+    <data name="InstanceRunningCloseConfirm" xml:space="preserve">
+        <value>Instance is running. Are you sure you want to stop and close it?</value>
+    </data>
+    <data name="InstanceCloseTitle" xml:space="preserve">
+        <value>Close Instance</value>
+    </data>
     </root>
 
