@@ -2716,7 +2716,7 @@ public class MaaProcessor
         //
         // var tasks = JsonConvert.DeserializeObject<Dictionary<string, MaaNode>>(json, settings);
         // tasks = tasks.MergeMaaNodes(taskModels);
-        Console.WriteLine(taskParams);
+        LoggerHelper.Info(taskParams);
         return new NodeAndParam
         {
             Name = task.Name,

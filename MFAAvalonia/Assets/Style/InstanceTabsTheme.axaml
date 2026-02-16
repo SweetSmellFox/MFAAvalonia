@@ -215,7 +215,7 @@
         <!-- Selected: 透明背景（渐变透出） -->
         <Style Selector="^:selected">
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="{DynamicResource SukiText}" />
+            <Setter Property="Foreground" Value="{DynamicResource SukiPrimaryColor}" />
             <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
 
@@ -248,7 +248,7 @@
             <Setter Property="IsVisible" Value="False" />
         </Style>
         <Style Selector="^:selected:pointerover">
-            <Setter Property="Foreground" Value="{DynamicResource SukiText}" />
+            <Setter Property="Foreground" Value="{DynamicResource SukiPrimaryColor}" />
         </Style>
     </ControlTheme>
 
