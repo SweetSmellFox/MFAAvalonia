@@ -736,6 +736,16 @@ public sealed class MaaProcessorManager
             if (string.IsNullOrEmpty(lastActive) || !validIds.Contains(lastActive))
                 lastActive = _instanceOrder.FirstOrDefault() ?? ids[0];
 
+            // 支持 -c 参数按实例名称激活多开实例
+            if (AppRuntime.Args.TryGetValue("c", out var configParam) && !string.IsNullOrEmpty(configParam))
+            {
+                var matchedId = _instanceOrder.FirstOrDefault(id =>
+                    _instanceNames.TryGetValue(id, out var name) &&
+                    name.Equals(configParam, StringComparison.OrdinalIgnoreCase));
+                if (matchedId != null)
+                    lastActive = matchedId;
+            }
+
             LoadSingleInstance(lastActive);
             Current = _instances[lastActive];
 

@@ -183,11 +183,6 @@ public static class ConfigurationManager
 
         Maa.SetConfig(JsonHelper.LoadConfig("maa_option", new Dictionary<string, object>()));
 
-        if (AppRuntime.Args.TryGetValue("c", out var param) && !string.IsNullOrEmpty(param))
-        {
-            if (collection.Any(c => c.Name == param))
-                ConfigName = param;
-        }
         Current = collection.FirstOrDefault(c
                 => !string.IsNullOrWhiteSpace(c.Name)
                 && c.Name.Equals(ConfigName, StringComparison.OrdinalIgnoreCase))
