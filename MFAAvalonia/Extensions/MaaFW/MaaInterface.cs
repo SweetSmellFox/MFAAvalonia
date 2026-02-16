@@ -1075,7 +1075,8 @@ public partial class MaaInterface
     public List<MaaInterfaceTask>? Task { get; set; }
 
     [JsonProperty("agent")]
-    public MaaInterfaceAgent? Agent { get; set; }
+    [JsonConverter(typeof(GenericSingleOrListConverter<MaaInterfaceAgent>))]
+    public List<MaaInterfaceAgent>? Agent { get; set; }
 
     [JsonProperty("advanced")]
     public Dictionary<string, MaaInterfaceAdvancedOption>? Advanced { get; set; }
@@ -1250,7 +1251,7 @@ public partial class MaaInterface
         if (!string.IsNullOrEmpty(other.Contact)) Contact = other.Contact;
         if (!string.IsNullOrEmpty(other.Description)) Description = other.Description;
         if (!string.IsNullOrEmpty(other.License)) License = other.License;
-        if (other.Agent != null) Agent = other.Agent;
+        if (other.Agent is { Count: > 0 }) Agent = other.Agent;
 
         Advanced = MergeDictionaries(Advanced, other.Advanced);
         Option = MergeDictionaries(Option, other.Option);

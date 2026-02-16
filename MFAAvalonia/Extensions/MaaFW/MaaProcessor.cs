@@ -11,7 +11,6 @@ using MFAAvalonia.Helper.Converters;
 using MFAAvalonia.ViewModels.Other;
 using MFAAvalonia.ViewModels.Pages;
 using MFAAvalonia.Views.Windows;
-using Microsoft.Win32.SafeHandles;
 using Microsoft.WindowsAPICodePack.Taskbar;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -22,16 +21,11 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Management;
-using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
-using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Bitmap = Avalonia.Media.Imaging.Bitmap;
 using Brushes = Avalonia.Media.Brushes;
-using MaaAgentClient = MaaFramework.Binding.MaaAgentClient;
 using MaaController = MaaFramework.Binding.MaaController;
 using MaaGlobal = MaaFramework.Binding.MaaGlobal;
 using MaaResource = MaaFramework.Binding.MaaResource;
@@ -658,7 +652,7 @@ public class MaaProcessor
             }
 
             _agentStarted = false;
-            SafeKillAgentProcess(oldTasker);
+            AgentHelper.KillAllAgents(_agentContexts, oldTasker);
             ViewModel?.SetConnected(false);
             DisposeScreenshotTasker();
         }
@@ -766,13 +760,8 @@ public class MaaProcessor
     private FocusHandler? _focusHandler;
     private TaskLoader? _taskLoader;
 
-    private MaaAgentClient? _agentClient;
+    private List<AgentContext> _agentContexts = [];
     private bool _agentStarted;
-    private Process? _agentProcess;
-    private CancellationTokenSource? _agentReadCancellationTokenSource;
-    private readonly Lock _agentReadLock = new();
-    private SafeJobHandle? _agentJobHandle;
-    private readonly Lock _agentJobLock = new();
     private MFATask.MFATaskStatus Status = MFATask.MFATaskStatus.NOT_STARTED;
     private int _stopCompletionMessageHandled;
     private const int ActionFailedLimit = 20;
@@ -1062,27 +1051,6 @@ public class MaaProcessor
         tasker.Global.SetOption_LogDir(logDir);
     }
 
-    private static string ConvertPath(string path)
-    {
-        if (Path.Exists(path) && !path.Contains("\""))
-        {
-            return $"\"{path}\"";
-        }
-        return path;
-    }
-
-    private bool IsPathLike(string? input)
-    {
-        if (string.IsNullOrEmpty(input)) return false;
-
-        bool hasPathSeparator = input.Contains(Path.DirectorySeparatorChar) || input.Contains(Path.AltDirectorySeparatorChar);
-        bool isAbsolutePath = Path.IsPathRooted(input);
-        bool isRelativePath = input.StartsWith("./") || input.StartsWith("../") || (hasPathSeparator && !input.StartsWith("-"));
-        bool hasFileExtension = Path.HasExtension(input) && !input.StartsWith("-");
-
-        return hasPathSeparator || isAbsolutePath || isRelativePath || hasFileExtension;
-    }
-
     async private Task<(MaaTasker?, bool, bool)> InitializeMaaTasker(CancellationToken token) // 添加 async 和 token
     {
         var InvalidResource = false;
@@ -1246,282 +1214,26 @@ public class MaaProcessor
                 LoggerHelper.Error(e);
             }
 
-            // 注册内置的自定义 Action（用于内存泄漏测试）
-            //tasker.Resource.Register(new Custom.MemoryLeakTestAction());
-            // 获取代理配置（假设Interface在UI线程中访问）
-            var agentConfig = Interface?.Agent;
-            if (agentConfig is { ChildExec: not null } && !_agentStarted)
+            // 获取代理配置并启动 Agent（支持多 Agent）
+            var agentConfigs = Interface?.Agent;
+            if (AgentHelper.HasAgentConfigs(agentConfigs) && !_agentStarted)
             {
-                AddLogByKey(LangKeys.StartingAgent, (IBrush?)null);
-                if (_agentClient != null)
-                {
-                    SafeKillAgentProcess();
-                }
-
-                var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-                var identifier = string.IsNullOrWhiteSpace(Interface?.Agent?.Identifier) ? new string(Enumerable.Repeat(chars, 8).Select(c => c[Random.Next(c.Length)]).ToArray()) : Interface.Agent.Identifier;
-                LoggerHelper.Info($"Agent Identifier: {identifier}");
                 try
                 {
-                    _agentClient = InstanceConfiguration.GetValue(ConfigurationKeys.AgentTcpMode, false)
-                        ? MaaAgentClient.CreateTcp(tasker)
-                        : MaaAgentClient.Create(identifier, tasker);
-                    var timeOut = Interface?.Agent?.Timeout ?? 120;
-                    _agentClient.SetTimeout(TimeSpan.FromSeconds(timeOut < 0 ? int.MaxValue : timeOut));
-                    _agentClient.Releasing += (_, _) =>
+                    AgentHelper.KillAllAgents(_agentContexts);
+                    _agentContexts = await AgentHelper.StartAgentsAsync(tasker, agentConfigs!, InstanceConfiguration, this, token);
+                    if (_agentContexts.Count == 0 && agentConfigs!.Any(a => a.ChildExec != null))
                     {
-                        LoggerHelper.Info("退出Agent进程");
-                        _agentClient = null;
-                    };
-
-                    LoggerHelper.Info($"Agent Client Hash: {_agentClient?.GetHashCode()}");
-                    if (!Directory.Exists($"{AppContext.BaseDirectory}"))
-                        Directory.CreateDirectory($"{AppContext.BaseDirectory}");
-                    var program = MaaInterface.ReplacePlaceholder(agentConfig.ChildExec, AppContext.BaseDirectory, true);
-                    if (IsPathLike(program))
-                        program = Path.GetFullPath(program, AppContext.BaseDirectory);
-                    var rawArgs = agentConfig.ChildArgs ?? [];
-                    var replacedArgs = MaaInterface.ReplacePlaceholder(rawArgs, AppContext.BaseDirectory, true)
-                        .Select(arg =>
-                        {
-                            if (IsPathLike(arg))
-                            {
-                                try
-                                {
-                                    return Path.GetFullPath(arg, AppContext.BaseDirectory);
-                                }
-                                catch (Exception)
-                                {
-                                    // 若路径解析失败（如伪路径），返回原参数
-                                    return arg;
-                                }
-                            }
-                            return arg;
-                        })
-                        .Select(ConvertPath).ToList();
-
-                    var executablePath = PathFinder.FindPath(program);
-
-                    // 检查可执行文件是否存在
-                    if (!File.Exists(executablePath))
-                    {
-                        var errorMsg = LangKeys.AgentExecutableNotFound.ToLocalizationFormatted(false, executablePath);
-                        throw new FileNotFoundException(errorMsg, executablePath);
+                        // Agent 启动失败（StartAgentsAsync 内部已处理错误日志）
+                        ShouldRetry = false;
+                        return (null, InvalidResource, ShouldRetry);
                     }
-
-                    var startInfo = new ProcessStartInfo
-                    {
-                        FileName = executablePath,
-                        WorkingDirectory = AppContext.BaseDirectory,
-                        Arguments = $"{(program!.Contains("python") && replacedArgs.Contains(".py") && !replacedArgs.Any(arg => arg.Contains("-u")) ? "-u " : "")}{string.Join(" ", replacedArgs)} {_agentClient.Id}",
-                        UseShellExecute = false,
-                        RedirectStandardError = true,
-                        RedirectStandardOutput = true,
-                        WindowStyle = ProcessWindowStyle.Hidden,
-                        CreateNoWindow = true
-                    };
-
-                    LoggerHelper.Info(
-                        $"Agent Command: {program} {(program!.Contains("python") && replacedArgs.Contains(".py") && !replacedArgs.Any(arg => arg.Contains("-u")) ? "-u " : "")}{string.Join(" ", replacedArgs)} {_agentClient.Id} "
-                        + $"socket_id: {_agentClient.Id}");
-                    IMaaAgentClient.AgentServerStartupMethod method = (s, directory) =>
-                    {
-                        _agentProcess = Process.Start(startInfo);
-                        if (_agentProcess == null)
-                            LoggerHelper.Error("Agent start failed!");
-                        else
-                        {
-                            _agentProcess.Exited += (_, _) =>
-                            {
-                                LoggerHelper.Info("Agent process exited!");
-                                LoggerHelper.Info("MaaTasker exited!");
-                                StopAgentReadStreams();
-                                _agentProcess = null;
-                            };
-
-                            BindAgentProcessLifetime(_agentProcess);
-
-                            var readToken = ResetAgentReadCancellation().Token;
-                            TaskManager.RunTaskAsync(() => ReadProcessStreamAsync(_agentProcess.StandardOutput.BaseStream, HandleAgentOutputLine, readToken), token: readToken, noMessage: true);
-                            TaskManager.RunTaskAsync(() => ReadProcessStreamAsync(_agentProcess.StandardError.BaseStream, HandleAgentOutputLine, readToken), token: readToken, noMessage: true);
-
-                            TaskManager.RunTaskAsync(async () => await _agentProcess.WaitForExitAsync(token), token: token, name: "Agent程序启动");
-                        }
-                        return _agentProcess;
-                    };
-                    // 添加重连逻辑，最多重试3次
-                    const int maxRetries = 3;
-                    bool linkStartSuccess = false;
-                    Exception? lastException = null;
-
-                    for (int retryCount = 0; retryCount < maxRetries && !linkStartSuccess && !token.IsCancellationRequested; retryCount++)
-                    {
-                        try
-                        {
-                            // 在每次迭代开始时检测token
-                            token.ThrowIfCancellationRequested();
-
-                            if (retryCount > 0)
-                            {
-                                LoggerHelper.Info($"Agent LinkStart retry attempt {retryCount + 1}/{maxRetries}");
-
-                                AddLog(LangKeys.AgentConnectionRetry.ToLocalizationFormatted(false, $"{retryCount + 1}/{maxRetries}"), Brushes.Orange, changeColor: false);
-                                // 等待一段时间后重试
-                                await Task.Delay(1000 * retryCount, token);
-
-                                // 重新启动进程
-                                if (_agentProcess != null && !_agentProcess.HasExited)
-                                {
-                                    try
-                                    {
-                                        _agentProcess.Kill(true);
-                                        _agentProcess.WaitForExit(3000);
-                                    }
-                                    catch (Exception killEx)
-                                    {
-                                        LoggerHelper.Warning($"Failed to kill agent process: {killEx.Message}");
-                                    }
-                                    _agentProcess.Dispose();
-                                    _agentProcess = null;
-                                }
-                            }
-
-                            linkStartSuccess = _agentClient.LinkStart(method, token);
-                        }
-                        catch (OperationCanceledException)
-                        {
-                            // 任务被取消，直接退出重试循环
-                            LoggerHelper.Info("Agent LinkStart was canceled by user");
-                            throw;
-                        }
-                        catch (SEHException sehEx)
-                        {
-                            lastException = sehEx;
-                            LoggerHelper.Warning($"SEHException during LinkStart (attempt {retryCount + 1}): {sehEx.Message}");
-
-                            if (retryCount < maxRetries - 1)
-                            {
-                                // 在重试前检测token
-                                if (token.IsCancellationRequested)
-                                {
-                                    LoggerHelper.Info("Agent retry canceled by user");
-                                    token.ThrowIfCancellationRequested();
-                                }
-
-                                // 清理当前状态，准备重试
-                                SafeKillAgentProcess();
-
-                                // 重新创建 AgentClient
-                                try
-                                {
-                                    _agentClient = InstanceConfiguration.GetValue(ConfigurationKeys.AgentTcpMode, false)
-                                        ? MaaAgentClient.Create(identifier, tasker)
-                                        : MaaAgentClient.CreateTcp(tasker);
-                                    timeOut = Interface?.Agent?.Timeout ?? 120;
-                                    _agentClient.SetTimeout(TimeSpan.FromSeconds(timeOut < 0 ? int.MaxValue : timeOut));
-                                    _agentClient.Releasing += (_, _) =>
-                                    {
-                                        LoggerHelper.Info("退出Agent进程");
-                                    };
-                                }
-                                catch (Exception recreateEx)
-                                {
-                                    LoggerHelper.Error($"Failed to recreate AgentClient: {recreateEx.Message}");
-                                    throw;
-                                }
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            lastException = ex;
-                            LoggerHelper.Warning($"Exception during LinkStart (attempt {retryCount + 1}): {ex.Message}");
-
-                            // 对于非 SEHException，不进行重试
-                            break;
-                        }
-                    }
-                    // 循环结束后检查是否因为取消而退出
-                    if (token.IsCancellationRequested && !linkStartSuccess)
-                    {
-                        LoggerHelper.Info("Agent LinkStart loop exited due to cancellation");
-                        token.ThrowIfCancellationRequested();
-                    }
-                    if (!linkStartSuccess)
-                    {
-                        // 尝试获取进程的错误输出
-                        var errorMessage = lastException?.Message ?? "Failed to LinkStart agentClient!";
-                        var agentProcess = _agentProcess;
-                        if (agentProcess != null)
-                        {
-                            try
-                            {
-                                var errorDetails = new StringBuilder();
-                                errorDetails.AppendLine(errorMessage);
-
-                                // 如果进程已经退出，尝试读取错误输出
-                                if (agentProcess.HasExited)
-                                {
-                                    var exitCode = agentProcess.ExitCode;
-                                    var stderr = await agentProcess.StandardError.ReadToEndAsync(token);
-                                    var stdout = await agentProcess.StandardOutput.ReadToEndAsync(token);
-
-                                    errorDetails.AppendLine($"Agent process exited with code: {exitCode}");
-
-                                    if (!string.IsNullOrWhiteSpace(stderr))
-                                    {
-                                        errorDetails.AppendLine($"StandardError: {stderr}");
-                                        LoggerHelper.Error($"Agent StandardError: {stderr}");
-                                        AddLog($"Agent Error: {stderr}", Brushes.OrangeRed, changeColor: false);
-                                    }
-
-                                    if (!string.IsNullOrWhiteSpace(stdout))
-                                    {
-                                        errorDetails.AppendLine($"StandardOutput: {stdout}");
-                                        LoggerHelper.Info($"Agent StandardOutput: {stdout}");
-                                    }
-                                    errorMessage = errorDetails.ToString();
-                                }
-                                else
-                                {
-                                    // 进程还在运行但 LinkStart 失败，等待一小段时间让进程退出
-                                    if (agentProcess.WaitForExit(3000))
-                                    {
-                                        var exitCode = agentProcess.ExitCode;
-                                        var stderr = await agentProcess.StandardError.ReadToEndAsync(token);
-                                        var stdout = await agentProcess.StandardOutput.ReadToEndAsync(token);
-
-                                        errorDetails.AppendLine($"Agent process exited with code: {exitCode}");
-
-                                        if (!string.IsNullOrWhiteSpace(stderr))
-                                        {
-                                            errorDetails.AppendLine($"StandardError: {stderr}");
-                                            LoggerHelper.Error($"Agent StandardError: {stderr}");
-                                            AddLog($"Agent Error: {stderr}", Brushes.OrangeRed, changeColor: false);
-
-                                            if (!string.IsNullOrWhiteSpace(stdout))
-                                            {
-                                                errorDetails.AppendLine($"StandardOutput: {stdout}");
-                                                LoggerHelper.Info($"Agent StandardOutput: {stdout}");
-
-                                                errorMessage = errorDetails.ToString();
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            catch (Exception readEx)
-                            {
-                                LoggerHelper.Warning($"Failed to read agent process output: {readEx.Message}");
-                            }
-                        }
-                        throw new Exception(errorMessage);
-                    }
+                    _agentStarted = true;
                 }
                 catch (OperationCanceledException)
                 {
-                    // 任务被用户取消，直接向上抛出，不显示错误信息
                     LoggerHelper.Info("Agent initialization was canceled by user");
-                    SafeKillAgentProcess();
+                    AgentHelper.KillAllAgents(_agentContexts);
                     throw;
                 }
                 catch (Exception ex)
@@ -1531,20 +1243,13 @@ public class MaaProcessor
                     var isNullReference = ex is NullReferenceException
                         || ex.Message.Contains("Object reference not set to an instance of an object.", StringComparison.OrdinalIgnoreCase);
                     if (isNullReference)
-                    {
                         ToastHelper.Error(LangKeys.AgentStartFailed.ToLocalization());
-                    }
                     else
-                    {
                         ToastHelper.Error(LangKeys.AgentStartFailed.ToLocalization(), ex.Message);
-                    }
-                    SafeKillAgentProcess();
-                    ShouldRetry = false; // Agent 启动失败不应该重连
+                    AgentHelper.KillAllAgents(_agentContexts);
+                    ShouldRetry = false;
                     return (null, InvalidResource, ShouldRetry);
                 }
-
-
-                _agentStarted = true;
             }
             RegisterCustomRecognitionsAndActions(tasker);
             ViewModel?.SetConnected(true);
@@ -2477,30 +2182,6 @@ public class MaaProcessor
         }
     }
 
-    private CancellationTokenSource ResetAgentReadCancellation()
-    {
-        lock (_agentReadLock)
-        {
-            _agentReadCancellationTokenSource?.Cancel();
-            _agentReadCancellationTokenSource?.Dispose();
-            _agentReadCancellationTokenSource = new CancellationTokenSource();
-            return _agentReadCancellationTokenSource;
-        }
-    }
-
-    private void StopAgentReadStreams()
-    {
-        lock (_agentReadLock)
-        {
-            if (_agentReadCancellationTokenSource == null)
-                return;
-
-            _agentReadCancellationTokenSource.Cancel();
-            _agentReadCancellationTokenSource.Dispose();
-            _agentReadCancellationTokenSource = null;
-        }
-    }
-
     public bool TryConsumeScreencapFailureLog(out bool shouldAbort, out bool shouldDisconnected)
     {
         lock (_screencapLogLock)
@@ -2711,456 +2392,10 @@ public class MaaProcessor
         await ProcessHelper.ReconnectByAdbAsync(Config.AdbDevice.AdbPath, Config.AdbDevice.AdbSerial);
     }
 
-    private static void EnsureEncodingProviders()
-    {
-        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-    }
-
-    private static readonly Encoding Utf8Strict = new UTF8Encoding(false, true);
-    private static readonly Lazy<Encoding> GbkEncoding = new(() =>
-    {
-        EnsureEncodingProviders();
-        return Encoding.GetEncoding(936);
-    });
-    private static readonly Lazy<Encoding> Gb2312Encoding = new(() =>
-    {
-        EnsureEncodingProviders();
-        return Encoding.GetEncoding(936);
-    });
-    private static readonly Lazy<Encoding> Gb18030Encoding = new(() =>
-    {
-        EnsureEncodingProviders();
-        return Encoding.GetEncoding(54936);
-    });
-    private static readonly Lazy<Encoding> Big5Encoding = new(() =>
-    {
-        EnsureEncodingProviders();
-        return Encoding.GetEncoding(950);
-    });
-
-    private static string DecodeProcessLine(byte[] buffer)
-    {
-        try
-        {
-            return Utf8Strict.GetString(buffer);
-        }
-        catch (DecoderFallbackException)
-        {
-        }
-
-        try
-        {
-            return Gb18030Encoding.Value.GetString(buffer);
-        }
-        catch (DecoderFallbackException)
-        {
-        }
-
-        try
-        {
-            return GbkEncoding.Value.GetString(buffer);
-        }
-        catch (DecoderFallbackException)
-        {
-        }
-
-        try
-        {
-            return Gb2312Encoding.Value.GetString(buffer);
-        }
-        catch (DecoderFallbackException)
-        {
-        }
-
-        return Big5Encoding.Value.GetString(buffer);
-    }
-
-    private static async Task ReadProcessStreamAsync(Stream stream, Action<string> onLine, CancellationToken token)
-    {
-        EnsureEncodingProviders();
-
-        var readBuffer = new byte[4096];
-        var lineBuffer = new List<byte>();
-
-        while (!token.IsCancellationRequested)
-        {
-            int bytesRead;
-            try
-            {
-                bytesRead = await stream.ReadAsync(readBuffer.AsMemory(0, readBuffer.Length), token);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-
-            if (bytesRead <= 0)
-                break;
-
-            for (int i = 0; i < bytesRead; i++)
-            {
-                var value = readBuffer[i];
-                if (value == (byte)'\n')
-                {
-                    if (lineBuffer.Count > 0 && lineBuffer[^1] == (byte)'\r')
-                    {
-                        lineBuffer.RemoveAt(lineBuffer.Count - 1);
-                    }
-
-                    if (lineBuffer.Count > 0)
-                    {
-                        var text = DecodeProcessLine(lineBuffer.ToArray());
-                        onLine(text);
-                        lineBuffer.Clear();
-                    }
-                    else
-                    {
-                        onLine(string.Empty);
-                    }
-                }
-                else
-                {
-                    lineBuffer.Add(value);
-                }
-            }
-        }
-
-        if (lineBuffer.Count > 0)
-        {
-            var text = DecodeProcessLine(lineBuffer.ToArray());
-            onLine(text);
-        }
-    }
-
-    private void HandleAgentOutputLine(string? line)
-    {
-        if (string.IsNullOrEmpty(line))
-            return;
-
-        var outData = line;
-        try
-        {
-            outData = Regex.Replace(outData, @"\x1B\[[0-9;]*[a-zA-Z]", "");
-        }
-        catch (Exception)
-        {
-        }
-
-        DispatcherHelper.PostOnMainThread(() =>
-        {
-            if (CheckShouldLog(outData))
-            {
-                AddLog(outData, (IBrush?)null);
-            }
-            else
-            {
-                LoggerHelper.Info("agent:" + outData);
-            }
-        });
-    }
-
-
     public async Task HardRestartAdb()
     {
         ProcessHelper.HardRestartAdb(Config.AdbDevice.AdbPath);
     }
-
-    #region 命令行获取（平台相关）
-
-    [SupportedOSPlatform("windows")]
-    [SupportedOSPlatform("linux")]
-    [SupportedOSPlatform("macos")]
-    private static string GetCommandLine(Process process)
-    {
-        return RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? GetWindowsCommandLine(process) : GetUnixCommandLine(process.Id);
-    }
-
-    [SupportedOSPlatform("windows")]
-    private static string GetWindowsCommandLine(Process process)
-    {
-        try
-        {
-            using var searcher = new ManagementObjectSearcher(
-                $"SELECT CommandLine FROM Win32_Process WHERE ProcessId = {process.Id}");
-            return searcher.Get()
-                    .Cast<ManagementObject>()
-                    .FirstOrDefault()?["CommandLine"]?.ToString()
-                ?? string.Empty;
-        }
-        catch
-        {
-            return string.Empty;
-        }
-    }
-
-    [SupportedOSPlatform("linux")]
-    [SupportedOSPlatform("macos")]
-    private static string GetUnixCommandLine(int pid)
-    {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-        {
-            try
-            {
-                var cmdlinePath = $"/proc/{pid}/cmdline";
-                return File.Exists(cmdlinePath) ? File.ReadAllText(cmdlinePath, Encoding.UTF8).Replace('\0', ' ') : string.Empty;
-            }
-            catch
-            {
-                return string.Empty;
-            }
-        }
-        else // macOS
-        {
-            var output = ExecuteShellCommand($"ps -p {pid} -o command=");
-            return output?.Trim() ?? string.Empty;
-        }
-    }
-
-    #endregion
-
-    #region 进程绑定（随主进程退出自动清理）
-
-    private void BindAgentProcessLifetime(Process agentProcess)
-    {
-        if (!OperatingSystem.IsWindows())
-            return;
-
-        TryBindAgentProcessToJob(agentProcess);
-    }
-
-    private void DisposeAgentJob()
-    {
-        if (!OperatingSystem.IsWindows())
-            return;
-
-        lock (_agentJobLock)
-        {
-            if (_agentJobHandle == null)
-                return;
-
-            _agentJobHandle.Dispose();
-            _agentJobHandle = null;
-        }
-    }
-
-    [SupportedOSPlatform("windows")]
-    private void TryBindAgentProcessToJob(Process agentProcess)
-    {
-        lock (_agentJobLock)
-        {
-            if (_agentJobHandle == null || _agentJobHandle.IsInvalid)
-            {
-                _agentJobHandle = CreateJobObject(IntPtr.Zero, null);
-                if (_agentJobHandle == null || _agentJobHandle.IsInvalid)
-                {
-                    LoggerHelper.Warning($"CreateJobObject failed: {Marshal.GetLastWin32Error()}");
-                    _agentJobHandle = null;
-                    return;
-                }
-
-                var info = new JOBOBJECT_EXTENDED_LIMIT_INFORMATION
-                {
-                    BasicLimitInformation = new JOBOBJECT_BASIC_LIMIT_INFORMATION
-                    {
-                        LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
-                    }
-                };
-
-                if (!SetInformationJobObject(_agentJobHandle, JOBOBJECTINFOCLASS.JobObjectExtendedLimitInformation, ref info, (uint)Marshal.SizeOf<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>()))
-                {
-                    LoggerHelper.Warning($"SetInformationJobObject failed: {Marshal.GetLastWin32Error()}");
-                    _agentJobHandle.Dispose();
-                    _agentJobHandle = null;
-                    return;
-                }
-            }
-
-            if (!AssignProcessToJobObject(_agentJobHandle, agentProcess.Handle))
-            {
-                LoggerHelper.Warning($"AssignProcessToJobObject failed: {Marshal.GetLastWin32Error()}");
-            }
-        }
-    }
-
-    [SupportedOSPlatform("windows")]
-    private sealed class SafeJobHandle : SafeHandleZeroOrMinusOneIsInvalid
-    {
-        public SafeJobHandle() : base(true) { }
-
-        protected override bool ReleaseHandle() => CloseHandle(handle);
-    }
-
-    [SupportedOSPlatform("windows")]
-    private enum JOBOBJECTINFOCLASS
-    {
-        JobObjectExtendedLimitInformation = 9
-    }
-
-    [SupportedOSPlatform("windows")]
-    [StructLayout(LayoutKind.Sequential)]
-    private struct IO_COUNTERS
-    {
-        public ulong ReadOperationCount;
-        public ulong WriteOperationCount;
-        public ulong OtherOperationCount;
-        public ulong ReadTransferCount;
-        public ulong WriteTransferCount;
-        public ulong OtherTransferCount;
-    }
-
-    [SupportedOSPlatform("windows")]
-    [StructLayout(LayoutKind.Sequential)]
-    private struct JOBOBJECT_BASIC_LIMIT_INFORMATION
-    {
-        public long PerProcessUserTimeLimit;
-        public long PerJobUserTimeLimit;
-        public uint LimitFlags;
-        public UIntPtr MinimumWorkingSetSize;
-        public UIntPtr MaximumWorkingSetSize;
-        public uint ActiveProcessLimit;
-        public UIntPtr Affinity;
-        public uint PriorityClass;
-        public uint SchedulingClass;
-    }
-
-    [SupportedOSPlatform("windows")]
-    [StructLayout(LayoutKind.Sequential)]
-    private struct JOBOBJECT_EXTENDED_LIMIT_INFORMATION
-    {
-        public JOBOBJECT_BASIC_LIMIT_INFORMATION BasicLimitInformation;
-        public IO_COUNTERS IoInfo;
-        public UIntPtr ProcessMemoryLimit;
-        public UIntPtr JobMemoryLimit;
-        public UIntPtr PeakProcessMemoryUsed;
-        public UIntPtr PeakJobMemoryUsed;
-    }
-
-    [SupportedOSPlatform("windows")] private const uint JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000;
-
-    [SupportedOSPlatform("windows")]
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    private static extern SafeJobHandle CreateJobObject(IntPtr lpJobAttributes, string? lpName);
-
-    [SupportedOSPlatform("windows")]
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool SetInformationJobObject(SafeJobHandle hJob, JOBOBJECTINFOCLASS infoClass, ref JOBOBJECT_EXTENDED_LIMIT_INFORMATION info, uint cbJobObjectInfoLength);
-
-    [SupportedOSPlatform("windows")]
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool AssignProcessToJobObject(SafeJobHandle hJob, IntPtr hProcess);
-
-    [SupportedOSPlatform("windows")]
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool CloseHandle(IntPtr hObject);
-
-    #endregion
-
-    #region 进程终止（带权限处理）
-
-    [SupportedOSPlatform("windows")]
-    [SupportedOSPlatform("linux")]
-    [SupportedOSPlatform("macos")]
-    private static void SafeTerminateProcess(Process process)
-    {
-        try
-        {
-            if (process.HasExited) return;
-
-            if (NeedElevation(process))
-            {
-                ElevateKill(process.Id);
-            }
-            else
-            {
-                process.Kill();
-                process.WaitForExit(5000);
-            }
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[Error] 终止进程失败: {process.ProcessName} ({process.Id}) - {ex.Message}");
-        }
-        finally
-        {
-            process.Dispose();
-        }
-    }
-
-    [SupportedOSPlatform("linux")]
-    [SupportedOSPlatform("macos")]
-    private static bool NeedElevation(Process process)
-    {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            return false;
-
-        try
-        {
-            var uid = GetUnixUserId();
-            var processUid = GetProcessUid(process.Id);
-            return uid != processUid;
-        }
-        catch
-        {
-            return true; // 无法获取时默认需要提权
-        }
-    }
-
-    [SupportedOSPlatform("linux")]
-    [SupportedOSPlatform("macos")]
-    private static void ElevateKill(int pid)
-    {
-        ExecuteShellCommand($"sudo kill -9 {pid}");
-    }
-
-    #endregion
-
-    #region Unix辅助方法
-
-    [DllImport("libc", EntryPoint = "getuid")]
-    private static extern uint GetUid();
-
-    private static uint GetUnixUserId() => GetUid();
-
-    [SupportedOSPlatform("linux")]
-    [SupportedOSPlatform("macos")]
-    private static uint GetProcessUid(int pid)
-    {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-        {
-            var statusPath = $"/proc/{pid}/status";
-            var uidLine = File.ReadLines(statusPath)
-                .FirstOrDefault(l => l.StartsWith("Uid:"));
-            return uint.Parse(uidLine?.Split('\t')[1] ?? "0");
-        }
-        else // macOS
-        {
-            var output = ExecuteShellCommand($"ps -p {pid} -o uid=");
-            return uint.TryParse(output?.Trim(), out var uid) ? uid : 0;
-        }
-    }
-
-    private static string? ExecuteShellCommand(string command)
-    {
-        try
-        {
-            var psi = new ProcessStartInfo
-            {
-                FileName = "/bin/bash",
-                Arguments = $"-c \"{command}\"",
-                RedirectStandardOutput = true,
-                UseShellExecute = false
-            };
-
-            using var process = Process.Start(psi);
-            return process?.StandardOutput.ReadToEnd();
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    #endregion
 
     public async Task TestConnecting()
     {
@@ -3836,7 +3071,7 @@ public class MaaProcessor
                     return Task.CompletedTask;
                 }
 
-                CancelOperations(status == MFATask.MFATaskStatus.STOPPED && !_agentStarted && (_agentClient != null || _agentProcess != null));
+                CancelOperations(status == MFATask.MFATaskStatus.STOPPED && !_agentStarted && _agentContexts.Count > 0);
 
                 TaskQueue.Clear();
 
@@ -3891,186 +3126,9 @@ public class MaaProcessor
         CancellationTokenSource.SafeCancel();
         if (killAgent)
         {
-            SafeKillAgentProcess();
+            AgentHelper.KillAllAgents(_agentContexts);
+            _agentContexts = [];
         }
-    }
-
-    [SupportedOSPlatform("windows")]
-    private static void KillProcessTree(int parentPid)
-    {
-        using var searcher = new ManagementObjectSearcher(
-            $"SELECT ProcessId FROM Win32_Process WHERE ParentProcessId = {parentPid}");
-
-        foreach (var item in searcher.Get())
-        {
-            var childPid = Convert.ToInt32(item["ProcessId"]);
-            KillProcessTree(childPid); // 递归终止子进程的子进程
-
-            try
-            {
-                var childProcess = Process.GetProcessById(childPid);
-                if (!childProcess.HasExited)
-                {
-                    childProcess.Kill();
-                    childProcess.WaitForExit(3000);
-                }
-                childProcess.Dispose();
-            }
-            catch (ArgumentException) { } // 进程已退出
-        }
-    }
-
-    /// 强制终止 Agent 进程（用于窗口关闭等紧急情况）
-    /// </summary>
-    /// <param name="taskerToDispose">原tasker</param>
-    private void SafeKillAgentProcess(MaaTasker? taskerToDispose = null)
-    {
-        // 获取当前引用的本地副本，避免在检查和使用之间被其他线程修改
-        var agentClient = _agentClient;
-        var agentProcess = _agentProcess;
-        // 如果传入了 taskerToDispose，使用它；否则使用当前的 MaaTasker
-        var maaTasker = taskerToDispose ?? MaaTasker;
-
-        StopAgentReadStreams();
-
-        // 先清除引用，防止在后续操作中被其他线程访问
-        _agentClient = null;
-        _agentProcess = null;
-
-        // 重要：必须按照正确的顺序释放资源，避免原生代码访问冲突
-        // 步骤 1: 先解除 AgentClient 与资源的绑定（在Dispose MaaTasker 之前）
-        // 这样 MaaTasker.Dispose() 就不会触发 MaaAgentClient.OnResourceReleasing 事件
-        if (agentClient != null)
-        {
-            // 停止 AgentClient 连接
-            LoggerHelper.Info($"Stopping AgentClient connection");
-            try
-            {
-                bool shouldStop = false;
-                try
-                {
-                    shouldStop = !agentClient.IsStateless && !agentClient.IsInvalid;
-                }
-                catch (ObjectDisposedException)
-                {
-                    // 对象已被释放，跳过
-                }
-
-                if (shouldStop)
-                {
-                    try
-                    {
-                        agentClient.LinkStop();
-                        LoggerHelper.Info("AgentClient LinkStop succeeded");
-                    }
-                    catch (Exception e)
-                    {
-                        LoggerHelper.Warning($"AgentClient LinkStop failed: {e.Message}");
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                LoggerHelper.Warning($"AgentClient LinkStop check failed: {e.Message}");
-            }
-        }
-
-        // 步骤 2: 终止 Agent 进程（在释放 MaaTasker 之前）
-        if (agentProcess != null)
-        {
-            LoggerHelper.Info($"Terminating Agent process");
-            try
-            {
-                var hasExited = true;
-                try
-                {
-                    hasExited = agentProcess.HasExited;
-                }
-                catch (InvalidOperationException)
-                {
-                    hasExited = true;
-                }
-                catch (Exception ex)
-                {
-                    LoggerHelper.Warning($"Failed to check if agent process has exited: {ex.Message}");
-                    hasExited = true;
-                }
-
-                if (!hasExited)
-                {
-                    try
-                    {
-                        LoggerHelper.Info($"Kill AgentProcess: {agentProcess.ProcessName}");
-                        agentProcess.Kill(true);
-                        agentProcess.WaitForExit(5000);
-                        LoggerHelper.Info("Agent process killed successfully");
-                    }
-                    catch (Exception ex)
-                    {
-                        LoggerHelper.Warning($"Failed to kill agent process: {ex.Message}");
-                    }
-                }
-                else
-                {
-                    LoggerHelper.Info("AgentProcess has already exited");
-                }
-            }
-            catch (Exception e)
-            {
-                LoggerHelper.Error($"Error handling agent process: {e.Message}");
-            }
-            finally
-            {
-                try
-                {
-                    agentProcess.Dispose();
-                }
-                catch (Exception e)
-                {
-                    LoggerHelper.Warning($"AgentProcess Dispose failed: {e.Message}");
-                }
-            }
-        }
-        // 步骤 3: 停止并释放 MaaTasker（由于已经解除了 AgentClient 的绑定，不会触发 AgentClient 释放）
-        if (maaTasker != null)
-        {
-            // 先停止 MaaTasker，等待内部任务完成，避免在任务执行过程中直接 Dispose 导致 handle is null 错误
-            if (maaTasker.IsRunning && !maaTasker.IsStopping)
-            {
-                LoggerHelper.Info($"Stopping MaaTasker before dispose");
-                try
-                {
-
-                    var stopResult = maaTasker.Stop().Wait();
-                    LoggerHelper.Info($"MaaTasker Stop result: {stopResult}");
-                }
-                catch (ObjectDisposedException)
-                {
-                    LoggerHelper.Info("MaaTasker was already disposed during Stop");
-                }
-                catch (Exception e)
-                {
-                    LoggerHelper.Warning($"MaaTasker Stop failed: {e.Message}");
-                }
-            }
-
-            LoggerHelper.Info($"Disposing MaaTasker");
-            try
-            {
-                maaTasker.Dispose();
-                LoggerHelper.Info("MaaTasker disposed successfully");
-            }
-            catch (ObjectDisposedException)
-            {
-                LoggerHelper.Info("MaaTasker was already disposed");
-            }
-            catch (Exception e)
-            {
-                LoggerHelper.Warning($"MaaTasker Dispose failed: {e.Message}");
-            }
-        }
-
-        DisposeAgentJob();
     }
 
     private bool ShouldProcessStop(bool finished)
