@@ -3485,59 +3485,41 @@ public class MaaProcessor
         return controllerConfig?.PermissionRequired == true;
     }
 
-    /// <summary>
-    /// 检查目标进程是否以管理员权限运行（用于直接连接时的权限检查）
-    /// 如果目标进程以管理员权限运行，而当前程序不是管理员，则返回 false
-    /// </summary>
-    private bool CheckTargetProcessAdminPermission()
-    {
-        if (!OperatingSystem.IsWindows())
-            return true;
-
-        var controllerType = ViewModel?.CurrentController ?? MaaControllerTypes.Adb;
-        if (controllerType != MaaControllerTypes.Win32 && controllerType != MaaControllerTypes.Gamepad)
-            return true;
-
-        var controllerConfig = Interface?.Controller?.FirstOrDefault(c =>
-            c.Type != null && c.Type.Equals(controllerType.ToJsonKey(), StringComparison.OrdinalIgnoreCase));
-
-        // 如果配置了permission_required，检查目标窗口的进程是否以管理员权限运行
-        if (controllerConfig?.PermissionRequired == true)
-        {
-            // 如果当前程序已经是管理员，则无需检查
-            if (AdminHelper.IsRunningAsAdministrator())
-                return true;
-
-            // 检查目标窗口的进程是否以管理员权限运行
-            var hwnd = Config.DesktopWindow.HWnd;
-            if (hwnd != IntPtr.Zero)
-            {
-                try
+                /// <summary>
+                /// 检查当前进程是否满足控制器的管理员权限要求
+                /// 如果配置了 permission_required，MaaFW 需要以管理员权限运行，
+                /// 由于 UI 和 FW 在同一进程，即当前进程必须以管理员身份运行
+                /// </summary>
+                private bool CheckTargetProcessAdminPermission()
                 {
-                    if (AdminHelper.IsWindowProcessRunningAsAdministrator(hwnd) == true)
+                    if (!OperatingSystem.IsWindows())
+                        return true;
+            
+                    var controllerType = ViewModel?.CurrentController ?? MaaControllerTypes.Adb;
+                    if (controllerType != MaaControllerTypes.Win32 && controllerType != MaaControllerTypes.Gamepad)
+                        return true;
+            
+                    var controllerConfig = Interface?.Controller?.FirstOrDefault(c =>
+                        c.Type != null && c.Type.Equals(controllerType.ToJsonKey(), StringComparison.OrdinalIgnoreCase));
+            
+                    // 如果配置了 permission_required，当前进程（承载 MaaFW）必须以管理员身份运行
+                    if (controllerConfig?.PermissionRequired == true)
                     {
-                        // 目标进程以管理员权限运行，但当前程序不是管理员
-                        LoggerHelper.Warning("目标进程以管理员权限运行，需要以管理员身份运行本程序");
-                        DispatcherHelper.RunOnMainThread(() =>
+                        if (!AdminHelper.IsRunningAsAdministrator())
                         {
-                            ToastHelper.Error(
-                                LangKeys.AdminPermissionRequired.ToLocalization(),
-                                LangKeys.AdminPermissionRequiredDetail.ToLocalization());
-                        });
-                        return false;
+                            LoggerHelper.Warning("控制器配置了 permission_required，但当前进程未以管理员身份运行");
+                            DispatcherHelper.RunOnMainThread(() =>
+                            {
+                                ToastHelper.Error(
+                                    LangKeys.AdminPermissionRequired.ToLocalization(),
+                                    LangKeys.AdminPermissionRequiredDetail.ToLocalization());
+                            });
+                            return false;
+                        }
                     }
-                }
-                catch (Exception ex)
-                {
-                    LoggerHelper.Warning($"检查目标进程管理员权限失败: {ex.Message}");
-                    // 检查失败时，假设不需要管理员权限
+            
                     return true;
                 }
-            }
-        }
-
-        return true;
-    }
 
     #endregion
 
