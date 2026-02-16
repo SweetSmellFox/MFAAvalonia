@@ -1535,7 +1535,7 @@
             <value>Administrator Permission Required</value>
         </data>
         <data name="AdminPermissionRequiredDetail" xml:space="preserve">
-            <value>The target process is running with administrator privileges. Please restart this application as administrator.</value>
+            <value>The current controller requires administrator privileges. Please restart this application as administrator.</value>
         </data>
         <data name="StartupErrorTitle" xml:space="preserve">
             <value>Startup Failed</value>

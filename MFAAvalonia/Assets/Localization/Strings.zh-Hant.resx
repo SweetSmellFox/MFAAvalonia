@@ -1580,7 +1580,7 @@
         <value>需要管理員權限</value>
     </data>
     <data name="AdminPermissionRequiredDetail" xml:space="preserve">
-        <value>目標進程以管理員權限運行，請以管理員身份重新啓動本程序</value>
+        <value>當前控制器需要管理員權限，請以管理員身份重新啟動本程式</value>
     </data>
     <data name="FontScaleValue" xml:space="preserve">
         <value>{0}%</value>

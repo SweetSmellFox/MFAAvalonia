@@ -1545,7 +1545,7 @@
             <value>需要管理员权限</value>
         </data>
         <data name="AdminPermissionRequiredDetail" xml:space="preserve">
-            <value>目标进程以管理员权限运行，请以管理员身份重新启动本程序</value>
+            <value>当前控制器需要管理员权限，请以管理员身份重新启动本程序</value>
         </data>
         <data name="StartupErrorTitle" xml:space="preserve">
             <value>启动失败</value>

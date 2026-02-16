@@ -1,4 +1,5 @@
 ﻿using Avalonia.Controls;
+using Avalonia.Controls.Notifications;
 using Avalonia.Media;
 using MaaFramework.Binding;
 using MaaFramework.Binding.Buffers;
@@ -14,6 +15,7 @@ using MFAAvalonia.Views.Windows;
 using Microsoft.WindowsAPICodePack.Taskbar;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using SukiUI.Dialogs;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -3510,9 +3512,15 @@ public class MaaProcessor
                             LoggerHelper.Warning("控制器配置了 permission_required，但当前进程未以管理员身份运行");
                             DispatcherHelper.RunOnMainThread(() =>
                             {
-                                ToastHelper.Error(
-                                    LangKeys.AdminPermissionRequired.ToLocalization(),
-                                    LangKeys.AdminPermissionRequiredDetail.ToLocalization());
+                                Instances.DialogManager.CreateDialog()
+                                    .OfType(NotificationType.Error)
+                                    .WithContent(LangKeys.AdminPermissionRequiredDetail.ToLocalization())
+                                    .WithActionButton(LangKeys.Restart.ToLocalization(), _ =>
+                                    {
+                                        if (AdminHelper.RestartAsAdministrator())
+                                            Instances.ShutdownApplication();
+                                    }, true)
+                                    .TryShow();
                             });
                             return false;
                         }
