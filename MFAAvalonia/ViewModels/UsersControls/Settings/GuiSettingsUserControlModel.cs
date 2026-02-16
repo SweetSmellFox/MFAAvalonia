@@ -11,6 +11,7 @@ using MFAAvalonia.Helper;
 using MFAAvalonia.Helper.Converters;
 using MFAAvalonia.ViewModels.Other;
 using MFAAvalonia.Views.UserControls;
+using Newtonsoft.Json.Linq;
 using SukiUI;
 using SukiUI.Dialogs;
 using SukiUI.Enums;
@@ -96,7 +97,7 @@ public partial class GuiSettingsUserControlModel : ViewModelBase
                 _theme.AddColorTheme(color);
         }
 
-        CurrentColorTheme = ConfigurationManager.Current.GetValue(ConfigurationKeys.ColorTheme, _theme.ColorThemes.First(t => t.DisplayName.Equals("blue", StringComparison.OrdinalIgnoreCase)));
+        CurrentColorTheme = FindColorThemeFromConfig();
 
         BaseTheme =
             ConfigurationManager.Current.GetValue(ConfigurationKeys.BaseTheme, ThemeVariant.Light, new Dictionary<object, ThemeVariant>
@@ -198,7 +199,41 @@ public partial class GuiSettingsUserControlModel : ViewModelBase
             .TryShow();
     }
 
-    partial void OnCurrentColorThemeChanged(SukiColorTheme value) => HandlePropertyChanged(ConfigurationKeys.ColorTheme, value, t => _theme.ChangeColorTheme(t));
+    partial void OnCurrentColorThemeChanged(SukiColorTheme value)
+    {
+        ConfigurationManager.Current.SetValue(ConfigurationKeys.ColorTheme, value.DisplayName);
+        _theme.ChangeColorTheme(value);
+    }
+
+    /// <summary>
+    /// 从配置中读取主题色，通过 DisplayName 匹配已注册的主题对象。
+    /// 兼容旧格式（JObject）和新格式（字符串）。
+    /// </summary>
+    internal static SukiColorTheme FindColorThemeFromConfig()
+    {
+        var defaultTheme = _theme.ColorThemes.First(t => t.DisplayName.Equals("blue", StringComparison.OrdinalIgnoreCase));
+
+        // 新格式：直接存储 DisplayName 字符串
+        var themeName = ConfigurationManager.Current.GetValue(ConfigurationKeys.ColorTheme, string.Empty);
+        if (!string.IsNullOrEmpty(themeName))
+        {
+            var found = _theme.ColorThemes.FirstOrDefault(t => t.DisplayName.Equals(themeName, StringComparison.OrdinalIgnoreCase));
+            if (found != null) return found;
+        }
+
+        // 旧格式：存储了整个 SukiColorTheme 对象（JObject），从中提取 DisplayName
+        if (ConfigurationManager.Current.Config.TryGetValue(ConfigurationKeys.ColorTheme, out var data) && data is JObject jObj)
+        {
+            var displayName = jObj["DisplayName"]?.ToString();
+            if (!string.IsNullOrEmpty(displayName))
+            {
+                var found = _theme.ColorThemes.FirstOrDefault(t => t.DisplayName.Equals(displayName, StringComparison.OrdinalIgnoreCase));
+                if (found != null) return found;
+            }
+        }
+
+        return defaultTheme;
+    }
 
     partial void OnBaseThemeChanged(ThemeVariant value) => HandlePropertyChanged(ConfigurationKeys.BaseTheme, value, t => _theme.ChangeBaseTheme(t));
 

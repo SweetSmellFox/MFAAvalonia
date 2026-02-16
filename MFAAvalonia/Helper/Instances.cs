@@ -439,7 +439,7 @@ public static partial class Instances
                     gui.BackgroundImageOpacity = ConfigurationManager.Current.GetValue(ConfigurationKeys.BackgroundImageOpacity, 0.2);
                     gui.FontScale = ConfigurationManager.Current.GetValue(ConfigurationKeys.FontScale, FontService.DefaultScale);
 
-                    gui.CurrentColorTheme = ConfigurationManager.Current.GetValue(ConfigurationKeys.ColorTheme, theme.ColorThemes.First(t => t.DisplayName.Equals("blue", StringComparison.OrdinalIgnoreCase)));
+                    gui.CurrentColorTheme = GuiSettingsUserControlModel.FindColorThemeFromConfig();
                     gui.BaseTheme = ConfigurationManager.Current.GetValue(ConfigurationKeys.BaseTheme, Avalonia.Styling.ThemeVariant.Light, new System.Collections.Generic.Dictionary<object, Avalonia.Styling.ThemeVariant>
                     {
                         ["Dark"] = Avalonia.Styling.ThemeVariant.Dark,
