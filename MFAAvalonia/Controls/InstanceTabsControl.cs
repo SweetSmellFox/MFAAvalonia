@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls;
@@ -101,6 +102,15 @@ public class InstanceTabsControl : TabControl
     protected override Control CreateContainerForItemOverride(object? item, int index, object? recycleKey) =>
         new DragTabItem();
 
+    private void UpdateAllTabsCanClose()
+    {
+        var canClose = Items.Count > 1;
+        foreach (var tab in DragTabItems())
+        {
+            tab.CanClose = canClose;
+        }
+    }
+
     /// <summary>
     /// 设置外部的 TabBarBackground Border（用于覆盖整个标签栏区域，包括下拉按钮）。
     /// 如果设置了外部 Border，则优先使用它进行 Clip 计算。
@@ -153,7 +163,11 @@ public class InstanceTabsControl : TabControl
     {
         base.OnPropertyChanged(change);
 
-        if (change.Property == AdjacentHeaderItemOffsetProperty)
+        if (change.Property == ItemCountProperty)
+        {
+            Dispatcher.UIThread.Post(UpdateAllTabsCanClose, DispatcherPriority.Loaded);
+        }
+        else if (change.Property == AdjacentHeaderItemOffsetProperty)
         {
             _tabsPanel.ItemOffset = AdjacentHeaderItemOffset;
         }

@@ -23,6 +23,7 @@ public class DragTabItem : TabItem
     private int _logicalIndex;
     private bool _isDragging;
     private bool _isSiblingDragging;
+    private bool _canClose = true;
 
     public static readonly StyledProperty<double> XProperty =
         AvaloniaProperty.Register<DragTabItem, double>(nameof(X));
@@ -41,6 +42,10 @@ public class DragTabItem : TabItem
     public static readonly DirectProperty<DragTabItem, bool> IsSiblingDraggingProperty =
         AvaloniaProperty.RegisterDirect<DragTabItem, bool>(nameof(IsSiblingDragging),
             o => o.IsSiblingDragging, (o, v) => o.IsSiblingDragging = v);
+
+    public static readonly DirectProperty<DragTabItem, bool> CanCloseProperty =
+        AvaloniaProperty.RegisterDirect<DragTabItem, bool>(nameof(CanClose),
+            o => o.CanClose, (o, v) => o.CanClose = v, defaultBindingMode: Avalonia.Data.BindingMode.OneWay, enableDataValidation: false);
 
     public double X
     {
@@ -70,6 +75,16 @@ public class DragTabItem : TabItem
     {
         get => _isSiblingDragging;
         internal set => SetAndRaise(IsSiblingDraggingProperty, ref _isSiblingDragging, value);
+    }
+
+    public bool CanClose
+    {
+        get => _canClose;
+        internal set
+        {
+            if (SetAndRaise(CanCloseProperty, ref _canClose, value))
+                UpdateCloseButtonVisibility();
+        }
     }
 
     public static readonly RoutedEvent<DragTabDragStartedEventArgs> DragStarted =
@@ -125,6 +140,8 @@ public class DragTabItem : TabItem
 
         e.Handled = true; // 立即阻止事件继续传播，防止 Thumb 捕获指针
 
+        if (!_canClose) return;
+
         var tabsControl = this.FindAncestorOfType<InstanceTabsControl>();
         if (tabsControl?.CloseItemCommand is { } cmd)
         {
@@ -149,7 +166,7 @@ public class DragTabItem : TabItem
     private void UpdateCloseButtonVisibility()
     {
         if (_closeButton == null) return;
-        _closeButton.IsVisible = Bounds.Width >= MinWidthForCloseButton;
+        _closeButton.IsVisible = Bounds.Width >= MinWidthForCloseButton && _canClose;
     }
 
     /// <summary>
