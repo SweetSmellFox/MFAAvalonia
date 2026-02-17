@@ -244,7 +244,7 @@ jobs:
           TOKEN: ${{ secrets.MFA_TOKEN }}
 
       - name: Trigger MirrorChyanUploading
-        if: ${{ github.repository_owner == 'SweetSmellFox' }}
+        if: ${{ github.repository_owner == 'MaaXYZ' }}
         run: |
           gh workflow run --repo $GITHUB_REPOSITORY mirrorchyan
           gh workflow run --repo $GITHUB_REPOSITORY mirrorchyan_release_note

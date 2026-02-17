@@ -8,11 +8,11 @@
 _A universal GUI solution for [MaaFramework](https://github.com/MaaXYZ/MaaFramework) built
 with [Avalonia UI](https://github.com/AvaloniaUI/Avalonia)_
 
-[![License](https://img.shields.io/github/license/SweetSmellFox/MFAAvalonia?style=flat-square&color=4a90d9)](./LICENSE)
+[![License](https://img.shields.io/github/license/MaaXYZ/MFAAvalonia?style=flat-square&color=4a90d9)](./LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-%E2%89%A5%2010-512BD4?style=flat-square&logo=dotnet)](https://dotnet.microsoft.com/)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blueviolet?style=flat-square)](https://github.com/SweetSmellFox/MFAAvalonia)
-[![Commit Activity](https://img.shields.io/github/commit-activity/m/SweetSmellFox/MFAAvalonia?style=flat-square&color=00d4aa)](https://github.com/SweetSmellFox/MFAAvalonia/commits)
-[![Stars](https://img.shields.io/github/stars/SweetSmellFox/MFAAvalonia?style=flat-square&color=ffca28)](https://github.com/SweetSmellFox/MFAAvalonia/stargazers)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blueviolet?style=flat-square)](https://github.com/MaaXYZ/MFAAvalonia)
+[![Commit Activity](https://img.shields.io/github/commit-activity/m/MaaXYZ/MFAAvalonia?style=flat-square&color=00d4aa)](https://github.com/MaaXYZ/MFAAvalonia/commits)
+[![Stars](https://img.shields.io/github/stars/MaaXYZ/MFAAvalonia?style=flat-square&color=ffca28)](https://github.com/MaaXYZ/MFAAvalonia/stargazers)
 [![Mirror Chyan](https://img.shields.io/badge/Mirror%20Chyan-%239af3f6?style=flat-square&logo=countingworkspro&logoColor=4f46e5)](https://mirrorchyan.com/zh/projects?rid=MFAAvalonia&source=mfaagh-badge)
 
 ---
@@ -91,7 +91,7 @@ MaaFramework project templates come with MFAAvalonia pre-configured.
 <summary><b>📦 Click to expand installation steps</b></summary>
 
 1. **Download Release**
-   Download the latest version from [Releases](https://github.com/SweetSmellFox/MFAAvalonia/releases) and extract
+   Download the latest version from [Releases](https://github.com/MaaXYZ/MFAAvalonia/releases) and extract
 
 2. **Copy Resource Files**
    ```
@@ -334,15 +334,15 @@ This project is licensed under **[GPL-3.0 License](./LICENSE)**.
 
 Thanks to all developers who contributed to MFAAvalonia!
 
-<a href="https://github.com/SweetSmellFox/MFAAvalonia/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=SweetSmellFox/MFAAvalonia&max=1000" alt="Contributors"/>
+<a href="https://github.com/MaaXYZ/MFAAvalonia/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=MaaXYZ/MFAAvalonia&max=1000" alt="Contributors"/>
 </a>
 
 <div align="center">
 
 **If this project helps you, please give us a ⭐ Star!**
 
-[![Star History Chart](https://api.star-history.com/svg?repos=SweetSmellFox/MFAAvalonia&type=Date)](https://star-history.com/#SweetSmellFox/MFAAvalonia&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=MaaXYZ/MFAAvalonia&type=Date)](https://star-history.com/#MaaXYZ/MFAAvalonia&Date)
 
 </div> 
 

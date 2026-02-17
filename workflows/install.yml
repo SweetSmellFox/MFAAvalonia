@@ -77,7 +77,7 @@ jobs:
         id: download_mfa
         uses: robinraju/release-downloader@v1
         with:
-          repository: SweetSmellFox/MFAAvalonia
+          repository: MaaXYZ/MFAAvalonia
           fileName: "MFAAvalonia-*-${{ (matrix.os == 'win' && 'win') || (matrix.os == 'macos' && 'osx') || (matrix.os == 'linux' && 'linux') }}-${{ (matrix.arch == 'x86_64' && 'x64') || (matrix.arch == 'aarch64' && 'arm64') }}*"
           latest: true
           out-file-path: "MFA"

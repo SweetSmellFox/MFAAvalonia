@@ -7,7 +7,7 @@ on:
 
 jobs:
   mirrorchyan:
-    if: ${{ github.repository_owner == 'SweetSmellFox' }}
+    if: ${{ github.repository_owner == 'MaaXYZ' }}
     runs-on: macos-latest
 
     steps:
