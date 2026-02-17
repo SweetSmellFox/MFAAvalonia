@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD033 MD041 -->
 <div align="center"><img alt="LOGO" src="./docs/images/mfa-logo_512x512.png" width="256" height="256" />
 
-# MFAAvalonia
+# MFAAvalonia 
 
 **🚀 新一代跨平台自动化框架图形界面**
 
