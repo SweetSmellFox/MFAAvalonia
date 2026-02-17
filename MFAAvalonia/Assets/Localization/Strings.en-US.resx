@@ -1864,5 +1864,17 @@
     <data name="InstanceCloseTitle" xml:space="preserve">
         <value>Close Instance</value>
     </data>
-    </root>
+    <data name="MonitorSortDefault" xml:space="preserve">
+        <value>Default</value>
+    </data>
+    <data name="MonitorSortByStatus" xml:space="preserve">
+        <value>By Status</value>
+    </data>
+    <data name="MonitorSortByName" xml:space="preserve">
+        <value>By Name</value>
+    </data>
+    <data name="MonitorSortByCreatedTime" xml:space="preserve">
+        <value>By Created Time</value>
+    </data>
+</root>
 

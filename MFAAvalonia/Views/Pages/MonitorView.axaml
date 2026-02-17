@@ -13,7 +13,17 @@
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="MFAAvalonia.Views.Pages.MonitorView"
              x:DataType="pages:MonitorViewModel">
-    <ScrollViewer>
+    <DockPanel>
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" HorizontalAlignment="Right" Margin="10,5">
+             <ComboBox SelectedIndex="{Binding SortIndex}"
+                      MinWidth="120">
+                <ComboBoxItem Content="{markup:I18n {x:Static helper:LangKeys.MonitorSortDefault}}" />
+                <ComboBoxItem Content="{markup:I18n {x:Static helper:LangKeys.MonitorSortByStatus}}" />
+                <ComboBoxItem Content="{markup:I18n {x:Static helper:LangKeys.MonitorSortByName}}" />
+                <ComboBoxItem Content="{markup:I18n {x:Static helper:LangKeys.MonitorSortByCreatedTime}}" />
+            </ComboBox>
+        </StackPanel>
+        <ScrollViewer>
         <ItemsControl ItemsSource="{Binding Items}">
             <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
@@ -69,5 +79,6 @@
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
-    </ScrollViewer>
+        </ScrollViewer>
+    </DockPanel>
 </UserControl>

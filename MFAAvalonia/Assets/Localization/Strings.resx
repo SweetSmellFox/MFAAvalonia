@@ -1874,6 +1874,17 @@
     <data name="InstanceCloseTitle" xml:space="preserve">
         <value>关闭实例</value>
     </data>
-
-    </root>
+    <data name="MonitorSortDefault" xml:space="preserve">
+        <value>默认</value>
+    </data>
+    <data name="MonitorSortByStatus" xml:space="preserve">
+        <value>按状态</value>
+    </data>
+    <data name="MonitorSortByName" xml:space="preserve">
+        <value>按名称</value>
+    </data>
+    <data name="MonitorSortByCreatedTime" xml:space="preserve">
+        <value>按创建时间</value>
+    </data>
+</root>
 

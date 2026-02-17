@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using MFAAvalonia.Extensions.MaaFW;
 using MFAAvalonia.Helper;
 using System;
@@ -12,6 +13,11 @@ public partial class MonitorViewModel : ViewModelBase, IDisposable
 {
     public ObservableCollection<MonitorItemViewModel> Items { get; } = new();
     private readonly DispatcherTimer _timer;
+
+    [ObservableProperty]
+    private int _sortIndex;
+
+    partial void OnSortIndexChanged(int value) => ApplySort();
 
     public MonitorViewModel()
     {
@@ -52,17 +58,40 @@ public partial class MonitorViewModel : ViewModelBase, IDisposable
                     Items.Add(new MonitorItemViewModel(p));
                 }
             }
+
+            if (SortIndex != 0)
+                ApplySort();
+        });
+    }
+
+    private void ApplySort()
+    {
+        DispatcherHelper.PostOnMainThread(() =>
+        {
+            var sorted = SortIndex switch
+            {
+                1 => Items.OrderByDescending(i => i.IsRunning)
+                    .ThenByDescending(i => i.IsConnected).ToList(),
+                2 => Items.OrderBy(i => i.Name, StringComparer.CurrentCulture).ToList(),
+                3 => Items.OrderBy(i => i.CreatedAt).ToList(),
+                _ => null
+            };
+
+            if (sorted == null) return;
+
+            for (int i = 0; i < sorted.Count; i++)
+            {
+                var oldIndex = Items.IndexOf(sorted[i]);
+                if (oldIndex != i)
+                    Items.Move(oldIndex, i);
+            }
         });
     }
 
     private void UpdateAll()
     {
         foreach(var item in Items)
-        {
             item.UpdateInfo();
-            // Run image update in background
-            System.Threading.Tasks.Task.Run(() => item.UpdateImage());
-        }
     }
 
     public void Dispose()

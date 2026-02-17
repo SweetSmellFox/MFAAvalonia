@@ -4,7 +4,8 @@ using CommunityToolkit.Mvvm.Input;
 using MFAAvalonia.Extensions.MaaFW;
 using MFAAvalonia.Helper;
 using MFAAvalonia.Helper.ValueType;
-using Avalonia.Threading;
+using System;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -13,6 +14,8 @@ namespace MFAAvalonia.ViewModels.Pages;
 public partial class MonitorItemViewModel : ViewModelBase
 {
     public MaaProcessor Processor { get; }
+    public DateTime CreatedAt { get; } = DateTime.Now;
+    private TaskQueueViewModel? _subscribedViewModel;
 
     [ObservableProperty]
     private Bitmap? _image;
@@ -33,50 +36,41 @@ public partial class MonitorItemViewModel : ViewModelBase
     {
         Processor = processor;
         UpdateInfo();
+        TrySubscribeViewModel();
+    }
+
+    private void TrySubscribeViewModel()
+    {
+        var vm = Processor.ViewModel;
+        if (vm == _subscribedViewModel) return;
+        if (_subscribedViewModel != null)
+            _subscribedViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+        _subscribedViewModel = vm;
+        if (vm != null)
+        {
+            vm.PropertyChanged += OnViewModelPropertyChanged;
+            SyncImage(vm.LiveViewImage);
+        }
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(TaskQueueViewModel.LiveViewImage))
+            SyncImage(_subscribedViewModel?.LiveViewImage);
+    }
+
+    private void SyncImage(Bitmap? source)
+    {
+        Image = source;
+        HasImage = source != null;
     }
 
     public void UpdateInfo()
     {
         Name = MaaProcessorManager.Instance.GetInstanceName(Processor.InstanceId);
         IsConnected = Processor.ViewModel?.IsConnected ?? false;
-        // Check if actually running a task
         IsRunning = Processor.TaskQueue.Count > 0;
-    }
-
-    public void UpdateImage()
-    {
-        if (!IsConnected)
-        {
-             if (Image != null)
-             {
-                 var old = Image;
-                 DispatcherHelper.PostOnMainThread(() => 
-                 {
-                     Image = null;
-                     old.Dispose();
-                     HasImage = false;
-                 });
-             }
-             return;
-        }
-
-        Bitmap? newImage = null;
-        try 
-        {
-             newImage = Processor.GetLiveView(false); 
-        }
-        catch {}
-
-        if (newImage != null)
-        {
-            DispatcherHelper.PostOnMainThread(() => 
-            {
-                var old = Image;
-                Image = newImage;
-                old?.Dispose();
-                HasImage = true;
-            });
-        }
+        TrySubscribeViewModel();
     }
 
     [RelayCommand]
@@ -109,6 +103,7 @@ public partial class MonitorItemViewModel : ViewModelBase
 
     public void Dispose()
     {
-        Image?.Dispose();
+        if (_subscribedViewModel != null)
+            _subscribedViewModel.PropertyChanged -= OnViewModelPropertyChanged;
     }
 }

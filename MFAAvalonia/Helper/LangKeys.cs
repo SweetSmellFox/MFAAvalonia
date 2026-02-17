@@ -619,5 +619,9 @@ public static class LangKeys
 	public static readonly string InstanceCannotCloseLast = "InstanceCannotCloseLast";
 	public static readonly string InstanceRunningCloseConfirm = "InstanceRunningCloseConfirm";
 	public static readonly string InstanceCloseTitle = "InstanceCloseTitle";
+	public static readonly string MonitorSortDefault = "MonitorSortDefault";
+	public static readonly string MonitorSortByStatus = "MonitorSortByStatus";
+	public static readonly string MonitorSortByName = "MonitorSortByName";
+	public static readonly string MonitorSortByCreatedTime = "MonitorSortByCreatedTime";
 	
 }
