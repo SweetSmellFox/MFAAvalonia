@@ -404,12 +404,70 @@ public partial class TaskQueueViewModel : ViewModelBase
             return;
         }
 
+        // 验证所有已勾选任务的 input 选项
+        var failedTasks = new List<string>();
+        foreach (var task in TaskItemViewModels)
+        {
+            task.HasValidationError = false;
+            if (!task.IsChecked) continue;
+
+            var options = task.IsResourceOptionItem
+                ? task.ResourceItem?.SelectOptions
+                : task.InterfaceItem?.Option;
+            if (options == null) continue;
+
+            var error = ValidateOptionsRecursive(options);
+            if (error != null)
+            {
+                task.HasValidationError = true;
+                failedTasks.Add($"{task.Name}: {error}");
+            }
+        }
+
+        if (failedTasks.Count > 0)
+        {
+            ToastHelper.Warn(LangKeys.CannotStart.ToLocalization(), string.Join("\n", failedTasks));
+            return;
+        }
+
         Processor.Start();
     }
 
     public void StopTask(Action? action = null)
     {
         Processor.Stop(MFATask.MFATaskStatus.STOPPED, action: action);
+    }
+
+    private static string? ValidateOptionsRecursive(IEnumerable<MaaInterface.MaaInterfaceSelectOption> options)
+    {
+        foreach (var selectOption in options)
+        {
+            if (string.IsNullOrEmpty(selectOption.Name)) continue;
+            if (MaaProcessor.Interface?.Option?.TryGetValue(selectOption.Name, out var optDef) != true) continue;
+
+            if (optDef.IsInput)
+            {
+                var result = optDef.ValidateAllInputs(selectOption.Data);
+                if (!result.IsValid) return result.ErrorMessage;
+            }
+
+            if (selectOption.SubOptions is { Count: > 0 } && optDef.Cases != null)
+            {
+                var index = selectOption.Index ?? 0;
+                if (index >= 0 && index < optDef.Cases.Count)
+                {
+                    var selectedCase = optDef.Cases[index];
+                    if (selectedCase.Option is { Count: > 0 })
+                    {
+                        var activeNames = new HashSet<string>(selectedCase.Option);
+                        var subError = ValidateOptionsRecursive(
+                            selectOption.SubOptions.Where(s => activeNames.Contains(s.Name ?? string.Empty)));
+                        if (subError != null) return subError;
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     [RelayCommand]

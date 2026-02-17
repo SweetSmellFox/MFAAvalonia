@@ -3520,6 +3520,7 @@ public class MaaProcessor
                                         if (AdminHelper.RestartAsAdministrator())
                                             Instances.ShutdownApplication();
                                     }, true)
+                                    .WithActionButton(LangKeys.ButtonCancel.ToLocalization(), _ => { }, true, "Outline")
                                     .TryShow();
                             });
                             return false;

@@ -846,6 +846,10 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
              // Regex validation... logic as before
         }
 
+        // 验证输入并显示红框
+        var validation = interfaceOption.ValidateInput(input.Name ?? string.Empty, text);
+        textBox.BorderBrush = validation.IsValid ? null : Brushes.Red;
+
         if (!silent)
         {
             option.Data[input.Name] = text == "null" ? MaaInterface.MaaInterfaceOption.ExplicitNullMarker : text;

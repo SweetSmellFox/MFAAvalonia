@@ -449,7 +449,13 @@ public partial class MaaInterface
             var input = Inputs?.FirstOrDefault(i => i.Name == inputName);
             if (input == null) return (true, null);
 
-            if (string.IsNullOrEmpty(input.Verify)) return (true, null);
+            if (string.IsNullOrEmpty(input.Verify))
+            {
+                // 默认验证：不为空
+                if (string.IsNullOrWhiteSpace(value))
+                    return (false, input.PatternMsg ?? $"{LanguageHelper.GetLocalizedDisplayName(input.Label, input.Name ?? string.Empty)}");
+                return (true, null);
+            }
 
             try
             {
@@ -465,6 +471,23 @@ public partial class MaaInterface
                 return (true, null); // 正则出错时放行
             }
 
+            return (true, null);
+        }
+
+        /// <summary>
+        /// 验证所有输入字段
+        /// </summary>
+        public (bool IsValid, string? ErrorMessage) ValidateAllInputs(Dictionary<string, string?>? data)
+        {
+            if (!IsInput || Inputs == null) return (true, null);
+
+            foreach (var input in Inputs)
+            {
+                if (string.IsNullOrEmpty(input.Name)) continue;
+                var value = data != null && data.TryGetValue(input.Name, out var v) ? v ?? string.Empty : string.Empty;
+                var result = ValidateInput(input.Name, value);
+                if (!result.IsValid) return result;
+            }
             return (true, null);
         }
 

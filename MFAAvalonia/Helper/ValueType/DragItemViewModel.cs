@@ -51,6 +51,9 @@ public partial class DragItemViewModel : ObservableObject
 
     [ObservableProperty] private string _name = string.Empty;
 
+    /// <summary>验证不通过时标记为 true，用于 UI 红圈提示</summary>
+    [ObservableProperty] [JsonIgnore] private bool _hasValidationError;
+
     /// <summary>解析后的图标路径（用于 UI 绑定）</summary>
     [ObservableProperty] private string? _resolvedIcon;
 
