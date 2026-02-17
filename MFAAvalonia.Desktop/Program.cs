@@ -31,6 +31,13 @@ sealed class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        // 快速识别参数：用于更新时判断该可执行文件是否为 MFAAvalonia
+        if (args.Length > 0 && args[0] == "--identify")
+        {
+            Console.Write("MFAAvalonia");
+            return;
+        }
+
         try
         {
             CheckSkiaAvailability();

@@ -659,60 +659,55 @@ public static class VersionChecker
 
         SetProgress(progress, 1);
 
+        // 通过程序集名称检测解压目录中是否包含新版本的 MFAAvalonia 可执行文件
+        var newMFAExe = FindMFAExecutableByAssemblyName(tempExtractDir);
+        var containsMFAExecutable = !string.IsNullOrEmpty(newMFAExe);
+        if (containsMFAExecutable)
+            LoggerHelper.Info($"资源包中检测到 MFAAvalonia 可执行文件: {newMFAExe}");
+
+        // 统一使用 CopyAndDelete 覆盖文件（旧文件被锁定时会自动备份为 .backupMFA）
         var di = new DirectoryInfo(originPath);
         if (di.Exists)
         {
             await CopyAndDelete(originPath, wpfDir, progress, true);
         }
 
-        // File.Delete(tempZipFilePath);
-        // Directory.Delete(tempExtractDir, true);
+        // 更新 interface.json 版本信息
         var newInterfacePath = Path.Combine(wpfDir, "interface.json");
         if (File.Exists(newInterfacePath))
         {
             var jsonContent = await File.ReadAllTextAsync(newInterfacePath);
-
             var @interface = JObject.Parse(jsonContent);
             if (@interface != null)
             {
                 @interface["github"] = MaaProcessor.Interface?.Github ?? MaaProcessor.Interface?.Url;
                 @interface["version"] = latestVersion;
             }
-
             await File.WriteAllTextAsync(newInterfacePath, @interface.ToString(Formatting.Indented));
         }
 
         SetProgress(progress, 100);
-
         SetStatusText(textBlock, downloadSpeedTextBlock, LangKeys.UpdateCompleted.ToLocalization());
-        // dialog?.SetRestartButtonVisibility(true);
-
         Instances.RootViewModel.SetUpdating(false);
-
-        // DispatcherHelper.PostOnMainThread(() =>
-        // {
-        //     if (!noDialog)
-        //     {
-        //         Instances.DialogManager.CreateDialog().WithContent(LangKeys.GameResourceUpdated.ToLocalization()).WithActionButton(LangKeys.Yes.ToLocalization(), _ =>
-        //             {
-        //                 Process.Start(exeName);
-        //                 Instances.ShutdownApplication();
-        //             }, dismissOnClick: true, "Flat", "Accent")
-        //             .WithActionButton(LangKeys.No.ToLocalization(), _ =>
-        //             {
-        //                 Dismiss(sukiToast);
-        //             }, dismissOnClick: true).TryShow();
-        //         shouldShowToast = false;
-        //     }
-        // });
-        // var tasks = Instances.TaskQueueViewModel.TaskItemViewModels;
-        // Instances.RootView.ClearTasks(() => Instances.TaskQueueViewModel.Processor.InitializeData(dragItem: tasks));
 
         if (closeDialog)
             Dismiss(sukiToast);
         shouldShowToast = true;
         action?.Invoke();
-        // 如果当前进程的可执行文件不存在（可能被更新覆盖），则在目标目录中查找
+
+        // 确定要启动的可执行文件：优先使用新版本，否则回退到当前版本
+        if (containsMFAExecutable)
+        {
+            // 资源包包含新版本 MFA，在目标目录中通过程序集名称查找新版本 exe
+            var newExeInTarget = FindMFAExecutableByAssemblyName(wpfDir);
+            if (!string.IsNullOrEmpty(newExeInTarget))
+            {
+                exeName = newExeInTarget;
+                LoggerHelper.Info($"将启动新版本可执行文件: {exeName}");
+            }
+        }
+
+        // 如果当前进程的可执行文件不存在（可能被更新覆盖/重命名），则在目标目录中查找
         if (string.IsNullOrEmpty(exeName) || !File.Exists(exeName))
         {
             var foundExe = FindMFAExecutableInDirectory(wpfDir);
@@ -1584,7 +1579,7 @@ public static class VersionChecker
 
 
     public static async Task<(string url, string latestVersion, string sha256)> GetLatestVersionAndDownloadUrlFromGithubAsync(
-        string owner = "SweetSmellFox",
+        string owner = "MaaXYZ",
         string repo = "MFAAvalonia",
         bool onlyCheck = false,
         string targetVersion = "",
@@ -2688,6 +2683,74 @@ public static class VersionChecker
             return filename;
         }
         return null;
+    }
+
+    /// <summary>
+    /// 跨平台检测目录中是否包含 MFAAvalonia 可执行文件。
+    /// 根据当前系统查找 .exe（Windows）或无后缀可执行文件（Linux/macOS），
+    /// 通过 --identify 参数询问可执行文件是否为 MFAAvalonia。
+    /// </summary>
+    private static string FindMFAExecutableByAssemblyName(string directory, string targetIdentity = "MFAAvalonia")
+    {
+        if (string.IsNullOrEmpty(directory) || !Directory.Exists(directory))
+            return string.Empty;
+
+        try
+        {
+            var exeFiles = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                ? Directory.EnumerateFiles(directory, "*.exe", SearchOption.AllDirectories)
+                : Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories)
+                    .Where(f => !Path.HasExtension(f) && IsExecutable(f));
+
+            var excludeNames = new[] { "MFAUpdater", "createdump", "MaaPiCli", "CONTACT", "LICENSE" };
+
+            foreach (var exeFile in exeFiles)
+            {
+                var baseName = Path.GetFileNameWithoutExtension(exeFile);
+                if (excludeNames.Any(e => baseName.Equals(e, StringComparison.OrdinalIgnoreCase)))
+                    continue;
+
+                try
+                {
+                    using var process = Process.Start(new ProcessStartInfo
+                    {
+                        FileName = exeFile,
+                        Arguments = "--identify",
+                        RedirectStandardOutput = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    });
+
+                    if (process == null) continue;
+                    var outputTask = process.StandardOutput.ReadToEndAsync();
+                    if (!process.WaitForExit(3000))
+                    {
+                        try { process.Kill(); } catch { }
+                        LoggerHelper.Warning($"Process timed out for --identify: {exeFile}");
+                        continue;
+                    }
+                    outputTask.Wait(1000);
+                    var output = outputTask.IsCompleted ? outputTask.Result.Trim() : string.Empty;
+
+                    if (output.Equals(targetIdentity, StringComparison.OrdinalIgnoreCase))
+                    {
+                        LoggerHelper.Info($"Found MFAAvalonia executable via --identify: {exeFile}");
+                        return exeFile;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LoggerHelper.Warning($"Failed to identify {exeFile}: {ex.Message}");
+                }
+            }
+
+            return string.Empty;
+        }
+        catch (Exception ex)
+        {
+            LoggerHelper.Error($"Error scanning for MFA executable: {ex.Message}");
+            return string.Empty;
+        }
     }
 
     /// <summary>
