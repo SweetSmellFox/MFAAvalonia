@@ -1110,7 +1110,7 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
     }
 
     /// <summary>
-    /// 定时等待 - 等待到指定时间 (hour:minute)
+    /// 定时等待 - 等待到指定时间 (hour:minute)，使用 TimePicker 控件
     /// </summary>
     private void AddTimedWaitOptions(StackPanel panel, DragItemViewModel dragItem)
     {
@@ -1131,65 +1131,30 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
         Grid.SetColumn(label, 0);
         grid.Children.Add(label);
 
-        var timePanel = new StackPanel
+        var hour = (int?)param["hour"] ?? 0;
+        var minute = (int?)param["minute"] ?? 0;
+
+        var timePicker = new TimePicker
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 4,
+            ClockIdentifier = "24HourClock",
+            SelectedTime = new TimeSpan(hour, minute, 0),
+            Height = 35,
+            Width = 205,
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Right,
         };
+        BindIdleEnabled(timePicker);
 
-        var hourUpDown = new NumericUpDown
+        timePicker.SelectedTimeChanged += (_, e) =>
         {
-            Value = (int?)param["hour"] ?? 0,
-            Minimum = 0,
-            Maximum = 23,
-            Increment = 1,
-            MinWidth = 70,
-            Margin = new Thickness(0, 2, 0, 2),
-            VerticalAlignment = VerticalAlignment.Center,
-            FormatString = "00",
-        };
-        BindIdleEnabled(hourUpDown);
-
-        var separator = new TextBlock
-        {
-            Text = ":",
-            FontSize = 16,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(2, 0, 2, 0),
-        };
-
-        var minuteUpDown = new NumericUpDown
-        {
-            Value = (int?)param["minute"] ?? 0,
-            Minimum = 0,
-            Maximum = 59,
-            Increment = 1,
-            MinWidth = 70,
-            Margin = new Thickness(0, 2, 0, 2),
-            VerticalAlignment = VerticalAlignment.Center,
-            FormatString = "00",
-        };
-        BindIdleEnabled(minuteUpDown);
-
-        hourUpDown.ValueChanged += (_, _) =>
-        {
-            param["hour"] = Convert.ToInt32(hourUpDown.Value);
-            UpdateActionParam(dragItem, param);
-        };
-        minuteUpDown.ValueChanged += (_, _) =>
-        {
-            param["minute"] = Convert.ToInt32(minuteUpDown.Value);
+            var time = timePicker.SelectedTime ?? TimeSpan.Zero;
+            param["hour"] = time.Hours;
+            param["minute"] = time.Minutes;
             UpdateActionParam(dragItem, param);
         };
 
-        timePanel.Children.Add(hourUpDown);
-        timePanel.Children.Add(separator);
-        timePanel.Children.Add(minuteUpDown);
-
-        Grid.SetColumn(timePanel, 2);
-        grid.Children.Add(timePanel);
+        Grid.SetColumn(timePicker, 2);
+        grid.Children.Add(timePicker);
         panel.Children.Add(grid);
     }
 

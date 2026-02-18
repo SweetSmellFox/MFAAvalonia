@@ -88,6 +88,7 @@
                                         Content="✕"
                                         FontSize="12"
                                         Padding="6,2"
+                                        ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.RemoveTimer}}"
                                         VerticalAlignment="Center" />
                                 </StackPanel>
                                 <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
@@ -176,6 +177,19 @@
             FontSize="28"
             FontWeight="Bold"
             Foreground="{DynamicResource SukiPrimaryColor}"
-            HorizontalAlignment="Center" />
+            HorizontalAlignment="Center"
+            RenderTransformOrigin="50%,50%"
+            ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.AddTimer}}">
+            <Button.RenderTransform>
+                <ScaleTransform ScaleX="1" ScaleY="1" />
+            </Button.RenderTransform>
+            <Button.Styles>
+                <Style Selector="Button:pointerover">
+                    <Setter Property="RenderTransform">
+                        <ScaleTransform ScaleX="1.2" ScaleY="1.2" />
+                    </Setter>
+                </Style>
+            </Button.Styles>
+        </Button>
     </StackPanel>
 </UserControl>

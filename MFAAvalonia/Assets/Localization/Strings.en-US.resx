@@ -1885,5 +1885,11 @@
     <data name="MonitorSortByCreatedTime" xml:space="preserve">
         <value>By Created Time</value>
     </data>
+    <data name="AddTimer" xml:space="preserve">
+        <value>Add Timer</value>
+    </data>
+    <data name="RemoveTimer" xml:space="preserve">
+        <value>Remove Timer</value>
+    </data>
 </root>
 

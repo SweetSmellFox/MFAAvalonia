@@ -626,5 +626,7 @@ public static class LangKeys
 	public static readonly string MonitorSortByStatus = "MonitorSortByStatus";
 	public static readonly string MonitorSortByName = "MonitorSortByName";
 	public static readonly string MonitorSortByCreatedTime = "MonitorSortByCreatedTime";
+	public static readonly string AddTimer = "AddTimer";
+	public static readonly string RemoveTimer = "RemoveTimer";
 	
 }

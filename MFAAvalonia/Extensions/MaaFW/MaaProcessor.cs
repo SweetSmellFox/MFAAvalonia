@@ -2368,17 +2368,17 @@ public class MaaProcessor
         switch (avgElapsed)
         {
             case >= 800:
-                AddLogByKey(LangKeys.ScreencapErrorTip, BrushHelper.ConvertToBrush("DarkGoldenrod"), false, true, avgElapsed.ToString(),
+                AddLogByKey(LangKeys.ScreencapErrorTip, BrushHelper.ConvertToBrush("DarkGoldenrod"), false, false, avgElapsed.ToString(),
                     ScreenshotType());
                 break;
 
             case >= 400:
-                AddLogByKey(LangKeys.ScreencapWarningTip, BrushHelper.ConvertToBrush("DarkGoldenrod"), false, true, avgElapsed.ToString(),
+                AddLogByKey(LangKeys.ScreencapWarningTip, BrushHelper.ConvertToBrush("DarkGoldenrod"), false, false, avgElapsed.ToString(),
                     ScreenshotType());
                 break;
 
             default:
-                AddLogByKey(LangKeys.ScreencapCost, (IBrush?)null, false, true, avgElapsed.ToString(),
+                AddLogByKey(LangKeys.ScreencapCost, (IBrush?)null, false, false, avgElapsed.ToString(),
                     ScreenshotType());
                 break;
         }

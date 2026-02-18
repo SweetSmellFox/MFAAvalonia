@@ -1895,5 +1895,11 @@
     <data name="MonitorSortByCreatedTime" xml:space="preserve">
         <value>按创建时间</value>
     </data>
+    <data name="AddTimer" xml:space="preserve">
+        <value>添加定时</value>
+    </data>
+    <data name="RemoveTimer" xml:space="preserve">
+        <value>删除定时</value>
+    </data>
 </root>
 
