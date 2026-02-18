@@ -12,30 +12,51 @@
                         Margin="2,0,0,0"
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
-                        Background="{DynamicResource MouseOverRegionBrush}"
-                        ToolTip.ShowDelay="{TemplateBinding InitialShowDelay}">
+                        Background="{DynamicResource MouseOverRegionBrush}">
 
-                    <ToolTip.Tip>
-                        <Border MaxWidth="{TemplateBinding TooltipMaxWidth}"
-                                MaxHeight="400"
-                                Padding="4 0 4 4">
+                    <FlyoutBase.AttachedFlyout>
+                        <Flyout Placement="Bottom" ShowMode="TransientWithDismissOnPointerMoveAway">
+                            <Flyout.FlyoutPresenterTheme>
+                                <ControlTheme TargetType="FlyoutPresenter">
+                                    <Setter Property="Background" Value="Transparent" />
+                                    <Setter Property="Padding" Value="0" />
+                                    <Setter Property="CornerRadius" Value="0" />
+                                    <Setter Property="Template">
+                                        <ControlTemplate>
+                                            <ContentPresenter Content="{TemplateBinding Content}"
+                                                              Margin="8" />
+                                        </ControlTemplate>
+                                    </Setter>
+                                </ControlTheme>
+                            </Flyout.FlyoutPresenterTheme>
+                            <Border MaxWidth="{Binding TooltipMaxWidth, RelativeSource={RelativeSource TemplatedParent}}"
+                                    MaxHeight="400"
+                                    Padding="8,3,8,8"
+                                    CornerRadius="8"
+                                    BorderThickness="1"
+                                    BorderBrush="{DynamicResource SukiControlBorderBrush}"
+                                    BoxShadow="0 4 12 0 #40000000"
+                                    Background="{DynamicResource SukiGlassCardBackground}">
+                                <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                                              VerticalScrollBarVisibility="Auto">
+                                    <full:MarkdownScrollViewer
+                                        Markdown="{Binding TooltipText, RelativeSource={RelativeSource TemplatedParent}}"
+                                        VerticalAlignment="Top">
+                                        <full:MarkdownScrollViewer.Engine>
+                                            <extensions:MarkdownExtension />
+                                        </full:MarkdownScrollViewer.Engine>
+                                        <full:MarkdownScrollViewer.Plugins>
+                                            <StaticResource ResourceKey="MdXamlPlugin" />
+                                        </full:MarkdownScrollViewer.Plugins>
+                                        <full:MarkdownScrollViewer.Styles>
+                                            <StyleInclude Source="avares://MFAAvalonia.Core/Assets/Style/MdXamlStyles.axaml" />
+                                        </full:MarkdownScrollViewer.Styles>
+                                    </full:MarkdownScrollViewer>
+                                </ScrollViewer>
+                            </Border>
+                        </Flyout>
+                    </FlyoutBase.AttachedFlyout>
 
-                            <full:MarkdownScrollViewer
-                                Markdown="{TemplateBinding TooltipText}"
-                                VerticalAlignment="Top">
-                                <full:MarkdownScrollViewer.Engine>
-                                    <extensions:MarkdownExtension />
-                                </full:MarkdownScrollViewer.Engine>
-                                <full:MarkdownScrollViewer.Plugins>
-                                    <StaticResource ResourceKey="MdXamlPlugin" />
-                                </full:MarkdownScrollViewer.Plugins>
-                                <full:MarkdownScrollViewer.Styles>
-                                    <StyleInclude Source="avares://MFAAvalonia.Core/Assets/Style/MdXamlStyles.axaml" />
-                                </full:MarkdownScrollViewer.Styles>
-                            </full:MarkdownScrollViewer>
-
-                        </Border>
-                    </ToolTip.Tip>
                     <TextBlock HorizontalAlignment="Center"
                                VerticalAlignment="Center" TextAlignment="Center"
                                FontSize="12" FontWeight="Bold"

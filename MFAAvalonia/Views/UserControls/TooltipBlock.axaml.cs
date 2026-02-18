@@ -98,6 +98,8 @@ public class TooltipBlock : TemplatedControl
     private void OnPointerEnter(object? sender, PointerEventArgs e)
     {
         _ = AnimateOpacity(HoverOpacity);
+        if (_border != null)
+            FlyoutBase.ShowAttachedFlyout(_border);
     }
 
     private void OnPointerLeave(object? sender, PointerEventArgs e)
