@@ -1,5 +1,6 @@
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using MFAAvalonia.Configuration;
 using MFAAvalonia.Extensions;
 using MFAAvalonia.Extensions.MaaFW;
@@ -9,6 +10,7 @@ using MFAAvalonia.ViewModels.Pages;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace MFAAvalonia.ViewModels.Other;
 
@@ -23,7 +25,7 @@ public partial class TimerModel : ViewModelBase
 
     private readonly DispatcherTimer _dispatcherTimer;
 
-    public TimerProperties[] Timers { get; set; } = new TimerProperties[8];
+    public ObservableCollection<TimerProperties> Timers { get; } = new();
 
     [ObservableProperty] private bool _customConfig;
     [ObservableProperty] private bool _forceScheduledStart;
@@ -48,9 +50,10 @@ public partial class TimerModel : ViewModelBase
         CustomConfig = GlobalConfiguration.GetValue(ConfigurationKeys.CustomConfig, bool.FalseString) == bool.TrueString;
         ForceScheduledStart = GlobalConfiguration.GetValue(ConfigurationKeys.ForceScheduledStart, bool.FalseString) == bool.TrueString;
 
-        for (var i = 0; i < 8; i++)
+        var count = GlobalConfiguration.GetTimerCount(8);
+        for (var i = 0; i < count; i++)
         {
-            Timers[i] = new TimerProperties(i, this);
+            Timers.Add(new TimerProperties(i, this));
         }
 
         _dispatcherTimer = new DispatcherTimer
@@ -59,6 +62,39 @@ public partial class TimerModel : ViewModelBase
         };
         _dispatcherTimer.Tick += CheckTimerElapsed;
         _dispatcherTimer.Start();
+    }
+
+    [RelayCommand]
+    public void AddTimer()
+    {
+        var newId = Timers.Count;
+        var timer = new TimerProperties(newId, this);
+        if (string.IsNullOrEmpty(timer.TimerConfig) && InstanceList.Count > 0)
+        {
+            timer.TimerConfig = MaaProcessorManager.Instance.Current.InstanceId;
+        }
+        Timers.Add(timer);
+        GlobalConfiguration.SetTimerCount(Timers.Count);
+    }
+
+    public void RemoveTimer(TimerProperties timer)
+    {
+        if (Timers.Count <= 1) return;
+        var index = Timers.IndexOf(timer);
+        if (index < 0) return;
+
+        Timers.RemoveAt(index);
+        GlobalConfiguration.RemoveTimerConfig(Timers.Count); // 清除末尾配置
+
+        // 重新编号并保存后续定时器的配置
+        for (var i = index; i < Timers.Count; i++)
+        {
+            var t = Timers[i];
+            t.TimerId = i;
+            t.SaveAll();
+        }
+
+        GlobalConfiguration.SetTimerCount(Timers.Count);
     }
 
     /// <summary>
@@ -124,77 +160,74 @@ public partial class TimerModel : ViewModelBase
         var currentTime = DateTime.Now;
         foreach (var timer in Timers)
         {
-            if (!timer.IsOn
-                || timer.Time.Hours != currentTime.Hour
-                || !timer.ScheduleConfig.ShouldTrigger(currentTime))
+            if (!timer.IsOn || !timer.ScheduleConfig.ShouldTrigger(currentTime))
                 continue;
 
-            if (timer.Time.Minutes == currentTime.Minute)
+            var scheduledTime = currentTime.Date.Add(timer.Time);
+
+            // 到达定时时间：执行任务
+            if (currentTime.Hour == scheduledTime.Hour && currentTime.Minute == scheduledTime.Minute)
             {
+                // 防止同一分钟内重复触发
+                if (timer.LastTriggered.HasValue
+                    && timer.LastTriggered.Value.Date == currentTime.Date
+                    && timer.LastTriggered.Value.Hour == currentTime.Hour
+                    && timer.LastTriggered.Value.Minute == currentTime.Minute)
+                    continue;
+
+                timer.LastTriggered = currentTime;
                 ExecuteTimerTask(timer);
-            }
-            else if (timer.Time.Minutes == currentTime.Minute + 2)
-            {
-                SwitchInstance(timer);
             }
         }
     }
 
     /// <summary>
-    /// 切换到定时器指定的多开实例（原"切换配置"）
+    /// 执行定时任务：
+    /// - 未开启自定义配置：对当前激活实例执行
+    /// - 开启自定义配置并选中实例：提前5秒切换到对应多开实例，再启动任务
     /// </summary>
-    private void SwitchInstance(TimerProperties timer)
+    private async void ExecuteTimerTask(TimerProperties timer)
     {
-        var targetInstanceId = timer.TimerConfig;
-        if (string.IsNullOrEmpty(targetInstanceId))
-            return;
-
         var manager = MaaProcessorManager.Instance;
-        if (manager.Current.InstanceId == targetInstanceId)
-            return;
 
-        // 确保目标实例已加载（懒加载按需触发）
-        manager.EnsureInstanceLoaded(targetInstanceId);
-
-        if (manager.TryGetInstance(targetInstanceId, out _))
+        if (CustomConfig && !string.IsNullOrEmpty(timer.TimerConfig))
         {
-            DispatcherHelper.RunOnMainThread(() =>
+            var targetInstanceId = timer.TimerConfig;
+            manager.EnsureInstanceLoaded(targetInstanceId);
+            var vm = manager.GetViewModel(targetInstanceId);
+            if (vm == null) return;
+
+            await DispatcherHelper.RunOnMainThreadAsync(() =>
             {
                 Instances.InstanceTabBarViewModel.SwitchToInstanceById(targetInstanceId);
             });
-        }
-    }
 
-    /// <summary>
-    /// 执行定时任务：在指定的多开实例上启动任务
-    /// </summary>
-    private void ExecuteTimerTask(TimerProperties timer)
-    {
-        var targetInstanceId = timer.TimerConfig;
-        var manager = MaaProcessorManager.Instance;
+            await Task.Delay(5000);
 
-        // 如果没有指定实例，使用当前活跃实例
-        TaskQueueViewModel? vm = null;
-        if (!string.IsNullOrEmpty(targetInstanceId))
-        {
-            // 确保目标实例已加载（懒加载按需触发）
-            manager.EnsureInstanceLoaded(targetInstanceId);
-            vm = manager.GetViewModel(targetInstanceId);
+            DispatcherHelper.RunOnMainThread(() => ExecuteAction(timer, vm));
         }
         else
         {
-            vm = manager.GetViewModel(manager.Current.InstanceId);
+            var vm = manager.GetViewModel(manager.Current.InstanceId);
+            if (vm == null) return;
+
+            DispatcherHelper.RunOnMainThread(() => ExecuteAction(timer, vm));
         }
+    }
 
-        if (vm == null) return;
-
-        DispatcherHelper.RunOnMainThread(() =>
+    private void ExecuteAction(TimerProperties timer, TaskQueueViewModel vm)
+    {
+        if (timer.TimerAction == TimerActionType.StopTask)
         {
-            if (ForceScheduledStart && Instances.RootViewModel.IsRunning)
+            if (vm.IsRunning) vm.StopTask();
+        }
+        else
+        {
+            if (ForceScheduledStart && vm.IsRunning)
                 vm.StopTask(vm.StartTask);
             else
                 vm.StartTask();
-        });
+        }
     }
 
     /// <summary>
@@ -223,10 +256,11 @@ public partial class TimerModel : ViewModelBase
             _parent = parent;
 
             _isOn = GlobalConfiguration.GetTimer(timeId, bool.FalseString) == bool.TrueString;
-            _time = TimeSpan.Parse(GlobalConfiguration.GetTimerTime(timeId, $"{timeId * 3}:0"));
-
-            var timerConfig = GlobalConfiguration.GetTimerConfig(timeId, string.Empty);
-            _timerConfig = timerConfig;
+            var timeStr = GlobalConfiguration.GetTimerTime(timeId, $"{(timeId * 3) % 24}:0");
+            _time = TimeSpan.TryParse(timeStr, out var parsed) ? parsed : TimeSpan.Zero;
+            _timerConfig = GlobalConfiguration.GetTimerConfig(timeId, string.Empty);
+            var actionStr = GlobalConfiguration.GetTimerAction(timeId, "0");
+            _timerAction = int.TryParse(actionStr, out var actionVal) ? (TimerActionType)actionVal : TimerActionType.StartTask;
 
             ScheduleConfig = new TimerScheduleConfig(GlobalConfiguration.GetTimerSchedule(timeId, string.Empty));
 
@@ -235,6 +269,11 @@ public partial class TimerModel : ViewModelBase
         }
 
         public int TimerId { get; set; }
+
+        /// <summary>
+        /// 上次触发时间，防止同一分钟内重复执行
+        /// </summary>
+        public DateTime? LastTriggered { get; set; }
 
         [ObservableProperty] private string _timerName;
 
@@ -291,12 +330,45 @@ public partial class TimerModel : ViewModelBase
             }
         }
 
+        private TimerActionType _timerAction;
+        public TimerActionType TimerAction
+        {
+            get => _timerAction;
+            set
+            {
+                SetProperty(ref _timerAction, value);
+                GlobalConfiguration.SetTimerAction(TimerId, ((int)value).ToString());
+            }
+        }
+
+        public int TimerActionIndex
+        {
+            get => (int)_timerAction;
+            set => TimerAction = (TimerActionType)value;
+        }
+
+        [RelayCommand]
+        private void Remove() => _parent.RemoveTimer(this);
+
         public string ScheduleDisplayText => _scheduleConfig.GetDisplayText();
 
         public void UpdateScheduleConfig()
         {
             GlobalConfiguration.SetTimerSchedule(TimerId, _scheduleConfig.Serialize());
             OnPropertyChanged(nameof(ScheduleDisplayText));
+        }
+
+        /// <summary>
+        /// 重新编号后保存所有配置到新ID
+        /// </summary>
+        public void SaveAll()
+        {
+            TimerName = $"{LangKeys.Timer.ToLocalization()} {TimerId + 1}";
+            GlobalConfiguration.SetTimer(TimerId, _isOn.ToString());
+            GlobalConfiguration.SetTimerTime(TimerId, _time.ToString(@"h\:mm"));
+            GlobalConfiguration.SetTimerConfig(TimerId, _timerConfig ?? string.Empty);
+            GlobalConfiguration.SetTimerAction(TimerId, ((int)_timerAction).ToString());
+            GlobalConfiguration.SetTimerSchedule(TimerId, _scheduleConfig?.Serialize() ?? string.Empty);
         }
     }
 }

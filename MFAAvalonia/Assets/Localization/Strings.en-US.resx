@@ -990,6 +990,9 @@
     <data name="Timer" xml:space="preserve">
         <value>Timer</value>
     </data>
+    <data name="TimerAction" xml:space="preserve">
+        <value>Action Type</value>
+    </data>
     <data name="TimerCustomConfig" xml:space="preserve">
         <value>Custom config</value>
     </data>

@@ -28,6 +28,17 @@ public enum TimerScheduleType
 }
 
 /// <summary>
+/// 定时器操作类型
+/// </summary>
+public enum TimerActionType
+{
+    /// <summary>开始任务</summary>
+    StartTask = 0,
+    /// <summary>停止任务</summary>
+    StopTask = 1
+}
+
+/// <summary>
 /// 定时器触发配置
 /// </summary>
 public partial class TimerScheduleConfig : ObservableObject

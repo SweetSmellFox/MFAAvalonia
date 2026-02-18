@@ -990,6 +990,9 @@
     <data name="Timer" xml:space="preserve">
         <value>定時</value>
     </data>
+    <data name="TimerAction" xml:space="preserve">
+        <value>操作類型</value>
+    </data>
     <data name="TimerCustomConfig" xml:space="preserve">
         <value>自定義配置選擇</value>
     </data>

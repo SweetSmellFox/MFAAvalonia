@@ -342,6 +342,7 @@ public static class LangKeys
 	public static readonly string ThemeOption = "ThemeOption";
 	public static readonly string ThemeSettings = "ThemeSettings";
 	public static readonly string Timer = "Timer";
+	public static readonly string TimerAction = "TimerAction";
 	public static readonly string TimerCustomConfig = "TimerCustomConfig";
 	public static readonly string TimerCustomConfigTip = "TimerCustomConfigTip";
 	public static readonly string Tip = "Tip";

@@ -71,541 +71,111 @@
                 </DockPanel>
             </StackPanel>
         </suki:GlassCard>
-        <suki:GlassCard Padding="25,8,25,8">
-            <StackPanel Spacing="12">
-                <DockPanel>
-                    <ToggleSwitch
-                        Classes="Switch"
-                        DockPanel.Dock="Right"
-                        IsChecked="{Binding TimerModels.Timers[0].IsOn}"
-                        VerticalAlignment="Top" />
-                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                        <TextBlock
-                            FontSize="16"
-                            FontWeight="DemiBold"
-                            Text="{Binding TimerModels.Timers[0].TimerName}"
-                            VerticalAlignment="Center" />
-                    </StackPanel>
-                </DockPanel>
-                <StackPanel IsVisible="{Binding TimerModels.Timers[0].IsOn}" Spacing="12">
-                    <DockPanel>
-                        <TimePicker ClockIdentifier="24HourClock"
-                                    DockPanel.Dock="Right"
-                                    Height="35"
-                                    SelectedTime="{Binding TimerModels.Timers[0].Time}"
-                                    VerticalAlignment="Center"
-                                    Width="205" />
-                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                            <TextBlock
-                                FontSize="15"
-                                Text="{markup:I18n {x:Static helper:LangKeys.TriggerTime}}"
-                                VerticalAlignment="Center" />
+
+        <ItemsControl ItemsSource="{Binding TimerModels.Timers}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="other:TimerModel+TimerProperties">
+                    <suki:GlassCard Padding="25,8,25,8" Margin="0,0,0,8">
+                        <StackPanel Spacing="12">
+                            <DockPanel>
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8">
+                                    <ToggleSwitch
+                                        Classes="Switch"
+                                        IsChecked="{Binding IsOn}"
+                                        VerticalAlignment="Top" />
+                                    <Button
+                                        Command="{Binding RemoveCommand}"
+                                        Content="✕"
+                                        FontSize="12"
+                                        Padding="6,2"
+                                        VerticalAlignment="Center" />
+                                </StackPanel>
+                                <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
+                                    <TextBlock
+                                        FontSize="16"
+                                        FontWeight="DemiBold"
+                                        Text="{Binding TimerName}"
+                                        VerticalAlignment="Center" />
+                                </StackPanel>
+                            </DockPanel>
+                            <StackPanel IsVisible="{Binding IsOn}" Spacing="12">
+                                <DockPanel>
+                                    <TimePicker ClockIdentifier="24HourClock"
+                                                DockPanel.Dock="Right"
+                                                Height="35"
+                                                SelectedTime="{Binding Time}"
+                                                VerticalAlignment="Center"
+                                                Width="205" />
+                                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
+                                        <TextBlock
+                                            FontSize="15"
+                                            Text="{markup:I18n {x:Static helper:LangKeys.TriggerTime}}"
+                                            VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </DockPanel>
+                                <DockPanel>
+                                    <userControls:SchedulePicker
+                                        DockPanel.Dock="Right"
+                                        ScheduleConfig="{Binding ScheduleConfig}"
+                                        VerticalAlignment="Center"
+                                        Width="205" />
+                                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
+                                        <TextBlock
+                                            FontSize="15"
+                                            Text="{markup:I18n {x:Static helper:LangKeys.TriggerDate}}"
+                                            VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </DockPanel>
+                                <DockPanel>
+                                    <ComboBox DockPanel.Dock="Right"
+                                              SelectedIndex="{Binding TimerActionIndex}"
+                                              VerticalAlignment="Center"
+                                              Width="215">
+                                        <ComboBoxItem Content="{markup:I18n {x:Static helper:LangKeys.StartTask}}" />
+                                        <ComboBoxItem Content="{markup:I18n {x:Static helper:LangKeys.StopTask}}" />
+                                    </ComboBox>
+                                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
+                                        <TextBlock
+                                            FontSize="15"
+                                            Text="{markup:I18n {x:Static helper:LangKeys.TimerAction}}"
+                                            VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </DockPanel>
+                                <DockPanel x:CompileBindings="False"
+                                           IsVisible="{Binding CustomConfig, Source={x:Static other:TimerModel.Instance}}">
+                                    <ComboBox extensions:ComboBoxExtensions.DisableNavigationOnLostFocus="True"
+                                              DisplayMemberBinding="{Binding Name}"
+                                              DockPanel.Dock="Right"
+                                              Focusable="False"
+                                              HorizontalAlignment="Center"
+                                              IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
+                                              ItemsSource="{Binding InstanceList, Source={x:Static other:TimerModel.Instance}}"
+                                              SelectedValue="{Binding TimerConfig}"
+                                              SelectedValueBinding="{Binding InstanceId}"
+                                              ToolTip.Tip="{Binding TimerName}"
+                                              VerticalAlignment="Center"
+                                              Width="215" />
+                                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
+                                        <TextBlock
+                                            FontSize="15"
+                                            Text="{markup:I18n {x:Static helper:LangKeys.SelectedConfig}}"
+                                            VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </StackPanel>
                         </StackPanel>
-                    </DockPanel>
-                    <DockPanel>
-                        <userControls:SchedulePicker
-                            DockPanel.Dock="Right"
-                            ScheduleConfig="{Binding TimerModels.Timers[0].ScheduleConfig}"
-                            VerticalAlignment="Center"
-                            Width="205" />
-                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                            <TextBlock
-                                FontSize="15"
-                                Text="{markup:I18n {x:Static helper:LangKeys.TriggerDate}}"
-                                VerticalAlignment="Center" />
-                        </StackPanel>
-                    </DockPanel>
-                    <DockPanel IsVisible="{Binding TimerModels.CustomConfig}">
-                        <ComboBox extensions:ComboBoxExtensions.DisableNavigationOnLostFocus="True"
-                                  DisplayMemberBinding="{Binding Name}"
-                                  DockPanel.Dock="Right"
-                                  Focusable="False"
-                                  HorizontalAlignment="Center"
-                                  IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
-                                  ItemsSource="{Binding InstanceList}"
-                                  SelectedValue="{Binding TimerModels.Timers[0].TimerConfig}"
-                                  SelectedValueBinding="{Binding InstanceId}"
-                                  ToolTip.Tip="{Binding TimerModels.Timers[0].TimerName}"
-                                  VerticalAlignment="Center"
-                                  Width="215" />
-                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                            <TextBlock
-                                FontSize="15"
-                                Text="{markup:I18n {x:Static helper:LangKeys.SelectedConfig}}"
-                                VerticalAlignment="Center" />
-                        </StackPanel>
-                    </DockPanel>
-                </StackPanel>
-            </StackPanel>
-        </suki:GlassCard>
-        <suki:GlassCard Padding="25,8,25,8">
-            <StackPanel Spacing="12">
-                <DockPanel>
-                    <ToggleSwitch
-                        Classes="Switch"
-                        DockPanel.Dock="Right"
-                        IsChecked="{Binding TimerModels.Timers[1].IsOn}"
-                        VerticalAlignment="Top" />
-                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                        <TextBlock
-                            FontSize="16"
-                            FontWeight="DemiBold"
-                            Text="{Binding TimerModels.Timers[1].TimerName}"
-                            VerticalAlignment="Center" />
-                    </StackPanel>
-                </DockPanel>
-                <StackPanel IsVisible="{Binding TimerModels.Timers[1].IsOn}" Spacing="12">
-                    <DockPanel>
-                        <TimePicker ClockIdentifier="24HourClock"
-                                    DockPanel.Dock="Right"
-                                    Height="35"
-                                    SelectedTime="{Binding TimerModels.Timers[1].Time}"
-                                    VerticalAlignment="Center"
-                                    Width="205" />
-                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                            <TextBlock
-                                FontSize="15"
-                                Text="{markup:I18n {x:Static helper:LangKeys.TriggerTime}}"
-                                VerticalAlignment="Center" />
-                        </StackPanel>
-                    </DockPanel>
-                    <DockPanel>
-                        <userControls:SchedulePicker
-                            DockPanel.Dock="Right"
-                            ScheduleConfig="{Binding TimerModels.Timers[1].ScheduleConfig}"
-                            VerticalAlignment="Center"
-                            Width="205" />
-                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                            <TextBlock
-                                FontSize="15"
-                                Text="{markup:I18n {x:Static helper:LangKeys.TriggerDate}}"
-                                VerticalAlignment="Center" />
-                        </StackPanel>
-                    </DockPanel>
-                    <DockPanel IsVisible="{Binding TimerModels.CustomConfig}">
-                        <ComboBox extensions:ComboBoxExtensions.DisableNavigationOnLostFocus="True"
-                                  DisplayMemberBinding="{Binding Name}"
-                                  DockPanel.Dock="Right"
-                                  Focusable="False"
-                                  HorizontalAlignment="Center"
-                                  IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
-                                  ItemsSource="{Binding InstanceList}"
-                                  SelectedValue="{Binding TimerModels.Timers[1].TimerConfig}"
-                                  SelectedValueBinding="{Binding InstanceId}"
-                                  ToolTip.Tip="{Binding TimerModels.Timers[1].TimerName}"
-                                  VerticalAlignment="Center"
-                                  Width="215" />
-                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                            <TextBlock
-                                FontSize="15"
-                                Text="{markup:I18n {x:Static helper:LangKeys.SelectedConfig}}"
-                                VerticalAlignment="Center" />
-                        </StackPanel>
-                    </DockPanel>
-                </StackPanel>
-            </StackPanel>
-        </suki:GlassCard>
-        <suki:GlassCard Padding="25,8,25,8">
-            <StackPanel Spacing="12">
-                <DockPanel>
-                    <ToggleSwitch
-                        Classes="Switch"
-                        DockPanel.Dock="Right"
-                        IsChecked="{Binding TimerModels.Timers[2].IsOn}"
-                        VerticalAlignment="Top" />
-                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                        <TextBlock
-                            FontSize="16"
-                            FontWeight="DemiBold"
-                            Text="{Binding TimerModels.Timers[2].TimerName}"
-                            VerticalAlignment="Center" />
-                    </StackPanel>
-                </DockPanel>
-                <StackPanel IsVisible="{Binding TimerModels.Timers[2].IsOn}" Spacing="12">
-                    <DockPanel>
-                        <TimePicker ClockIdentifier="24HourClock"
-                                    DockPanel.Dock="Right"
-                                    Height="35"
-                                    SelectedTime="{Binding TimerModels.Timers[2].Time}"
-                                    VerticalAlignment="Center"
-                                    Width="205" />
-                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                            <TextBlock
-                                FontSize="15"
-                                Text="{markup:I18n {x:Static helper:LangKeys.TriggerTime}}"
-                                VerticalAlignment="Center" />
-                        </StackPanel>
-                    </DockPanel>
-                    <DockPanel>
-                        <userControls:SchedulePicker
-                            DockPanel.Dock="Right"
-                            ScheduleConfig="{Binding TimerModels.Timers[2].ScheduleConfig}"
-                            VerticalAlignment="Center"
-                            Width="205" />
-                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                            <TextBlock
-                                FontSize="15"
-                                Text="{markup:I18n {x:Static helper:LangKeys.TriggerDate}}"
-                                VerticalAlignment="Center" />
-                        </StackPanel>
-                    </DockPanel>
-                    <DockPanel IsVisible="{Binding TimerModels.CustomConfig}">
-                        <ComboBox extensions:ComboBoxExtensions.DisableNavigationOnLostFocus="True"
-                                  DisplayMemberBinding="{Binding Name}"
-                                  DockPanel.Dock="Right"
-                                  Focusable="False"
-                                  HorizontalAlignment="Center"
-                                  IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
-                                  ItemsSource="{Binding InstanceList}"
-                                  SelectedValue="{Binding TimerModels.Timers[2].TimerConfig}"
-                                  SelectedValueBinding="{Binding InstanceId}"
-                                  ToolTip.Tip="{Binding TimerModels.Timers[2].TimerName}"
-                                  VerticalAlignment="Center"
-                                  Width="215" />
-                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                            <TextBlock
-                                FontSize="15"
-                                Text="{markup:I18n {x:Static helper:LangKeys.SelectedConfig}}"
-                                VerticalAlignment="Center" />
-                        </StackPanel>
-                    </DockPanel>
-                </StackPanel>
-            </StackPanel>
-        </suki:GlassCard>
-        <suki:GlassCard Padding="25,8,25,8">
-            <StackPanel Spacing="12">
-                <DockPanel>
-                    <ToggleSwitch
-                        Classes="Switch"
-                        DockPanel.Dock="Right"
-                        IsChecked="{Binding TimerModels.Timers[3].IsOn}"
-                        VerticalAlignment="Top" />
-                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                        <TextBlock
-                            FontSize="16"
-                            FontWeight="DemiBold"
-                            Text="{Binding TimerModels.Timers[3].TimerName}"
-                            VerticalAlignment="Center" />
-                    </StackPanel>
-                </DockPanel>
-                <StackPanel IsVisible="{Binding TimerModels.Timers[3].IsOn}" Spacing="12">
-                    <DockPanel>
-                        <TimePicker ClockIdentifier="24HourClock"
-                                    DockPanel.Dock="Right"
-                                    Height="35"
-                                    SelectedTime="{Binding TimerModels.Timers[3].Time}"
-                                    VerticalAlignment="Center"
-                                    Width="205" />
-                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                            <TextBlock
-                                FontSize="15"
-                                Text="{markup:I18n {x:Static helper:LangKeys.TriggerTime}}"
-                                VerticalAlignment="Center" />
-                        </StackPanel>
-                    </DockPanel>
-                    <DockPanel>
-                        <userControls:SchedulePicker
-                            DockPanel.Dock="Right"
-                            ScheduleConfig="{Binding TimerModels.Timers[3].ScheduleConfig}"
-                            VerticalAlignment="Center"
-                            Width="205" />
-                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                            <TextBlock
-                                FontSize="15"
-                                Text="{markup:I18n {x:Static helper:LangKeys.TriggerDate}}"
-                                VerticalAlignment="Center" />
-                        </StackPanel>
-                    </DockPanel>
-                    <DockPanel IsVisible="{Binding TimerModels.CustomConfig}">
-                        <ComboBox extensions:ComboBoxExtensions.DisableNavigationOnLostFocus="True"
-                                  DisplayMemberBinding="{Binding Name}"
-                                  DockPanel.Dock="Right"
-                                  Focusable="False"
-                                  HorizontalAlignment="Center"
-                                  IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
-                                  ItemsSource="{Binding InstanceList}"
-                                  SelectedValue="{Binding TimerModels.Timers[3].TimerConfig}"
-                                  SelectedValueBinding="{Binding InstanceId}"
-                                  ToolTip.Tip="{Binding TimerModels.Timers[3].TimerName}"
-                                  VerticalAlignment="Center"
-                                  Width="215" />
-                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                            <TextBlock
-                                FontSize="15"
-                                Text="{markup:I18n {x:Static helper:LangKeys.SelectedConfig}}"
-                                VerticalAlignment="Center" />
-                        </StackPanel>
-                    </DockPanel>
-                </StackPanel>
-            </StackPanel>
-        </suki:GlassCard>
-        <suki:GlassCard Padding="25,8,25,8">
-            <StackPanel Spacing="12">
-                <DockPanel>
-                    <ToggleSwitch
-                        Classes="Switch"
-                        DockPanel.Dock="Right"
-                        IsChecked="{Binding TimerModels.Timers[4].IsOn}"
-                        VerticalAlignment="Top" />
-                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                        <TextBlock
-                            FontSize="16"
-                            FontWeight="DemiBold"
-                            Text="{Binding TimerModels.Timers[4].TimerName}"
-                            VerticalAlignment="Center" />
-                    </StackPanel>
-                </DockPanel>
-                <StackPanel IsVisible="{Binding TimerModels.Timers[4].IsOn}" Spacing="12">
-                    <DockPanel>
-                        <TimePicker ClockIdentifier="24HourClock"
-                                    DockPanel.Dock="Right"
-                                    Height="35"
-                                    SelectedTime="{Binding TimerModels.Timers[4].Time}"
-                                    VerticalAlignment="Center"
-                                    Width="205" />
-                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                            <TextBlock
-                                FontSize="15"
-                                Text="{markup:I18n {x:Static helper:LangKeys.TriggerTime}}"
-                                VerticalAlignment="Center" />
-                        </StackPanel>
-                    </DockPanel>
-                    <DockPanel>
-                        <userControls:SchedulePicker
-                            DockPanel.Dock="Right"
-                            ScheduleConfig="{Binding TimerModels.Timers[4].ScheduleConfig}"
-                            VerticalAlignment="Center"
-                            Width="205" />
-                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                            <TextBlock
-                                FontSize="15"
-                                Text="{markup:I18n {x:Static helper:LangKeys.TriggerDate}}"
-                                VerticalAlignment="Center" />
-                        </StackPanel>
-                    </DockPanel>
-                    <DockPanel IsVisible="{Binding TimerModels.CustomConfig}">
-                        <ComboBox extensions:ComboBoxExtensions.DisableNavigationOnLostFocus="True"
-                                  DisplayMemberBinding="{Binding Name}"
-                                  DockPanel.Dock="Right"
-                                  Focusable="False"
-                                  HorizontalAlignment="Center"
-                                  IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
-                                  ItemsSource="{Binding InstanceList}"
-                                  SelectedValue="{Binding TimerModels.Timers[4].TimerConfig}"
-                                  SelectedValueBinding="{Binding InstanceId}"
-                                  ToolTip.Tip="{Binding TimerModels.Timers[4].TimerName}"
-                                  VerticalAlignment="Center"
-                                  Width="215" />
-                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                            <TextBlock
-                                FontSize="15"
-                                Text="{markup:I18n {x:Static helper:LangKeys.SelectedConfig}}"
-                                VerticalAlignment="Center" />
-                        </StackPanel>
-                    </DockPanel>
-                </StackPanel>
-            </StackPanel>
-        </suki:GlassCard>
-        <suki:GlassCard Padding="25,8,25,8">
-            <StackPanel Spacing="12">
-                <DockPanel>
-                    <ToggleSwitch
-                        Classes="Switch"
-                        DockPanel.Dock="Right"
-                        IsChecked="{Binding TimerModels.Timers[5].IsOn}"
-                        VerticalAlignment="Top" />
-                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                        <TextBlock
-                            FontSize="16"
-                            FontWeight="DemiBold"
-                            Text="{Binding TimerModels.Timers[5].TimerName}"
-                            VerticalAlignment="Center" />
-                    </StackPanel>
-                </DockPanel>
-                <StackPanel IsVisible="{Binding TimerModels.Timers[5].IsOn}" Spacing="12">
-                    <DockPanel>
-                        <TimePicker ClockIdentifier="24HourClock"
-                                    DockPanel.Dock="Right"
-                                    Height="35"
-                                    SelectedTime="{Binding TimerModels.Timers[5].Time}"
-                                    VerticalAlignment="Center"
-                                    Width="205" />
-                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                            <TextBlock
-                                FontSize="15"
-                                Text="{markup:I18n {x:Static helper:LangKeys.TriggerTime}}"
-                                VerticalAlignment="Center" />
-                        </StackPanel>
-                    </DockPanel>
-                    <DockPanel>
-                        <userControls:SchedulePicker
-                            DockPanel.Dock="Right"
-                            ScheduleConfig="{Binding TimerModels.Timers[5].ScheduleConfig}"
-                            VerticalAlignment="Center"
-                            Width="205" />
-                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                            <TextBlock
-                                FontSize="15"
-                                Text="{markup:I18n {x:Static helper:LangKeys.TriggerDate}}"
-                                VerticalAlignment="Center" />
-                        </StackPanel>
-                    </DockPanel>
-                    <DockPanel IsVisible="{Binding TimerModels.CustomConfig}">
-                        <ComboBox extensions:ComboBoxExtensions.DisableNavigationOnLostFocus="True"
-                                  DisplayMemberBinding="{Binding Name}"
-                                  DockPanel.Dock="Right"
-                                  Focusable="False"
-                                  HorizontalAlignment="Center"
-                                  IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
-                                  ItemsSource="{Binding InstanceList}"
-                                  SelectedValue="{Binding TimerModels.Timers[5].TimerConfig}"
-                                  SelectedValueBinding="{Binding InstanceId}"
-                                  ToolTip.Tip="{Binding TimerModels.Timers[5].TimerName}"
-                                  VerticalAlignment="Center"
-                                  Width="215" />
-                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                            <TextBlock
-                                FontSize="15"
-                                Text="{markup:I18n {x:Static helper:LangKeys.SelectedConfig}}"
-                                VerticalAlignment="Center" />
-                        </StackPanel>
-                    </DockPanel>
-                </StackPanel>
-            </StackPanel>
-        </suki:GlassCard>
-        <suki:GlassCard Padding="25,8,25,8">
-            <StackPanel Spacing="12">
-                <DockPanel>
-                    <ToggleSwitch
-                        Classes="Switch"
-                        DockPanel.Dock="Right"
-                        IsChecked="{Binding TimerModels.Timers[6].IsOn}"
-                        VerticalAlignment="Top" />
-                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                        <TextBlock
-                            FontSize="16"
-                            FontWeight="DemiBold"
-                            Text="{Binding TimerModels.Timers[6].TimerName}"
-                            VerticalAlignment="Center" />
-                    </StackPanel>
-                </DockPanel>
-                <StackPanel IsVisible="{Binding TimerModels.Timers[6].IsOn}" Spacing="12">
-                    <DockPanel>
-                        <TimePicker ClockIdentifier="24HourClock"
-                                    DockPanel.Dock="Right"
-                                    Height="35"
-                                    SelectedTime="{Binding TimerModels.Timers[6].Time}"
-                                    VerticalAlignment="Center"
-                                    Width="205" />
-                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                            <TextBlock
-                                FontSize="15"
-                                Text="{markup:I18n {x:Static helper:LangKeys.TriggerTime}}"
-                                VerticalAlignment="Center" />
-                        </StackPanel>
-                    </DockPanel>
-                    <DockPanel>
-                        <userControls:SchedulePicker
-                            DockPanel.Dock="Right"
-                            ScheduleConfig="{Binding TimerModels.Timers[6].ScheduleConfig}"
-                            VerticalAlignment="Center"
-                            Width="205" />
-                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                            <TextBlock
-                                FontSize="15"
-                                Text="{markup:I18n {x:Static helper:LangKeys.TriggerDate}}"
-                                VerticalAlignment="Center" />
-                        </StackPanel>
-                    </DockPanel>
-                    <DockPanel IsVisible="{Binding TimerModels.CustomConfig}">
-                        <ComboBox extensions:ComboBoxExtensions.DisableNavigationOnLostFocus="True"
-                                  DisplayMemberBinding="{Binding Name}"
-                                  DockPanel.Dock="Right"
-                                  Focusable="False"
-                                  HorizontalAlignment="Center"
-                                  IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
-                                  ItemsSource="{Binding InstanceList}"
-                                  SelectedValue="{Binding TimerModels.Timers[6].TimerConfig}"
-                                  SelectedValueBinding="{Binding InstanceId}"
-                                  ToolTip.Tip="{Binding TimerModels.Timers[6].TimerName}"
-                                  VerticalAlignment="Center"
-                                  Width="215" />
-                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                            <TextBlock
-                                FontSize="15"
-                                Text="{markup:I18n {x:Static helper:LangKeys.SelectedConfig}}"
-                                VerticalAlignment="Center" />
-                        </StackPanel>
-                    </DockPanel>
-                </StackPanel>
-            </StackPanel>
-        </suki:GlassCard>
-        <suki:GlassCard Padding="25,8,25,8">
-            <StackPanel Spacing="12">
-                <DockPanel>
-                    <ToggleSwitch
-                        Classes="Switch"
-                        DockPanel.Dock="Right"
-                        IsChecked="{Binding TimerModels.Timers[7].IsOn}"
-                        VerticalAlignment="Top" />
-                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                        <TextBlock
-                            FontSize="16"
-                            FontWeight="DemiBold"
-                            Text="{Binding TimerModels.Timers[7].TimerName}"
-                            VerticalAlignment="Center" />
-                    </StackPanel>
-                </DockPanel>
-                <StackPanel IsVisible="{Binding TimerModels.Timers[7].IsOn}" Spacing="12">
-                    <DockPanel>
-                        <TimePicker ClockIdentifier="24HourClock"
-                                    DockPanel.Dock="Right"
-                                    Height="35"
-                                    SelectedTime="{Binding TimerModels.Timers[7].Time}"
-                                    VerticalAlignment="Center"
-                                    Width="205" />
-                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                            <TextBlock
-                                FontSize="15"
-                                Text="{markup:I18n {x:Static helper:LangKeys.TriggerTime}}"
-                                VerticalAlignment="Center" />
-                        </StackPanel>
-                    </DockPanel>
-                    <DockPanel>
-                        <userControls:SchedulePicker
-                            DockPanel.Dock="Right"
-                            ScheduleConfig="{Binding TimerModels.Timers[7].ScheduleConfig}"
-                            VerticalAlignment="Center"
-                            Width="205" />
-                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                            <TextBlock
-                                FontSize="15"
-                                Text="{markup:I18n {x:Static helper:LangKeys.TriggerDate}}"
-                                VerticalAlignment="Center" />
-                        </StackPanel>
-                    </DockPanel>
-                    <DockPanel IsVisible="{Binding TimerModels.CustomConfig}">
-                        <ComboBox extensions:ComboBoxExtensions.DisableNavigationOnLostFocus="True"
-                                  DisplayMemberBinding="{Binding Name}"
-                                  DockPanel.Dock="Right"
-                                  Focusable="False"
-                                  HorizontalAlignment="Center"
-                                  IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
-                                  ItemsSource="{Binding InstanceList}"
-                                  SelectedValue="{Binding TimerModels.Timers[7].TimerConfig}"
-                                  SelectedValueBinding="{Binding InstanceId}"
-                                  ToolTip.Tip="{Binding TimerModels.Timers[7].TimerName}"
-                                  VerticalAlignment="Center"
-                                  Width="215" />
-                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                            <TextBlock
-                                FontSize="15"
-                                Text="{markup:I18n {x:Static helper:LangKeys.SelectedConfig}}"
-                                VerticalAlignment="Center" />
-                        </StackPanel>
-                    </DockPanel>
-                </StackPanel>
-            </StackPanel>
-        </suki:GlassCard>
+                    </suki:GlassCard>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <Button
+            Classes="Basic"
+            Command="{Binding TimerModels.AddTimerCommand}"
+            Content="+"
+            FontSize="28"
+            FontWeight="Bold"
+            Foreground="{DynamicResource SukiPrimaryColor}"
+            HorizontalAlignment="Center" />
     </StackPanel>
 </UserControl>
