@@ -32,7 +32,8 @@
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <suki:GlassCard Margin="10" Width="360" Height="240" IsInteractive="True" Command="{Binding SwitchCommand}">
+                    <suki:GlassCard Margin="10" Width="360" Height="240" IsInteractive="True"
+                                    PointerPressed="OnCardPointerPressed">
                         <suki:GlassCard.ContextMenu>
                             <ContextMenu>
                                 <MenuItem Header="{markup:I18n {x:Static helper:LangKeys.StartTask}}"
@@ -44,6 +45,11 @@
                                 <MenuItem Header="{markup:I18n {x:Static helper:LangKeys.Reconnect}}"
                                           Command="{Binding ConnectCommand}"
                                           IsVisible="{calcBinding:Binding '!IsConnected'}" />
+                                <Separator />
+                                <MenuItem Header="{markup:I18n {x:Static helper:LangKeys.TaskRename}}"
+                                          Command="{Binding RenameCommand}" />
+                                <MenuItem Header="{markup:I18n {x:Static helper:LangKeys.ButtonClose}}"
+                                          Command="{Binding DeleteCommand}" />
                             </ContextMenu>
                         </suki:GlassCard.ContextMenu>
                         <Grid RowDefinitions="*,Auto">

@@ -19,20 +19,15 @@ public partial class MonitorItemViewModel : ViewModelBase
     public DateTime CreatedAt { get; } = DateTime.Now;
     private TaskQueueViewModel? _subscribedViewModel;
 
-    [ObservableProperty]
-    private Bitmap? _image;
+    [ObservableProperty] private Bitmap? _image;
 
-    [ObservableProperty]
-    private string _name = string.Empty;
+    [ObservableProperty] private string _name = string.Empty;
 
-    [ObservableProperty]
-    private bool _isConnected;
+    [ObservableProperty] private bool _isConnected;
 
-    [ObservableProperty]
-    private bool _isRunning;
-    
-    [ObservableProperty]
-    private bool _hasImage;
+    [ObservableProperty] private bool _isRunning;
+
+    [ObservableProperty] private bool _hasImage;
 
     public MonitorItemViewModel(MaaProcessor processor)
     {
@@ -89,7 +84,6 @@ public partial class MonitorItemViewModel : ViewModelBase
                 sideMenu!.SelectedItem = homeItem;
         }
     }
-
     [RelayCommand]
     private void StartTask()
     {
@@ -108,6 +102,21 @@ public partial class MonitorItemViewModel : ViewModelBase
         await Processor.ReconnectAsync();
     }
 
+    [RelayCommand]
+    private void Rename()
+    {
+        var tab = Instances.InstanceTabBarViewModel.Tabs.FirstOrDefault(t => t.Processor == Processor);
+        if (tab != null)
+            Instances.InstanceTabBarViewModel.RenameInstanceCommand.Execute(tab);
+    }
+
+    [RelayCommand]
+    private void Delete()
+    {
+        var tab = Instances.InstanceTabBarViewModel.Tabs.FirstOrDefault(t => t.Processor == Processor);
+        if (tab != null)
+            Instances.InstanceTabBarViewModel.CloseInstanceCommand.Execute(tab);
+    }
     public void Dispose()
     {
         if (_subscribedViewModel != null)
