@@ -24,12 +24,19 @@ public partial class InstanceTabBar : UserControl
         if (tabsControl != null)
         {
             tabsControl.ContainerPrepared += OnContainerPrepared;
+            tabsControl.TabOrderChanged += OnTabOrderChanged;
 
             // 将外部的 TabBarBackground Border 传给 InstanceTabsControl 用于 Clip 计算
             var tabBarBg = this.FindControl<Border>("TabBarBackgroundBorder");
             if (tabBarBg != null)
                 tabsControl.SetExternalTabBarBackground(tabBarBg);
         }
+    }
+
+    private void OnTabOrderChanged()
+    {
+        if (DataContext is InstanceTabBarViewModel vm)
+            vm.SaveTabOrder();
     }
 
     private void OnContainerPrepared(object? sender, ContainerPreparedEventArgs e)
@@ -80,6 +87,15 @@ public partial class InstanceTabBar : UserControl
             {
                 viewModel.SelectInstanceCommand.Execute(tab);
             }
+        }
+    }
+
+    private void OnDropdownCloseClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.DataContext is InstanceTabViewModel tab)
+        {
+            if (DataContext is InstanceTabBarViewModel vm)
+                vm.CloseInstanceCommand.Execute(tab);
         }
     }
 }

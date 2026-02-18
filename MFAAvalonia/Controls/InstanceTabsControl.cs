@@ -446,9 +446,17 @@ public class InstanceTabsControl : TabControl
                 int i = 0;
                 foreach (var dragTabItem in DragTabItems())
                     dragTabItem.LogicalIndex = i++;
+
+                // 拖拽排序后保存顺序
+                TabOrderChanged?.Invoke();
             }
         }
     }
+
+    /// <summary>
+    /// 拖拽排序完成后触发，用于持久化标签顺序
+    /// </summary>
+    public event Action? TabOrderChanged;
 
     private class SimpleActionCommand(Action action) : ICommand
     {

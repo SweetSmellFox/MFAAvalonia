@@ -208,16 +208,20 @@ public sealed class MaaProcessorManager
         return next;
     }
 
-    public MFAAvalonia.ViewModels.Pages.TaskQueueViewModel GetViewModel(string instanceId)
+    public MFAAvalonia.ViewModels.Pages.TaskQueueViewModel? GetViewModel(string instanceId)
     {
         lock (_lock)
         {
-            if (!_viewModels.TryGetValue(instanceId, out var vm))
-            {
-                vm = new MFAAvalonia.ViewModels.Pages.TaskQueueViewModel(instanceId);
-                _viewModels[instanceId] = vm;
-                _instances[instanceId] = vm.Processor;
-            }
+            if (_viewModels.TryGetValue(instanceId, out var vm))
+                return vm;
+
+            // 已被移除的实例不再自动创建
+            if (!_instanceOrder.Contains(instanceId))
+                return null;
+
+            vm = new MFAAvalonia.ViewModels.Pages.TaskQueueViewModel(instanceId);
+            _viewModels[instanceId] = vm;
+            _instances[instanceId] = vm.Processor;
             return vm;
         }
     }
@@ -291,6 +295,23 @@ public sealed class MaaProcessorManager
         GlobalConfiguration.SetValue(ConfigurationKeys.InstanceList, list);
         GlobalConfiguration.SetValue(ConfigurationKeys.InstanceOrder, order);
         GlobalConfiguration.SetValue(ConfigurationKeys.LastActiveInstance, Current.InstanceId);
+    }
+
+    /// <summary>
+    /// 更新实例顺序（拖拽排序后调用）
+    /// </summary>
+    public void UpdateInstanceOrder(IEnumerable<string> orderedIds)
+    {
+        lock (_lock)
+        {
+            _instanceOrder.Clear();
+            foreach (var id in orderedIds)
+            {
+                if (_instances.ContainsKey(id) || _pendingInstanceIds.Contains(id))
+                    _instanceOrder.Add(id);
+            }
+            SaveInstanceConfig();
+        }
     }
     /// <summary>
     /// 需要延迟加载的实例ID列表

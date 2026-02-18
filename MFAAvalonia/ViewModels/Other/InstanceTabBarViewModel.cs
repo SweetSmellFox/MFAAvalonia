@@ -1,4 +1,3 @@
-using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MFAAvalonia.Extensions.MaaFW;
@@ -83,34 +82,53 @@ public partial class InstanceTabBarViewModel : ViewModelBase
     {
         var processors = MaaProcessor.Processors.ToList();
 
-        // Use smart sync instead of clear/add to preserve view state
+        // 移除已不存在的
         var toRemove = Tabs.Where(t => !processors.Contains(t.Processor)).ToList();
         foreach (var t in toRemove)
-        {
             Tabs.Remove(t);
-        }
 
+        // 添加新的
         foreach (var processor in processors)
         {
             if (Tabs.All(t => t.Processor != processor))
-            {
                 Tabs.Add(new InstanceTabViewModel(processor));
+        }
+
+        // 按 MaaProcessorManager 的 Instances 顺序排序
+        var orderedInstances = MaaProcessorManager.Instance.Instances.ToList();
+        for (var i = 0; i < orderedInstances.Count; i++)
+        {
+            var tab = Tabs.FirstOrDefault(t => t.Processor == orderedInstances[i]);
+            if (tab != null)
+            {
+                var currentIndex = Tabs.IndexOf(tab);
+                if (currentIndex != i && i < Tabs.Count)
+                    Tabs.Move(currentIndex, i);
             }
         }
+
+        RefreshFilteredTabs();
 
         var current = MaaProcessorManager.Instance.Current;
         if (current != null)
         {
             var tab = Tabs.FirstOrDefault(t => t.InstanceId == current.InstanceId);
             if (tab != null && ActiveTab != tab)
-            {
                 ActiveTab = tab;
-            }
         }
         else if (Tabs.Count > 0 && ActiveTab == null)
         {
             ActiveTab = Tabs.First();
         }
+    }
+
+    /// <summary>
+    /// 拖拽排序后保存标签顺序
+    /// </summary>
+    public void SaveTabOrder()
+    {
+        var orderedIds = Tabs.Select(t => t.InstanceId);
+        MaaProcessorManager.Instance.UpdateInstanceOrder(orderedIds);
     }
 
     partial void OnActiveTabChanged(InstanceTabViewModel? oldValue, InstanceTabViewModel? newValue)
@@ -244,12 +262,12 @@ public partial class InstanceTabBarViewModel : ViewModelBase
 
         if (tab.IsRunning)
         {
-            var result = await SukiUI.MessageBox.SukiMessageBox.ShowDialog(new SukiMessageBoxHost
+            var result = await SukiMessageBox.ShowDialog(new SukiMessageBoxHost
             {
                 Content = LangKeys.InstanceRunningCloseConfirm.ToLocalization(),
-                ActionButtonsPreset = SukiUI.MessageBox.SukiMessageBoxButtons.YesNo,
-                IconPreset = SukiUI.MessageBox.SukiMessageBoxIcons.Warning
-            }, new SukiUI.MessageBox.SukiMessageBoxOptions
+                ActionButtonsPreset = SukiMessageBoxButtons.YesNo,
+                IconPreset = SukiMessageBoxIcons.Warning
+            }, new SukiMessageBoxOptions
             {
                 Title = LangKeys.InstanceCloseTitle.ToLocalization()
             });
@@ -259,13 +277,46 @@ public partial class InstanceTabBarViewModel : ViewModelBase
             tab.Processor.Stop(MFATask.MFATaskStatus.STOPPED);
         }
 
+        // 检查定时任务是否使用了该实例，若有则重新分配
+        ReassignTimersFromInstance(tab.InstanceId, tab.Name);
+
         if (MaaProcessorManager.Instance.RemoveInstance(tab.InstanceId))
         {
             Tabs.Remove(tab);
+            RefreshFilteredTabs();
             if (ActiveTab == tab || ActiveTab == null)
             {
                 ActiveTab = Tabs.FirstOrDefault();
             }
+        }
+    }
+
+    /// <summary>
+    /// 将使用指定实例的定时任务重新分配到当前活跃实例
+    /// </summary>
+    private void ReassignTimersFromInstance(string instanceId, string instanceName)
+    {
+        var timerModel = TimerModel.Instance;
+        var reassigned = false;
+
+        foreach (var timer in timerModel.Timers)
+        {
+            if (timer.TimerConfig == instanceId)
+            {
+                // 分配到第一个非被删除的实例
+                var fallback = Tabs.FirstOrDefault(t => t.InstanceId != instanceId);
+                if (fallback != null)
+                {
+                    timer.TimerConfig = fallback.InstanceId;
+                    reassigned = true;
+                }
+            }
+        }
+
+        if (reassigned)
+        {
+            ToastHelper.Info(LangKeys.Tip.ToLocalization(),LangKeys.InstanceTimerReassigned.ToLocalizationFormatted(false, instanceName));
+            timerModel.RefreshInstanceList();
         }
     }
 
