@@ -1877,6 +1877,12 @@
     <data name="InstanceCloseTitle" xml:space="preserve">
         <value>关闭实例</value>
     </data>
+    <data name="InstanceRunningCannotClose" xml:space="preserve">
+        <value>实例正在运行中，请先停止任务后再关闭</value>
+    </data>
+    <data name="InstanceTimerReassigned" xml:space="preserve">
+        <value>实例 "{0}" 已关闭，其关联的定时任务已自动转移到其他实例</value>
+    </data>
     <data name="MonitorSortDefault" xml:space="preserve">
         <value>默认</value>
     </data>

@@ -2340,7 +2340,7 @@ public class MaaProcessor
                 break;
 
             default:
-                AddLogByKey(LangKeys.ScreencapCost, (IBrush?)null, false, true, elapsedMilliseconds.ToString(),
+                AddLogByKey(LangKeys.ScreencapCost, (IBrush?)null, false, false, elapsedMilliseconds.ToString(),
                     ScreenshotType());
                 break;
         }

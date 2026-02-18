@@ -1867,6 +1867,12 @@
     <data name="InstanceCloseTitle" xml:space="preserve">
         <value>Close Instance</value>
     </data>
+    <data name="InstanceRunningCannotClose" xml:space="preserve">
+        <value>This instance is running. Please stop the task before closing.</value>
+    </data>
+    <data name="InstanceTimerReassigned" xml:space="preserve">
+        <value>Instance "{0}" has been closed. Its scheduled tasks have been reassigned to another instance.</value>
+    </data>
     <data name="MonitorSortDefault" xml:space="preserve">
         <value>Default</value>
     </data>
