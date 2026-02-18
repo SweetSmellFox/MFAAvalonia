@@ -27,6 +27,23 @@ public class InstanceTabsControl : TabControl
     private ICommand _closeItemCommand;
     private Border? _tabBarBackground;
     private bool _clipDirty = true;
+    private int _overflowCount;
+    private Button? _overflowButton;
+    private TextBlock? _overflowText;
+
+    public static readonly DirectProperty<InstanceTabsControl, int> OverflowCountProperty =
+        AvaloniaProperty.RegisterDirect<InstanceTabsControl, int>(
+            nameof(OverflowCount),
+            o => o.OverflowCount);
+
+    /// <summary>
+    /// 溢出（被隐藏）的标签数量
+    /// </summary>
+    public int OverflowCount
+    {
+        get => _overflowCount;
+        private set => SetAndRaise(OverflowCountProperty, ref _overflowCount, value);
+    }
 
     public static readonly StyledProperty<double> AdjacentHeaderItemOffsetProperty =
         AvaloniaProperty.Register<InstanceTabsControl, double>(nameof(AdjacentHeaderItemOffset), defaultValue: 0);
@@ -62,6 +79,7 @@ public class InstanceTabsControl : TabControl
         };
 
         _tabsPanel.DragCompleted += TabsPanelOnDragCompleted;
+        _tabsPanel.OverflowCountChanged += count => OverflowCount = count;
 
         ItemsPanel = new FuncTemplate<Panel?>(() => _tabsPanel);
 
@@ -105,7 +123,7 @@ public class InstanceTabsControl : TabControl
     private void UpdateAllTabsCanClose()
     {
         var canClose = Items.Count > 1;
-        foreach (var tab in DragTabItems())
+        foreach (var tab in DragTabItems(false))
         {
             tab.CanClose = canClose;
         }
@@ -120,14 +138,17 @@ public class InstanceTabsControl : TabControl
         _tabBarBackground = border;
         InvalidateClip();
     }
-
-    protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
-    {
-        base.OnApplyTemplate(e);
-        if (_tabBarBackground == null)
-            _tabBarBackground = e.NameScope.Find<Border>("PART_TabBarBackground");
-        LayoutUpdated += OnLayoutUpdated;
-    }
+   protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
+   {
+       base.OnApplyTemplate(e);
+       if (_tabBarBackground == null)
+           _tabBarBackground = e.NameScope.Find<Border>("PART_TabBarBackground");
+       _overflowButton = e.NameScope.Find<Button>("PART_OverflowButton");
+       _overflowText = e.NameScope.Find<TextBlock>("PART_OverflowText");
+       if (_overflowButton != null)
+           _overflowButton.Click += (_, _) => OverflowButtonClicked?.Invoke();
+       LayoutUpdated += OnLayoutUpdated;
+   }
 
     private void InvalidateClip() => _clipDirty = true;
 
@@ -158,7 +179,6 @@ public class InstanceTabsControl : TabControl
         _hoveredTab = null;
         InvalidateClip();
     }
-
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
@@ -179,6 +199,19 @@ public class InstanceTabsControl : TabControl
         {
             InvalidateClip();
         }
+        else if (change.Property == OverflowCountProperty)
+        {
+            UpdateOverflowButton();
+        }
+    }
+
+    private void UpdateOverflowButton()
+    {
+        if (_overflowButton == null) return;
+        var count = OverflowCount;
+        _overflowButton.IsVisible = count > 0;
+        if (_overflowText != null)
+            _overflowText.Text = $"+{count}";
     }
 
     /// <summary>
@@ -346,12 +379,12 @@ public class InstanceTabsControl : TabControl
         }
     }
 
-    private IEnumerable<DragTabItem> DragTabItems()
+    private IEnumerable<DragTabItem> DragTabItems(bool visibleOnly = true)
     {
         foreach (object item in Items)
         {
             var container = ContainerFromItem(item);
-            if (container is DragTabItem dragTabItem)
+            if (container is DragTabItem dragTabItem && (!visibleOnly || dragTabItem.IsVisible))
                 yield return dragTabItem;
         }
     }
@@ -396,7 +429,7 @@ public class InstanceTabsControl : TabControl
 
     private void ItemDragCompleted(object? sender, DragTabDragCompletedEventArgs e)
     {
-        foreach (var item in DragTabItems())
+        foreach (var item in DragTabItems(false))
         {
             item.IsDragging = false;
             item.IsSiblingDragging = false;
@@ -409,7 +442,7 @@ public class InstanceTabsControl : TabControl
 
     private void SetDraggingItem(DragTabItem draggedItem)
     {
-        foreach (var item in DragTabItems())
+        foreach (var item in DragTabItems(false))
         {
             item.IsDragging = false;
             item.IsSiblingDragging = true;
@@ -444,7 +477,7 @@ public class InstanceTabsControl : TabControl
                 SelectedItem = item;
 
                 int i = 0;
-                foreach (var dragTabItem in DragTabItems())
+                foreach (var dragTabItem in DragTabItems(false))
                     dragTabItem.LogicalIndex = i++;
 
                 // 拖拽排序后保存顺序
@@ -457,6 +490,11 @@ public class InstanceTabsControl : TabControl
     /// 拖拽排序完成后触发，用于持久化标签顺序
     /// </summary>
     public event Action? TabOrderChanged;
+
+    /// <summary>
+    /// 溢出按钮被点击时触发
+    /// </summary>
+    public event Action? OverflowButtonClicked;
 
     private class SimpleActionCommand(Action action) : ICommand
     {

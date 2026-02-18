@@ -19,12 +19,18 @@ public partial class InstanceTabBar : UserControl
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);
-
         var tabsControl = this.FindControl<InstanceTabsControl>("TabsControl");
         if (tabsControl != null)
         {
             tabsControl.ContainerPrepared += OnContainerPrepared;
             tabsControl.TabOrderChanged += OnTabOrderChanged;
+
+            // 溢出按钮点击 → 打开下拉框
+            tabsControl.OverflowButtonClicked += () =>
+            {
+                if (DataContext is InstanceTabBarViewModel vm)
+                    vm.ToggleDropdownCommand.Execute(null);
+            };
 
             // 将外部的 TabBarBackground Border 传给 InstanceTabsControl 用于 Clip 计算
             var tabBarBg = this.FindControl<Border>("TabBarBackgroundBorder");

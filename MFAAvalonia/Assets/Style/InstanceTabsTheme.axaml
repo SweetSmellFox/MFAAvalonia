@@ -266,6 +266,18 @@
                         <ItemsPresenter Name="PART_ItemsPresenter"
                                         ItemsPanel="{TemplateBinding ItemsPanel}" />
 
+                        <!-- 溢出计数按钮：显示被隐藏的标签数量 -->
+                        <Button Name="PART_OverflowButton"
+                                Theme="{StaticResource DropdownToggleButton}"
+                                VerticalAlignment="Center"
+                                Margin="4,0,2,4"
+                                IsVisible="False">
+                            <TextBlock Name="PART_OverflowText"
+                                       FontSize="11"
+                                       VerticalAlignment="Center"
+                                       HorizontalAlignment="Center" />
+                        </Button>
+
                         <Button Name="PART_AddItemButton"
                                 Command="{Binding AddItemCommand, RelativeSource={RelativeSource TemplatedParent}}"
                                 Theme="{StaticResource AddItemCommandButton}"

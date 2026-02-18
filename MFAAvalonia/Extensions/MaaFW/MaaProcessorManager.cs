@@ -862,8 +862,8 @@ public sealed class MaaProcessorManager
                     LoadSingleInstance(nextId);
                 }
 
-                // 每加载一个实例后等待1秒，缓慢加载避免卡UI
-                await System.Threading.Tasks.Task.Delay(1000);
+                // 每加载一个实例后等待0.5秒，缓慢加载避免卡UI
+                await Task.Delay(500);
             }
         }
     }

@@ -25,13 +25,37 @@ public class InstanceTabsPanel : Panel
     /// </summary>
     private const double AddButtonReservedWidth = 48;
 
+    /// <summary>
+    /// 溢出按钮预留宽度（26 按钮 + 8 边距）
+    /// </summary>
+    private const double OverflowButtonReservedWidth = 34;
+
+    /// <summary>
+    /// 标签最小可读宽度阈值，低于此值时触发溢出折叠
+    /// </summary>
+    private const double MinReadableWidth = 80;
+
+    private int _overflowCount;
+    private int _visibleStart;
+    private int _visibleEnd; // inclusive
+
+    /// <summary>
+    /// 溢出（被隐藏）的标签数量
+    /// </summary>
+    public int OverflowCount => _overflowCount;
+
+    /// <summary>
+    /// 溢出数量变化时触发
+    /// </summary>
+    public event Action<int>? OverflowCountChanged;
+
     public InstanceTabsPanel(InstanceTabsControl tabsControl)
     {
         _tabsControl = tabsControl;
-        // 当控件尺寸变化时（如窗口缩放），重新测量标签宽度
+        // 当控件尺寸变化或选中标签变化时，重新测量标签宽度
         _tabsControl.PropertyChanged += (_, e) =>
         {
-            if (e.Property == BoundsProperty)
+            if (e.Property == BoundsProperty || e.Property == TabControl.SelectedIndexProperty)
                 InvalidateMeasure();
         };
     }
@@ -69,14 +93,33 @@ public class InstanceTabsPanel : Panel
 
     private Size MeasureImpl(Size availableSize)
     {
-        _itemWidth = GetAvailableWidth(availableSize);
+        int totalCount = Children.Count;
+        var (itemWidth, visibleCount) = CalculateLayout(availableSize);
+        _itemWidth = itemWidth;
+
+        UpdateVisibleRange(visibleCount, totalCount);
+
+        int overflow = totalCount - visibleCount;
+        if (_overflowCount != overflow)
+        {
+            _overflowCount = overflow;
+            OverflowCountChanged?.Invoke(overflow);
+        }
 
         double height = 0;
         double width = 0;
         bool isFirst = true;
 
-        foreach (var tabItem in Children)
+        for (int i = 0; i < totalCount; i++)
         {
+            var tabItem = Children[i];
+            bool visible = i >= _visibleStart && i <= _visibleEnd;
+
+            if (tabItem is DragTabItem dt)
+                dt.IsVisible = visible;
+
+            if (!visible) continue;
+
             tabItem.Measure(new Size(_itemWidth, availableSize.Height));
             width += _itemWidth;
             height = Max(tabItem.DesiredSize.Height, height);
@@ -96,7 +139,7 @@ public class InstanceTabsPanel : Panel
         double width = 0;
         bool isFirst = true;
 
-        foreach (var tabItem in Children)
+        foreach (var tabItem in VisibleDragTabItems())
         {
             tabItem.Measure(new Size(_itemWidth, availableSize.Height));
             width += _itemWidth;
@@ -108,11 +151,9 @@ public class InstanceTabsPanel : Panel
             isFirst = false;
         }
 
-        // 拖拽时面板需要扩展以容纳被拖拽标签的位置（带动 + 按钮往右移动）
         double dragRight = draggedItem.X + _itemWidth;
         width = Max(width, dragRight);
 
-        // 使用有效宽度约束（不能超出控件可用空间）
         double effectiveWidth = GetEffectiveWidth(availableSize);
         if (effectiveWidth > 0)
             width = Min(width, effectiveWidth);
@@ -128,13 +169,16 @@ public class InstanceTabsPanel : Panel
 
         _itemsLocations.Clear();
 
-        foreach (Control? child in Children)
+        for (int i = 0; i < Children.Count; i++)
         {
-            if (child is not DragTabItem tabItem)
+            if (Children[i] is not DragTabItem tabItem)
                 continue;
 
-            tabItem.ZIndex = tabItem.IsSelected ? int.MaxValue : --z;
             tabItem.LogicalIndex = logicalIndex++;
+
+            if (!tabItem.IsVisible) continue;
+
+            tabItem.ZIndex = tabItem.IsSelected ? int.MaxValue : --z;
 
             SetLocation(tabItem, x, _itemWidth);
             _itemsLocations.Add(tabItem, GetLocationInfo(tabItem));
@@ -147,7 +191,7 @@ public class InstanceTabsPanel : Panel
 
     private Size DragArrangeImpl(DragTabItem dragItem, Size finalSize)
     {
-        var dragItemsLocations = GetLocations(Children.OfType<DragTabItem>(), dragItem);
+        var dragItemsLocations = GetLocations(VisibleDragTabItems(), dragItem);
 
         // 用控件实际可用宽度作为拖拽上限（而非面板当前宽度），允许标签带动 + 按钮往右移动
         double effectiveWidth = GetEffectiveWidth(new Size(double.PositiveInfinity, finalSize.Height));
@@ -179,7 +223,7 @@ public class InstanceTabsPanel : Panel
 
     private Size DragCompletedArrangeImpl(DragTabItem dragItem, Size finalSize)
     {
-        var dragItemsLocations = GetLocations(Children.OfType<DragTabItem>(), dragItem);
+        var dragItemsLocations = GetLocations(VisibleDragTabItems(), dragItem);
 
         double currentCoord = 0.0;
         int z = int.MaxValue - 10;
@@ -202,7 +246,7 @@ public class InstanceTabsPanel : Panel
         return finalSize;
     }
 
-    private double GetEffectiveWidth(Size availableSize)
+    private double GetEffectiveWidth(Size availableSize, bool includeOverflow = false)
     {
         double width = availableSize.Width;
 
@@ -214,35 +258,71 @@ public class InstanceTabsPanel : Panel
                 return -1; // 首次测量，尚无实际宽度
             // 预留 + 按钮空间
             width -= AddButtonReservedWidth;
+            // 溢出时额外预留溢出按钮空间
+            if (includeOverflow)
+                width -= OverflowButtonReservedWidth;
         }
 
         return Max(0, width);
     }
 
-    private double GetAvailableWidth(Size availableSize)
+    /// <summary>
+    /// 计算标签宽度和可见数量。当缩放到 MinReadableWidth 以下时触发溢出。
+    /// </summary>
+    private (double itemWidth, int visibleCount) CalculateLayout(Size availableSize)
     {
-        int tabsCount = Children.Count;
-
-        if (tabsCount == 0)
-            return 0;
+        int totalCount = Children.Count;
+        if (totalCount == 0) return (0, 0);
 
         double effectiveWidth = GetEffectiveWidth(availableSize);
-
-        // 首次测量或无约束时，使用最大宽度
-        if (effectiveWidth < 0)
-            return ItemWidth;
+        if (effectiveWidth < 0) return (ItemWidth, totalCount);
 
         // 所有标签以最大宽度排列时的总宽度
-        double naturalTotal = tabsCount * ItemWidth + ItemOffset * (tabsCount - 1);
-
-        // 如果自然宽度未超出可用空间，保持最大宽度（添加按钮跟随标签往右移动）
+        double naturalTotal = totalCount * ItemWidth + ItemOffset * (totalCount - 1);
         if (naturalTotal <= effectiveWidth)
-            return ItemWidth;
+            return (ItemWidth, totalCount);
 
-        // 超出时才缩放标签以适应空间
-        double itemWidth = effectiveWidth / tabsCount - ItemOffset * (tabsCount - 1) / tabsCount;
+        // 尝试缩放
+        double itemWidth = effectiveWidth / totalCount - ItemOffset * (totalCount - 1) / totalCount;
+        if (itemWidth >= MinReadableWidth)
+            return (Min(ItemWidth, Max(MinReadableWidth, itemWidth)), totalCount);
 
-        return Min(ItemWidth, Max(40, itemWidth)); // 最小 40px 防止标签太窄
+        // 需要溢出：用含溢出按钮预留的宽度重新计算
+        double overflowWidth = GetEffectiveWidth(availableSize, true);
+        if (overflowWidth <= 0) return (MinReadableWidth, 1);
+
+        int maxVisible = Max(1, (int)((overflowWidth + ItemOffset) / (MinReadableWidth + ItemOffset)));
+        maxVisible = Min(maxVisible, totalCount);
+
+        double visibleWidth = overflowWidth / maxVisible - ItemOffset * (maxVisible - 1) / maxVisible;
+        return (Min(ItemWidth, Max(MinReadableWidth, visibleWidth)), maxVisible);
+    }
+
+    /// <summary>
+    /// 以激活标签为中心，计算可见标签的起止索引
+    /// </summary>
+    private void UpdateVisibleRange(int visibleCount, int totalCount)
+    {
+        if (visibleCount >= totalCount)
+        {
+            _visibleStart = 0;
+            _visibleEnd = totalCount - 1;
+            return;
+        }
+
+        int activeIndex = _tabsControl.SelectedIndex;
+        if (activeIndex < 0) activeIndex = 0;
+        if (activeIndex >= totalCount) activeIndex = totalCount - 1;
+
+        int half = (visibleCount - 1) / 2;
+        int start = activeIndex - half;
+        int end = start + visibleCount - 1;
+
+        if (start < 0) { start = 0; end = visibleCount - 1; }
+        if (end >= totalCount) { end = totalCount - 1; start = end - visibleCount + 1; }
+
+        _visibleStart = Max(0, start);
+        _visibleEnd = Min(totalCount - 1, end);
     }
 
     private IEnumerable<LocationInfo> GetLocations(IEnumerable<DragTabItem> allItems, DragTabItem dragItem)
@@ -332,6 +412,8 @@ public class InstanceTabsPanel : Panel
 
         return new LocationInfo(item, startLocation, midLocation, endLocation);
     }
+    private IEnumerable<DragTabItem> VisibleDragTabItems() =>
+        Children.OfType<DragTabItem>().Where(dt => dt.IsVisible);
 
     private DragTabItem? GetDragItem() => (DragTabItem?)Children.FirstOrDefault(c => c is DragTabItem
     {
