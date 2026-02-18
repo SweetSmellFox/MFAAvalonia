@@ -103,7 +103,10 @@ public static class AgentHelper
         MaaProcessor processor,
         CancellationToken token)
     {
-        var ctx = new AgentContext { Config = agentConfig };
+        var ctx = new AgentContext
+        {
+            Config = agentConfig
+        };
 
         var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
         var identifier = string.IsNullOrWhiteSpace(agentConfig.Identifier)
@@ -115,8 +118,9 @@ public static class AgentHelper
             ? MaaAgentClient.CreateTcp(tasker)
             : MaaAgentClient.Create(identifier, tasker);
 
-        var timeOut = agentConfig.Timeout ?? 120;
-        ctx.Client.SetTimeout(TimeSpan.FromSeconds(timeOut < 0 ? int.MaxValue : timeOut));
+        var timeOut = agentConfig.Timeout ?? -1;
+        if (timeOut > 0)
+            ctx.Client.SetTimeout(TimeSpan.FromSeconds(timeOut));
         ctx.Client.Releasing += (_, _) =>
         {
             LoggerHelper.Info("退出Agent进程");
@@ -257,8 +261,9 @@ public static class AgentHelper
                         ctx.Client = instanceConfig.GetValue(ConfigurationKeys.AgentTcpMode, false)
                             ? MaaAgentClient.Create(identifier, tasker)
                             : MaaAgentClient.CreateTcp(tasker);
-                        timeOut = agentConfig.Timeout ?? 120;
-                        ctx.Client.SetTimeout(TimeSpan.FromSeconds(timeOut < 0 ? int.MaxValue : timeOut));
+                        timeOut = agentConfig.Timeout ?? -1;
+                        if (timeOut > 0)
+                            ctx.Client.SetTimeout(TimeSpan.FromSeconds(timeOut));
                         ctx.Client.Releasing += (_, _) => LoggerHelper.Info("退出Agent进程");
                     }
                     catch (Exception recreateEx)
@@ -684,7 +689,10 @@ public static class AgentHelper
     #region Windows P/Invoke
 
     [SupportedOSPlatform("windows")]
-    private enum JOBOBJECTINFOCLASS { JobObjectExtendedLimitInformation = 9 }
+    private enum JOBOBJECTINFOCLASS
+    {
+        JobObjectExtendedLimitInformation = 9
+    }
 
     [SupportedOSPlatform("windows")]
     [StructLayout(LayoutKind.Sequential)]
@@ -715,8 +723,7 @@ public static class AgentHelper
         public UIntPtr ProcessMemoryLimit, JobMemoryLimit, PeakProcessMemoryUsed, PeakJobMemoryUsed;
     }
 
-    [SupportedOSPlatform("windows")]
-    private const uint JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000;
+    [SupportedOSPlatform("windows")] private const uint JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000;
 
     [SupportedOSPlatform("windows")]
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
@@ -724,8 +731,10 @@ public static class AgentHelper
 
     [SupportedOSPlatform("windows")]
     [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool SetInformationJobObject(AgentContext.SafeJobHandle hJob, JOBOBJECTINFOCLASS infoClass,
-        ref JOBOBJECT_EXTENDED_LIMIT_INFORMATION info, uint cbJobObjectInfoLength);
+    private static extern bool SetInformationJobObject(AgentContext.SafeJobHandle hJob,
+        JOBOBJECTINFOCLASS infoClass,
+        ref JOBOBJECT_EXTENDED_LIMIT_INFORMATION info,
+        uint cbJobObjectInfoLength);
 
     [SupportedOSPlatform("windows")]
     [DllImport("kernel32.dll", SetLastError = true)]

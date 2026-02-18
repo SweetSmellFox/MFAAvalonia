@@ -1,9 +1,11 @@
 using Avalonia.Media.Imaging;
+using Avalonia.VisualTree;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MFAAvalonia.Extensions.MaaFW;
 using MFAAvalonia.Helper;
 using MFAAvalonia.Helper.ValueType;
+using SukiUI.Controls;
 using System;
 using System.ComponentModel;
 using System.Linq;
@@ -80,6 +82,11 @@ public partial class MonitorItemViewModel : ViewModelBase
         if (tab != null)
         {
             Instances.InstanceTabBarViewModel.ActiveTab = tab;
+            // 导航到主页
+            var sideMenu = Instances.TopLevel?.GetVisualDescendants().OfType<SukiSideMenu>().FirstOrDefault();
+            var homeItem = sideMenu?.Items.OfType<SukiSideMenuItem>().FirstOrDefault();
+            if (homeItem != null)
+                sideMenu!.SelectedItem = homeItem;
         }
     }
 
