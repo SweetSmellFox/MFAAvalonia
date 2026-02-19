@@ -333,16 +333,22 @@ public sealed class InstanceConfiguration
     }
 
     /// <summary>
-    /// 从另一个实例复制配置（排除实例名称）
+    /// 将当前实例的配置复制到新实例的配置文件（排除实例名称），
+    /// 需在新实例创建前调用，确保构造函数能读到完整配置
     /// </summary>
-    public void CopyFrom(InstanceConfiguration source)
+    public void CopyToNewInstance(string targetInstanceId)
     {
-        foreach (var kvp in source._config)
-        {
-            if (kvp.Key == ConfigurationKeys.InstanceName) continue;
-            _config[kvp.Key] = kvp.Value;
-        }
-        SaveInstanceConfig();
+        if (!Directory.Exists(InstancesDir))
+            Directory.CreateDirectory(InstancesDir);
+
+        var data = new Dictionary<string, object>(_config);
+        data.Remove(ConfigurationKeys.InstanceName);
+
+        JsonHelper.SaveJson(
+            Path.Combine(InstancesDir, $"{targetInstanceId}.json"),
+            data,
+            new MaaInterfaceSelectAdvancedConverter(false),
+            new MaaInterfaceSelectOptionConverter(false));
     }
 
     /// <summary>

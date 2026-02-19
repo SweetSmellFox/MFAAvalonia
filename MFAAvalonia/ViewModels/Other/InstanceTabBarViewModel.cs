@@ -240,20 +240,31 @@ public partial class InstanceTabBarViewModel : ViewModelBase
     [RelayCommand]
     private async Task AddInstance()
     {
-        // 获取最右侧实例的配置，用于复制到新实例
         var lastTab = Tabs.LastOrDefault();
 
-        var processor = MaaProcessorManager.Instance.CreateInstance(false);
+        // 先将最右侧实例的当前任务列表（含勾选状态）保存到配置
+        var lastVm = lastTab?.TaskQueueViewModel;
+        if (lastVm != null)
+        {
+            lastTab!.Processor.InstanceConfiguration.SetValue(
+                MFAAvalonia.Configuration.ConfigurationKeys.TaskItems,
+                lastVm.TaskItemViewModels.Where(m => !m.IsResourceOptionItem).Select(model => model.InterfaceItem).ToList());
+        }
 
-        // 复制最右侧实例的任务内容和设置到新实例
+        // 在创建实例前，先将配置文件复制到新实例位置，确保构造函数能读到完整配置
+        string? newId = null;
         if (lastTab != null)
         {
-            processor.InstanceConfiguration.CopyFrom(lastTab.Processor.InstanceConfiguration);
+            newId = MaaProcessorManager.CreateInstanceId();
+            lastTab.Processor.InstanceConfiguration.CopyToNewInstance(newId);
         }
+
+        var processor = newId != null
+            ? MaaProcessorManager.Instance.CreateInstance(newId, false)
+            : MaaProcessorManager.Instance.CreateInstance(false);
 
         await Task.Run(() => processor.InitializeData());
 
-        // ReloadTabs 已通过 Processors.CollectionChanged 自动添加了 tab，无需手动添加
         var tab = Tabs.FirstOrDefault(t => t.Processor == processor);
         if (tab != null)
             ActiveTab = tab;
