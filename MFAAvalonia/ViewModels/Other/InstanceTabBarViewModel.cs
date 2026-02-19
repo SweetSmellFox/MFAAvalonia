@@ -240,7 +240,17 @@ public partial class InstanceTabBarViewModel : ViewModelBase
     [RelayCommand]
     private async Task AddInstance()
     {
+        // 获取最右侧实例的配置，用于复制到新实例
+        var lastTab = Tabs.LastOrDefault();
+
         var processor = MaaProcessorManager.Instance.CreateInstance(false);
+
+        // 复制最右侧实例的任务内容和设置到新实例
+        if (lastTab != null)
+        {
+            processor.InstanceConfiguration.CopyFrom(lastTab.Processor.InstanceConfiguration);
+        }
+
         await Task.Run(() => processor.InitializeData());
 
         // ReloadTabs 已通过 Processors.CollectionChanged 自动添加了 tab，无需手动添加
@@ -248,7 +258,6 @@ public partial class InstanceTabBarViewModel : ViewModelBase
         if (tab != null)
             ActiveTab = tab;
     }
-
     [RelayCommand]
     private async Task CloseInstance(InstanceTabViewModel? tab)
     {

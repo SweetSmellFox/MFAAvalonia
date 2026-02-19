@@ -333,6 +333,19 @@ public sealed class InstanceConfiguration
     }
 
     /// <summary>
+    /// 从另一个实例复制配置（排除实例名称）
+    /// </summary>
+    public void CopyFrom(InstanceConfiguration source)
+    {
+        foreach (var kvp in source._config)
+        {
+            if (kvp.Key == ConfigurationKeys.InstanceName) continue;
+            _config[kvp.Key] = kvp.Value;
+        }
+        SaveInstanceConfig();
+    }
+
+    /// <summary>
     /// 批量设置配置（用于迁移，只保存一次）
     /// </summary>
     public void SetValues(Dictionary<string, object> values)
