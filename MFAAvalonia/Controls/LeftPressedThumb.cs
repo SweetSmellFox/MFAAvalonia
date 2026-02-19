@@ -19,6 +19,9 @@ public class LeftPressedThumb : TemplatedControl
         RoutedEvent.Register<LeftPressedThumb, VectorEventArgs>(nameof(DragCompleted), RoutingStrategies.Bubble);
 
     private Point? _lastPoint;
+    private Point? _pressedPoint;
+    private bool _thresholdExceeded;
+    private const double DragThreshold = 4.0;
 
     public event EventHandler<VectorEventArgs>? DragStarted
     {
@@ -51,6 +54,8 @@ public class LeftPressedThumb : TemplatedControl
             };
 
             _lastPoint = null;
+            _pressedPoint = null;
+            _thresholdExceeded = false;
             RaiseEvent(ev);
         }
 
@@ -64,6 +69,15 @@ public class LeftPressedThumb : TemplatedControl
 
         if (_lastPoint.HasValue)
         {
+            // 未超过阈值时，检查累计移动距离
+            if (!_thresholdExceeded && _pressedPoint.HasValue)
+            {
+                var totalDelta = e.GetPosition(this) - _pressedPoint.Value;
+                if (Math.Abs(totalDelta.X) < DragThreshold && Math.Abs(totalDelta.Y) < DragThreshold)
+                    return;
+                _thresholdExceeded = true;
+            }
+
             var ev = new VectorEventArgs
             {
                 RoutedEvent = DragDeltaEvent,
@@ -81,6 +95,8 @@ public class LeftPressedThumb : TemplatedControl
 
         e.Handled = true;
         _lastPoint = e.GetPosition(this);
+        _pressedPoint = _lastPoint;
+        _thresholdExceeded = false;
 
         var ev = new VectorEventArgs
         {
@@ -98,6 +114,8 @@ public class LeftPressedThumb : TemplatedControl
         {
             e.Handled = true;
             _lastPoint = null;
+            _pressedPoint = null;
+            _thresholdExceeded = false;
 
             var ev = new VectorEventArgs
             {

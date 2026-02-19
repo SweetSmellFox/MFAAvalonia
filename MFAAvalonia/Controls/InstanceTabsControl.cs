@@ -23,6 +23,8 @@ public class InstanceTabsControl : TabControl
     private DragTabItem? _draggedItem;
     private DragTabItem? _hoveredTab;
     private bool _dragging;
+    private bool _hasDragged;
+    private int _pendingMoveIndex = -1;
     private ICommand _addItemCommand;
     private ICommand _closeItemCommand;
     private Border? _tabBarBackground;
@@ -412,6 +414,7 @@ public class InstanceTabsControl : TabControl
         if (!_dragging)
         {
             _dragging = true;
+            _hasDragged = true;
             SetDraggingItem(_draggedItem);
         }
 
@@ -454,25 +457,35 @@ public class InstanceTabsControl : TabControl
 
     private void TabsPanelOnDragCompleted()
     {
-        MoveTabModelsIfNeeded();
-        _draggedItem = null;
+        // 立即捕获目标索引（此时仍在 ArrangeOverride 内，LogicalIndex 正确）
+        // 延迟执行前 ArrangeImpl 会覆盖 LogicalIndex，所以必须提前保存
+        if (_draggedItem != null && _hasDragged)
+            _pendingMoveIndex = _draggedItem.LogicalIndex;
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            MoveTabModelsIfNeeded();
+            _draggedItem = null;
+            _hasDragged = false;
+            _pendingMoveIndex = -1;
+            InvalidateClip();
+        });
     }
 
     private void MoveTabModelsIfNeeded()
     {
-        if (_draggedItem == null) return;
+        if (_draggedItem == null || !_hasDragged || _pendingMoveIndex < 0) return;
 
         object? item = ItemFromContainer(_draggedItem);
         if (item == null) return;
 
-        DragTabItem container = _draggedItem;
-
         if (ItemsSource is IList list)
         {
-            if (container.LogicalIndex != list.IndexOf(item))
+            int currentIndex = list.IndexOf(item);
+            if (_pendingMoveIndex != currentIndex)
             {
                 list.Remove(item);
-                list.Insert(container.LogicalIndex, item);
+                list.Insert(Math.Min(_pendingMoveIndex, list.Count), item);
 
                 SelectedItem = item;
 
@@ -480,7 +493,6 @@ public class InstanceTabsControl : TabControl
                 foreach (var dragTabItem in DragTabItems(false))
                     dragTabItem.LogicalIndex = i++;
 
-                // 拖拽排序后保存顺序
                 TabOrderChanged?.Invoke();
             }
         }

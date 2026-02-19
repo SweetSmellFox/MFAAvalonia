@@ -18,6 +18,8 @@ public partial class InstanceTabBarViewModel : ViewModelBase
 {
     public ObservableCollection<InstanceTabViewModel> Tabs { get; } = new();
 
+    private bool _isReloading;
+
     [ObservableProperty] private InstanceTabViewModel? _activeTab;
     [ObservableProperty] private bool _isDropdownOpen;
 
@@ -80,34 +82,42 @@ public partial class InstanceTabBarViewModel : ViewModelBase
 
     public void ReloadTabs()
     {
-        var processors = MaaProcessor.Processors.ToList();
-
-        // 移除已不存在的
-        var toRemove = Tabs.Where(t => !processors.Contains(t.Processor)).ToList();
-        foreach (var t in toRemove)
-            Tabs.Remove(t);
-
-        // 添加新的
-        foreach (var processor in processors)
+        _isReloading = true;
+        try
         {
-            if (Tabs.All(t => t.Processor != processor))
-                Tabs.Add(new InstanceTabViewModel(processor));
-        }
+            var processors = MaaProcessor.Processors.ToList();
 
-        // 按 MaaProcessorManager 的 Instances 顺序排序
-        var orderedInstances = MaaProcessorManager.Instance.Instances.ToList();
-        for (var i = 0; i < orderedInstances.Count; i++)
-        {
-            var tab = Tabs.FirstOrDefault(t => t.Processor == orderedInstances[i]);
-            if (tab != null)
+            // 移除已不存在的
+            var toRemove = Tabs.Where(t => !processors.Contains(t.Processor)).ToList();
+            foreach (var t in toRemove)
+                Tabs.Remove(t);
+
+            // 添加新的
+            foreach (var processor in processors)
             {
-                var currentIndex = Tabs.IndexOf(tab);
-                if (currentIndex != i && i < Tabs.Count)
-                    Tabs.Move(currentIndex, i);
+                if (Tabs.All(t => t.Processor != processor))
+                    Tabs.Add(new InstanceTabViewModel(processor));
             }
-        }
 
-        RefreshFilteredTabs();
+            // 按 MaaProcessorManager 的 Instances 顺序排序
+            var orderedInstances = MaaProcessorManager.Instance.Instances.ToList();
+            for (var i = 0; i < orderedInstances.Count; i++)
+            {
+                var tab = Tabs.FirstOrDefault(t => t.Processor == orderedInstances[i]);
+                if (tab != null)
+                {
+                    var currentIndex = Tabs.IndexOf(tab);
+                    if (currentIndex != i && i < Tabs.Count)
+                        Tabs.Move(currentIndex, i);
+                }
+            }
+
+            RefreshFilteredTabs();
+        }
+        finally
+        {
+            _isReloading = false;
+        }
 
         var current = MaaProcessorManager.Instance.Current;
         if (current != null)
@@ -137,15 +147,14 @@ public partial class InstanceTabBarViewModel : ViewModelBase
         if (newValue != null)
         {
             newValue.IsActive = true;
+            // 排序期间 Tabs.Move 可能导致 SelectedItem 变化触发此回调，跳过副作用
+            if (_isReloading) return;
             if (MaaProcessorManager.Instance.Current != newValue.Processor)
             {
                 SwitchToInstance(newValue.Processor);
             }
             else
             {
-                // 初始启动时 Current 已匹配，但 ConnectSettingsUserControlModel 的字段初始化器
-                // 可能在 Current 还是 "default" 实例时就已读取，导致枚举类型属性（截图模式、触控模式）
-                // 被错误地设为 Instance.default 的值。此处补一次同步确保 UI 反映正确的实例配置。
                 SyncConnectSettingsForCurrentInstance();
             }
         }

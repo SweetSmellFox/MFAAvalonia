@@ -227,7 +227,7 @@ public class InstanceTabsPanel : Panel
 
         double currentCoord = 0.0;
         int z = int.MaxValue - 10;
-        int logicalIndex = 0;
+        int logicalIndex = _visibleStart;
 
         foreach (var location in dragItemsLocations)
         {
