@@ -17,6 +17,7 @@ using MFAAvalonia.Helper.ValueType;
 using MFAAvalonia.ViewModels.Other;
 using MFAAvalonia.ViewModels.UsersControls;
 using MFAAvalonia.ViewModels.UsersControls.Settings;
+using MFAAvalonia.Views.Windows;
 using Newtonsoft.Json;
 using SukiUI.Dialogs;
 using System;
@@ -47,7 +48,7 @@ public partial class TaskQueueViewModel : ViewModelBase
         _lastAppliedControllerSettingsType = _currentController;
         _enableLiveView = _processorField.InstanceConfiguration.GetValue(ConfigurationKeys.EnableLiveView, true);
         _liveViewRefreshRate = _processorField.InstanceConfiguration.GetValue(ConfigurationKeys.LiveViewRefreshRate, 30.0);
-        
+
         // Initialize LiveView Timer
         _liveViewTimer = new System.Timers.Timer();
         _liveViewTimer.Elapsed += OnLiveViewTimerElapsed;
@@ -56,7 +57,7 @@ public partial class TaskQueueViewModel : ViewModelBase
 
         IsRunning = _processorField.TaskQueue.Count > 0;
         _processorField.TaskQueue.CountChanged += OnTaskQueueCountChanged;
-        
+
         // Re-initialize with the correct processor since base constructor might have used Current
         Initialize();
     }
@@ -69,8 +70,7 @@ public partial class TaskQueueViewModel : ViewModelBase
         });
     }
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Idle))]
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(Idle))]
     private bool _isRunning;
 
     public bool Idle => !IsRunning;
@@ -78,13 +78,13 @@ public partial class TaskQueueViewModel : ViewModelBase
     [ObservableProperty] private bool _isCompactMode = false;
 
     private bool _isSyncing = false;
-    
+
     /// <summary>
     /// 标记当前 CurrentDevice 变更是否为程序内部触发（刷新/配置加载等），
     /// 为 false 时表示用户通过 ComboBox 手动选择设备
     /// </summary>
     private bool _suppressAutoConnect = false;
-    
+
     /// <summary>
     /// 记录已应用过 interface.json 控制器设置的控制器类型，
     /// 避免每次刷新设备时都用 interface.json 的值覆盖用户配置
@@ -155,28 +155,35 @@ public partial class TaskQueueViewModel : ViewModelBase
             var allResources = MaaProcessor.Interface.Resources.Values.ToList();
             if (allResources.Count == 0)
             {
-                 allResources = [ new() { Name = "Default", Path = [MaaProcessor.ResourceBase] } ];
+                allResources =
+                [
+                    new()
+                    {
+                        Name = "Default",
+                        Path = [MaaProcessor.ResourceBase]
+                    }
+                ];
             }
 
             var currentControllerName = GetCurrentControllerName();
             var filteredResources = TaskLoader.FilterResourcesByController(allResources, currentControllerName);
-            
+
             foreach (var resource in filteredResources)
             {
                 resource.InitializeDisplayName();
                 TaskLoader.InitializeResourceSelectOptions(resource, MaaProcessor.Interface, Processor.InstanceConfiguration);
             }
-            
+
             var resourceToSelect = targetResource ?? CurrentResource;
             CurrentResources = new ObservableCollection<MaaInterface.MaaInterfaceResource>(filteredResources);
-            
+
             if (!string.IsNullOrWhiteSpace(resourceToSelect) && CurrentResources.Any(r => r.Name == resourceToSelect))
             {
-                 CurrentResource = resourceToSelect;
+                CurrentResource = resourceToSelect;
             }
             else
             {
-                 CurrentResource = CurrentResources.FirstOrDefault()?.Name ?? "Default";
+                CurrentResource = CurrentResources.FirstOrDefault()?.Name ?? "Default";
             }
         }
         catch (Exception ex)
@@ -496,7 +503,7 @@ public partial class TaskQueueViewModel : ViewModelBase
         // 保留特殊任务（倒计时、系统通知等用户手动添加的自定义 Action 任务）
         var specialTasks = TaskItemViewModels
             .Where(t => !string.IsNullOrWhiteSpace(t.InterfaceItem?.Entry)
-                        && ViewModels.UsersControls.Settings.AddTaskDialogViewModel.SpecialActionNames.Contains(t.InterfaceItem.Entry!))
+                && ViewModels.UsersControls.Settings.AddTaskDialogViewModel.SpecialActionNames.Contains(t.InterfaceItem.Entry!))
             .ToList();
 
         // 清空当前任务列表
@@ -647,7 +654,7 @@ public partial class TaskQueueViewModel : ViewModelBase
     [ObservableProperty] private int _shouldShow = 0;
     [ObservableProperty] private ObservableCollection<object> _devices = [];
     [ObservableProperty] private object? _currentDevice;
-    
+
     [ObservableProperty] private bool _isConnected;
 
     public void SetConnected(bool connected)
@@ -667,11 +674,13 @@ public partial class TaskQueueViewModel : ViewModelBase
         ChangedDevice(value);
 
         // 仅 ComboBox 手动选中设备时，根据"刷新后尝试连接"设置自动连接
-        if (!_suppressAutoConnect && !_isSyncing && value != null
+        if (!_suppressAutoConnect
+            && !_isSyncing
+            && value != null
             && Instances.IsResolved<ConnectSettingsUserControlModel>()
             && Instances.ConnectSettingsUserControlModel.AutoConnectAfterRefresh)
         {
-            _ =TaskManager.RunTaskAsync(() =>
+            _ = TaskManager.RunTaskAsync(() =>
             {
                 try
                 {
@@ -742,7 +751,7 @@ public partial class TaskQueueViewModel : ViewModelBase
         {
             TryReadPlayCoverConfig();
         }
-        
+
         // 切换控制器类型时，先取消正在进行的搜索并清空设备列表，
         // 防止旧控制器类型的设备在搜索期间仍然显示
         _refreshCancellationTokenSource?.Cancel();
@@ -757,13 +766,13 @@ public partial class TaskQueueViewModel : ViewModelBase
             _suppressAutoConnect = false;
         }
         SetConnected(false);
-        
+
         if (!ConfigurationManager.IsSwitching)
         {
             Refresh();
         }
     }
-    
+
     [RelayCommand]
     private void CustomAdb()
     {
@@ -841,25 +850,25 @@ public partial class TaskQueueViewModel : ViewModelBase
         _refreshCancellationTokenSource = new CancellationTokenSource();
         var controllerType = CurrentController;
         TaskManager.RunTask(() =>
-        {
-            AutoDetectDevice(_refreshCancellationTokenSource.Token);
-
-            // 刷新后自动连接（仅按钮触发的刷新）
-            if (CurrentDevice != null
-                && Instances.ConnectSettingsUserControlModel.AutoConnectAfterRefresh)
             {
-                try
+                AutoDetectDevice(_refreshCancellationTokenSource.Token);
+
+                // 刷新后自动连接（仅按钮触发的刷新）
+                if (CurrentDevice != null
+                    && Instances.ConnectSettingsUserControlModel.AutoConnectAfterRefresh)
                 {
-                    _refreshCancellationTokenSource.Token.ThrowIfCancellationRequested();
-                    Processor.TestConnecting().GetAwaiter().GetResult();
+                    try
+                    {
+                        _refreshCancellationTokenSource.Token.ThrowIfCancellationRequested();
+                        Processor.TestConnecting().GetAwaiter().GetResult();
+                    }
+                    catch (OperationCanceledException) { throw; }
+                    catch (Exception ex)
+                    {
+                        LoggerHelper.Warning($"Auto connect after refresh failed: {ex.Message}");
+                    }
                 }
-                catch (OperationCanceledException) { throw; }
-                catch (Exception ex)
-                {
-                    LoggerHelper.Warning($"Auto connect after refresh failed: {ex.Message}");
-                }
-            }
-        }, _refreshCancellationTokenSource.Token, name: "刷新", handleError: (e) => HandleDetectionError(e, controllerType),
+            }, _refreshCancellationTokenSource.Token, name: "刷新", handleError: (e) => HandleDetectionError(e, controllerType),
             catchException: true, shouldLog: true);
     }
 
@@ -2043,7 +2052,7 @@ public partial class TaskQueueViewModel : ViewModelBase
     }
 
     #endregion
-    
+
     #region 配置切换
 
     /// <summary>
@@ -2069,5 +2078,6 @@ public partial class TaskQueueViewModel : ViewModelBase
         }
 
     }
+
     #endregion
 }
