@@ -716,7 +716,8 @@ public partial class TaskQueueViewModel : ViewModelBase
         if (value is DesktopWindowInfo window)
         {
             if (!igoreToast) ToastHelper.Info(LangKeys.WindowSelectionMessage.ToLocalizationFormatted(false, ""), window.Name);
-            var isSameWindow = IsConnected && Processor.Config.DesktopWindow.HWnd == window.Handle;
+            var isSameWindow = Processor.Config.DesktopWindow.HWnd == window.Handle
+                && Processor.Config.DesktopWindow.HWnd != IntPtr.Zero;
             Processor.Config.DesktopWindow.Name = window.Name;
             Processor.Config.DesktopWindow.HWnd = window.Handle;
             // 记录 ClassName 和 WindowName，下次启动时优先匹配
@@ -729,10 +730,10 @@ public partial class TaskQueueViewModel : ViewModelBase
         else if (value is AdbDeviceInfo device)
         {
             if (!igoreToast) ToastHelper.Info(LangKeys.EmulatorSelectionMessage.ToLocalizationFormatted(false, ""), device.Name);
-            var isSameDevice = IsConnected
+            // 不依赖 IsConnected（AutoDetectDevice 会提前调用 SetConnected(false)），直接比较设备信息
+            var isSameDevice = !string.IsNullOrEmpty(Processor.Config.AdbDevice.AdbSerial)
                 && Processor.Config.AdbDevice.AdbSerial == device.AdbSerial
-                && Processor.Config.AdbDevice.AdbPath == device.AdbPath
-                && Processor.Config.AdbDevice.Config == device.Config;
+                && Processor.Config.AdbDevice.AdbPath == device.AdbPath;
             Processor.Config.AdbDevice.Name = device.Name;
             Processor.Config.AdbDevice.AdbPath = device.AdbPath;
             Processor.Config.AdbDevice.AdbSerial = device.AdbSerial;
