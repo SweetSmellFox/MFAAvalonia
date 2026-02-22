@@ -1564,14 +1564,14 @@ public class MaaProcessor
                     Path.Combine(AppContext.BaseDirectory, "libs", "MaaAgentBinary")
                 );
 
-            // case MaaControllerTypes.PlayCover:
-            //     if (logConfig)
-            //     {
-            //         LoggerHelper.Info($"PlayCover Address: {Config.PlayCover.PlayCoverAddress}");
-            //         LoggerHelper.Info($"PlayCover BundleId: {Config.PlayCover.UUID}");
-            //     }
-            //
-            //     return new MaaPlayCoverController(Config.PlayCover.PlayCoverAddress, Config.PlayCover.UUID);
+            case MaaControllerTypes.PlayCover:
+                if (logConfig)
+                {
+                    LoggerHelper.Info($"PlayCover Address: {Config.PlayCover.PlayCoverAddress}");
+                    LoggerHelper.Info($"PlayCover BundleId: {Config.PlayCover.UUID}");
+                }
+            
+                return new MaaPlayCoverController(Config.PlayCover.PlayCoverAddress, Config.PlayCover.UUID);
 
             case MaaControllerTypes.Gamepad:
                 // Gamepad 控制器使用 Win32 控制器的配置，但会创建虚拟手柄
