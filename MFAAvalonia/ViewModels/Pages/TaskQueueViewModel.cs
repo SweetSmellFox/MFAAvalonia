@@ -716,25 +716,30 @@ public partial class TaskQueueViewModel : ViewModelBase
         if (value is DesktopWindowInfo window)
         {
             if (!igoreToast) ToastHelper.Info(LangKeys.WindowSelectionMessage.ToLocalizationFormatted(false, ""), window.Name);
+            var isSameWindow = IsConnected && Processor.Config.DesktopWindow.HWnd == window.Handle;
             Processor.Config.DesktopWindow.Name = window.Name;
             Processor.Config.DesktopWindow.HWnd = window.Handle;
             // 记录 ClassName 和 WindowName，下次启动时优先匹配
             Processor.InstanceConfiguration.SetValue(ConfigurationKeys.DesktopWindowClassName, window.ClassName);
             Processor.InstanceConfiguration.SetValue(ConfigurationKeys.DesktopWindowName, window.Name);
-            // 正在连接时跳过 SetTasker，避免打断进行中的连接
-            if (!Processor.IsConnecting)
+            // 正在连接或设备未变更时跳过 SetTasker，避免打断进行中的连接
+            if (!Processor.IsConnecting && !isSameWindow)
                 Task.Run(() => Processor.SetTasker());
         }
         else if (value is AdbDeviceInfo device)
         {
             if (!igoreToast) ToastHelper.Info(LangKeys.EmulatorSelectionMessage.ToLocalizationFormatted(false, ""), device.Name);
+            var isSameDevice = IsConnected
+                && Processor.Config.AdbDevice.AdbSerial == device.AdbSerial
+                && Processor.Config.AdbDevice.AdbPath == device.AdbPath
+                && Processor.Config.AdbDevice.Config == device.Config;
             Processor.Config.AdbDevice.Name = device.Name;
             Processor.Config.AdbDevice.AdbPath = device.AdbPath;
             Processor.Config.AdbDevice.AdbSerial = device.AdbSerial;
             Processor.Config.AdbDevice.Config = device.Config;
             Processor.Config.AdbDevice.Info = device;
-            // 正在连接时跳过 SetTasker，避免打断进行中的连接
-            if (!Processor.IsConnecting)
+            // 正在连接或设备未变更时跳过 SetTasker，避免打断进行中的连接
+            if (!Processor.IsConnecting && !isSameDevice)
                 Task.Run(() => Processor.SetTasker());
             Processor.InstanceConfiguration.SetValue(ConfigurationKeys.AdbDevice, device);
         }
