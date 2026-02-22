@@ -773,6 +773,7 @@ public class MaaProcessor
     private bool _screencapDisconnectedLogPending;
     private bool _screencapFailureLogged;
     private int _isConnecting;
+    public bool IsConnecting => _isConnecting != 0;
 
     private IMaaController? GetScreenshotController(bool test)
     {
@@ -961,7 +962,7 @@ public class MaaProcessor
             var controllerName = controllerType.ToJsonKey();
             var controllerConfig = Interface?.Controller?.FirstOrDefault(c =>
                 c.Type != null && c.Type.Equals(controllerName, StringComparison.OrdinalIgnoreCase));
-            
+
             if (controllerConfig?.AttachResourcePath != null)
             {
                 var attachedPaths = MaaInterface.ReplacePlaceholder(controllerConfig.AttachResourcePath, AppContext.BaseDirectory);
@@ -1077,7 +1078,7 @@ public class MaaProcessor
             var controllerName = controllerType.ToJsonKey();
             var controllerConfig = Interface?.Controller?.FirstOrDefault(c =>
                 c.Type != null && c.Type.Equals(controllerName, StringComparison.OrdinalIgnoreCase));
-            
+
             if (controllerConfig?.AttachResourcePath != null)
             {
                 var attachedPaths = MaaInterface.ReplacePlaceholder(controllerConfig.AttachResourcePath, AppContext.BaseDirectory);
@@ -1570,7 +1571,7 @@ public class MaaProcessor
                     LoggerHelper.Info($"PlayCover Address: {Config.PlayCover.PlayCoverAddress}");
                     LoggerHelper.Info($"PlayCover BundleId: {Config.PlayCover.UUID}");
                 }
-            
+
                 return new MaaPlayCoverController(Config.PlayCover.PlayCoverAddress, Config.PlayCover.UUID);
 
             case MaaControllerTypes.Gamepad:
@@ -1701,7 +1702,7 @@ public class MaaProcessor
         var interfacePath = GetInterfaceFilePath() ?? Path.Combine(AppContext.BaseDirectory, "interface.json");
         var interfaceFileName = Path.GetFileName(interfacePath);
         var defaultValue = new MaaInterface();
-        
+
         try
         {
             // 使用递归加载支持 import
@@ -1711,7 +1712,7 @@ public class MaaProcessor
         {
             Interface = defaultValue;
             var error = "";
-            
+
             try
             {
                 if (File.Exists(interfacePath))
@@ -1765,7 +1766,7 @@ public class MaaProcessor
     {
         loadedPaths ??= new HashSet<string>();
         var fullPath = Path.GetFullPath(path);
-        
+
         if (loadedPaths.Contains(fullPath))
         {
             LoggerHelper.Warning($"Circular dependency detected: {fullPath}");
@@ -1774,8 +1775,8 @@ public class MaaProcessor
         loadedPaths.Add(fullPath);
 
         // 使用 JsonHelper 加载，如果失败会抛出异常
-        var loaded = JsonHelper.LoadJson<MaaInterface>(fullPath, null,new MaaInterfaceSelectAdvancedConverter(false), new MaaInterfaceSelectOptionConverter(false));
-        
+        var loaded = JsonHelper.LoadJson<MaaInterface>(fullPath, null, new MaaInterfaceSelectAdvancedConverter(false), new MaaInterfaceSelectOptionConverter(false));
+
         if (loaded == null)
             throw new Exception($"Failed to load interface file: {fullPath}");
 
@@ -1787,18 +1788,18 @@ public class MaaProcessor
             {
                 var resolvedPath = MaaInterface.ReplacePlaceholder(importPath, Path.GetDirectoryName(fullPath));
                 if (string.IsNullOrWhiteSpace(resolvedPath)) continue;
-                
+
                 try
                 {
                     var imported = LoadMaaInterfaceRecursive(resolvedPath, loadedPaths);
-                    
+
                     // 仅支持导入 task 和 option 字段
                     var filteredImport = new MaaInterface
                     {
                         Task = imported.Task,
                         Option = imported.Option
                     };
-                    
+
                     result.Merge(filteredImport);
                 }
                 catch (Exception ex)
@@ -1807,7 +1808,7 @@ public class MaaProcessor
                 }
             }
         }
-        
+
         result.Merge(loaded);
         return result;
     }
@@ -2398,14 +2399,24 @@ public class MaaProcessor
     {
         ProcessHelper.HardRestartAdb(Config.AdbDevice.AdbPath);
     }
-
+    
     public async Task TestConnecting()
     {
-        await GetTaskerAsync();
-        var task = MaaTasker?.Controller?.LinkStart();
-        task?.Wait();
-        ViewModel?.SetConnected(task?.Status == MaaJobStatus.Succeeded);
+        if (Interlocked.CompareExchange(ref _isConnecting, 1, 0) != 0)
+            return;
+        try
+        {
+            await GetTaskerAsync();
+            var task = MaaTasker?.Controller?.LinkStart();
+            task?.Wait();
+            ViewModel?.SetConnected(task?.Status == MaaJobStatus.Succeeded);
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _isConnecting, 0);
+        }
     }
+
 
     public async Task ReconnectAsync(CancellationToken token = default, bool showMessage = true)
     {
@@ -3487,48 +3498,48 @@ public class MaaProcessor
         return controllerConfig?.PermissionRequired == true;
     }
 
-                /// <summary>
-                /// 检查当前进程是否满足控制器的管理员权限要求
-                /// 如果配置了 permission_required，MaaFW 需要以管理员权限运行，
-                /// 由于 UI 和 FW 在同一进程，即当前进程必须以管理员身份运行
-                /// </summary>
-                private bool CheckTargetProcessAdminPermission()
+    /// <summary>
+    /// 检查当前进程是否满足控制器的管理员权限要求
+    /// 如果配置了 permission_required，MaaFW 需要以管理员权限运行，
+    /// 由于 UI 和 FW 在同一进程，即当前进程必须以管理员身份运行
+    /// </summary>
+    private bool CheckTargetProcessAdminPermission()
+    {
+        if (!OperatingSystem.IsWindows())
+            return true;
+
+        var controllerType = ViewModel?.CurrentController ?? MaaControllerTypes.Adb;
+        if (controllerType != MaaControllerTypes.Win32 && controllerType != MaaControllerTypes.Gamepad)
+            return true;
+
+        var controllerConfig = Interface?.Controller?.FirstOrDefault(c =>
+            c.Type != null && c.Type.Equals(controllerType.ToJsonKey(), StringComparison.OrdinalIgnoreCase));
+
+        // 如果配置了 permission_required，当前进程（承载 MaaFW）必须以管理员身份运行
+        if (controllerConfig?.PermissionRequired == true)
+        {
+            if (!AdminHelper.IsRunningAsAdministrator())
+            {
+                LoggerHelper.Warning("控制器配置了 permission_required，但当前进程未以管理员身份运行");
+                DispatcherHelper.RunOnMainThread(() =>
                 {
-                    if (!OperatingSystem.IsWindows())
-                        return true;
-            
-                    var controllerType = ViewModel?.CurrentController ?? MaaControllerTypes.Adb;
-                    if (controllerType != MaaControllerTypes.Win32 && controllerType != MaaControllerTypes.Gamepad)
-                        return true;
-            
-                    var controllerConfig = Interface?.Controller?.FirstOrDefault(c =>
-                        c.Type != null && c.Type.Equals(controllerType.ToJsonKey(), StringComparison.OrdinalIgnoreCase));
-            
-                    // 如果配置了 permission_required，当前进程（承载 MaaFW）必须以管理员身份运行
-                    if (controllerConfig?.PermissionRequired == true)
-                    {
-                        if (!AdminHelper.IsRunningAsAdministrator())
+                    Instances.DialogManager.CreateDialog()
+                        .OfType(NotificationType.Error)
+                        .WithContent(LangKeys.AdminPermissionRequiredDetail.ToLocalization())
+                        .WithActionButton(LangKeys.Restart.ToLocalization(), _ =>
                         {
-                            LoggerHelper.Warning("控制器配置了 permission_required，但当前进程未以管理员身份运行");
-                            DispatcherHelper.RunOnMainThread(() =>
-                            {
-                                Instances.DialogManager.CreateDialog()
-                                    .OfType(NotificationType.Error)
-                                    .WithContent(LangKeys.AdminPermissionRequiredDetail.ToLocalization())
-                                    .WithActionButton(LangKeys.Restart.ToLocalization(), _ =>
-                                    {
-                                        if (AdminHelper.RestartAsAdministrator())
-                                            Instances.ShutdownApplication();
-                                    }, true)
-                                    .WithActionButton(LangKeys.ButtonCancel.ToLocalization(), _ => { }, true, "Outline")
-                                    .TryShow();
-                            });
-                            return false;
-                        }
-                    }
-            
-                    return true;
-                }
+                            if (AdminHelper.RestartAsAdministrator())
+                                Instances.ShutdownApplication();
+                        }, true)
+                        .WithActionButton(LangKeys.ButtonCancel.ToLocalization(), _ => { }, true, "Outline")
+                        .TryShow();
+                });
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     #endregion
 

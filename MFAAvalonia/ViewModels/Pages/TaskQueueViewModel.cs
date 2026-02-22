@@ -721,8 +721,9 @@ public partial class TaskQueueViewModel : ViewModelBase
             // 记录 ClassName 和 WindowName，下次启动时优先匹配
             Processor.InstanceConfiguration.SetValue(ConfigurationKeys.DesktopWindowClassName, window.ClassName);
             Processor.InstanceConfiguration.SetValue(ConfigurationKeys.DesktopWindowName, window.Name);
-            // SetTasker 内部会同步等待旧 Tasker 停止（最多 5s+），移到后台线程避免阻塞 UI
-            Task.Run(() => Processor.SetTasker());
+            // 正在连接时跳过 SetTasker，避免打断进行中的连接
+            if (!Processor.IsConnecting)
+                Task.Run(() => Processor.SetTasker());
         }
         else if (value is AdbDeviceInfo device)
         {
@@ -732,8 +733,9 @@ public partial class TaskQueueViewModel : ViewModelBase
             Processor.Config.AdbDevice.AdbSerial = device.AdbSerial;
             Processor.Config.AdbDevice.Config = device.Config;
             Processor.Config.AdbDevice.Info = device;
-            // SetTasker 内部会同步等待旧 Tasker 停止（最多 5s+），移到后台线程避免阻塞 UI
-            Task.Run(() => Processor.SetTasker());
+            // 正在连接时跳过 SetTasker，避免打断进行中的连接
+            if (!Processor.IsConnecting)
+                Task.Run(() => Processor.SetTasker());
             Processor.InstanceConfiguration.SetValue(ConfigurationKeys.AdbDevice, device);
         }
     }
@@ -840,6 +842,12 @@ public partial class TaskQueueViewModel : ViewModelBase
     [RelayCommand]
     private void Refresh()
     {
+        if (Processor.IsConnecting)
+        {
+            ToastHelper.Info(LangKeys.Tip.ToLocalization(), "正在连接中，请稍候...");
+            return;
+        }
+
         if (CurrentController == MaaControllerTypes.PlayCover)
         {
             SetConnected(false);
