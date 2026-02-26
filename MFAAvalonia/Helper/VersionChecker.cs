@@ -8,6 +8,7 @@ using MFAAvalonia.Configuration;
 using MFAAvalonia.Extensions;
 using MFAAvalonia.Extensions.MaaFW;
 using MFAAvalonia.Helper.Converters;
+using MFAAvalonia.Helper.ValueType;
 using MFAAvalonia.ViewModels.UsersControls.Settings;
 using MFAAvalonia.ViewModels.Windows;
 using MFAAvalonia.Views.Windows;
@@ -444,7 +445,18 @@ public static class VersionChecker
             return;
         }
         MaaProcessorManager.Instance.Current.SetTasker();
-        DispatcherHelper.PostOnMainThread(() => Instances.RootView.BeforeClosed(true, true));
+        // 仅停止正在运行的任务，不 Dispose 处理器（避免界面变白/配置列表清空）
+        // BeforeClosed 将在重启前调用
+        DispatcherHelper.PostOnMainThread(() =>
+        {
+            if (Instances.RootViewModel.IsRunning)
+            {
+                foreach (var processor in MaaProcessor.Processors)
+                {
+                    processor.Stop(MFATask.MFATaskStatus.STOPPED);
+                }
+            }
+        });
         var tempPath = Path.Combine(AppContext.BaseDirectory, "temp_res");
         Directory.CreateDirectory(tempPath);
         string fileExtension = GetFileExtensionFromUrl(downloadUrl);
@@ -718,6 +730,8 @@ public static class VersionChecker
             }
         }
 
+        // 重启前执行清理（保存配置、释放资源等）
+        DispatcherHelper.PostOnMainThread(() => Instances.RootView.BeforeClosed(true, true));
         await RestartApplicationAsync(exeName);
     }
 
