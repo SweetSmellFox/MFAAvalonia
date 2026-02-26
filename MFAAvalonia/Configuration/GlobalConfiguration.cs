@@ -160,6 +160,26 @@ public static class GlobalConfiguration
         SetValue("Timer.Count", value.ToString());
     }
 
+    public static string GetTimerStopConnectedProcess(int i, string defaultValue)
+    {
+        return GetValue($"Timer.Timer{i + 1}.StopConnectedProcess", defaultValue);
+    }
+
+    public static void SetTimerStopConnectedProcess(int i, string value)
+    {
+        SetValue($"Timer.Timer{i + 1}.StopConnectedProcess", value);
+    }
+
+    public static string GetTimerStopMFA(int i, string defaultValue)
+    {
+        return GetValue($"Timer.Timer{i + 1}.StopMFA", defaultValue);
+    }
+
+    public static void SetTimerStopMFA(int i, string value)
+    {
+        SetValue($"Timer.Timer{i + 1}.StopMFA", value);
+    }
+
     public static void RemoveTimerConfig(int i)
     {
         // 清除指定定时器的所有配置项
@@ -168,5 +188,7 @@ public static class GlobalConfiguration
         SetValue($"Timer.Timer{i + 1}.Config", string.Empty);
         SetValue($"Timer.Timer{i + 1}.Schedule", string.Empty);
         SetValue($"Timer.Timer{i + 1}.Action", string.Empty);
+        SetValue($"Timer.Timer{i + 1}.StopConnectedProcess", string.Empty);
+        SetValue($"Timer.Timer{i + 1}.StopMFA", string.Empty);
     }
 }

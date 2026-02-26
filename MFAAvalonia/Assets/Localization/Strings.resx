@@ -520,7 +520,7 @@
         <value>强制定时启动</value>
     </data>
     <data name="ForceScheduledStartTip" xml:space="preserve">
-        <value>停止当前任务，重启游戏并开始新任务</value>
+        <value>停止当前任务，并在停止完成后开始新任务</value>
     </data>
     <data name="GameResourceUpdated" xml:space="preserve">
         <value>游戏资源已更新，请重启软件。</value>
@@ -1894,6 +1894,12 @@
     </data>
     <data name="MonitorSortByCreatedTime" xml:space="preserve">
         <value>按创建时间</value>
+    </data>
+    <data name="TimerStopConnectedProcess" xml:space="preserve">
+        <value>关闭连接的进程</value>
+    </data>
+    <data name="TimerStopMFA" xml:space="preserve">
+        <value>关闭本程序</value>
     </data>
     <data name="AddTimer" xml:space="preserve">
         <value>添加定时</value>

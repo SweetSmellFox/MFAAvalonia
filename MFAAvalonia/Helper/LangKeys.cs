@@ -628,5 +628,7 @@ public static class LangKeys
 	public static readonly string MonitorSortByCreatedTime = "MonitorSortByCreatedTime";
 	public static readonly string AddTimer = "AddTimer";
 	public static readonly string RemoveTimer = "RemoveTimer";
+	public static readonly string TimerStopConnectedProcess = "TimerStopConnectedProcess";
+	public static readonly string TimerStopMFA = "TimerStopMFA";
 	
 }

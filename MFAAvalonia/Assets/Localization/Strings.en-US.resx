@@ -511,7 +511,7 @@
         <value>Force scheduled start</value>
     </data>
     <data name="ForceScheduledStartTip" xml:space="preserve">
-        <value>Stop current task, restart game and start new tasks</value>
+        <value>Stop current task, then start new tasks after stopping completes</value>
     </data>
     <data name="GameResourceUpdated" xml:space="preserve">
         <value>Game resources updated, please restart software.</value>
@@ -1884,6 +1884,12 @@
     </data>
     <data name="MonitorSortByCreatedTime" xml:space="preserve">
         <value>By Created Time</value>
+    </data>
+    <data name="TimerStopConnectedProcess" xml:space="preserve">
+        <value>Close connected process</value>
+    </data>
+    <data name="TimerStopMFA" xml:space="preserve">
+        <value>Close This App</value>
     </data>
     <data name="AddTimer" xml:space="preserve">
         <value>Add Timer</value>

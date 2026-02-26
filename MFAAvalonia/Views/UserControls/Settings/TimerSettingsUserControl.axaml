@@ -142,6 +142,33 @@
                                             VerticalAlignment="Center" />
                                     </StackPanel>
                                 </DockPanel>
+                                <StackPanel IsVisible="{calcBinding:Binding 'TimerActionIndex == 1'}"
+                                            Spacing="8">
+                                    <DockPanel>
+                                        <ToggleSwitch
+                                            Classes="Switch"
+                                            DockPanel.Dock="Right"
+                                            IsChecked="{Binding StopConnectedProcess}"
+                                            VerticalAlignment="Center" />
+                                        <TextBlock
+                                            FontSize="15"
+                                            HorizontalAlignment="Left"
+                                            Text="{markup:I18n {x:Static helper:LangKeys.TimerStopConnectedProcess}}"
+                                            VerticalAlignment="Center" />
+                                    </DockPanel>
+                                    <DockPanel>
+                                        <ToggleSwitch
+                                            Classes="Switch"
+                                            DockPanel.Dock="Right"
+                                            IsChecked="{Binding StopMFA}"
+                                            VerticalAlignment="Center" />
+                                        <TextBlock
+                                            FontSize="15"
+                                            HorizontalAlignment="Left"
+                                            Text="{markup:I18n {x:Static helper:LangKeys.TimerStopMFA}}"
+                                            VerticalAlignment="Center" />
+                                    </DockPanel>
+                                </StackPanel>
                                 <DockPanel x:CompileBindings="False"
                                            IsVisible="{Binding CustomConfig, Source={x:Static other:TimerModel.Instance}}">
                                     <ComboBox extensions:ComboBoxExtensions.DisableNavigationOnLostFocus="True"

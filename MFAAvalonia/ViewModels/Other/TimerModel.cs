@@ -219,7 +219,25 @@ public partial class TimerModel : ViewModelBase
     {
         if (timer.TimerAction == TimerActionType.StopTask)
         {
-            if (vm.IsRunning) vm.StopTask();
+            if (!vm.IsRunning) return;
+
+            if (timer.StopConnectedProcess && timer.StopMFA)
+            {
+                // 先关闭连接的进程，再关闭 MFA
+                vm.StopTask(() => MaaProcessor.CloseSoftware(vm.Processor, Instances.ShutdownApplication));
+            }
+            else if (timer.StopConnectedProcess)
+            {
+                vm.StopTask(() => MaaProcessor.CloseSoftware(vm.Processor));
+            }
+            else if (timer.StopMFA)
+            {
+                vm.StopTask(Instances.ShutdownApplication);
+            }
+            else
+            {
+                vm.StopTask();
+            }
         }
         else
         {
@@ -261,6 +279,8 @@ public partial class TimerModel : ViewModelBase
             _timerConfig = GlobalConfiguration.GetTimerConfig(timeId, string.Empty);
             var actionStr = GlobalConfiguration.GetTimerAction(timeId, "0");
             _timerAction = int.TryParse(actionStr, out var actionVal) ? (TimerActionType)actionVal : TimerActionType.StartTask;
+            _stopConnectedProcess = GlobalConfiguration.GetTimerStopConnectedProcess(timeId, bool.FalseString) == bool.TrueString;
+            _stopMFA = GlobalConfiguration.GetTimerStopMFA(timeId, bool.FalseString) == bool.TrueString;
 
             ScheduleConfig = new TimerScheduleConfig(GlobalConfiguration.GetTimerSchedule(timeId, string.Empty));
 
@@ -347,6 +367,28 @@ public partial class TimerModel : ViewModelBase
             set => TimerAction = (TimerActionType)value;
         }
 
+        private bool _stopConnectedProcess;
+        public bool StopConnectedProcess
+        {
+            get => _stopConnectedProcess;
+            set
+            {
+                SetProperty(ref _stopConnectedProcess, value);
+                GlobalConfiguration.SetTimerStopConnectedProcess(TimerId, value.ToString());
+            }
+        }
+
+        private bool _stopMFA;
+        public bool StopMFA
+        {
+            get => _stopMFA;
+            set
+            {
+                SetProperty(ref _stopMFA, value);
+                GlobalConfiguration.SetTimerStopMFA(TimerId, value.ToString());
+            }
+        }
+
         [RelayCommand]
         private void Remove() => _parent.RemoveTimer(this);
 
@@ -369,6 +411,8 @@ public partial class TimerModel : ViewModelBase
             GlobalConfiguration.SetTimerConfig(TimerId, _timerConfig ?? string.Empty);
             GlobalConfiguration.SetTimerAction(TimerId, ((int)_timerAction).ToString());
             GlobalConfiguration.SetTimerSchedule(TimerId, _scheduleConfig?.Serialize() ?? string.Empty);
+            GlobalConfiguration.SetTimerStopConnectedProcess(TimerId, _stopConnectedProcess.ToString());
+            GlobalConfiguration.SetTimerStopMFA(TimerId, _stopMFA.ToString());
         }
     }
 }
