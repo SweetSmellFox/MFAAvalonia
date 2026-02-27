@@ -160,9 +160,27 @@ public partial class MaaInterface
         [JsonIgnore]
         public string? Name { get; set; } = string.Empty;
 
-        /// <summary>配置项类型: "select"(默认), "input", "switch"</summary>
+        /// <summary>配置项类型: "select"(默认), "input", "switch", "checkbox"</summary>
         [JsonProperty("type")]
         public string? Type { get; set; }
+
+        /// <summary>
+        /// 可选。指定该配置项适用的控制器类型列表。
+        /// 数组元素应与 controller 配置中的 name 字段对应。
+        /// 若不指定，则表示该配置项在所有控制器类型中都可用。
+        /// </summary>
+        [JsonProperty("controller")]
+        [JsonConverter(typeof(GenericSingleOrListConverter<string>))]
+        public List<string>? Controller { get; set; }
+
+        /// <summary>
+        /// 可选。指定该配置项适用的资源包列表。
+        /// 数组元素应与 resource 配置中的 name 字段对应。
+        /// 若不指定，则表示该配置项在所有资源包中都可用。
+        /// </summary>
+        [JsonProperty("resource")]
+        [JsonConverter(typeof(GenericSingleOrListConverter<string>))]
+        public List<string>? Resource { get; set; }
 
         /// <summary>配置项显示标签，支持国际化（以$开头）</summary>
         [JsonProperty("label")]
@@ -176,7 +194,7 @@ public partial class MaaInterface
         [JsonProperty("icon")]
         public string? Icon { get; set; }
 
-        /// <summary>可选项列表（用于 select/switch 类型）</summary>
+        /// <summary>可选项列表（用于 select/switch/checkbox 类型）</summary>
         [JsonProperty("cases")]
         public List<MaaInterfaceOptionCase>? Cases { get; set; }
 
@@ -188,9 +206,18 @@ public partial class MaaInterface
         [JsonProperty("pipeline_override")]
         public Dictionary<string, Dictionary<string, JToken>>? PipelineOverride { get; set; }
 
-        /// <summary>默认选项名称（仅 select 类型使用）</summary>
+        /// <summary>
+        /// 默认选项名称。
+        /// select/switch 类型为单个字符串；checkbox 类型为字符串数组。
+        /// 使用 GenericSingleOrListConverter 统一反序列化为 List&lt;string&gt;。
+        /// </summary>
         [JsonProperty("default_case")]
-        public string? DefaultCase { get; set; }
+        [JsonConverter(typeof(GenericSingleOrListConverter<string>))]
+        public List<string>? DefaultCases { get; set; }
+
+        /// <summary>获取 select/switch 类型的默认 case 名称（取 DefaultCases 第一项）</summary>
+        [JsonIgnore]
+        public string? DefaultCase => DefaultCases?.FirstOrDefault();
 
         /// <summary>文档说明（旧版兼容）</summary>
         [JsonProperty("doc")]
@@ -216,6 +243,10 @@ public partial class MaaInterface
         /// <summary>是否为 switch 类型</summary>
         [JsonIgnore]
         public bool IsSwitch => OptionType == "switch";
+
+        /// <summary>是否为 checkbox 多选类型</summary>
+        [JsonIgnore]
+        public bool IsCheckbox => OptionType == "checkbox";
 
         /// <summary>解析后的图标路径（用于 UI 绑定）</summary>
         [ObservableProperty] [JsonIgnore] private string? _resolvedIcon;
@@ -500,7 +531,9 @@ public partial class MaaInterface
              if (other.Cases != null) Cases = other.Cases;
              if (other.Inputs != null) Inputs = other.Inputs;
              if (other.PipelineOverride != null) PipelineOverride = other.PipelineOverride;
-             if (!string.IsNullOrEmpty(other.DefaultCase)) DefaultCase = other.DefaultCase;
+             if (other.DefaultCases != null && other.DefaultCases.Count > 0) DefaultCases = other.DefaultCases;
+             if (other.Controller != null) Controller = other.Controller;
+             if (other.Resource != null) Resource = other.Resource;
         }
     }
 
@@ -527,6 +560,11 @@ public partial class MaaInterface
         /// <summary>用于 select/switch 类型的选项索引</summary>
         [JsonProperty("index")]
         public int? Index { get; set; }
+
+        /// <summary>用于 checkbox 类型的多选 case 名称列表</summary>
+        [JsonProperty("selected_cases")]
+        [JsonConverter(typeof(GenericSingleOrListConverter<string>))]
+        public List<string>? SelectedCases { get; set; }
 
         /// <summary>用于 input 类型的字段数据（key: 字段名, value: 用户输入值）</summary>
         [JsonProperty("data")]
@@ -941,7 +979,19 @@ public partial class MaaInterface
         [JsonConverter(typeof(GenericSingleOrListConverter<string>))]
         [JsonProperty("attach_resource_path")]
         public List<string>? AttachResourcePath { get; set; }
-        
+
+        /// <summary>
+        /// 可选。控制器级的选项配置，为一个字符串数组，数组元素应与外层 option 配置中的键名对应。
+        /// 该选项生成的参数会参与到所有使用该控制器的任务的 pipeline override 中。
+        /// </summary>
+        [JsonProperty("option")]
+        [JsonConverter(typeof(GenericSingleOrListConverter<string>))]
+        public List<string>? Option { get; set; }
+
+        /// <summary>运行时使用的选项配置（与 MaaInterfaceTask.Option 类似）</summary>
+        [JsonIgnore]
+        public List<MaaInterface.MaaInterfaceSelectOption>? SelectOptions { get; set; }
+
         [JsonProperty("adb")]
         public MaaResourceControllerAdb? Adb { get; set; }
         [JsonProperty("win32")]
@@ -1031,6 +1081,91 @@ public partial class MaaInterface
     }
 
 
+    /// <summary>
+    /// 预设任务配置（preset.task 中的单个任务项）
+    /// </summary>
+    public class MaaInterfacePresetTask
+    {
+        /// <summary>与顶层 task[].name 对应的任务名称</summary>
+        [JsonProperty("name")]
+        public string? Name { get; set; }
+
+        /// <summary>该任务在预设中是否勾选，默认 true</summary>
+        [JsonProperty("enabled")]
+        public bool? Enabled { get; set; }
+
+        /// <summary>
+        /// 该任务各配置项的预设值。
+        /// key 为顶层 option 中的键名，value 类型取决于 option.type：
+        /// - select/switch: string（case.name）
+        /// - checkbox: string[]（case.name 数组）
+        /// - input: Dictionary&lt;string, string&gt;（输入字段 name → 值）
+        /// </summary>
+        [JsonProperty("option")]
+        public Dictionary<string, JToken>? Option { get; set; }
+    }
+
+    /// <summary>
+    /// 预设配置（一套预定义的任务勾选状态与选项值的快照）
+    /// </summary>
+    public partial class MaaInterfacePreset : ObservableObject, IDisposable
+    {
+        /// <summary>唯一标识符，用作预设 ID</summary>
+        [JsonProperty("name")]
+        public string? Name { get; set; }
+
+        /// <summary>显示名称，支持国际化（以$开头）</summary>
+        [JsonProperty("label")]
+        public string? Label { get; set; }
+
+        /// <summary>预设详细描述，支持文件路径/URL/Markdown文本，支持国际化</summary>
+        [JsonProperty("description")]
+        public string? Description { get; set; }
+
+        /// <summary>预设图标文件路径，相对于项目根目录，支持国际化</summary>
+        [JsonProperty("icon")]
+        public string? Icon { get; set; }
+
+        /// <summary>预设包含的任务配置列表</summary>
+        [JsonProperty("task")]
+        public List<MaaInterfacePresetTask>? Task { get; set; }
+
+        [ObservableProperty] [JsonIgnore] private string _displayName = string.Empty;
+
+        [ObservableProperty] [JsonIgnore] private string? _resolvedIcon;
+
+        [ObservableProperty] [JsonIgnore] private bool _hasIcon;
+
+        public void InitializeDisplayName()
+        {
+            UpdateDisplayName();
+            LanguageHelper.LanguageChanged += OnLanguageChanged;
+        }
+
+        private void OnLanguageChanged(object? sender, LanguageHelper.LanguageEventArgs e) => UpdateDisplayName();
+
+        private void UpdateDisplayName()
+        {
+            DisplayName = LanguageHelper.GetLocalizedDisplayName(Label, Name ?? string.Empty);
+            if (!string.IsNullOrWhiteSpace(Icon))
+            {
+                var iconValue = LanguageHelper.GetLocalizedString(Icon);
+                ResolvedIcon = ReplacePlaceholder(iconValue, MaaProcessor.ResourceBase, true);
+                HasIcon = !string.IsNullOrWhiteSpace(ResolvedIcon);
+            }
+            else
+            {
+                ResolvedIcon = null;
+                HasIcon = false;
+            }
+        }
+
+        public void Dispose()
+        {
+            LanguageHelper.LanguageChanged -= OnLanguageChanged;
+        }
+    }
+
     [JsonProperty("interface_version")]
     public int? InterfaceVersion { get; set; }
 
@@ -1106,6 +1241,25 @@ public partial class MaaInterface
 
     [JsonProperty("option")]
     public Dictionary<string, MaaInterfaceOption>? Option { get; set; }
+
+    /// <summary>
+    /// 全局选项配置，为一个字符串数组，数组元素应与 option 配置中的键名对应。
+    /// 该选项生成的参数会参与到所有任务的 pipeline override 中，优先级最低。
+    /// 覆盖顺序：global_option &lt; resource.option &lt; controller.option &lt; task.option
+    /// </summary>
+    [JsonProperty("global_option")]
+    [JsonConverter(typeof(GenericSingleOrListConverter<string>))]
+    public List<string>? GlobalOption { get; set; }
+
+    /// <summary>运行时使用的全局选项配置（与 MaaInterfaceTask.Option 类似）</summary>
+    [JsonIgnore]
+    public List<MaaInterfaceSelectOption>? GlobalSelectOptions { get; set; }
+
+    /// <summary>
+    /// 预设配置，为一个对象数组。每个预设是一套预定义的任务勾选状态与选项值的快照。
+    /// </summary>
+    [JsonProperty("preset")]
+    public List<MaaInterfacePreset>? Preset { get; set; }
 
     [JsonExtensionData]
     public Dictionary<string, object> AdditionalData { get; set; } = new();
@@ -1292,6 +1446,8 @@ public partial class MaaInterface
         Controller = MergeLists(Controller, other.Controller, c => c.Name);
         Resource = MergeLists(Resource, other.Resource, r => r.Name);
         Task = MergeTasks(Task, other.Task);
+        Preset = MergeLists(Preset, other.Preset, p => p.Name);
+        if (other.GlobalOption is { Count: > 0 }) GlobalOption = other.GlobalOption;
     }
 
     private static Dictionary<TK, TV>? MergeDictionaries<TK, TV>(Dictionary<TK, TV>? first, Dictionary<TK, TV>? second) where TK : notnull

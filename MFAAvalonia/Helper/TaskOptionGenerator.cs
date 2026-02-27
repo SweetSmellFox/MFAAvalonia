@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
 using Avalonia.Data.Converters;
@@ -167,11 +168,19 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
     {
         if (MaaProcessor.Interface?.Option?.TryGetValue(option.Name ?? string.Empty, out var interfaceOption) != true) return;
 
+        // 过滤：根据 option.controller / option.resource 隐藏不适用项（任务 11）
+        if (!IsOptionApplicable(interfaceOption)) return;
+
         Control control;
 
         if (interfaceOption.IsInput)
         {
             control = CreateInputControl(option, interfaceOption);
+        }
+        else if (interfaceOption.IsCheckbox)
+        {
+            // checkbox 类型：多选 ToggleButton 列表（任务 8）
+            control = CreateCheckboxControl(option, interfaceOption);
         }
         else if ((interfaceOption.IsSwitch && interfaceOption.Cases.ShouldSwitchButton(out var yes, out var no)) ||
                  interfaceOption.Cases.ShouldSwitchButton(out yes, out no)) // Try both conditions with/without type checking logic
@@ -184,6 +193,130 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
         }
 
         panel.Children.Add(control);
+    }
+
+    /// <summary>
+    /// 检查 option 是否适用于当前控制器和资源（任务 11）
+    /// </summary>
+    private bool IsOptionApplicable(MaaInterface.MaaInterfaceOption interfaceOption)
+    {
+        // 检查 controller 过滤
+        // interfaceOption.Controller 存储的是 interface.json 中 controller[].name 字段（如 "ADB控制器"）
+        // 而非 type 字段（如 "adb"），需要通过 type 查找对应的 name
+        if (interfaceOption.Controller is { Count: > 0 })
+        {
+            var controllerTypeKey = viewModel.CurrentController.ToJsonKey();
+            var controllerConfig = MaaProcessor.Interface?.Controller?.FirstOrDefault(c =>
+                c.Type != null && c.Type.Equals(controllerTypeKey, StringComparison.OrdinalIgnoreCase));
+            var currentControllerName = controllerConfig?.Name ?? controllerTypeKey;
+            if (!interfaceOption.Controller.Any(c => c.Equals(currentControllerName, StringComparison.OrdinalIgnoreCase)))
+                return false;
+        }
+        // 检查 resource 过滤
+        if (interfaceOption.Resource is { Count: > 0 })
+        {
+            var currentResource = viewModel.CurrentResource;
+            if (!interfaceOption.Resource.Any(r => r.Equals(currentResource, StringComparison.OrdinalIgnoreCase)))
+                return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// 创建 checkbox 类型的多选 ToggleButton 控件（任务 8）
+    /// </summary>
+    private Control CreateCheckboxControl(MaaInterface.MaaInterfaceSelectOption option, MaaInterface.MaaInterfaceOption interfaceOption)
+    {
+        var container = new StackPanel { Margin = new Thickness(10, 10, 10, 6), Spacing = 4 };
+
+        interfaceOption.InitializeIcon();
+
+        // Header（显示 option 名称和图标）
+        var header = CreateOptionHeader(interfaceOption);
+        header.Margin = new Thickness(0); // 外层 container 已提供垂直间距，去掉 header 内部多余的上下 margin
+        container.Children.Add(header);
+
+        // 初始化 SelectedCases（任务 9）
+        option.SelectedCases ??= new List<string>(interfaceOption.DefaultCases ?? new List<string>());
+
+        // WrapPanel of ToggleButtons
+        var wrapPanel = new WrapPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Margin = new Thickness(0, 2, 0, 2)
+        };
+
+        if (interfaceOption.Cases != null)
+        {
+            foreach (var caseOption in interfaceOption.Cases)
+            {
+                caseOption.InitializeDisplayName();
+                var caseName = caseOption.Name ?? string.Empty;
+                var isChecked = option.SelectedCases.Contains(caseName);
+
+                var toggleBtn = new ToggleButton
+                {
+                    IsChecked = isChecked,
+                    Margin = new Thickness(2),
+                    Padding = new Thickness(8, 4, 8, 4),
+                };
+
+                // 按钮内容：图标 + 文字 [+ TooltipBlock（有描述时）]
+                var btnContent = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+
+                var iconDisplay = new DisplayIcon
+                {
+                    IconSize = 16,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                iconDisplay.Bind(DisplayIcon.IconSourceProperty, new Binding(nameof(MaaInterface.MaaInterfaceOptionCase.ResolvedIcon)) { Source = caseOption });
+                iconDisplay.Bind(Visual.IsVisibleProperty, new Binding(nameof(MaaInterface.MaaInterfaceOptionCase.HasIcon)) { Source = caseOption });
+
+                var textBlock = new TextBlock
+                {
+                    VerticalAlignment = VerticalAlignment.Center,
+                    TextTrimming = TextTrimming.CharacterEllipsis
+                };
+                textBlock.Bind(TextBlock.TextProperty, new ResourceBindingWithFallback(caseOption.DisplayName, caseOption.Name));
+
+                btnContent.Children.Add(iconDisplay);
+                btnContent.Children.Add(textBlock);
+
+                // 有描述时在文字旁追加 TooltipBlock（与 ComboBox 项、LabelPanel 保持一致）
+                if (caseOption.HasDescription)
+                {
+                    var tooltipBlock = new TooltipBlock();
+                    tooltipBlock.Bind(TooltipBlock.TooltipTextProperty,
+                        new Binding(nameof(MaaInterface.MaaInterfaceOptionCase.DisplayDescription)) { Source = caseOption });
+                    tooltipBlock.Margin = new Thickness(4, 0, 0, 0);
+                    btnContent.Children.Add(tooltipBlock);
+                }
+
+                toggleBtn.Content = btnContent;
+
+                BindIdleEnabled(toggleBtn);
+
+                var capturedCaseName = caseName;
+                toggleBtn.IsCheckedChanged += (_, _) =>
+                {
+                    if (toggleBtn.IsChecked == true)
+                    {
+                        if (!option.SelectedCases.Contains(capturedCaseName))
+                            option.SelectedCases.Add(capturedCaseName);
+                    }
+                    else
+                    {
+                        option.SelectedCases.Remove(capturedCaseName);
+                    }
+                    saveConfigurationAction();
+                };
+
+                wrapPanel.Children.Add(toggleBtn);
+            }
+        }
+
+        container.Children.Add(wrapPanel);
+        return container;
     }
 
     private Control CreateInputControl(MaaInterface.MaaInterfaceSelectOption option, MaaInterface.MaaInterfaceOption interfaceOption)
@@ -657,6 +790,8 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
          Control control;
          if (subInterfaceOption.IsInput)
             control = CreateInputControl(subOption, subInterfaceOption);
+         else if (subInterfaceOption.IsCheckbox)
+            control = CreateCheckboxControl(subOption, subInterfaceOption);
          else if ((subInterfaceOption.IsSwitch && subInterfaceOption.Cases.ShouldSwitchButton(out var yes, out var no)) ||
                   subInterfaceOption.Cases.ShouldSwitchButton(out yes, out no))
             control = CreateToggleControl(subOption, yes, no, subInterfaceOption, source);
@@ -766,10 +901,9 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
         var headerText = new TextBlock
         {
             FontSize = 14,
-            FontWeight = FontWeight.SemiBold,
         };
         headerText.Bind(TextBlock.TextProperty, new ResourceBindingWithFallback(interfaceOption.DisplayName, interfaceOption.Name));
-        headerText.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("SukiText"));
+        headerText.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("SukiLowText"));
         headerPanel.Children.Add(headerText);
 
         // 添加 TooltipBlock 显示 Option 级别的 Description
@@ -879,16 +1013,20 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
 
     private static MaaInterface.MaaInterfaceSelectOption CreateDefaultSelectOption(string optionName)
     {
-        // Reused from original static method logic or copied here
         var selectOption = new MaaInterface.MaaInterfaceSelectOption { Name = optionName, Index = 0 };
         if (MaaProcessor.Interface?.Option?.TryGetValue(optionName, out var interfaceOption) == true)
         {
             if (interfaceOption.IsInput && interfaceOption.Inputs != null)
             {
                 selectOption.Data = new Dictionary<string, string?>();
-                foreach(var input in interfaceOption.Inputs) 
-                    if (!string.IsNullOrEmpty(input.Name)) 
+                foreach(var input in interfaceOption.Inputs)
+                    if (!string.IsNullOrEmpty(input.Name))
                         selectOption.Data[input.Name] = input.Default ?? string.Empty;
+            }
+            else if (interfaceOption.IsCheckbox)
+            {
+                // 任务 9：checkbox 类型初始化 SelectedCases from DefaultCases
+                selectOption.SelectedCases = new List<string>(interfaceOption.DefaultCases ?? new List<string>());
             }
             else if (!string.IsNullOrEmpty(interfaceOption.DefaultCase) && interfaceOption.Cases != null)
             {

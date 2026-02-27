@@ -22,6 +22,8 @@ public static class ConfigurationKeys
     public const string EnableEdit = "EnableEdit";
     public const string TaskItems = "TaskItems";
     public const string ResourceOptionItems = "ResourceOptionItems";
+    public const string GlobalOptionItems = "GlobalOptionItems";
+    public const string ControllerOptionItems = "ControllerOptionItems";
 
     #endregion
 
@@ -194,6 +196,7 @@ public static class ConfigurationKeys
         TaskItems,
         CurrentTasks,
         ResourceOptionItems,
+        ControllerOptionItems,
         BeforeTask,
         AfterTask,
         SoftwarePath,

@@ -479,6 +479,17 @@ public class MaaProcessor
     }
     private bool _isClosed = false;
     public bool IsClosed => _isClosed;
+
+    /// <summary>
+    /// modal 弹窗等待标志：FocusHandler 触发 modal 时设为 true，用户确认后设为 false
+    /// </summary>
+    private volatile bool _isWaitingForModal = false;
+
+    /// <summary>
+    /// 设置 modal 等待状态（由 FocusHandler 调用）
+    /// </summary>
+    public void SetWaitingForModal(bool waiting) => _isWaitingForModal = waiting;
+
     public void Dispose()
     {
         _isClosed = true;
@@ -491,6 +502,8 @@ public class MaaProcessor
         get => field;
         private set
         {
+            // 释放旧 Preset 的事件订阅，防止 LanguageChanged 泄漏
+            field?.Preset?.ForEach(p => p.Dispose());
             field = value;
 
             foreach (var customResource in value?.Resource ?? Enumerable.Empty<MaaInterface.MaaInterfaceResource>())
@@ -556,9 +569,12 @@ public class MaaProcessor
                 // 我们保留这个行为，或者改为遍历 MaaProcessorManager.Instances 并刷新它们的 VM。
                 if (MaaProcessorManager.IsInstanceCreated)
                 {
-                    MaaProcessorManager.Instance.Current.ViewModel?.InitializeControllerOptions();
-
-                    DispatcherHelper.PostOnMainThread(() => MaaProcessorManager.Instance.Current.ViewModel?.InitializeControllerOptions());
+                    DispatcherHelper.PostOnMainThread(() =>
+                    {
+                        MaaProcessorManager.Instance.Current.ViewModel?.InitializeControllerOptions();
+                        MaaProcessorManager.Instance.Current.ViewModel?.RefreshPresets();
+                        Instances.InstanceTabBarViewModel.RefreshInstancePresets();
+                    });
                 }
 
                 // 异步加载 Contact 和 Description 内容
@@ -1793,11 +1809,12 @@ public class MaaProcessor
                 {
                     var imported = LoadMaaInterfaceRecursive(resolvedPath, loadedPaths);
 
-                    // 仅支持导入 task 和 option 字段
+                    // 仅支持导入 task、option 和 preset 字段（任务 16）
                     var filteredImport = new MaaInterface
                     {
                         Task = imported.Task,
-                        Option = imported.Option
+                        Option = imported.Option,
+                        Preset = imported.Preset
                     };
 
                     result.Merge(filteredImport);
@@ -2511,6 +2528,13 @@ public class MaaProcessor
     {
         while (TaskQueue.Count > 0 && !token.IsCancellationRequested)
         {
+            // 等待 modal 弹窗确认（display=modal 时任务队列暂停推进）
+            while (_isWaitingForModal && !token.IsCancellationRequested)
+            {
+                await Task.Delay(100, token);
+            }
+            if (token.IsCancellationRequested) break;
+
             var task = TaskQueue.Dequeue();
             var status = await task.Run(token);
             if (status != MFATask.MFATaskStatus.SUCCEEDED)
@@ -2614,8 +2638,22 @@ public class MaaProcessor
             if (Interface?.Option?.TryGetValue(optionName, out var interfaceOption) != true)
                 continue;
 
+            // 处理 checkbox 类型（多选，任务 10）
+            if (interfaceOption.IsCheckbox && interfaceOption.Cases != null)
+            {
+                var selectedCases = selectOption.SelectedCases ?? new List<string>();
+                // 按 cases 定义顺序合并所有选中 case 的 pipeline_override
+                foreach (var caseItem in interfaceOption.Cases)
+                {
+                    if (caseItem.Name != null && selectedCases.Contains(caseItem.Name)
+                        && caseItem.PipelineOverride != null)
+                    {
+                        taskModels.Merge(caseItem.PipelineOverride);
+                    }
+                }
+            }
             // 处理 input 类型
-            if (interfaceOption.IsInput)
+            else if (interfaceOption.IsInput)
             {
                 // 从 Data 重新生成 PipelineOverride（因为 PipelineOverride 是 JsonIgnore 的）
                 string? pipelineOverride = selectOption.PipelineOverride;
@@ -2713,9 +2751,17 @@ public class MaaProcessor
             DefaultValueHandling = DefaultValueHandling.Ignore
         })).ToMaaToken();
 
-        // 首先合并当前资源的全局选项参数
+        // PI v2.3.0 合并顺序：global_option < resource.option < controller.option < task.option
+        // 1. 合并全局选项（global_option，最低优先级）
+        MergeGlobalOptionParams(ref taskModels);
+
+        // 2. 合并当前资源的全局选项参数（resource.option）
         MergeResourceOptionParams(ref taskModels);
 
+        // 3. 合并当前控制器的选项参数（controller.option）
+        MergeControllerOptionParams(ref taskModels);
+
+        // 4. 合并任务自身的 option（task.option，最高优先级）
         UpdateTaskDictionary(ref taskModels, task.InterfaceItem?.Option, task.InterfaceItem?.Advanced);
 
         var taskParams = SerializeTaskParams(taskModels);
@@ -2741,7 +2787,19 @@ public class MaaProcessor
     }
 
     /// <summary>
-    /// 合并当前资源的全局选项参数到任务参数中
+    /// 合并全局选项参数（global_option，最低优先级）
+    /// </summary>
+    private void MergeGlobalOptionParams(ref MaaToken taskModels)
+    {
+        var globalSelectOptions = Interface?.GlobalSelectOptions;
+        if (globalSelectOptions == null || globalSelectOptions.Count == 0)
+            return;
+
+        ProcessOptions(ref taskModels, globalSelectOptions);
+    }
+
+    /// <summary>
+    /// 合并当前资源的全局选项参数到任务参数中（resource.option）
     /// </summary>
     private void MergeResourceOptionParams(ref MaaToken taskModels)
     {
@@ -2760,6 +2818,23 @@ public class MaaProcessor
         var selectOptions = resourceOptionItem?.ResourceItem?.SelectOptions ?? currentResource.SelectOptions;
 
         // 处理资源的全局选项
+        ProcessOptions(ref taskModels, selectOptions);
+    }
+
+    /// <summary>
+    /// 合并当前控制器的选项参数（controller.option）
+    /// </summary>
+    private void MergeControllerOptionParams(ref MaaToken taskModels)
+    {
+        var controllerType = ViewModel?.CurrentController ?? MaaControllerTypes.Adb;
+        var controllerName = controllerType.ToJsonKey();
+        var controllerConfig = Interface?.Controller?.FirstOrDefault(c =>
+            c.Type != null && c.Type.Equals(controllerName, StringComparison.OrdinalIgnoreCase));
+
+        var selectOptions = controllerConfig?.SelectOptions;
+        if (selectOptions == null || selectOptions.Count == 0)
+            return;
+
         ProcessOptions(ref taskModels, selectOptions);
     }
 
@@ -3135,6 +3210,7 @@ public class MaaProcessor
 
     private void CancelOperations(bool killAgent = false)
     {
+        SetWaitingForModal(false);
         _emulatorCancellationTokenSource?.SafeCancel();
         CancellationTokenSource.SafeCancel();
         if (killAgent)

@@ -32,53 +32,68 @@
 
         <!-- 展开按钮旋转动画 -->
         <Style Selector="Button.DropdownToggle fluent|FluentIcon">
-            <Setter Property="RenderTransform" Value="rotate(0deg)"/>
+            <Setter Property="RenderTransform" Value="rotate(0deg)" />
             <Setter Property="Transitions">
                 <Transitions>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" />
                 </Transitions>
             </Setter>
         </Style>
         <Style Selector="Button.DropdownToggle.Open fluent|FluentIcon">
-            <Setter Property="RenderTransform" Value="rotate(180deg)"/>
+            <Setter Property="RenderTransform" Value="rotate(180deg)" />
         </Style>
 
         <!-- 下拉列表项样式 -->
         <Style Selector="Border.DropdownItem">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Padding" Value="5,0"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Margin" Value="3,0,3,3"/>
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Padding" Value="5,0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Margin" Value="3,0,3,3" />
         </Style>
         <Style Selector="Border.DropdownItem:pointerover">
-            <Setter Property="Background" Value="{DynamicResource SukiLightBorderBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource SukiLightBorderBrush}" />
         </Style>
         <Style Selector="Border.DropdownItem.Selected">
-            <Setter Property="Background" Value="{DynamicResource SukiLightBorderBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource SukiLightBorderBrush}" />
         </Style>
         <Style Selector="Border.DropdownItem.Selected:pointerover">
-            <Setter Property="Background" Value="{DynamicResource SukiLightBorderBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource SukiLightBorderBrush}" />
         </Style>
         <Style Selector="Border.DropdownItem Border.SelectedIndicator">
-            <Setter Property="IsVisible" Value="False"/>
+            <Setter Property="IsVisible" Value="False" />
         </Style>
         <Style Selector="Border.DropdownItem.Selected Border.SelectedIndicator">
-            <Setter Property="IsVisible" Value="True"/>
+            <Setter Property="IsVisible" Value="True" />
         </Style>
         <!-- 下拉关闭按钮样式 -->
         <Style Selector="Button.DropdownCloseBtn">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Opacity" Value="0.5"/>
-            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Opacity" Value="0.5" />
+            <Setter Property="Cursor" Value="Hand" />
         </Style>
         <Style Selector="Button.DropdownCloseBtn:pointerover">
-            <Setter Property="Opacity" Value="1"/>
+            <Setter Property="Opacity" Value="1" />
         </Style>
         <!-- + 按钮 tooltip -->
         <Style Selector="controls|InstanceTabsControl /template/ Button#PART_AddItemButton">
             <Setter Property="ToolTip.Tip" Value="{markup:I18n {x:Static helper:LangKeys.InstanceAddTooltip}}" />
+        </Style>
+        <!-- 预设菜单项按钮样式（与 DropdownItem 保持一致） -->
+        <Style Selector="Button.PresetMenuItem">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="5,0" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Margin" Value="3,0,3,3" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+        </Style>
+        <Style Selector="Button.PresetMenuItem:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource SukiLightBorderBrush}" />
+            <Setter Property="CornerRadius" Value="6" />
         </Style>
     </UserControl.Styles>
 
@@ -105,14 +120,14 @@
 
             <!-- 标签页控件（动态宽度 + 右侧跟随 + 按钮） -->
             <controls:InstanceTabsControl Grid.Column="1"
-                                           x:Name="TabsControl"
-                                           Margin="0,4,0,0"
-                                           ItemsSource="{Binding Tabs}"
-                                           SelectedItem="{Binding ActiveTab, Mode=TwoWay}"
-                                           AddItemCommand="{Binding AddInstanceCommand}"
-                                           CloseItemCommand="{Binding CloseInstanceCommand}"
-                                           TabItemWidth="200"
-                                           ShowDefaultAddButton="True">
+                                          x:Name="TabsControl"
+                                          Margin="0,4,0,0"
+                                          ItemsSource="{Binding Tabs}"
+                                          SelectedItem="{Binding ActiveTab, Mode=TwoWay}"
+                                          AddItemCommand="{Binding AddInstanceCommand}"
+                                          CloseItemCommand="{Binding CloseInstanceCommand}"
+                                          TabItemWidth="200"
+                                          ShowDefaultAddButton="True">
                 <controls:InstanceTabsControl.ItemTemplate>
                     <DataTemplate x:DataType="other:InstanceTabViewModel">
                         <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
@@ -120,10 +135,10 @@
                                      Fill="LimeGreen"
                                      IsVisible="{Binding IsRunning}"
                                      VerticalAlignment="Center"
-                                     Classes="PulseAnimation"/>
+                                     Classes="PulseAnimation" />
                             <TextBlock Text="{Binding Name}"
                                        VerticalAlignment="Center"
-                                       TextTrimming="CharacterEllipsis"/>
+                                       TextTrimming="CharacterEllipsis" />
                         </StackPanel>
                     </DataTemplate>
                 </controls:InstanceTabsControl.ItemTemplate>
@@ -132,8 +147,57 @@
 
         <!-- Row 1: 内容区域 -->
         <ContentControl Grid.Row="1"
-                         Content="{Binding ActiveTab.View}"
-                         Margin="0" />
+                        Content="{Binding ActiveTab.View}"
+                        Margin="0" />
+        <!-- 预设菜单 Popup（有预设时点击+号弹出，PlacementTarget 由 code-behind 动态设为 PART_AddItemButton） -->
+        <Popup x:Name="PresetMenuPopup"
+               IsOpen="{Binding IsAddMenuOpen, Mode=TwoWay}"
+               Placement="Bottom"
+               IsLightDismissEnabled="True"
+               InheritsTransform="True">
+            <Border Padding="5,10,5,5">
+                <Border Background="{DynamicResource SukiPopupBackground}"
+                        BorderBrush="{DynamicResource SukiMenuBorderBrush}"
+                        BorderThickness="1"
+                        BoxShadow="{DynamicResource SukiSmallPopupShadow}"
+                        CornerRadius="{DynamicResource SmallCornerRadius}"
+                        MinWidth="160"
+                        MaxWidth="280">
+                    <Grid Background="{DynamicResource PopupGradientBrush}">
+                        <suki:GlassCard Margin="-1"
+                                        CornerRadius="{DynamicResource SmallCornerRadius}"
+                                        IsAnimated="False" />
+                        <StackPanel Margin="0,3,0,3">
+                            <!-- 跟随最右侧配置 -->
+                            <Button Classes="PresetMenuItem"
+                                    Command="{Binding AddInstanceWithPresetCommand}"
+                                    CommandParameter="{x:Null}">
+                                <TextBlock Text="{markup:I18n {x:Static helper:LangKeys.InstanceAddFollowLast}}"
+                                           Foreground="{DynamicResource SukiText}"
+                                           Margin="2,5,2,5" />
+                            </Button>
+                            <Separator Margin="3,3" />
+                            <!-- 预设列表 -->
+                            <ItemsControl ItemsSource="{Binding InstancePresets}"
+                                          HorizontalAlignment="Stretch">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Classes="PresetMenuItem"
+                                                Command="{Binding $parent[UserControl].((other:InstanceTabBarViewModel)DataContext).AddInstanceWithPresetCommand}"
+                                                CommandParameter="{Binding}">
+                                            <TextBlock Text="{Binding Name}"
+                                                       Foreground="{DynamicResource SukiText}"
+                                                       Margin="2,5,2,5"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Border>
+        </Popup>
 
         <!-- 下拉框 Popup -->
         <Popup x:Name="InstanceDropdown"
@@ -178,20 +242,20 @@
                                                         CornerRadius="1.5"
                                                         Background="{DynamicResource SukiPrimaryColor}"
                                                         Margin="0,0,4,0"
-                                                        VerticalAlignment="Center"/>
+                                                        VerticalAlignment="Center" />
                                                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
                                                             Margin="2,5,2,5">
                                                     <Ellipse Width="6" Height="6"
                                                              Fill="LimeGreen"
                                                              IsVisible="{Binding IsRunning}"
                                                              VerticalAlignment="Center"
-                                                             Classes="PulseAnimation"/>
+                                                             Classes="PulseAnimation" />
                                                     <TextBlock Text="{Binding Name}"
                                                                Foreground="{DynamicResource SukiText}"
                                                                VerticalAlignment="Center"
                                                                MaxWidth="170"
                                                                TextTrimming="CharacterEllipsis"
-                                                               ToolTip.Tip="{Binding Name}"/>
+                                                               ToolTip.Tip="{Binding Name}" />
                                                 </StackPanel>
                                                 <Button Grid.Column="2"
                                                         Classes="DropdownCloseBtn"
@@ -201,7 +265,7 @@
                                                         VerticalAlignment="Center"
                                                         Click="OnDropdownCloseClicked"
                                                         ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.ButtonClose}}">
-                                                    <fluent:FluentIcon Icon="Dismiss" IconSize="Size12"/>
+                                                    <fluent:FluentIcon Icon="Dismiss" IconSize="Size12" />
                                                 </Button>
                                             </Grid>
                                         </Border>

@@ -1,5 +1,6 @@
 ﻿using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
 using Avalonia.Data.Converters;
@@ -1145,6 +1146,10 @@ public partial class TaskQueueView : UserControl
         {
             control = CreateInputControl(option, interfaceOption, source);
         }
+        else if (interfaceOption.IsCheckbox)
+        {
+            control = CreateCheckboxControl(option, interfaceOption);
+        }
         else if (interfaceOption.IsSwitch && interfaceOption.Cases.ShouldSwitchButton(out var yes, out var no))
         {
             // type 为 "switch" 时，强制使用 ToggleSwitch
@@ -1161,6 +1166,120 @@ public partial class TaskQueueView : UserControl
         }
 
         panel.Children.Add(control);
+    }
+
+    /// <summary>
+    /// 创建 checkbox 类型的多选 ToggleButton 控件
+    /// </summary>
+    private Control CreateCheckboxControl(
+        MaaInterface.MaaInterfaceSelectOption option,
+        MaaInterface.MaaInterfaceOption interfaceOption)
+    {
+        var container = new StackPanel { Margin = new Thickness(10, 6, 10, 6), Spacing = 4 };
+
+        interfaceOption.InitializeIcon();
+
+        // Header（显示 option 名称和图标）
+        var headerPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0)
+        };
+        var iconDisplay = new DisplayIcon
+        {
+            IconSize = 20,
+            Margin = new Thickness(0, 0, 6, 0),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        iconDisplay.Bind(DisplayIcon.IconSourceProperty, new Binding(nameof(MaaInterface.MaaInterfaceOption.ResolvedIcon)) { Source = interfaceOption });
+        iconDisplay.Bind(IsVisibleProperty, new Binding(nameof(MaaInterface.MaaInterfaceOption.HasIcon)) { Source = interfaceOption });
+        headerPanel.Children.Add(iconDisplay);
+
+        var headerText = new TextBlock { FontSize = 14 };
+        headerText.Bind(TextBlock.TextProperty, new ResourceBindingWithFallback(interfaceOption.DisplayName, interfaceOption.Name));
+        headerText.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("SukiLowText"));
+        headerPanel.Children.Add(headerText);
+
+        var tooltipText = GetTooltipText(interfaceOption.Description, interfaceOption.Document);
+        if (!string.IsNullOrWhiteSpace(tooltipText))
+        {
+            var docBlock = new TooltipBlock();
+            docBlock.Bind(TooltipBlock.TooltipTextProperty, new ResourceBinding(tooltipText));
+            headerPanel.Children.Add(docBlock);
+        }
+        container.Children.Add(headerPanel);
+
+        // 初始化 SelectedCases
+        option.SelectedCases ??= new List<string>(interfaceOption.DefaultCases ?? new List<string>());
+
+        // WrapPanel of ToggleButtons
+        var wrapPanel = new WrapPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Margin = new Thickness(0, 2, 0, 2)
+        };
+
+        if (interfaceOption.Cases != null)
+        {
+            foreach (var caseOption in interfaceOption.Cases)
+            {
+                caseOption.InitializeDisplayName();
+                var caseName = caseOption.Name ?? string.Empty;
+                var isChecked = option.SelectedCases.Contains(caseName);
+
+                var toggleBtn = new ToggleButton
+                {
+                    IsChecked = isChecked,
+                    Margin = new Thickness(2),
+                    Padding = new Thickness(8, 4, 8, 4),
+                };
+
+                var btnContent = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+
+                var btnIcon = new DisplayIcon
+                {
+                    IconSize = 16,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                btnIcon.Bind(DisplayIcon.IconSourceProperty, new Binding(nameof(MaaInterface.MaaInterfaceOptionCase.ResolvedIcon)) { Source = caseOption });
+                btnIcon.Bind(IsVisibleProperty, new Binding(nameof(MaaInterface.MaaInterfaceOptionCase.HasIcon)) { Source = caseOption });
+
+                var textBlock = new TextBlock
+                {
+                    VerticalAlignment = VerticalAlignment.Center,
+                    TextTrimming = TextTrimming.CharacterEllipsis
+                };
+                textBlock.Bind(TextBlock.TextProperty, new ResourceBindingWithFallback(caseOption.DisplayName, caseOption.Name));
+
+                btnContent.Children.Add(btnIcon);
+                btnContent.Children.Add(textBlock);
+                toggleBtn.Content = btnContent;
+
+                toggleBtn.Bind(IsEnabledProperty, new Binding("Idle") { Source = Instances.RootViewModel });
+                toggleBtn.Bind(ToolTip.TipProperty, new Binding(nameof(MaaInterface.MaaInterfaceOptionCase.DisplayDescription)) { Source = caseOption });
+
+                var capturedCaseName = caseName;
+                toggleBtn.IsCheckedChanged += (_, _) =>
+                {
+                    if (toggleBtn.IsChecked == true)
+                    {
+                        if (!option.SelectedCases.Contains(capturedCaseName))
+                            option.SelectedCases.Add(capturedCaseName);
+                    }
+                    else
+                    {
+                        option.SelectedCases.Remove(capturedCaseName);
+                    }
+                    SaveConfiguration();
+                };
+
+                wrapPanel.Children.Add(toggleBtn);
+            }
+        }
+
+        container.Children.Add(wrapPanel);
+        return container;
     }
 
     /// <summary>
@@ -2150,6 +2269,11 @@ public partial class TaskQueueView : UserControl
                     }
                 }
             }
+            else if (interfaceOption.IsCheckbox)
+            {
+                // checkbox 类型：初始化 SelectedCases
+                selectOption.SelectedCases = new List<string>(interfaceOption.DefaultCases ?? new List<string>());
+            }
             else
             {
                 // select/switch 类型：设置默认索引
@@ -2178,6 +2302,10 @@ public partial class TaskQueueView : UserControl
         if (subInterfaceOption.IsInput)
         {
             control = CreateInputControl(subOption, subInterfaceOption, source);
+        }
+        else if (subInterfaceOption.IsCheckbox)
+        {
+            control = CreateCheckboxControl(subOption, subInterfaceOption);
         }
         else if (subInterfaceOption.IsSwitch && subInterfaceOption.Cases.ShouldSwitchButton(out var yes1, out var no1))
         {
@@ -2212,16 +2340,44 @@ public partial class TaskQueueView : UserControl
     }
 
     /// <summary>
-    /// 保存资源选项配置到配置文件
+    /// 保存资源选项配置到配置文件（全局/控制器/资源选项分别保存到各自的 key）
     /// </summary>
     private void SaveResourceOptionConfiguration(TaskQueueViewModel vm)
     {
-        var resourceOptionItems = vm.TaskItemViewModels
+        var allItems = vm.TaskItemViewModels
             .Where(m => m.IsResourceOptionItem && m.ResourceItem?.SelectOptions != null)
+            .ToList();
+
+        // 保存全局选项到 GlobalOptionItems
+        var globalItem = allItems.FirstOrDefault(m => m.ResourceItem?.Name == "__GlobalOption__");
+        if (globalItem?.ResourceItem?.SelectOptions != null)
+        {
+            vm.Processor.InstanceConfiguration.SetValue(
+                ConfigurationKeys.GlobalOptionItems,
+                globalItem.ResourceItem.SelectOptions);
+        }
+
+        // 保存控制器选项到 ControllerOptionItems（Name 以 "__ControllerOption__" 开头）
+        const string controllerPrefix = "__ControllerOption__";
+        var controllerOptionItems = allItems
+            .Where(m => m.ResourceItem?.Name?.StartsWith(controllerPrefix) == true)
+            .ToDictionary(
+                m => m.ResourceItem!.Name![controllerPrefix.Length..],
+                m => m.ResourceItem!.SelectOptions!);
+        if (controllerOptionItems.Count > 0)
+        {
+            vm.Processor.InstanceConfiguration.SetValue(
+                ConfigurationKeys.ControllerOptionItems,
+                controllerOptionItems);
+        }
+
+        // 保存普通资源选项到 ResourceOptionItems（排除全局和控制器选项）
+        var resourceOptionItems = allItems
+            .Where(m => m.ResourceItem?.Name != "__GlobalOption__" &&
+                        m.ResourceItem?.Name?.StartsWith(controllerPrefix) != true)
             .ToDictionary(
                 m => m.ResourceItem!.Name ?? string.Empty,
                 m => m.ResourceItem!.SelectOptions!);
-
         vm.Processor.InstanceConfiguration.SetValue(ConfigurationKeys.ResourceOptionItems, resourceOptionItems);
     }
 
@@ -2469,7 +2625,28 @@ public partial class TaskQueueView : UserControl
         if (e.PropertyName == nameof(TaskQueueViewModel.CurrentController))
         {
             UpdateDeviceColumns();
+            // 控制器类型变化时，清空选项面板缓存，确保重新生成时应用新的过滤条件
+            ClearOptionPanelCaches();
         }
+
+        if (e.PropertyName == nameof(TaskQueueViewModel.CurrentResource))
+        {
+            // 资源变化时，清空选项面板缓存，确保重新生成时应用新的过滤条件
+            ClearOptionPanelCaches();
+        }
+    }
+
+    /// <summary>
+    /// 清空选项面板缓存，强制下次显示时重新生成（用于控制器/资源切换后刷新 option 列表和 introduction）
+    /// </summary>
+    private void ClearOptionPanelCaches()
+    {
+        CommonPanelCache.Clear();
+        AdvancedPanelCache.Clear();
+        IntroductionsCache.Clear();
+        CommonOptionSettings?.Children.Clear();
+        AdvancedOptionSettings?.Children.Clear();
+        Introduction.Markdown = "";
     }
 
     private void OnLoaded(object? sender, RoutedEventArgs e)

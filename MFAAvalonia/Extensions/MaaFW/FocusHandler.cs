@@ -8,11 +8,15 @@ using MFAAvalonia.Views.Pages;
 using MFAAvalonia.Views.Windows;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using SukiUI.Controls;
+using SukiUI.Dialogs;
+using SukiUI.MessageBox;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace MFAAvalonia.Extensions.MaaFW;
 
@@ -112,7 +116,7 @@ public class FocusHandler
                 );
             }
 
-            // 处理详情数据（用于新协议占位符替换）
+            // 解析详情数据（用于新协议占位符替换，detail 为空时 detailsObj 保持 null）
             JObject? detailsObj = null;
             if (!string.IsNullOrEmpty(detail))
             {
@@ -124,12 +128,14 @@ public class FocusHandler
                 {
                     // 忽略详情解析错误
                 }
-                // 1. 处理新协议（如果有）
-                if (newProtocolFocus is { HasValues: true } && newProtocolFocus.TryGetValue(message, out var templateToken))
-                {
-                    ProcessNewProtocol(templateToken, taskModel, detailsObj, imageBuffer);
-                }
             }
+
+            // 1. 处理新协议（不依赖 detail 是否为空，node.action.starting 的 detail 通常为空）
+            if (newProtocolFocus is { HasValues: true } && newProtocolFocus.TryGetValue(message, out var templateToken))
+            {
+                ProcessNewProtocol(templateToken, taskModel, detailsObj, imageBuffer);
+            }
+
             // 2. 处理旧协议（如果有）
             ProcessOldProtocol(focus, message, onAborted);
         }
@@ -140,29 +146,108 @@ public class FocusHandler
     }
 
     /// <summary>
-    /// 处理新协议消息
+    /// 处理新协议消息。
+    /// 支持三种 focus 值形式：
+    /// 1. 字符串: "content" → display=log
+    /// 2. 字符串数组: ["c1","c2"] → 每项 display=log
+    /// 3. 对象: { "content": "...", "display": "toast" | ["log","toast"] }
     /// </summary>
     private void ProcessNewProtocol(JToken templateToken, JObject taskModel, JObject? detailsObj, MaaImageBuffer? imageBuffer)
     {
-        // 处理字符串数组类型
-        if (templateToken.Type == JTokenType.Array)
+        string? content = null;
+        List<string> displays = new List<string> { "log" };
+
+        if (templateToken.Type == JTokenType.Object)
         {
+            // 对象形式：{ "content": "...", "display": "toast" | ["log","toast"] }
+            var obj = (JObject)templateToken;
+            content = obj["content"]?.Value<string>();
+            var displayToken = obj["display"];
+            if (displayToken != null)
+            {
+                if (displayToken.Type == JTokenType.Array)
+                    displays = displayToken.ToObject<List<string>>() ?? displays;
+                else if (displayToken.Type == JTokenType.String)
+                    displays = new List<string> { displayToken.Value<string>()! };
+            }
+            if (content != null)
+            {
+                var displayText = ReplacePlaceholders(content.ResolveContentAsync().Result, detailsObj, imageBuffer);
+                DispatchToChannels(displayText, displays);
+            }
+        }
+        else if (templateToken.Type == JTokenType.Array)
+        {
+            // 数组形式：每项为字符串，全部 display=log
             foreach (var item in templateToken.Children())
             {
                 if (item.Type == JTokenType.String)
                 {
                     var template = item.Value<string>();
                     var displayText = ReplacePlaceholders(template!.ResolveContentAsync().Result, detailsObj, imageBuffer);
-                    _viewModel.AddMarkdown(TaskQueueView.ConvertCustomMarkup(displayText));
+                    DispatchToChannels(displayText, new List<string> { "log" });
                 }
             }
         }
-        // 处理单个字符串类型
         else if (templateToken.Type == JTokenType.String)
         {
+            // 字符串形式：display=log
             var template = templateToken.Value<string>();
             var displayText = ReplacePlaceholders(template!.ResolveContentAsync().Result, detailsObj, imageBuffer);
-            _viewModel.AddMarkdown(TaskQueueView.ConvertCustomMarkup(displayText));
+            DispatchToChannels(displayText, new List<string> { "log" });
+        }
+    }
+
+    /// <summary>
+    /// 根据 display 渠道列表分发消息
+    /// </summary>
+    private void DispatchToChannels(string displayText, List<string> displays)
+    {
+        foreach (var channel in displays)
+        {
+            switch (channel.ToLower())
+            {
+                case "log":
+                    _viewModel.AddMarkdown(TaskQueueView.ConvertCustomMarkup(displayText));
+                    break;
+                case "toast":
+                    ToastHelper.Info(displayText);
+                    break;
+                case "notification":
+                    ToastNotification.Show(displayText);
+                    break;
+                case "dialog":
+                    // 非阻塞式弹窗：fire-and-forget，任务继续执行
+                    Avalonia.Threading.Dispatcher.UIThread.Post(async () =>
+                    {
+                        await SukiMessageBox.ShowDialog(new SukiMessageBoxHost
+                        {
+                            Content = displayText,
+                            ActionButtonsPreset = SukiMessageBoxButtons.OK,
+                        }, new SukiMessageBoxOptions
+                        {
+                            Title = LangKeys.Tip.ToLocalization(),
+                        });
+                    });
+                    break;
+                case "modal":
+                    // 阻塞式弹窗：InvokeAsync 返回 Task，.Wait() 阻塞回调线程直到用户关闭弹窗
+                    var modalProcessor = _viewModel.Processor;
+                    modalProcessor?.SetWaitingForModal(true);
+                    Avalonia.Threading.Dispatcher.UIThread.InvokeAsync((async () =>
+                    {
+                        await SukiMessageBox.ShowDialog(new SukiMessageBoxHost
+                        {
+                            Content = displayText,
+                            ActionButtonsPreset = SukiMessageBoxButtons.OK,
+                        }, new SukiMessageBoxOptions
+                        {
+                            Title = LangKeys.Tip.ToLocalization(),
+                        });
+                    })).Wait();
+                    modalProcessor?.SetWaitingForModal(false);
+                    break;
+            }
         }
     }
 

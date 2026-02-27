@@ -1024,6 +1024,28 @@
                                 ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.AddTask}}">
                             <avalonia1:FluentIcon Icon="AddSquareMultiple" IconSize="Size16" IconVariant="Regular" />
                         </Button>
+                        <Button Classes="BasicTight TaskQueueBasicTight"
+                                ClipToBounds="False"
+                                IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"
+                                IsVisible="{Binding HasPresets}"
+                                Margin="7,0,0,0"
+                                Padding="0"
+                                x:Name="PresetMenuButton"
+                                ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.Preset}}">
+                            <Button.Flyout>
+                                <MenuFlyout ItemsSource="{Binding Presets}">
+                                    <MenuFlyout.ItemContainerTheme>
+                                        <ControlTheme TargetType="MenuItem"
+                                                      x:DataType="maa:MaaInterface+MaaInterfacePreset">
+                                            <Setter Property="Header" Value="{Binding DisplayName}" />
+                                            <Setter Property="Command" Value="{Binding $parent[UserControl].((pages:TaskQueueViewModel)DataContext).ApplyPresetCommand}" />
+                                            <Setter Property="CommandParameter" Value="{Binding}" />
+                                        </ControlTheme>
+                                    </MenuFlyout.ItemContainerTheme>
+                                </MenuFlyout>
+                            </Button.Flyout>
+                            <avalonia1:FluentIcon Icon="AppsListDetail" IconSize="Size16" IconVariant="Regular" />
+                        </Button>
                         <Button Classes="BasicTight TaskQueueBasicTight SyncButton"
                                 Command="{Binding ResetTasksCommand}"
                                 IsEnabled="{Binding Idle, Source={x:Static helper:Instances.RootViewModel}}"

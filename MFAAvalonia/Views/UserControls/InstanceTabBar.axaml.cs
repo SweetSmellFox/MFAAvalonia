@@ -1,4 +1,6 @@
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Templates;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
@@ -6,6 +8,7 @@ using MFAAvalonia.Controls;
 using MFAAvalonia.Extensions;
 using MFAAvalonia.Helper;
 using MFAAvalonia.ViewModels.Other;
+using System.Linq;
 
 namespace MFAAvalonia.Views.UserControls;
 
@@ -36,6 +39,17 @@ public partial class InstanceTabBar : UserControl
             var tabBarBg = this.FindControl<Border>("TabBarBackgroundBorder");
             if (tabBarBg != null)
                 tabsControl.SetExternalTabBarBackground(tabBarBg);
+
+            // 模板应用后，将 PART_AddItemButton 设为预设菜单 Popup 的 PlacementTarget
+            tabsControl.TemplateApplied += (_, _) =>
+            {
+                var addBtn = tabsControl.GetTemplateChildren()
+                    .OfType<Button>()
+                    .FirstOrDefault(b => b.Name == "PART_AddItemButton");
+                var popup = this.FindControl<Popup>("PresetMenuPopup");
+                if (addBtn != null && popup != null)
+                    popup.PlacementTarget = addBtn;
+            };
         }
     }
 

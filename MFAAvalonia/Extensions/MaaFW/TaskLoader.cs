@@ -115,6 +115,54 @@ public class TaskLoader(MaaInterface? maaInterface, TaskQueueViewModel taskQueue
         taskQueueViewModel.CurrentResource = taskQueueViewModel.Processor.InstanceConfiguration.GetValue(ConfigurationKeys.Resource, string.Empty);
         if (taskQueueViewModel.CurrentResources.Count > 0 && taskQueueViewModel.CurrentResources.All(r => r.Name != taskQueueViewModel.CurrentResource))
             taskQueueViewModel.CurrentResource = taskQueueViewModel.CurrentResources[0].Name ?? "Default";
+
+        // 初始化 global_option 的 SelectOptions（同时填充 Interface.GlobalSelectOptions 供 MergeGlobalOptionParams 使用）
+        InitializeGlobalSelectOptions();
+
+        // 初始化当前控制器的 SelectOptions（供 MergeControllerOptionParams 使用）
+        InitializeControllerSelectOptions();
+    }
+
+    /// <summary>
+    /// 初始化 global_option 的 SelectOptions，并同步到 Interface.GlobalSelectOptions
+    /// </summary>
+    private void InitializeGlobalSelectOptions()
+    {
+        if (maaInterface == null || maaInterface.GlobalOption == null || maaInterface.GlobalOption.Count == 0)
+        {
+            if (maaInterface != null)
+                maaInterface.GlobalSelectOptions = null;
+            return;
+        }
+
+        var config = taskQueueViewModel.Processor.InstanceConfiguration;
+        var savedGlobalOptions = config.GetValue(
+            ConfigurationKeys.GlobalOptionItems,
+            new List<MaaInterface.MaaInterfaceSelectOption>());
+        var savedDict = savedGlobalOptions?.ToDictionary(o => o.Name ?? string.Empty)
+            ?? new Dictionary<string, MaaInterface.MaaInterfaceSelectOption>();
+
+        var existingDict = maaInterface.GlobalSelectOptions?.ToDictionary(o => o.Name ?? string.Empty)
+            ?? new Dictionary<string, MaaInterface.MaaInterfaceSelectOption>();
+
+        maaInterface.GlobalSelectOptions = maaInterface.GlobalOption.Select(optionName =>
+        {
+            if (existingDict.TryGetValue(optionName, out var existing))
+                return existing;
+            if (savedDict.TryGetValue(optionName, out var saved))
+            {
+                return new MaaInterface.MaaInterfaceSelectOption
+                {
+                    Name = saved.Name,
+                    Index = saved.Index,
+                    Data = saved.Data != null ? new Dictionary<string, string?>(saved.Data) : null,
+                    SelectedCases = saved.SelectedCases != null ? new List<string>(saved.SelectedCases) : null,
+                };
+            }
+            var opt = new MaaInterface.MaaInterfaceSelectOption { Name = optionName };
+            SetDefaultOptionValue(maaInterface, opt);
+            return opt;
+        }).ToList();
     }
 
     /// <summary>
@@ -179,6 +227,7 @@ public class TaskLoader(MaaInterface? maaInterface, TaskQueueViewModel taskQueue
                 }
 
                 // 其次使用配置中保存的值
+                // 其次使用配置中保存的值
                 if (savedDict?.TryGetValue(optionName, out var savedOpt) == true)
                 {
                     // 克隆保存的选项，避免引用问题
@@ -187,11 +236,11 @@ public class TaskLoader(MaaInterface? maaInterface, TaskQueueViewModel taskQueue
                         Name = savedOpt.Name,
                         Index = savedOpt.Index,
                         Data = savedOpt.Data != null ? new Dictionary<string, string?>(savedOpt.Data) : null,
-                        SubOptions = savedOpt.SubOptions != null ? CloneSubOptions(savedOpt.SubOptions) : null
+                        SubOptions = savedOpt.SubOptions != null ? CloneSubOptions(savedOpt.SubOptions) : null,
+                        SelectedCases = savedOpt.SelectedCases != null ? new List<string>(savedOpt.SelectedCases) : null,
                     };
                     return clonedOpt;
                 }
-
                 // 最后创建新的并设置默认值
                 var selectOption = new MaaInterface.MaaInterfaceSelectOption
                 {
@@ -212,7 +261,8 @@ public class TaskLoader(MaaInterface? maaInterface, TaskQueueViewModel taskQueue
             Name = opt.Name,
             Index = opt.Index,
             Data = opt.Data != null ? new Dictionary<string, string?>(opt.Data) : null,
-            SubOptions = opt.SubOptions != null ? CloneSubOptions(opt.SubOptions) : null
+            SubOptions = opt.SubOptions != null ? CloneSubOptions(opt.SubOptions) : null,
+            SelectedCases = opt.SelectedCases != null ? new List<string>(opt.SelectedCases) : null,
         }).ToList();
     }
     /// <summary>
@@ -484,7 +534,11 @@ public class TaskLoader(MaaInterface? maaInterface, TaskQueueViewModel taskQueue
                 if (!string.IsNullOrEmpty(input.Name) && !option.Data.ContainsKey(input.Name))
                     option.Data[input.Name] = input.Default ?? string.Empty;
         }
-
+        // checkbox 类型：从 DefaultCases 初始化 SelectedCases
+        if (io.IsCheckbox)
+        {
+            option.SelectedCases ??= new List<string>(io.DefaultCases ?? new List<string>());
+        }
     }
 
     private void UpdateViewModels(IList<DragItemViewModel> drags, List<MaaInterface.MaaInterfaceTask> tasks, ObservableCollection<DragItemViewModel> tasksSource)
@@ -504,8 +558,16 @@ public class TaskLoader(MaaInterface? maaInterface, TaskQueueViewModel taskQueue
 
         // 创建最终的任务列表
         var finalItems = new List<DragItemViewModel>();
-        
-        // 如果当前资源有 option 配置，在最前面添加资源设置项
+
+        // 如果有 global_option，置顶显示一个全局设置项（包含所有全局选项）
+        if (maaInterface?.GlobalOption is { Count: > 0 } && maaInterface.GlobalSelectOptions is { Count: > 0 })
+        {
+            var globalOptionItem = CreateGlobalOptionItem(drags);
+            if (globalOptionItem != null)
+                finalItems.Add(globalOptionItem);
+        }
+
+        // 如果当前资源有 option 配置，在全局选项后添加资源设置项
         if (currentResource?.Option is {Count: > 0})
         {
             var resourceOptionItem = CreateResourceOptionItem(currentResource, drags);
@@ -513,6 +575,15 @@ public class TaskLoader(MaaInterface? maaInterface, TaskQueueViewModel taskQueue
             {
                 finalItems.Add(resourceOptionItem);
             }
+        }
+
+        // 如果当前控制器有 option 配置，在资源选项后添加控制器设置项
+        var currentControllerObj = GetCurrentControllerObject();
+        if (currentControllerObj?.Option is { Count: > 0 } && currentControllerObj.SelectOptions is { Count: > 0 })
+        {
+            var controllerOptionItem = CreateControllerOptionItem(currentControllerObj, drags);
+            if (controllerOptionItem != null)
+                finalItems.Add(controllerOptionItem);
         }
 
         // 添加普通任务项
@@ -541,6 +612,115 @@ public class TaskLoader(MaaInterface? maaInterface, TaskQueueViewModel taskQueue
             // 根据当前资源更新任务的可见性
             taskQueueViewModel.UpdateTasksForResource(currentResourceName);
         });
+    }
+
+    /// <summary>
+    /// 创建 global_option 的置顶任务项（包含所有全局选项，与资源选项项行为一致）
+    /// </summary>
+    private DragItemViewModel? CreateGlobalOptionItem(IList<DragItemViewModel>? existingDrags)
+    {
+        if (maaInterface?.GlobalSelectOptions == null || maaInterface.GlobalSelectOptions.Count == 0)
+            return null;
+
+        // 检查是否已存在全局选项项
+        var existing = existingDrags?.FirstOrDefault(d =>
+            d.IsResourceOptionItem && d.ResourceItem?.Name == "__GlobalOption__");
+        if (existing != null)
+            return existing;
+
+        // 创建合成资源，Name 固定为 "__GlobalOption__"，由 DragItemViewModel 按 Name 处理 i18n 显示
+        var syntheticResource = new MaaInterface.MaaInterfaceResource
+        {
+            Name = "__GlobalOption__",
+            SelectOptions = maaInterface.GlobalSelectOptions,
+        };
+        syntheticResource.InitializeDisplayName();
+
+        var item = new DragItemViewModel(syntheticResource) { OwnerViewModel = taskQueueViewModel };
+        item.IsVisible = true;
+        return item;
+    }
+
+    /// <summary>
+    /// 获取当前控制器对象
+    /// </summary>
+    private MaaInterface.MaaResourceController? GetCurrentControllerObject()
+    {
+        var controllerName = GetCurrentControllerName();
+        if (string.IsNullOrWhiteSpace(controllerName)) return null;
+        return maaInterface?.Controller?.Find(c =>
+            c.Name != null && c.Name.Equals(controllerName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// 初始化当前控制器的 SelectOptions，供 MergeControllerOptionParams 使用
+    /// </summary>
+    private void InitializeControllerSelectOptions()
+    {
+        var controller = GetCurrentControllerObject();
+        if (controller?.Option == null || controller.Option.Count == 0)
+        {
+            if (controller != null) controller.SelectOptions = null;
+            return;
+        }
+
+        var config = taskQueueViewModel.Processor.InstanceConfiguration;
+        var savedOptions = config.GetValue(
+            ConfigurationKeys.ControllerOptionItems,
+            new Dictionary<string, List<MaaInterface.MaaInterfaceSelectOption>>());
+
+        Dictionary<string, MaaInterface.MaaInterfaceSelectOption>? savedDict = null;
+        if (savedOptions.TryGetValue(controller.Name ?? string.Empty, out var savedList) && savedList != null)
+            savedDict = savedList.ToDictionary(o => o.Name ?? string.Empty);
+
+        var existingDict = controller.SelectOptions?.ToDictionary(o => o.Name ?? string.Empty)
+            ?? new Dictionary<string, MaaInterface.MaaInterfaceSelectOption>();
+
+        controller.SelectOptions = controller.Option.Select(optionName =>
+        {
+            if (existingDict.TryGetValue(optionName, out var existing))
+                return existing;
+            if (savedDict?.TryGetValue(optionName, out var saved) == true)
+            {
+                return new MaaInterface.MaaInterfaceSelectOption
+                {
+                    Name = saved.Name,
+                    Index = saved.Index,
+                    Data = saved.Data != null ? new Dictionary<string, string?>(saved.Data) : null,
+                    SelectedCases = saved.SelectedCases != null ? new List<string>(saved.SelectedCases) : null,
+                };
+            }
+            var opt = new MaaInterface.MaaInterfaceSelectOption { Name = optionName };
+            SetDefaultOptionValue(maaInterface, opt);
+            return opt;
+        }).ToList();
+    }
+
+    /// <summary>
+    /// 创建控制器级别选项的置顶任务项
+    /// </summary>
+    private DragItemViewModel? CreateControllerOptionItem(MaaInterface.MaaResourceController controller, IList<DragItemViewModel>? existingDrags)
+    {
+        if (controller.SelectOptions == null || controller.SelectOptions.Count == 0)
+            return null;
+
+        var syntheticName = $"__ControllerOption__{controller.Name}";
+        var existing = existingDrags?.FirstOrDefault(d =>
+            d.IsResourceOptionItem && d.ResourceItem?.Name == syntheticName);
+        if (existing != null)
+            return existing;
+
+        // Name 固定为 "__ControllerOption__{controllerName}"，由 DragItemViewModel 按 Name 处理 i18n 显示
+        var syntheticResource = new MaaInterface.MaaInterfaceResource
+        {
+            Name = syntheticName,
+            SelectOptions = controller.SelectOptions,
+        };
+        syntheticResource.InitializeDisplayName();
+
+        var item = new DragItemViewModel(syntheticResource) { OwnerViewModel = taskQueueViewModel };
+        item.IsVisible = true;
+        return item;
     }
 
     /// <summary>
@@ -585,6 +765,7 @@ public class TaskLoader(MaaInterface? maaInterface, TaskQueueViewModel taskQueue
                         opt.Index = savedOpt.Index;
                         opt.Data = savedOpt.Data;
                         opt.SubOptions = savedOpt.SubOptions;
+                        opt.SelectedCases = savedOpt.SelectedCases != null ? new List<string>(savedOpt.SelectedCases) : null;
                     }
                 }
             }

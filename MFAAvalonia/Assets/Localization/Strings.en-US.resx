@@ -786,6 +786,12 @@
     <data name="ResourceName" xml:space="preserve">
         <value>Resource Name</value>
     </data>
+    <data name="GlobalOption" xml:space="preserve">
+        <value>Global Task Config</value>
+    </data>
+    <data name="ControllerPresetConfig" xml:space="preserve">
+        <value>Controller Preset Config</value>
+    </data>
     <data name="ResourceOption" xml:space="preserve">
         <value>Resources Type</value>
     </data>
@@ -1477,6 +1483,10 @@
     </data>
 
 
+    <data name="Preset" xml:space="preserve">
+        <value>Preset</value>
+    </data>
+
     <data name="ResourcePresetConfig" xml:space="preserve">
         <value>Resource Preset Config</value>
     </data>
@@ -1857,6 +1867,9 @@
     </data>
     <data name="InstanceAddTooltip" xml:space="preserve">
         <value>Add Instance</value>
+    </data>
+    <data name="InstanceAddFollowLast" xml:space="preserve">
+        <value>Follow Rightmost Config</value>
     </data>
     <data name="InstanceCannotCloseLast" xml:space="preserve">
         <value>Cannot close the last instance</value>

@@ -35,8 +35,8 @@ public partial class DragItemViewModel : ObservableObject
     {
         ResourceItem = resource;
         IsResourceOptionItem = true;
-        // 使用 i18n 本地化名称 "资源预设配置"
-        Name = LangKeys.ResourcePresetConfig.ToLocalization();
+        // 使用资源的 Label 解析本地化名称，无 Label 时回退到"资源预设配置"
+        Name = GetResourceOptionDisplayName(resource);
 
         // 设置图标
         ResolvedIcon = resource.ResolvedIcon;
@@ -277,11 +277,25 @@ public partial class DragItemViewModel : ObservableObject
         UpdateIconFromInterfaceItem();
     }
 
+    private static string GetResourceOptionDisplayName(MaaInterface.MaaInterfaceResource resource)
+    {
+        // 合成的特殊资源项直接使用 MFA 自身的 i18n，不走 interface 协议的 $-前缀解析
+        if (resource.Name == "__GlobalOption__")
+            return LangKeys.GlobalOption.ToLocalization();
+        if (resource.Name?.StartsWith("__ControllerOption__") == true)
+            return LangKeys.ControllerPresetConfig.ToLocalization();
+
+        // 普通资源项走 interface 协议的 i18n
+        return string.IsNullOrWhiteSpace(resource.Label)
+            ? LangKeys.ResourcePresetConfig.ToLocalization()
+            : LanguageHelper.GetLocalizedDisplayName(resource.Label, resource.Name ?? LangKeys.ResourcePresetConfig);
+    }
+
     private void UpdateDisplayName()
     {
         if (IsResourceOptionItem && ResourceItem != null)
         {
-            Name = LangKeys.ResourcePresetConfig.ToLocalization();
+            Name = GetResourceOptionDisplayName(ResourceItem);
             return;
         }
 

@@ -103,6 +103,12 @@ public class MaaInterfaceSelectOptionConverter(bool serializeAsStringArray) : Js
                         obj["data"] = JObject.FromObject(option.Data);
                     }
 
+                    // 保存 checkbox 类型的 SelectedCases
+                    if (option.SelectedCases != null && option.SelectedCases.Count > 0)
+                    {
+                        obj["selected_cases"] = new JArray(option.SelectedCases);
+                    }
+
                     // 递归保存子选项
                     if (option.SubOptions != null && option.SubOptions.Count > 0)
                     {
@@ -118,6 +124,11 @@ public class MaaInterfaceSelectOptionConverter(bool serializeAsStringArray) : Js
                             if (subOption.Data != null && subOption.Data.Count > 0)
                             {
                                 subObj["data"] = JObject.FromObject(subOption.Data);
+                            }
+
+                            if (subOption.SelectedCases != null && subOption.SelectedCases.Count > 0)
+                            {
+                                subObj["selected_cases"] = new JArray(subOption.SelectedCases);
                             }
 
                             // 递归处理嵌套子选项
@@ -141,7 +152,6 @@ public class MaaInterfaceSelectOptionConverter(bool serializeAsStringArray) : Js
 
     /// <summary>
     /// 递归序列化子选项列表
-    /// </summary>
     private static JArray SerializeSubOptions(List<MaaInterface.MaaInterfaceSelectOption> subOptions)
     {
         var array = new JArray();
@@ -156,6 +166,11 @@ public class MaaInterfaceSelectOptionConverter(bool serializeAsStringArray) : Js
             if (option.Data != null && option.Data.Count > 0)
             {
                 obj["data"] = JObject.FromObject(option.Data);
+            }
+
+            if (option.SelectedCases != null && option.SelectedCases.Count > 0)
+            {
+                obj["selected_cases"] = new JArray(option.SelectedCases);
             }
 
             if (option.SubOptions != null && option.SubOptions.Count > 0)

@@ -786,6 +786,12 @@
     <data name="ResourceName" xml:space="preserve">
         <value>資源名稱</value>
     </data>
+    <data name="GlobalOption" xml:space="preserve">
+        <value>全域任務配置</value>
+    </data>
+    <data name="ControllerPresetConfig" xml:space="preserve">
+        <value>控制器預設配置</value>
+    </data>
     <data name="ResourceOption" xml:space="preserve">
         <value>資源類型</value>
     </data>
@@ -1471,6 +1477,10 @@
         <value>未選擇裝置，請先選擇裝置</value>
     </data>
 
+    <data name="Preset" xml:space="preserve">
+        <value>預設</value>
+    </data>
+
     <data name="ResourcePresetConfig" xml:space="preserve">
         <value>資源預設配置</value>
     </data>
@@ -1857,6 +1867,9 @@
     </data>
     <data name="InstanceAddTooltip" xml:space="preserve">
         <value>新增實例</value>
+    </data>
+    <data name="InstanceAddFollowLast" xml:space="preserve">
+        <value>跟隨最右側配置</value>
     </data>
     <data name="InstanceCannotCloseLast" xml:space="preserve">
         <value>無法關閉最後一個實例</value>

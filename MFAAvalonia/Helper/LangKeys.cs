@@ -267,6 +267,8 @@ public static class LangKeys
 	public static readonly string RescanController = "RescanController";
 	public static readonly string ResourceDownloadSource = "ResourceDownloadSource";
 	public static readonly string ResourceLink = "ResourceLink";
+	public static readonly string GlobalOption = "GlobalOption";
+	public static readonly string ControllerPresetConfig = "ControllerPresetConfig";
 	public static readonly string ResourceName = "ResourceName";
 	public static readonly string ResourceOption = "ResourceOption";
 	public static readonly string ResourcesAreLatestVersion = "ResourcesAreLatestVersion";
@@ -505,6 +507,7 @@ public static class LangKeys
 	public static readonly string ResourceNotSupportController = "ResourceNotSupportController";
 	public static readonly string ResourceNotSelected = "ResourceNotSelected";
 	public static readonly string DeviceNotSelected = "DeviceNotSelected";
+	public static readonly string Preset = "Preset";
 	public static readonly string ResourcePresetConfig = "ResourcePresetConfig";
 	public static readonly string UseFingerprintMatching = "UseFingerprintMatching";
 	public static readonly string LiveView = "LiveView";
@@ -617,6 +620,7 @@ public static class LangKeys
 	public static readonly string SpecialTask_Hibernate = "SpecialTask_Hibernate";
 	public static readonly string InstanceSelectTooltip = "InstanceSelectTooltip";
 	public static readonly string InstanceAddTooltip = "InstanceAddTooltip";
+	public static readonly string InstanceAddFollowLast = "InstanceAddFollowLast";
 	public static readonly string InstanceCannotCloseLast = "InstanceCannotCloseLast";
 	public static readonly string InstanceRunningCloseConfirm = "InstanceRunningCloseConfirm";
 	public static readonly string InstanceCloseTitle = "InstanceCloseTitle";

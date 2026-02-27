@@ -8,6 +8,7 @@ using SukiUI.Controls;
 using SukiUI.Dialogs;
 using SukiUI.MessageBox;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
@@ -22,6 +23,9 @@ public partial class InstanceTabBarViewModel : ViewModelBase
 
     [ObservableProperty] private InstanceTabViewModel? _activeTab;
     [ObservableProperty] private bool _isDropdownOpen;
+    [ObservableProperty] private bool _hasInstancePresets;
+    [ObservableProperty] private List<MaaInterface.MaaInterfacePreset>? _instancePresets;
+    [ObservableProperty] private bool _isAddMenuOpen;
 
     [ObservableProperty] private string _searchText = string.Empty;
 
@@ -193,7 +197,7 @@ public partial class InstanceTabBarViewModel : ViewModelBase
         try
         {
             connect.CurrentControllerType = config.GetValue(MFAAvalonia.Configuration.ConfigurationKeys.CurrentController,
-               MaaControllerTypes.Adb, MaaControllerTypes.None,
+                MaaControllerTypes.Adb, MaaControllerTypes.None,
                 new MFAAvalonia.Helper.Converters.UniversalEnumConverter<MaaControllerTypes>());
             connect.RememberAdb = config.GetValue(MFAAvalonia.Configuration.ConfigurationKeys.RememberAdb, true);
             connect.UseFingerprintMatching = config.GetValue(MFAAvalonia.Configuration.ConfigurationKeys.UseFingerprintMatching, true);
@@ -245,9 +249,32 @@ public partial class InstanceTabBarViewModel : ViewModelBase
         }
     }
 
+    public void RefreshInstancePresets()
+    {
+        var presets = MaaProcessor.Interface?.Preset;
+        HasInstancePresets = presets is { Count: > 0 };
+        InstancePresets = presets;
+    }
 
     [RelayCommand]
     private async Task AddInstance()
+    {
+        if (HasInstancePresets)
+        {
+            IsAddMenuOpen = true;
+            return;
+        }
+        await AddInstanceCoreAsync(null);
+    }
+
+    [RelayCommand]
+    private async Task AddInstanceWithPreset(MaaInterface.MaaInterfacePreset? preset)
+    {
+        IsAddMenuOpen = false;
+        await AddInstanceCoreAsync(preset);
+    }
+
+    private async Task AddInstanceCoreAsync(MaaInterface.MaaInterfacePreset? preset)
     {
         var lastTab = Tabs.LastOrDefault();
 
@@ -274,10 +301,17 @@ public partial class InstanceTabBarViewModel : ViewModelBase
 
         await Task.Run(() => processor.InitializeData());
 
+        // 如果指定了预设，应用到新实例的 ViewModel
+        if (preset != null)
+        {
+            processor.ViewModel?.ApplyPresetCommand.Execute(preset);
+        }
+
         var tab = Tabs.FirstOrDefault(t => t.Processor == processor);
         if (tab != null)
             ActiveTab = tab;
     }
+
     [RelayCommand]
     private async Task CloseInstance(InstanceTabViewModel? tab)
     {
@@ -344,7 +378,7 @@ public partial class InstanceTabBarViewModel : ViewModelBase
 
         if (reassigned)
         {
-            ToastHelper.Info(LangKeys.Tip.ToLocalization(),LangKeys.InstanceTimerReassigned.ToLocalizationFormatted(false, instanceName));
+            ToastHelper.Info(LangKeys.Tip.ToLocalization(), LangKeys.InstanceTimerReassigned.ToLocalizationFormatted(false, instanceName));
             timerModel.RefreshInstanceList();
         }
     }
