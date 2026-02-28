@@ -188,6 +188,7 @@ public class InstanceTabsControl : TabControl
         if (change.Property == ItemCountProperty)
         {
             Dispatcher.UIThread.Post(UpdateAllTabsCanClose, DispatcherPriority.Loaded);
+            InvalidateClip();
         }
         else if (change.Property == AdjacentHeaderItemOffsetProperty)
         {
