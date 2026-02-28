@@ -423,7 +423,7 @@ public class MaaProcessor
     {
         InstanceId = instanceId;
         InstanceConfiguration = new InstanceConfiguration(instanceId);
-        Processors.Add(this);
+        DispatcherHelper.RunOnMainThread(() => Processors.Add(this));
 
         TaskQueue.CountChanged += (_, args) =>
         {
@@ -493,7 +493,7 @@ public class MaaProcessor
     public void Dispose()
     {
         _isClosed = true;
-        Processors.Remove(this);
+        DispatcherHelper.RunOnMainThread(() => Processors.Remove(this));
         StopCommandThread();
     }
 

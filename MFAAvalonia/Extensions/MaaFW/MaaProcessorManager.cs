@@ -669,14 +669,19 @@ public sealed class MaaProcessorManager
         MigrateLegacyConfigs();
 
         var listStr = GlobalConfiguration.GetValue(ConfigurationKeys.InstanceList, "");
+        var registeredIds = string.IsNullOrEmpty(listStr)
+            ? Array.Empty<string>()
+            : listStr.Split(',', StringSplitOptions.RemoveEmptyEntries);
 
-        if (string.IsNullOrEmpty(listStr))
+        // 扫描 config/instances/ 目录，将手动复制进去的 JSON 文件也识别为实例
+        var extraIds = ScanUnregisteredInstanceFiles(registeredIds);
+        var ids = registeredIds.Concat(extraIds).ToArray();
+
+        if (ids.Length == 0)
         {
             SaveInstanceConfig();
             return;
         }
-
-        var ids = listStr.Split(',', StringSplitOptions.RemoveEmptyEntries);
 
         lock (_lock)
         {
@@ -739,6 +744,10 @@ public sealed class MaaProcessorManager
                     _instanceNames[id] = id;
             }
 
+            // 如果发现了新实例文件，持久化更新后的实例列表
+            if (extraIds.Count > 0)
+                SaveInstanceConfig();
+
             // 2. 清理不在配置中的实例
             var validIds = new HashSet<string>(ids);
             var toRemove = _instances.Keys.Where(k => !validIds.Contains(k)).ToList();
@@ -780,6 +789,28 @@ public sealed class MaaProcessorManager
 
             _isLazyLoadingComplete = false;
         }
+    }
+
+    /// <summary>
+    /// 扫描 config/instances/ 目录，返回未在已注册列表中的实例 ID
+    /// </summary>
+    private static List<string> ScanUnregisteredInstanceFiles(string[] registeredIds)
+    {
+        var extra = new List<string>();
+        if (!Directory.Exists(InstanceConfiguration.InstancesDir))
+            return extra;
+
+        var knownSet = new HashSet<string>(registeredIds, StringComparer.OrdinalIgnoreCase);
+        foreach (var file in Directory.EnumerateFiles(InstanceConfiguration.InstancesDir, "*.json"))
+        {
+            var id = Path.GetFileNameWithoutExtension(file);
+            if (!string.IsNullOrWhiteSpace(id) && !knownSet.Contains(id))
+            {
+                extra.Add(id);
+                LoggerHelper.Info($"[扫描] 发现未注册的实例配置文件: {id}，将自动加载");
+            }
+        }
+        return extra;
     }
 
     /// <summary>
