@@ -180,7 +180,7 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
         else if (interfaceOption.IsCheckbox)
         {
             // checkbox 类型：多选 ToggleButton 列表（任务 8）
-            control = CreateCheckboxControl(option, interfaceOption);
+            control = CreateCheckboxControl(option, interfaceOption, source);
         }
         else if ((interfaceOption.IsSwitch && interfaceOption.Cases.ShouldSwitchButton(out var yes, out var no)) ||
                  interfaceOption.Cases.ShouldSwitchButton(out yes, out no)) // Try both conditions with/without type checking logic
@@ -225,7 +225,7 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
     /// <summary>
     /// 创建 checkbox 类型的多选 ToggleButton 控件（任务 8）
     /// </summary>
-    private Control CreateCheckboxControl(MaaInterface.MaaInterfaceSelectOption option, MaaInterface.MaaInterfaceOption interfaceOption)
+    private Control CreateCheckboxControl(MaaInterface.MaaInterfaceSelectOption option, MaaInterface.MaaInterfaceOption interfaceOption, DragItemViewModel source)
     {
         var container = new StackPanel { Margin = new Thickness(10, 10, 10, 6), Spacing = 4 };
 
@@ -245,6 +245,36 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
             Orientation = Orientation.Horizontal,
             Margin = new Thickness(0, 2, 0, 2)
         };
+
+        // Sub-options container（显示所有被勾选 case 的子选项）
+        var subOptionsContainer = new StackPanel();
+
+        // Sub-option update logic for checkbox（与 select/switch 不同，需要显示所有已勾选 case 的子选项）
+        void UpdateSubOptions()
+        {
+            subOptionsContainer.Children.Clear();
+            if (interfaceOption.Cases == null) return;
+
+            option.SubOptions ??= new List<MaaInterface.MaaInterfaceSelectOption>();
+            var selectedCases = option.SelectedCases ?? new List<string>();
+
+            foreach (var caseItem in interfaceOption.Cases)
+            {
+                if (caseItem.Name == null || !selectedCases.Contains(caseItem.Name)) continue;
+                if (caseItem.Option == null || caseItem.Option.Count == 0) continue;
+
+                foreach (var subOptionName in caseItem.Option)
+                {
+                    var existing = option.SubOptions.FirstOrDefault(o => o.Name == subOptionName);
+                    if (existing == null)
+                    {
+                        existing = CreateDefaultSelectOption(subOptionName);
+                        option.SubOptions.Add(existing);
+                    }
+                    AddSubOption(subOptionsContainer, existing, source);
+                }
+            }
+        }
 
         if (interfaceOption.Cases != null)
         {
@@ -308,6 +338,7 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
                     {
                         option.SelectedCases.Remove(capturedCaseName);
                     }
+                    UpdateSubOptions();
                     saveConfigurationAction();
                 };
 
@@ -316,6 +347,27 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
         }
 
         container.Children.Add(wrapPanel);
+
+        // Initialize sub-options for default checked cases
+        UpdateSubOptions();
+
+        // Enhanced Sub-option visualization
+        var subOptionsBorder = new Border
+        {
+            BorderThickness = new Thickness(2, 0, 0, 0),
+            Background = Brushes.Transparent,
+            Margin = new Thickness(24, 0, 0, 4),
+            Padding = new Thickness(8, 0, 0, 0),
+            Child = subOptionsContainer
+        };
+        subOptionsBorder.Bind(Border.BorderBrushProperty, new DynamicResourceExtension("SukiPrimaryColor"));
+        subOptionsBorder.Bind(Visual.IsVisibleProperty, new Binding("Children.Count")
+        {
+            Source = subOptionsContainer,
+            Converter = new FuncValueConverter<int, bool>(count => count > 0)
+        });
+
+        container.Children.Add(subOptionsBorder);
         return container;
     }
 
@@ -791,7 +843,7 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
          if (subInterfaceOption.IsInput)
             control = CreateInputControl(subOption, subInterfaceOption);
          else if (subInterfaceOption.IsCheckbox)
-            control = CreateCheckboxControl(subOption, subInterfaceOption);
+            control = CreateCheckboxControl(subOption, subInterfaceOption, source);
          else if ((subInterfaceOption.IsSwitch && subInterfaceOption.Cases.ShouldSwitchButton(out var yes, out var no)) ||
                   subInterfaceOption.Cases.ShouldSwitchButton(out yes, out no))
             control = CreateToggleControl(subOption, yes, no, subInterfaceOption, source);
