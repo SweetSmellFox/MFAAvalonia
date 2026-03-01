@@ -2358,7 +2358,7 @@ public class MaaProcessor
                 break;
 
             default:
-                AddLogByKey(LangKeys.ScreencapCost, (IBrush?)null, false, false, elapsedMilliseconds.ToString(),
+                AddLogByKey(LangKeys.ScreencapCost, (IBrush?)null, true, false, elapsedMilliseconds.ToString(),
                     ScreenshotType());
                 break;
         }
@@ -2396,7 +2396,7 @@ public class MaaProcessor
                 break;
 
             default:
-                AddLogByKey(LangKeys.ScreencapCost, (IBrush?)null, false, false, avgElapsed.ToString(),
+                AddLogByKey(LangKeys.ScreencapCost, (IBrush?)null, true, false, avgElapsed.ToString(),
                     ScreenshotType());
                 break;
         }
@@ -2645,10 +2645,33 @@ public class MaaProcessor
                 // 按 cases 定义顺序合并所有选中 case 的 pipeline_override
                 foreach (var caseItem in interfaceOption.Cases)
                 {
-                    if (caseItem.Name != null && selectedCases.Contains(caseItem.Name)
-                        && caseItem.PipelineOverride != null)
+                    if (caseItem.Name != null && selectedCases.Contains(caseItem.Name))
                     {
-                        taskModels.Merge(caseItem.PipelineOverride);
+                        if (caseItem.PipelineOverride != null)
+                        {
+                            taskModels.Merge(caseItem.PipelineOverride);
+                        }
+
+                        // 递归处理被选中 case 的子配置项
+                        if (caseItem.Option != null && caseItem.Option.Count > 0)
+                        {
+                            var unprocessedSubOptionNames = caseItem.Option
+                                .Where(name => !processedOptions.Contains(name))
+                                .ToList();
+
+                            if (unprocessedSubOptionNames.Count > 0 && selectOption.SubOptions != null)
+                            {
+                                var subOptionsToProcess = selectOption.SubOptions
+                                    .Where(s => unprocessedSubOptionNames.Contains(s.Name ?? string.Empty))
+                                    .ToList();
+
+                                ProcessOptions(ref taskModels, subOptionsToProcess, unprocessedSubOptionNames, processedOptions);
+                            }
+                            else if (unprocessedSubOptionNames.Count > 0)
+                            {
+                                ProcessOptions(ref taskModels, allOptions, unprocessedSubOptionNames, processedOptions);
+                            }
+                        }
                     }
                 }
             }
