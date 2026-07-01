@@ -9,6 +9,7 @@ public class MaaFWConfiguration
 {
     public AdbDeviceCoreConfig AdbDevice { get; set; } = new();
     public DesktopWindowCoreConfig DesktopWindow { get; set; } = new();
+    public MacOSWindowCoreConfig MacOSWindow { get; set; } = new();
     
     public PlayCoverCoreConfig  PlayCover { get; set; } = new();
 }
@@ -49,4 +50,15 @@ public class PlayCoverCoreConfig
     public string Name { get; set; } = string.Empty;
     public string PlayCoverAddress { get; set; } = "";
     public string UUID { get; set; } = "maa.playcover";
+}
+
+/// <summary>
+/// macOS 原生窗口核心配置
+/// </summary>
+public class MacOSWindowCoreConfig
+{
+    public MacOSScreencapMethod ScreenCap { get; set; } = MacOSScreencapMethod.ScreenCaptureKit;
+    public MacOSInputMethod Input { get; set; } = MacOSInputMethod.GlobalEvent;
+    public LinkOption Link { get; set; } = LinkOption.Start;
+    public CheckStatusOption Check { get; set; } = CheckStatusOption.ThrowIfNotSucceeded;
 }

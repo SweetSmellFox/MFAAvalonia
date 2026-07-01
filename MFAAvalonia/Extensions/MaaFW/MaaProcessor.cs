@@ -1952,6 +1952,23 @@ public class MaaProcessor
 
                 return new MaaPlayCoverController(Config.PlayCover.PlayCoverAddress, Config.PlayCover.UUID);
 
+            case MaaControllerTypes.MacOS:
+                if (logConfig)
+                {
+                    LoggerHelper.Info("当前控制器类型：MacOS");
+                    LoggerHelper.Info($"窗口名称：{Config.DesktopWindow.Name}");
+                    LoggerHelper.Info($"窗口句柄：{Config.DesktopWindow.HWnd}");
+                    LoggerHelper.Info($"截图模式：{Config.MacOSWindow.ScreenCap}");
+                    LoggerHelper.Info($"输入模式：{Config.MacOSWindow.Input}");
+                }
+
+                return new MaaMacOSController(
+                    new DesktopWindowInfo(Config.DesktopWindow.HWnd, Config.DesktopWindow.Name, string.Empty),
+                    Config.MacOSWindow.ScreenCap,
+                    Config.MacOSWindow.Input,
+                    Config.MacOSWindow.Link,
+                    Config.MacOSWindow.Check);
+
             case MaaControllerTypes.Gamepad:
                 // Gamepad 控制器使用 Win32 控制器的配置，但会创建虚拟手柄
                 if (logConfig)

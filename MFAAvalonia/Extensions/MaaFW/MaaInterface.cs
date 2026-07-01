@@ -920,6 +920,18 @@ public partial class MaaInterface
         public object? ScreenCap { get; set; }
     }
 
+    public class MaaResourceControllerMacOS
+    {
+        [JsonProperty("class_regex")]
+        public string? ClassRegex { get; set; }
+        [JsonProperty("window_regex")]
+        public string? WindowRegex { get; set; }
+        [JsonProperty("input")]
+        public object? Input { get; set; }
+        [JsonProperty("screencap")]
+        public object? ScreenCap { get; set; }
+    }
+
     /// <summary>
     /// Gamepad 控制器的具体配置（仅 Windows）。
     /// 用于创建虚拟游戏手柄进行游戏控制。需要安装 ViGEm Bus Driver。
@@ -1027,6 +1039,8 @@ public partial class MaaInterface
         public MaaResourceControllerPlayCover? PlayCover { get; set; }
         [JsonProperty("gamepad")]
         public MaaResourceControllerGamepad? Gamepad { get; set; }
+        [JsonProperty("macos")]
+        public MaaResourceControllerMacOS? MacOS { get; set; }
 
         /// <summary>显示名称（用于 UI 绑定）</summary>
         [ObservableProperty] [JsonIgnore] private string _displayName = string.Empty;

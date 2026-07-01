@@ -353,6 +353,9 @@ public partial class TaskQueueViewModel : ViewModelBase
         if (type.Contains("playcover", StringComparison.OrdinalIgnoreCase))
             return OperatingSystem.IsMacOS();
 
+        if (type.Contains("macos", StringComparison.OrdinalIgnoreCase))
+            return OperatingSystem.IsMacOS();
+
         return true;
     }
 
@@ -395,6 +398,14 @@ public partial class TaskQueueViewModel : ViewModelBase
             };
             playCoverController.InitializeDisplayName();
             controllers.Add(playCoverController);
+
+            var macOSController = new MaaInterface.MaaResourceController
+            {
+                Name = "MacOS",
+                Type = MaaControllerTypes.MacOS.ToJsonKey()
+            };
+            macOSController.InitializeDisplayName();
+            controllers.Add(macOSController);
         }
         return controllers;
     }
@@ -1528,7 +1539,7 @@ public partial class TaskQueueViewModel : ViewModelBase
             MaaControllerTypes.PlayCover => false,
             MaaControllerTypes.Adb => CurrentDevice is not AdbDeviceInfo adbInfo
                 || string.IsNullOrWhiteSpace(adbInfo.AdbSerial),
-            MaaControllerTypes.Win32 or MaaControllerTypes.Gamepad => CurrentDevice is not DesktopWindowInfo window
+            MaaControllerTypes.Win32 or MaaControllerTypes.Gamepad or MaaControllerTypes.MacOS => CurrentDevice is not DesktopWindowInfo window
                 || window.Handle == IntPtr.Zero,
             _ => CurrentDevice == null,
         };
@@ -1663,7 +1674,7 @@ public partial class TaskQueueViewModel : ViewModelBase
             ToastHelper.Info(GetDetectionMessage(controllerType));
         SetConnected(false);
         token.ThrowIfCancellationRequested();
-        var (devices, index) = isAdb ? DetectAdbDevices(strictLaunchTarget) : DetectWin32Windows();
+        var (devices, index) = isAdb ? DetectAdbDevices(strictLaunchTarget) : DetectDesktopWindows(controllerType);
         token.ThrowIfCancellationRequested();
         UpdateDeviceList(devices, index);
         token.ThrowIfCancellationRequested();
@@ -1782,20 +1793,22 @@ public partial class TaskQueueViewModel : ViewModelBase
         return parts.Length == 2 && int.TryParse(parts[1], out port);
     }
 
-    private (ObservableCollection<object> devices, int index) DetectWin32Windows()
+    private (ObservableCollection<object> devices, int index) DetectDesktopWindows(MaaControllerTypes controllerType)
     {
         Thread.Sleep(500);
         var windows = MaaProcessor.Toolkit.Desktop.Window.Find().Where(win => !string.IsNullOrWhiteSpace(win.Name)).ToList();
-        var (index, filtered) = CalculateWindowIndex(windows);
+        var (index, filtered) = CalculateWindowIndex(windows, controllerType);
         return (new(filtered), index);
     }
 
-    private (int index, List<DesktopWindowInfo> afterFiltered) CalculateWindowIndex(List<DesktopWindowInfo> windows)
+    private (int index, List<DesktopWindowInfo> afterFiltered) CalculateWindowIndex(List<DesktopWindowInfo> windows, MaaControllerTypes controllerType)
     {
         var controller = MaaProcessor.Interface?.Controller?
-            .FirstOrDefault(c => c.Type?.Equals("win32", StringComparison.OrdinalIgnoreCase) == true);
+            .FirstOrDefault(c => c.Type?.Equals(controllerType.ToJsonKey(), StringComparison.OrdinalIgnoreCase) == true);
 
-        if (controller?.Win32 == null)
+        if (controllerType == MaaControllerTypes.MacOS && controller?.MacOS == null
+            || controllerType == MaaControllerTypes.Gamepad && controller?.Gamepad == null
+            || controllerType == MaaControllerTypes.Win32 && controller?.Win32 == null)
         {
             var idx = MatchPreviousWindow(windows);
             return (idx >= 0 ? idx : Math.Max(0, windows.FindIndex(win => !string.IsNullOrWhiteSpace(win.Name))), windows);
@@ -1804,7 +1817,12 @@ public partial class TaskQueueViewModel : ViewModelBase
         var filtered = windows.Where(win =>
             !string.IsNullOrWhiteSpace(win.Name)).ToList();
 
-        filtered = ApplyRegexFilters(filtered, controller.Win32);
+        filtered = controllerType switch
+        {
+            MaaControllerTypes.MacOS => ApplyRegexFilters(filtered, controller!.MacOS!),
+            MaaControllerTypes.Gamepad => ApplyRegexFilters(filtered, controller!.Gamepad!),
+            _ => ApplyRegexFilters(filtered, controller!.Win32!)
+        };
 
         var matchedIdx = MatchPreviousWindow(filtered);
         return (matchedIdx >= 0 ? matchedIdx : (filtered.Count > 0 ? 0 : 0), filtered.ToList());
@@ -1856,17 +1874,26 @@ public partial class TaskQueueViewModel : ViewModelBase
 
 
     private List<DesktopWindowInfo> ApplyRegexFilters(List<DesktopWindowInfo> windows, MaaInterface.MaaResourceControllerWin32 win32)
+        => ApplyRegexFilters(windows, win32.ClassRegex, win32.WindowRegex);
+
+    private List<DesktopWindowInfo> ApplyRegexFilters(List<DesktopWindowInfo> windows, MaaInterface.MaaResourceControllerMacOS macOS)
+        => ApplyRegexFilters(windows, macOS.ClassRegex, macOS.WindowRegex);
+
+    private List<DesktopWindowInfo> ApplyRegexFilters(List<DesktopWindowInfo> windows, MaaInterface.MaaResourceControllerGamepad gamepad)
+        => ApplyRegexFilters(windows, gamepad.ClassRegex, gamepad.WindowRegex);
+
+    private List<DesktopWindowInfo> ApplyRegexFilters(List<DesktopWindowInfo> windows, string? classRegex, string? windowRegex)
     {
         var filtered = windows;
-        if (!string.IsNullOrWhiteSpace(win32.WindowRegex))
+        if (!string.IsNullOrWhiteSpace(windowRegex))
         {
-            var regex = new Regex(win32.WindowRegex);
+            var regex = new Regex(windowRegex);
             filtered = filtered.Where(w => regex.IsMatch(w.Name)).ToList();
         }
 
-        if (!string.IsNullOrWhiteSpace(win32.ClassRegex))
+        if (!string.IsNullOrWhiteSpace(classRegex))
         {
-            var regex = new Regex(win32.ClassRegex);
+            var regex = new Regex(classRegex);
             filtered = filtered.Where(w => regex.IsMatch(w.ClassName)).ToList();
         }
         return filtered;
@@ -1943,6 +1970,14 @@ public partial class TaskQueueViewModel : ViewModelBase
         }
         else
         {
+            if (controller.ControllerType == MaaControllerTypes.MacOS)
+            {
+                var macOSInput = ParseMacOSInputMethod(controller.MacOS?.Input);
+                if (macOSInput != null)
+                    Processor.Config.MacOSWindow.Input = macOSInput.Value;
+                return;
+            }
+
             var mouse = controller.Win32?.Mouse;
             if (mouse != null)
             {
@@ -2031,6 +2066,40 @@ public partial class TaskQueueViewModel : ViewModelBase
         };
     }
 
+    private static MacOSInputMethod? ParseMacOSInputMethod(object? value)
+    {
+        if (value == null) return null;
+
+        if (value is string strValue)
+        {
+            if (Enum.TryParse<MacOSInputMethod>(strValue, ignoreCase: true, out var result))
+                return result;
+            return null;
+        }
+
+        var longValue = Convert.ToUInt64(value);
+        return longValue switch
+        {
+            1 => MacOSInputMethod.GlobalEvent,
+            2 => MacOSInputMethod.PostToPid,
+            _ => null
+        };
+    }
+
+    private static MacOSScreencapMethod? ParseMacOSScreencapMethod(object? value)
+    {
+        if (value == null) return null;
+
+        if (value is string strValue)
+        {
+            if (Enum.TryParse<MacOSScreencapMethod>(strValue, ignoreCase: true, out var result))
+                return result;
+            return null;
+        }
+
+        return Convert.ToUInt64(value) == 1 ? MacOSScreencapMethod.ScreenCaptureKit : null;
+    }
+
     private void HandleScreenCapSettings(MaaInterface.MaaResourceController controller, bool isAdb)
     {
         if (isAdb)
@@ -2051,6 +2120,14 @@ public partial class TaskQueueViewModel : ViewModelBase
         }
         else
         {
+            if (controller.ControllerType == MaaControllerTypes.MacOS)
+            {
+                var macOSScreencap = ParseMacOSScreencapMethod(controller.MacOS?.ScreenCap);
+                if (macOSScreencap != null)
+                    Processor.Config.MacOSWindow.ScreenCap = macOSScreencap.Value;
+                return;
+            }
+
             var screenCap = controller.Win32?.ScreenCap;
             if (screenCap == null) return;
             var parsed = ParseWin32ScreencapMethod(screenCap);
@@ -2084,6 +2161,7 @@ public partial class TaskQueueViewModel : ViewModelBase
         {
             MaaControllerTypes.Adb => LangKeys.Emulator,
             MaaControllerTypes.Win32 => LangKeys.Window,
+            MaaControllerTypes.MacOS => LangKeys.Window,
             MaaControllerTypes.PlayCover => LangKeys.TabPlayCover,
             _ => LangKeys.Window
         };
