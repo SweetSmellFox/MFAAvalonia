@@ -34,7 +34,9 @@ namespace MFAAvalonia.Extensions.MaaFW;
 public class FocusHandler
 {
     private const double ToastMarkdownMaxHeight = 220;
-    private const double DialogMarkdownMaxHeight = 520;
+    private const double DialogMarkdownMaxHeight = 420;
+    private const double DialogMarkdownMinWidth = 320;
+    private const double DialogMarkdownMaxWidth = 720;
     private const double NotificationTitleMarkdownMaxHeight = 44;
     private const double NotificationMarkdownMaxHeight = 260;
 
@@ -247,11 +249,16 @@ public class FocusHandler
                     {
                         await SukiMessageBox.ShowDialog(new SukiMessageBoxHost
                         {
-                            Content = CreateFocusMarkdownContent(displayText, DialogMarkdownMaxHeight),
+                            Content = CreateFocusMarkdownContent(displayText, DialogMarkdownMaxHeight, DialogMarkdownMaxWidth),
                             ActionButtonsPreset = SukiMessageBoxButtons.OK,
                         }, new SukiMessageBoxOptions
                         {
                             Title = LangKeys.Tip.ToLocalization(),
+                            CanResize = true,
+                            MinWidth = DialogMarkdownMinWidth,
+                            MinHeight = 120,
+                            MaxWidthScreenRatio = 0.6,
+                            MaxHeightScreenRatio = 0.7,
                         });
                     });
                     break;
@@ -263,11 +270,16 @@ public class FocusHandler
                     {
                         await SukiMessageBox.ShowDialog(new SukiMessageBoxHost
                         {
-                            Content = CreateFocusMarkdownContent(displayText, DialogMarkdownMaxHeight),
+                            Content = CreateFocusMarkdownContent(displayText, DialogMarkdownMaxHeight, DialogMarkdownMaxWidth),
                             ActionButtonsPreset = SukiMessageBoxButtons.OK,
                         }, new SukiMessageBoxOptions
                         {
                             Title = LangKeys.Tip.ToLocalization(),
+                            CanResize = true,
+                            MinWidth = DialogMarkdownMinWidth,
+                            MinHeight = 120,
+                            MaxWidthScreenRatio = 0.6,
+                            MaxHeightScreenRatio = 0.7,
                         });
                     })).Wait();
                     modalProcessor?.SetWaitingForModal(false);
@@ -436,9 +448,13 @@ public class FocusHandler
                || Path.HasExtension(input);
     }
 
-    private static Control CreateFocusMarkdownContent(string markdown, double maxHeight)
+    private static Control CreateFocusMarkdownContent(string markdown, double maxHeight, double? maxWidth = null)
     {
-        return CreateMarkdownContent(TaskQueueView.ConvertCustomMarkup(markdown), EstimateMarkdownMaxHeight(markdown, maxHeight));
+        return CreateMarkdownContent(
+            TaskQueueView.ConvertCustomMarkup(markdown),
+            EstimateMarkdownMaxHeight(markdown, maxHeight),
+            maxWidth.HasValue ? EstimateMarkdownWidth(markdown, maxWidth.Value) : null,
+            maxWidth);
     }
 
     private static double EstimateMarkdownMaxHeight(string markdown, double maxHeight)
@@ -457,7 +473,28 @@ public class FocusHandler
         return Math.Min(maxHeight, estimatedHeight);
     }
 
-    private static Control CreateMarkdownContent(string markdown, double maxHeight)
+    private static double EstimateMarkdownWidth(string markdown, double maxWidth)
+    {
+        if (string.IsNullOrWhiteSpace(markdown))
+            return DialogMarkdownMinWidth;
+
+        if (markdown.Contains("![", StringComparison.Ordinal)
+            || markdown.Contains("<img", StringComparison.OrdinalIgnoreCase)
+            || markdown.Contains("```", StringComparison.Ordinal)
+            || markdown.Contains('|', StringComparison.Ordinal))
+            return maxWidth;
+
+        var longestLine = markdown
+            .Split(["\r\n", "\r", "\n"], StringSplitOptions.None)
+            .Select(line => line.Trim().Length)
+            .DefaultIfEmpty(0)
+            .Max();
+
+        var estimatedWidth = 80 + longestLine * 9;
+        return Math.Clamp(estimatedWidth, DialogMarkdownMinWidth, maxWidth);
+    }
+
+    private static Control CreateMarkdownContent(string markdown, double maxHeight, double? width = null, double? maxWidth = null)
     {
         var assetRoot = AppPaths.DataRoot;
         var linkCommand = new MFALinkCommand
@@ -470,9 +507,11 @@ public class FocusHandler
             Markdown = markdown,
             Focusable = true,
             EnableVirtualization = true,
-            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Stretch,
-            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Top,
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left,
             MaxHeight = maxHeight,
+            Width = width ?? double.NaN,
+            MaxWidth = maxWidth ?? double.PositiveInfinity,
             Margin = new Thickness(0, 4, 0, 0),
             Engine = new Markdown.Avalonia.Markdown
             {
