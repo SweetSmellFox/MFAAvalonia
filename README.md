@@ -81,14 +81,20 @@ _基于 [Avalonia UI](https://github.com/AvaloniaUI/Avalonia)
 
 ## 🚀 快速开始
 
+本项目是 [MaaFramework](https://github.com/MaaXYZ/MaaFramework) 通用 GUI 解决方案，使用前请务必确保您对 [MaaFramework](https://github.com/MaaXYZ/MaaFramework) 有基本的了解，并且至少已经**完成**了_一个阶段_的[开发工作](https://github.com/MaaXYZ/MaaPracticeBoilerplate/blob/main/docs/zh_cn/develop/how_to_develop.md)。**不要在开发阶段使用本项目进行调试，你应该使用专门的[调试工具](https://github.com/MaaXYZ/MaaFramework/#%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7)**
+
 ### 方式一：自动安装（推荐）
 
-MaaFramework 项目模板已内置 MFAAvalonia，创建项目时自动配置完成。
+MaaFramework [项目模板](https://github.com/MaaXYZ/MaaPracticeBoilerplate/)已内置 MFAAvalonia 的自动配置工具。
+
+有关自动安装的方法请**仔细阅读**[项目模板]的[如何开发](https://github.com/MaaXYZ/MaaPracticeBoilerplate/blob/main/docs/zh_cn/develop/how_to_develop.md)文档。
 
 ### 方式二：手动安装
  
 <details>
 <summary><b>📦 点击展开安装步骤</b></summary>
+
+**绝大多数情况下，你不应该手动安装。**
 
 1. **下载发行版**
 
@@ -344,6 +350,3 @@ MFAAvalonia -c 配置名称
 [![Star History Chart](https://api.star-history.com/svg?repos=MaaXYZ/MFAAvalonia&type=Date)](https://star-history.com/#MaaXYZ/MFAAvalonia&Date)
 
 </div>
-
-
-

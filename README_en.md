@@ -81,14 +81,20 @@ with [Avalonia UI](https://github.com/AvaloniaUI/Avalonia)_
 
 ## 🚀 Quick Start
 
+This project is a universal GUI solution for [MaaFramework](https://github.com/MaaXYZ/MaaFramework). Before using, please make sure you have a basic understanding of [MaaFramework](https://github.com/MaaXYZ/MaaFramework) and have completed at least one stage of [development work](https://github.com/MaaXYZ/MaaPracticeBoilerplate/blob/main/README.md). **Do not use this project for debugging during development; use the dedicated [debugging tools](https://github.com/MaaXYZ/MaaFramework/blob/main/README_en.md#development-tool) instead.**
+
 ### Option 1: Automatic Installation (Recommended)
 
-MaaFramework project templates come with MFAAvalonia pre-configured.
+MaaFramework [project templates](https://github.com/MaaXYZ/MaaPracticeBoilerplate/) come with MFAAvalonia auto-configuration built-in.
+
+For automatic installation, please **carefully read** the [How to Develop](https://github.com/MaaXYZ/MaaPracticeBoilerplate/blob/main/README.md) documentation of the project template.
 
 ### Option 2: Manual Installation
 
 <details>
 <summary><b>📦 Click to expand installation steps</b></summary>
+
+**In most cases, you should not install manually.**
 
 1. **Download Release**
    Download the latest version from [Releases](https://github.com/MaaXYZ/MFAAvalonia/releases) and extract
@@ -249,7 +255,7 @@ The new protocol matches by message type and renders to logs.
 {
   "focus": {
     "Node.Action.Starting": "Start: {name}",
-    "Node.Action.Succeeded": "Done: {name}, [color:green]",
+    "Node.Action.Succeeded": "Done: {name}",
     "Node.Action.Failed": "Failed ID: {action_id}"
   }
 }
@@ -309,7 +315,7 @@ MFAAvalonia -c config-name
 
 ### Custom Icon
 
-Place `logo.ico` in the program root directory to replace the window icon.
+Place `logo.ico` in the `Assets` folder under the program root directory to replace the window icon.
 
 ## 📄 License
 
@@ -344,6 +350,4 @@ Thanks to all developers who contributed to MFAAvalonia!
 
 [![Star History Chart](https://api.star-history.com/svg?repos=MaaXYZ/MFAAvalonia&type=Date)](https://star-history.com/#MaaXYZ/MFAAvalonia&Date)
 
-</div> 
-
-
+</div>
