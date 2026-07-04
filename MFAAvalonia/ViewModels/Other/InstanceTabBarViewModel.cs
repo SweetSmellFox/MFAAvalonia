@@ -5,6 +5,7 @@ using MFAAvalonia.Extensions.MaaFW;
 using MFAAvalonia.Extensions;
 using MFAAvalonia.Helper;
 using MFAAvalonia.Helper.ValueType;
+using MFAAvalonia.ViewModels.Pages;
 using MFAAvalonia.ViewModels.UsersControls.Settings;
 using SukiUI.Controls;
 using SukiUI.Dialogs;
@@ -332,10 +333,15 @@ public partial class InstanceTabBarViewModel : ViewModelBase
 
     partial void OnActiveTabChanged(InstanceTabViewModel? oldValue, InstanceTabViewModel? newValue)
     {
+        var monitorLiveViewOverrideActive =
+            Instances.TryGetResolved<MonitorViewModel>(out var monitorViewModel)
+            && monitorViewModel.IsLiveViewOverrideActive;
+
         if (oldValue != null)
         {
             oldValue.IsActive = false;
-            oldValue.TaskQueueViewModel?.PauseLiveView();
+            if (!monitorLiveViewOverrideActive)
+                oldValue.TaskQueueViewModel?.PauseLiveView();
         }
 
         if (newValue == null)
