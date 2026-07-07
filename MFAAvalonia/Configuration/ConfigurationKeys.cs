@@ -47,6 +47,10 @@ public static class ConfigurationKeys
     public const string GlobalSoftwarePath = "GlobalSoftwarePath";
     public const string GlobalEmulatorConfig = "GlobalEmulatorConfig";
     public const string GlobalWaitSoftwareTime = "GlobalWaitSoftwareTime";
+    public const string GlobalEmulatorCount = "GlobalEmulatorCount";
+    public const string GlobalEmulatorPathKeyFormat = "GlobalEmulator_{0}_Path";
+    public const string GlobalEmulatorArgsKeyFormat = "GlobalEmulator_{0}_Args";
+    public const string GlobalEmulatorNameKeyFormat = "GlobalEmulator_{0}_Name";
 
     #endregion
 

@@ -148,30 +148,39 @@ public static class AgentHelper
             : $"{baseIdentifier}_{processor.InstanceId}";
         LoggerHelper.Info($"Agent 标识符：{identifier}");
 
-        lock (AgentCreateLock)
+        bool retryCreate;
+        do
         {
-            try
+            retryCreate = false;
+            var needsCleanup = false;
+            lock (AgentCreateLock)
             {
-                ctx.Client = instanceConfig.GetValue(ConfigurationKeys.AgentTcpMode, false)
-                    ? MaaAgentClient.CreateTcp(tasker)
-                    : MaaAgentClient.Create(identifier, tasker);
+                try
+                {
+                    ctx.Client = instanceConfig.GetValue(ConfigurationKeys.AgentTcpMode, false)
+                        ? MaaAgentClient.CreateTcp(tasker)
+                        : MaaAgentClient.Create(identifier, tasker);
+                }
+                catch (ArgumentException) when (_hasPreviousAgentClient)
+                {
+                    needsCleanup = true;
+                }
+                finally
+                {
+                    _hasPreviousAgentClient = true;
+                }
             }
-            catch (ArgumentException) when (_hasPreviousAgentClient)
+
+            if (needsCleanup)
             {
-                // 内部字典键冲突：等待旧 AgentClient 被完全清理后重试
+                // 在锁外执行 GC 和等待，避免长时间阻塞其他调用者
                 LoggerHelper.Warning("AgentClient 创建键冲突，等待清理后重试...");
-                Thread.Sleep(1000);
                 GC.Collect();
                 GC.WaitForPendingFinalizers();
-                ctx.Client = instanceConfig.GetValue(ConfigurationKeys.AgentTcpMode, false)
-                    ? MaaAgentClient.CreateTcp(tasker)
-                    : MaaAgentClient.Create(identifier, tasker);
+                Thread.Sleep(1000);
+                retryCreate = true;
             }
-            finally
-            {
-                _hasPreviousAgentClient = true;
-            }
-        }
+        } while (retryCreate);
 
         var timeOut = agentConfig.Timeout ?? -1;
         if (timeOut > 0)
@@ -326,25 +335,34 @@ public static class AgentHelper
 
                     try
                     {
-                        lock (AgentCreateLock)
+                        bool retryRecreate;
+                        do
                         {
-                            try
+                            retryRecreate = false;
+                            var needsRecreateCleanup = false;
+                            lock (AgentCreateLock)
                             {
-                                ctx.Client = instanceConfig.GetValue(ConfigurationKeys.AgentTcpMode, false)
-                                    ? MaaAgentClient.CreateTcp(tasker)
-                                    : MaaAgentClient.Create(identifier, tasker);
+                                try
+                                {
+                                    ctx.Client = instanceConfig.GetValue(ConfigurationKeys.AgentTcpMode, false)
+                                        ? MaaAgentClient.CreateTcp(tasker)
+                                        : MaaAgentClient.Create(identifier, tasker);
+                                }
+                                catch (ArgumentException)
+                                {
+                                    needsRecreateCleanup = true;
+                                }
                             }
-                            catch (ArgumentException)
+
+                            if (needsRecreateCleanup)
                             {
                                 LoggerHelper.Warning("重建 AgentClient 时键冲突，等待清理后重试...");
-                                Thread.Sleep(1000);
                                 GC.Collect();
                                 GC.WaitForPendingFinalizers();
-                                ctx.Client = instanceConfig.GetValue(ConfigurationKeys.AgentTcpMode, false)
-                                    ? MaaAgentClient.CreateTcp(tasker)
-                                    : MaaAgentClient.Create(identifier, tasker);
+                                Thread.Sleep(1000);
+                                retryRecreate = true;
                             }
-                        }
+                        } while (retryRecreate);
                         timeOut = agentConfig.Timeout ?? -1;
                         if (timeOut > 0)
                             ctx.Client.SetTimeout(TimeSpan.FromSeconds(timeOut));
@@ -574,9 +592,6 @@ public static class AgentHelper
         }
         contexts.Clear();
         _hasPreviousAgentClient = false;
-
-        // 等待 MaaFramework 内部清理完成，防止下次 Create 时键冲突
-        Thread.Sleep(500);
 
         // 只在最后处理一次 tasker
         if (taskerToDispose != null)

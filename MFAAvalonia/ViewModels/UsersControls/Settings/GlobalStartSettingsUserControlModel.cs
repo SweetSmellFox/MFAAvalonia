@@ -60,14 +60,14 @@ public partial class GlobalStartSettingsUserControlModel : ViewModelBase
             return;
 
         // 从 GlobalConfiguration 加载已保存的条目
-        var countStr = GlobalConfiguration.GetValue("GlobalEmulatorCount", "0");
+        var countStr = GlobalConfiguration.GetValue(ConfigurationKeys.GlobalEmulatorCount, "0");
         if (int.TryParse(countStr, out var count) && count > 0)
         {
             for (int i = 0; i < count; i++)
             {
-                var path = GlobalConfiguration.GetValue($"GlobalEmulator_{i}_Path", string.Empty);
-                var args = GlobalConfiguration.GetValue($"GlobalEmulator_{i}_Args", string.Empty);
-                var name = GlobalConfiguration.GetValue($"GlobalEmulator_{i}_Name", $"模拟器 {i + 1}");
+                var path = GlobalConfiguration.GetValue(string.Format(ConfigurationKeys.GlobalEmulatorPathKeyFormat, i), string.Empty);
+                var args = GlobalConfiguration.GetValue(string.Format(ConfigurationKeys.GlobalEmulatorArgsKeyFormat, i), string.Empty);
+                var name = GlobalConfiguration.GetValue(string.Format(ConfigurationKeys.GlobalEmulatorNameKeyFormat, i), $"模拟器 {i + 1}");
                 EmulatorEntries.Add(new EmulatorStartEntry(this, i) { Name = name, SoftwarePath = path, EmulatorConfig = args });
             }
         }
@@ -83,12 +83,12 @@ public partial class GlobalStartSettingsUserControlModel : ViewModelBase
 
     public void SaveEmulatorEntries()
     {
-        GlobalConfiguration.SetValue("GlobalEmulatorCount", EmulatorEntries.Count.ToString());
+        GlobalConfiguration.SetValue(ConfigurationKeys.GlobalEmulatorCount, EmulatorEntries.Count.ToString());
         for (int i = 0; i < EmulatorEntries.Count; i++)
         {
-            GlobalConfiguration.SetValue($"GlobalEmulator_{i}_Path", EmulatorEntries[i].SoftwarePath);
-            GlobalConfiguration.SetValue($"GlobalEmulator_{i}_Args", EmulatorEntries[i].EmulatorConfig);
-            GlobalConfiguration.SetValue($"GlobalEmulator_{i}_Name", EmulatorEntries[i].Name);
+            GlobalConfiguration.SetValue(string.Format(ConfigurationKeys.GlobalEmulatorPathKeyFormat, i), EmulatorEntries[i].SoftwarePath);
+            GlobalConfiguration.SetValue(string.Format(ConfigurationKeys.GlobalEmulatorArgsKeyFormat, i), EmulatorEntries[i].EmulatorConfig);
+            GlobalConfiguration.SetValue(string.Format(ConfigurationKeys.GlobalEmulatorNameKeyFormat, i), EmulatorEntries[i].Name);
         }
     }
 
@@ -117,76 +117,7 @@ public partial class GlobalStartSettingsUserControlModel : ViewModelBase
             return;
         }
 
-        var manager = MaaProcessorManager.Instance;
-        var allInstances = manager.GetAllInstanceIdsAndNames().ToList();
-
-        LoggerHelper.Info($"全局启动：准备启动 {EmulatorEntries.Count} 个模拟器");
-
-        // 并行启动所有模拟器
-        var tasks = new List<Task>();
-        foreach (var entry in EmulatorEntries)
-        {
-            if (string.IsNullOrWhiteSpace(entry.SoftwarePath)) continue;
-            tasks.Add(Task.Run(() => StartSingleEmulator(entry)));
-        }
-
-        await Task.WhenAll(tasks);
-
-        // 等待模拟器启动完成
-        LoggerHelper.Info($"全局启动：等待模拟器启动 {GlobalWaitSoftwareTime} 秒...");
-        await Task.Delay(TimeSpan.FromSeconds(GlobalWaitSoftwareTime));
-
-        // 启动所有实例的任务
-        LoggerHelper.Info("全局启动：开始执行所有实例任务");
-        for (int i = 0; i < Math.Min(EmulatorEntries.Count, allInstances.Count); i++)
-        {
-            var instanceId = allInstances[i].Id;
-            manager.EnsureInstanceLoaded(instanceId);
-            var vm = manager.GetViewModel(instanceId);
-            if (vm != null && !vm.IsRunning)
-            {
-                var idx = i;
-                DispatcherHelper.RunOnMainThread(() =>
-                {
-                    Instances.InstanceTabBarViewModel.SwitchToInstanceById(allInstances[idx].Id);
-                    vm.StartTask();
-                });
-                await Task.Delay(3000); // 间隔3秒启动下一个
-            }
-        }
-
-        LoggerHelper.Info("全局启动：所有实例已启动");
-    }
-
-    private static void StartSingleEmulator(EmulatorStartEntry entry)
-    {
-        try
-        {
-            if (string.IsNullOrWhiteSpace(entry.SoftwarePath)) return;
-            if (!System.IO.File.Exists(entry.SoftwarePath))
-            {
-                LoggerHelper.Warning($"全局启动：模拟器路径不存在: {entry.SoftwarePath}");
-                return;
-            }
-
-            LoggerHelper.Info($"全局启动：启动 {entry.Name} - {entry.SoftwarePath} {entry.EmulatorConfig}");
-
-            var startInfo = new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = entry.SoftwarePath,
-                UseShellExecute = true,
-                CreateNoWindow = false
-            };
-
-            if (!string.IsNullOrWhiteSpace(entry.EmulatorConfig))
-                startInfo.Arguments = entry.EmulatorConfig;
-
-            System.Diagnostics.Process.Start(startInfo);
-        }
-        catch (Exception ex)
-        {
-            LoggerHelper.Error($"全局启动：启动 {entry.Name} 失败: {ex.Message}", ex);
-        }
+        await GlobalStartManager.StartAllAndRunTasksManual(GlobalWaitSoftwareTime, EmulatorEntries);
     }
 }
 

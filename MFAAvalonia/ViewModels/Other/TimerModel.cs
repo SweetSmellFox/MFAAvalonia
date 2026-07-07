@@ -225,88 +225,9 @@ public partial class TimerModel : ViewModelBase
         }
     }
 
-    /// <summary>
-    /// 启动所有全局配置的模拟器，然后依次启动所有实例任务
-    /// </summary>
     private static async Task StartAllEmulatorsAndRunTasks()
     {
-        try
-        {
-            var waitTimeStr = GlobalConfiguration.GetValue(ConfigurationKeys.GlobalWaitSoftwareTime, "60");
-            var waitTime = double.TryParse(waitTimeStr, out var parsed) ? parsed : 60.0;
-
-            // 读取所有模拟器条目（不依赖count，遍历所有存在的条目）
-            var emulators = new List<(string name, string path, string args)>();
-            for (int i = 0; i < 20; i++)
-            {
-                var path = GlobalConfiguration.GetValue($"GlobalEmulator_{i}_Path", string.Empty);
-                if (string.IsNullOrWhiteSpace(path)) continue;
-                var args = GlobalConfiguration.GetValue($"GlobalEmulator_{i}_Args", string.Empty);
-                var name = GlobalConfiguration.GetValue($"GlobalEmulator_{i}_Name", $"模拟器 {i + 1}");
-                emulators.Add((name, path, args));
-            }
-
-            if (emulators.Count == 0)
-            {
-                LoggerHelper.Warning("全局启动：没有配置模拟器");
-                return;
-            }
-
-            LoggerHelper.Info($"全局启动：准备启动 {emulators.Count} 个模拟器");
-
-            // 并行启动所有模拟器
-            foreach (var emu in emulators)
-            {
-                if (!System.IO.File.Exists(emu.path))
-                {
-                    LoggerHelper.Warning($"全局启动：{emu.name} 路径不存在: {emu.path}");
-                    continue;
-                }
-
-                LoggerHelper.Info($"全局启动：启动 {emu.name} - {emu.path} {emu.args}");
-                var startInfo = new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = emu.path,
-                    UseShellExecute = true,
-                    CreateNoWindow = false
-                };
-                if (!string.IsNullOrWhiteSpace(emu.args))
-                    startInfo.Arguments = emu.args;
-                System.Diagnostics.Process.Start(startInfo);
-            }
-
-            // 等待所有模拟器启动
-            LoggerHelper.Info($"全局启动：等待模拟器启动 {waitTime} 秒...");
-            await Task.Delay(TimeSpan.FromSeconds(waitTime));
-
-            // 依次启动所有实例任务
-            var manager = MaaProcessorManager.Instance;
-            var allInstances = manager.GetAllInstanceIdsAndNames().ToList();
-            LoggerHelper.Info($"全局启动：开始执行 {allInstances.Count} 个实例任务");
-
-            for (int i = 0; i < allInstances.Count; i++)
-            {
-                var instanceId = allInstances[i].Id;
-                manager.EnsureInstanceLoaded(instanceId);
-                var vm = manager.GetViewModel(instanceId);
-                if (vm != null && !vm.IsRunning)
-                {
-                    var idx = i;
-                    await DispatcherHelper.RunOnMainThreadAsync(() =>
-                    {
-                        Instances.InstanceTabBarViewModel.SwitchToInstanceById(allInstances[idx].Id);
-                        vm.StartTask();
-                    });
-                    await Task.Delay(3000);
-                }
-            }
-
-            LoggerHelper.Info("全局启动：所有实例已启动");
-        }
-        catch (Exception ex)
-        {
-            LoggerHelper.Error($"全局启动失败: {ex.Message}", ex);
-        }
+        await GlobalStartManager.StartAllAndRunTasksWithDelay();
     }
 
     private void ExecuteAction(TimerProperties timer, TaskQueueViewModel vm)
