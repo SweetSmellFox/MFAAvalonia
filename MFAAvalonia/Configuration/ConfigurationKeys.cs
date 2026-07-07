@@ -40,6 +40,16 @@ public static class ConfigurationKeys
 
     #endregion
 
+    #region 全局启动设置
+
+    public const string GlobalStartEnabled = "GlobalStartEnabled";
+    public const string GlobalBeforeTask = "GlobalBeforeTask";
+    public const string GlobalSoftwarePath = "GlobalSoftwarePath";
+    public const string GlobalEmulatorConfig = "GlobalEmulatorConfig";
+    public const string GlobalWaitSoftwareTime = "GlobalWaitSoftwareTime";
+
+    #endregion
+
     #region 性能设置
 
     public const string UseDirectML = "UseDirectML";

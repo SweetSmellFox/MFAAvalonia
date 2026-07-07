@@ -52,6 +52,14 @@ public static class AgentHelper
 {
     private static readonly Random Random = new();
     private const string PiInterfaceVersion = "v2.5.0";
+    /// <summary>
+    /// 静态锁，防止多实例同时调用 MaaAgentClient.Create 导致内部字典键冲突
+    /// </summary>
+    private static readonly Lock AgentCreateLock = new();
+    /// <summary>
+    /// 标记是否有过 AgentClient 创建历史，用于键冲突重试
+    /// </summary>
+    private static volatile bool _hasPreviousAgentClient = false;
     private const string PiClientName = "MFAAvalonia";
     private static readonly JsonSerializerSettings CompactJsonSettings = new()
     {
@@ -140,9 +148,30 @@ public static class AgentHelper
             : $"{baseIdentifier}_{processor.InstanceId}";
         LoggerHelper.Info($"Agent 标识符：{identifier}");
 
-        ctx.Client = instanceConfig.GetValue(ConfigurationKeys.AgentTcpMode, false)
-            ? MaaAgentClient.CreateTcp(tasker)
-            : MaaAgentClient.Create(identifier, tasker);
+        lock (AgentCreateLock)
+        {
+            try
+            {
+                ctx.Client = instanceConfig.GetValue(ConfigurationKeys.AgentTcpMode, false)
+                    ? MaaAgentClient.CreateTcp(tasker)
+                    : MaaAgentClient.Create(identifier, tasker);
+            }
+            catch (ArgumentException) when (_hasPreviousAgentClient)
+            {
+                // 内部字典键冲突：等待旧 AgentClient 被完全清理后重试
+                LoggerHelper.Warning("AgentClient 创建键冲突，等待清理后重试...");
+                Thread.Sleep(1000);
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                ctx.Client = instanceConfig.GetValue(ConfigurationKeys.AgentTcpMode, false)
+                    ? MaaAgentClient.CreateTcp(tasker)
+                    : MaaAgentClient.Create(identifier, tasker);
+            }
+            finally
+            {
+                _hasPreviousAgentClient = true;
+            }
+        }
 
         var timeOut = agentConfig.Timeout ?? -1;
         if (timeOut > 0)
@@ -297,9 +326,25 @@ public static class AgentHelper
 
                     try
                     {
-                        ctx.Client = instanceConfig.GetValue(ConfigurationKeys.AgentTcpMode, false)
-                            ? MaaAgentClient.CreateTcp(tasker)
-                            : MaaAgentClient.Create(identifier, tasker);
+                        lock (AgentCreateLock)
+                        {
+                            try
+                            {
+                                ctx.Client = instanceConfig.GetValue(ConfigurationKeys.AgentTcpMode, false)
+                                    ? MaaAgentClient.CreateTcp(tasker)
+                                    : MaaAgentClient.Create(identifier, tasker);
+                            }
+                            catch (ArgumentException)
+                            {
+                                LoggerHelper.Warning("重建 AgentClient 时键冲突，等待清理后重试...");
+                                Thread.Sleep(1000);
+                                GC.Collect();
+                                GC.WaitForPendingFinalizers();
+                                ctx.Client = instanceConfig.GetValue(ConfigurationKeys.AgentTcpMode, false)
+                                    ? MaaAgentClient.CreateTcp(tasker)
+                                    : MaaAgentClient.Create(identifier, tasker);
+                            }
+                        }
                         timeOut = agentConfig.Timeout ?? -1;
                         if (timeOut > 0)
                             ctx.Client.SetTimeout(TimeSpan.FromSeconds(timeOut));
@@ -528,6 +573,10 @@ public static class AgentHelper
             KillSingleAgent(ctx, taskerToDispose);
         }
         contexts.Clear();
+        _hasPreviousAgentClient = false;
+
+        // 等待 MaaFramework 内部清理完成，防止下次 Create 时键冲突
+        Thread.Sleep(500);
 
         // 只在最后处理一次 tasker
         if (taskerToDispose != null)

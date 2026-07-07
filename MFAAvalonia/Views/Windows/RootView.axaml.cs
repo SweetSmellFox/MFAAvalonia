@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Notifications;
 using Avalonia.Input;
 using MFAAvalonia;
+using System.Collections.Generic;
 using Avalonia.Media;
 using Avalonia.Threading;
 using MFAAvalonia.Configuration;
@@ -10,6 +11,7 @@ using MFAAvalonia.Extensions;
 using MFAAvalonia.Extensions.MaaFW;
 using MFAAvalonia.Helper;
 using MFAAvalonia.Helper.ValueType;
+using MFAAvalonia.ViewModels.Pages;
 using MFAAvalonia.ViewModels.Windows;
 using SukiUI.Controls;
 using SukiUI.Dialogs;
@@ -229,6 +231,18 @@ public partial class RootView : SukiWindow
 
             var vm = Instances.InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel;
             if (vm == null) return;
+
+            // 全局启动设置：启动所有模拟器并执行所有实例任务
+            var globalStartEnabled = GlobalConfiguration.GetValue(ConfigurationKeys.GlobalStartEnabled, bool.FalseString) == bool.TrueString;
+            if (globalStartEnabled && !Convert.ToBoolean(GlobalConfiguration.GetValue(ConfigurationKeys.NoAutoStart, bool.FalseString)))
+            {
+                DispatcherHelper.RunOnMainThread((Action)(async () =>
+                {
+                    await Task.Delay(500);
+                    await StartAllGlobalEmulatorsAndTasks();
+                }));
+                return;
+            }
 
             if (!vm.Processor.IsV3)
             {
@@ -670,5 +684,144 @@ public partial class RootView : SukiWindow
     private void ResourceInfo_OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         Instances.RootViewModel.TempResourceUpdateAction?.Invoke();
+    }
+
+    /// <summary>
+    /// 全局启动：启动所有模拟器并执行所有实例任务
+    /// </summary>
+    private async Task StartAllGlobalEmulatorsAndTasks()
+    {
+        try
+        {
+            // 读取所有模拟器条目（不依赖count，遍历所有存在的条目）
+            var emulators = new List<(string name, string path, string args)>();
+            for (int i = 0; i < 20; i++)
+            {
+                var path = GlobalConfiguration.GetValue($"GlobalEmulator_{i}_Path", string.Empty);
+                if (string.IsNullOrWhiteSpace(path)) continue;
+                var args = GlobalConfiguration.GetValue($"GlobalEmulator_{i}_Args", string.Empty);
+                var name = GlobalConfiguration.GetValue($"GlobalEmulator_{i}_Name", $"模拟器 {i + 1}");
+                emulators.Add((name, path, args));
+            }
+
+            if (emulators.Count == 0)
+            {
+                LoggerHelper.Warning("全局启动：没有配置模拟器");
+                return;
+            }
+
+            LoggerHelper.Info($"全局启动：准备启动 {emulators.Count} 个模拟器");
+
+            // 同时启动所有模拟器
+            foreach (var emu in emulators)
+            {
+                if (!System.IO.File.Exists(emu.path))
+                {
+                    LoggerHelper.Warning($"全局启动：{emu.name} 路径不存在: {emu.path}");
+                    continue;
+                }
+
+                LoggerHelper.Info($"全局启动：启动 {emu.name} - {emu.path} {emu.args}");
+                var startInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = emu.path,
+                    UseShellExecute = true,
+                    CreateNoWindow = false
+                };
+                if (!string.IsNullOrWhiteSpace(emu.args))
+                    startInfo.Arguments = emu.args;
+                System.Diagnostics.Process.Start(startInfo);
+            }
+
+            // 读取所有实例的 ADB 端口，等待端口就绪后再启动任务
+            var manager = MaaProcessorManager.Instance;
+            var allInstances = manager.GetAllInstanceIdsAndNames().ToList();
+            LoggerHelper.Info($"全局启动：准备执行 {allInstances.Count} 个实例任务");
+
+            // 为每个实例启动端口检测和任务
+            var portTasks = new List<Task>();
+            for (int i = 0; i < allInstances.Count; i++)
+            {
+                var instanceId = allInstances[i].Id;
+                manager.EnsureInstanceLoaded(instanceId);
+                var instVm = manager.GetViewModel(instanceId);
+                if (instVm != null && !instVm.IsRunning)
+                {
+                    var idx = i;
+                    // 从全局配置获取该实例的模拟器参数，推导端口
+                    var emuArgs = idx < emulators.Count ? emulators[idx].args : string.Empty;
+                    var port = 16384; // 默认端口
+                    if (!string.IsNullOrWhiteSpace(emuArgs))
+                    {
+                        var vParts = emuArgs.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                        for (int j = 0; j < vParts.Length - 1; j++)
+                        {
+                            if (vParts[j] == "-v" && int.TryParse(vParts[j + 1], out var vmIndex))
+                            {
+                                port = 16384 + vmIndex * 32;
+                                break;
+                            }
+                        }
+                    }
+
+                    var host = "127.0.0.1";
+                    LoggerHelper.Info($"全局启动：等待 {allInstances[idx].Name} 的 ADB 端口 {host}:{port} 就绪...");
+
+                    // 并行等待端口就绪
+                    var capturedIdx = idx;
+                    var capturedVm = instVm;
+                    var capturedPort = port;
+                    var capturedHost = host;
+                    portTasks.Add(Task.Run(async () =>
+                    {
+                        await WaitForPortReady(capturedHost, capturedPort, 120);
+                        DispatcherHelper.RunOnMainThread(() =>
+                        {
+                            Instances.InstanceTabBarViewModel.SwitchToInstanceById(allInstances[capturedIdx].Id);
+                            capturedVm.TryReadAdbDeviceFromConfig(false, false, true, false);
+                            capturedVm.Processor.Start();
+                        });
+                    }));
+                }
+            }
+
+            // 等待所有端口检测完成
+            await Task.WhenAll(portTasks);
+
+            LoggerHelper.Info("全局启动：所有实例已启动");
+        }
+        catch (Exception ex)
+        {
+            LoggerHelper.Error($"全局启动失败: {ex.Message}", ex);
+        }
+    }
+
+    /// <summary>
+    /// 等待 ADB 端口就绪
+    /// </summary>
+    private static async Task WaitForPortReady(string host, int port, int maxWaitSeconds)
+    {
+        var waited = 0;
+        while (waited < maxWaitSeconds)
+        {
+            try
+            {
+                using var client = new System.Net.Sockets.TcpClient();
+                var result = client.BeginConnect(host, port, null, null);
+                var success = result.AsyncWaitHandle.WaitOne(2000);
+                if (success && client.Connected)
+                {
+                    client.EndConnect(result);
+                    LoggerHelper.Info($"全局启动：ADB 端口 {host}:{port} 已就绪（等待了 {waited} 秒）");
+                    return;
+                }
+            }
+            catch { }
+
+            await Task.Delay(3000);
+            waited += 3;
+        }
+
+        LoggerHelper.Warning($"全局启动：等待 ADB 端口 {host}:{port} 超时（{maxWaitSeconds}秒）");
     }
 }
