@@ -57,8 +57,11 @@ public static class PendingUpdateDeletionHelper
                     try
                     {
                         var directoryPath = ResolveSafePath(entry);
+                        // Only remove an empty directory. The update may have written new files to
+                        // the same path after this entry was queued; recursively deleting here
+                        // would remove those new files on the next launch.
                         if (Directory.Exists(directoryPath))
-                            Directory.Delete(directoryPath, recursive: true);
+                            Directory.Delete(directoryPath, recursive: false);
                         LoggerHelper.Info($"已处理待删除更新目录：目录={directoryPath}");
                     }
                     catch (Exception ex)

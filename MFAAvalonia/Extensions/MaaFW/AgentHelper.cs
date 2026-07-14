@@ -521,11 +521,12 @@ public static class AgentHelper
     /// <summary>
     /// 终止所有 Agent 进程并释放资源
     /// </summary>
-    public static void KillAllAgents(List<AgentContext> contexts, MaaTasker? taskerToDispose = null)
+    public static bool KillAllAgents(List<AgentContext> contexts, MaaTasker? taskerToDispose = null)
     {
+        var allProcessesExited = true;
         foreach (var ctx in contexts)
         {
-            KillSingleAgent(ctx, taskerToDispose);
+            allProcessesExited &= KillSingleAgent(ctx, taskerToDispose);
         }
         contexts.Clear();
 
@@ -534,15 +535,18 @@ public static class AgentHelper
         {
             DisposeMaaTasker(taskerToDispose);
         }
+
+        return allProcessesExited;
     }
 
     /// <summary>
     /// 终止单个 Agent（不处理 MaaTasker）
     /// </summary>
-    public static void KillSingleAgent(AgentContext ctx, MaaTasker? taskerToDispose = null)
+    public static bool KillSingleAgent(AgentContext ctx, MaaTasker? taskerToDispose = null)
     {
         var agentClient = ctx.Client;
         var agentProcess = ctx.Process;
+        var processExited = true;
 
         StopReadStreams(ctx);
 
@@ -590,6 +594,7 @@ public static class AgentHelper
                 catch (Exception ex)
                 {
                     LoggerHelper.Warning($"检查 Agent 进程是否退出失败：{ex.Message}");
+                    hasExited = false;
                 }
 
                 if (!hasExited)
@@ -598,12 +603,16 @@ public static class AgentHelper
                     {
                         LoggerHelper.Info($"正在结束 Agent 进程：{agentProcess.ProcessName}");
                         agentProcess.Kill(true);
-                        agentProcess.WaitForExit(5000);
-                        LoggerHelper.Info("Agent 进程已成功结束。");
+                        processExited = agentProcess.WaitForExit(5000);
+                        if (processExited)
+                            LoggerHelper.Info("Agent 进程已成功结束。");
+                        else
+                            LoggerHelper.Error("结束 Agent 进程超时：等待 5 秒后进程仍未退出。");
                     }
                     catch (Exception ex)
                     {
                         LoggerHelper.Warning($"结束 Agent 进程失败：{ex.Message}");
+                        processExited = false;
                     }
                 }
                 else
@@ -614,15 +623,34 @@ public static class AgentHelper
             catch (Exception e)
             {
                 LoggerHelper.Error($"处理 Agent 进程时发生错误：{e.Message}");
+                processExited = false;
             }
             finally
             {
+                DisposeJob(ctx);
+                if (!processExited)
+                {
+                    try
+                    {
+                        // Closing the Windows job object may terminate the process tree. Verify
+                        // once more before reporting the update environment as safe.
+                        processExited = agentProcess.WaitForExit(1000);
+                    }
+                    catch (Exception ex)
+                    {
+                        LoggerHelper.Warning($"再次确认 Agent 进程退出状态失败：{ex.Message}");
+                    }
+                }
                 try { agentProcess.Dispose(); }
                 catch (Exception e) { LoggerHelper.Warning($"释放 Agent 进程对象失败：{e.Message}"); }
             }
         }
+        else
+        {
+            DisposeJob(ctx);
+        }
 
-        DisposeJob(ctx);
+        return processExited;
     }
 
     /// <summary>

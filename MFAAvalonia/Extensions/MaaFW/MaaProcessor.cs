@@ -662,48 +662,48 @@ public class MaaProcessor
     private CancellationTokenSource? _detachedScreenshotCleanupCancellationTokenSource;
     private Task? _detachedScreenshotCleanupTask;
     public MaaTasker? ScreenshotTasker => _screenshotTasker;
-    public void SetTasker(MaaTasker? maaTasker = null)
+    public void SetTasker(MaaTasker? maaTasker = null, bool requireAllStopped = false)
     {
         ResetActionFailedCount();
-        if (maaTasker == null && MaaTasker != null)
+        if (maaTasker == null)
         {
             var oldTasker = MaaTasker;
             MaaTasker = null; // 先设置为 null，防止重复释放
+            var taskerStopped = true;
 
-            try
+            if (oldTasker != null)
             {
-                // 使用超时机制避免无限等待，最多等待 5 秒
-                var stopTask = Task.Run(() =>
+                try
                 {
-                    try
+                    // 使用超时机制避免无限等待，最多等待 5 秒
+                    var stopTask = Task.Run(() => oldTasker.Stop().Wait());
+                    if (!stopTask.Wait(TimeSpan.FromSeconds(5)))
                     {
-                        oldTasker.Stop().Wait();
+                        taskerStopped = false;
+                        LoggerHelper.Warning("停止 MaaTasker 超时：已等待 5 秒。");
                     }
-                    catch (Exception ex)
+                    else if (stopTask.IsFaulted)
                     {
-            LoggerHelper.Warning($"停止 MaaTasker 内部任务失败：{ex.Message}");
+                        taskerStopped = false;
+                        LoggerHelper.Warning($"停止 MaaTasker 内部任务失败：{stopTask.Exception?.GetBaseException().Message}");
                     }
-                });
-
-                if (!stopTask.Wait(TimeSpan.FromSeconds(5)))
-                {
-                    LoggerHelper.Warning("停止 MaaTasker 超时：已等待 5 秒。");
                 }
-            }
-            catch (Exception e)
-            {
-                LoggerHelper.Warning($"停止 MaaTasker 失败：{e.Message}");
+                catch (Exception e)
+                {
+                    taskerStopped = false;
+                    LoggerHelper.Warning($"停止 MaaTasker 失败：{e.Message}");
+                }
             }
 
             _agentStarted = false;
-            AgentHelper.KillAllAgents(_agentContexts, oldTasker);
+            // Agent contexts can outlive MaaTasker after an earlier partial cleanup. Always
+            // terminate them, even when MaaTasker is already null.
+            var agentsStopped = AgentHelper.KillAllAgents(_agentContexts, oldTasker);
             ViewModel?.SetConnected(false);
             DetachScreenshotTasker();
-        }
-        else if (maaTasker == null)
-        {
-            // 即使主 Tasker 已经为空，也要确保截图 Tasker 被清理。
-            DetachScreenshotTasker();
+
+            if (requireAllStopped && (!taskerStopped || !agentsStopped))
+                throw new InvalidOperationException("更新前未能停止所有 MaaTasker 或 Agent 进程。");
         }
         else if (maaTasker != null)
         {
