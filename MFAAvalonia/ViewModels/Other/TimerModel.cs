@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MFAAvalonia.Configuration;
 using MFAAvalonia.Extensions;
+using System.Collections.Generic;
 using MFAAvalonia.Extensions.MaaFW;
 using MFAAvalonia.Helper;
 using MFAAvalonia.Helper.ValueType;
@@ -183,13 +184,22 @@ public partial class TimerModel : ViewModelBase
 
     /// <summary>
     /// 执行定时任务：
-    /// - 未开启自定义配置：对当前激活实例执行
-    /// - 开启自定义配置并选中实例：提前5秒切换到对应多开实例，再启动任务
+    /// - 如果启用了全局启动设置，先启动所有模拟器，再依次执行所有实例任务
+    /// - 否则按原有逻辑执行单个实例
     /// </summary>
     private async void ExecuteTimerTask(TimerProperties timer)
     {
         var manager = MaaProcessorManager.Instance;
 
+        // 检查全局启动设置
+        var globalStartEnabled = GlobalConfiguration.GetValue(ConfigurationKeys.GlobalStartEnabled, bool.FalseString) == bool.TrueString;
+        if (globalStartEnabled)
+        {
+            await StartAllEmulatorsAndRunTasks();
+            return;
+        }
+
+        // 原有逻辑
         if (CustomConfig && !string.IsNullOrEmpty(timer.TimerConfig))
         {
             var targetInstanceId = timer.TimerConfig;
@@ -213,6 +223,11 @@ public partial class TimerModel : ViewModelBase
 
             DispatcherHelper.RunOnMainThread(() => ExecuteAction(timer, vm));
         }
+    }
+
+    private static async Task StartAllEmulatorsAndRunTasks()
+    {
+        await GlobalStartManager.StartAllAndRunTasksWithDelay();
     }
 
     private void ExecuteAction(TimerProperties timer, TaskQueueViewModel vm)

@@ -52,6 +52,14 @@ public static class AgentHelper
 {
     private static readonly Random Random = new();
     private const string PiInterfaceVersion = "v2.5.0";
+    /// <summary>
+    /// 静态锁，防止多实例同时调用 MaaAgentClient.Create 导致内部字典键冲突
+    /// </summary>
+    private static readonly Lock AgentCreateLock = new();
+    /// <summary>
+    /// 标记是否有过 AgentClient 创建历史，用于键冲突重试
+    /// </summary>
+    private static volatile bool _hasPreviousAgentClient = false;
     private const string PiClientName = "MFAAvalonia";
     private static readonly JsonSerializerSettings CompactJsonSettings = new()
     {
@@ -140,9 +148,39 @@ public static class AgentHelper
             : $"{baseIdentifier}_{processor.InstanceId}";
         LoggerHelper.Info($"Agent 标识符：{identifier}");
 
-        ctx.Client = instanceConfig.GetValue(ConfigurationKeys.AgentTcpMode, false)
-            ? MaaAgentClient.CreateTcp(tasker)
-            : MaaAgentClient.Create(identifier, tasker);
+        bool retryCreate;
+        do
+        {
+            retryCreate = false;
+            var needsCleanup = false;
+            lock (AgentCreateLock)
+            {
+                try
+                {
+                    ctx.Client = instanceConfig.GetValue(ConfigurationKeys.AgentTcpMode, false)
+                        ? MaaAgentClient.CreateTcp(tasker)
+                        : MaaAgentClient.Create(identifier, tasker);
+                }
+                catch (ArgumentException) when (_hasPreviousAgentClient)
+                {
+                    needsCleanup = true;
+                }
+                finally
+                {
+                    _hasPreviousAgentClient = true;
+                }
+            }
+
+            if (needsCleanup)
+            {
+                // 在锁外执行 GC 和等待，避免长时间阻塞其他调用者
+                LoggerHelper.Warning("AgentClient 创建键冲突，等待清理后重试...");
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                Thread.Sleep(1000);
+                retryCreate = true;
+            }
+        } while (retryCreate);
 
         var timeOut = agentConfig.Timeout ?? -1;
         if (timeOut > 0)
@@ -297,9 +335,34 @@ public static class AgentHelper
 
                     try
                     {
-                        ctx.Client = instanceConfig.GetValue(ConfigurationKeys.AgentTcpMode, false)
-                            ? MaaAgentClient.CreateTcp(tasker)
-                            : MaaAgentClient.Create(identifier, tasker);
+                        bool retryRecreate;
+                        do
+                        {
+                            retryRecreate = false;
+                            var needsRecreateCleanup = false;
+                            lock (AgentCreateLock)
+                            {
+                                try
+                                {
+                                    ctx.Client = instanceConfig.GetValue(ConfigurationKeys.AgentTcpMode, false)
+                                        ? MaaAgentClient.CreateTcp(tasker)
+                                        : MaaAgentClient.Create(identifier, tasker);
+                                }
+                                catch (ArgumentException)
+                                {
+                                    needsRecreateCleanup = true;
+                                }
+                            }
+
+                            if (needsRecreateCleanup)
+                            {
+                                LoggerHelper.Warning("重建 AgentClient 时键冲突，等待清理后重试...");
+                                GC.Collect();
+                                GC.WaitForPendingFinalizers();
+                                Thread.Sleep(1000);
+                                retryRecreate = true;
+                            }
+                        } while (retryRecreate);
                         timeOut = agentConfig.Timeout ?? -1;
                         if (timeOut > 0)
                             ctx.Client.SetTimeout(TimeSpan.FromSeconds(timeOut));
@@ -529,6 +592,7 @@ public static class AgentHelper
             allProcessesExited &= KillSingleAgent(ctx, taskerToDispose);
         }
         contexts.Clear();
+        _hasPreviousAgentClient = false;
 
         // 只在最后处理一次 tasker
         if (taskerToDispose != null)

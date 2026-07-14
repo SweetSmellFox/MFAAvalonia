@@ -432,6 +432,7 @@ public static partial class Instances
     private static VersionUpdateSettingsUserControlModel _versionUpdateSettingsUserControlModel;
     private static StartSettingsUserControl _startSettingsUserControl;
     private static StartSettingsUserControlModel _startSettingsUserControlModel;
+    private static GlobalStartSettingsUserControlModel _globalStartSettingsUserControlModel;
     private static AboutUserControl _aboutUserControl;
     private static HotKeySettingsUserControl _hotKeySettingsUserControl;
 

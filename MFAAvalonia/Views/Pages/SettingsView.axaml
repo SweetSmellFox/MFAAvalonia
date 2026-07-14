@@ -49,6 +49,9 @@
                         Content="{extensions:ServiceProvider ServiceType={x:Type settings:ConnectSettingsUserControl}}"
                         Header="{markup:I18n {x:Static helper:LangKeys.ConnectionSettings}}" />
                     <suki:SettingsLayoutItem
+                        Content="{extensions:ServiceProvider ServiceType={x:Type settings:GlobalStartSettingsUserControl}}"
+                        Header="全局配置（多开）" />
+                    <suki:SettingsLayoutItem
                         Content="{extensions:ServiceProvider ServiceType={x:Type settings:StartSettingsUserControl}}"
                         Header="{markup:I18n {x:Static helper:LangKeys.StartupSettings}}" />
                     <suki:SettingsLayoutItem

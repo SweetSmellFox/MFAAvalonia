@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Notifications;
 using Avalonia.Input;
 using MFAAvalonia;
+using System.Collections.Generic;
 using Avalonia.Media;
 using Avalonia.Threading;
 using MFAAvalonia.Configuration;
@@ -10,6 +11,7 @@ using MFAAvalonia.Extensions;
 using MFAAvalonia.Extensions.MaaFW;
 using MFAAvalonia.Helper;
 using MFAAvalonia.Helper.ValueType;
+using MFAAvalonia.ViewModels.Pages;
 using MFAAvalonia.ViewModels.Windows;
 using SukiUI.Controls;
 using SukiUI.Dialogs;
@@ -229,6 +231,18 @@ public partial class RootView : SukiWindow
 
             var vm = Instances.InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel;
             if (vm == null) return;
+
+            // 全局启动设置：启动所有模拟器并执行所有实例任务
+            var globalStartEnabled = GlobalConfiguration.GetValue(ConfigurationKeys.GlobalStartEnabled, bool.FalseString) == bool.TrueString;
+            if (globalStartEnabled && !Convert.ToBoolean(GlobalConfiguration.GetValue(ConfigurationKeys.NoAutoStart, bool.FalseString)))
+            {
+                DispatcherHelper.RunOnMainThread((Action)(async () =>
+                {
+                    await Task.Delay(500);
+                    await StartAllGlobalEmulatorsAndTasks();
+                }));
+                return;
+            }
 
             if (!vm.Processor.IsV3)
             {
@@ -670,5 +684,10 @@ public partial class RootView : SukiWindow
     private void ResourceInfo_OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         Instances.RootViewModel.TempResourceUpdateAction?.Invoke();
+    }
+
+    private async Task StartAllGlobalEmulatorsAndTasks()
+    {
+        await GlobalStartManager.StartAllAndRunTasksWithPortCheck();
     }
 }
