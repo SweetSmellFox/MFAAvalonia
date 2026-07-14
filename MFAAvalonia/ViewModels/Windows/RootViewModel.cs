@@ -100,7 +100,7 @@ public partial class RootViewModel : ViewModelBase
             // var minor = version.Minor >= 0 ? version.Minor : 0;
             // var patch = version.Build >= 0 ? version.Build : 0;
             // return $"v{SemVersion.Parse($"{major}.{minor}.{patch}")}";
-            return "v2.13.0-beta.1"; // Hardcoded version for now, replace with dynamic versioning later
+            return "v2.13.0-beta.2"; // Hardcoded version for now, replace with dynamic versioning later
         }
     }
 
@@ -153,14 +153,14 @@ public partial class RootViewModel : ViewModelBase
         TempResourceUpdateAction?.Invoke();
     }
     
-        partial void OnLockControllerChanged(bool value)
+    partial void OnLockControllerChanged(bool value)
+    {
+        var vm = Instances.InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel;
+        if (value && vm?.SelectedController != null)
         {
-            var vm = Instances.InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel;
-            if (value && vm?.SelectedController != null)
-            {
-                vm.ShouldShow = (int)vm.SelectedController.ControllerType;
-            }
+            vm.ShouldShow = (int)vm.SelectedController.ControllerType;
         }
+    }
 
     public void CheckDebug()
     {
