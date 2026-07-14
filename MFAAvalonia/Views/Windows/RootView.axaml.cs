@@ -689,6 +689,6 @@ public partial class RootView : SukiWindow
 
     private async Task StartAllGlobalEmulatorsAndTasks()
     {
-        await GlobalStartManager.StartAllAndRunTasksWithPortCheck();
+        await GlobalStartManager.StartAllAndRunTasks();
     }
 }

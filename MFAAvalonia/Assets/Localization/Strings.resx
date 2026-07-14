@@ -2120,6 +2120,24 @@
   <data name="InstanceDropdownJustNow" xml:space="preserve">
     <value>刚刚</value>
   </data>
+  <data name="GlobalBatchStartup" xml:space="preserve">
+    <value>应用启动时批量启动</value>
+  </data>
+  <data name="GlobalBatchStartupDescription" xml:space="preserve">
+    <value>启用后，应用启动和启动类定时器会按下方各实例设置批量执行。</value>
+  </data>
+  <data name="InstanceStartupSettings" xml:space="preserve">
+    <value>各实例启动设置</value>
+  </data>
+  <data name="RefreshInstanceList" xml:space="preserve">
+    <value>刷新实例列表</value>
+  </data>
+  <data name="IncludeInBatchStartup" xml:space="preserve"><value>包含在批量启动中</value></data>
+  <data name="ExtraLaunchItems" xml:space="preserve"><value>额外启动项</value></data>
+  <data name="ExtraLaunchItem" xml:space="preserve"><value>额外启动项</value></data>
+  <data name="AddExtraLaunchItem" xml:space="preserve"><value>添加启动项</value></data>
+  <data name="RemoveExtraLaunchItem" xml:space="preserve"><value>删除启动项</value></data>
+  <data name="LaunchItemName" xml:space="preserve"><value>启动项名称</value></data>
 </root>
 
 

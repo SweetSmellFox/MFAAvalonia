@@ -37,20 +37,19 @@ public static class ConfigurationKeys
     public const string SoftwarePath = "SoftwarePath";
     public const string WaitSoftwareTime = "WaitSoftwareTime";
     public const string EmulatorConfig = "EmulatorConfig";
+    public const string IncludeInGlobalStart = "IncludeInGlobalStart";
 
     #endregion
 
     #region 全局启动设置
 
     public const string GlobalStartEnabled = "GlobalStartEnabled";
-    public const string GlobalBeforeTask = "GlobalBeforeTask";
-    public const string GlobalSoftwarePath = "GlobalSoftwarePath";
-    public const string GlobalEmulatorConfig = "GlobalEmulatorConfig";
-    public const string GlobalWaitSoftwareTime = "GlobalWaitSoftwareTime";
-    public const string GlobalEmulatorCount = "GlobalEmulatorCount";
-    public const string GlobalEmulatorPathKeyFormat = "GlobalEmulator_{0}_Path";
-    public const string GlobalEmulatorArgsKeyFormat = "GlobalEmulator_{0}_Args";
-    public const string GlobalEmulatorNameKeyFormat = "GlobalEmulator_{0}_Name";
+    public const string GlobalExtraLaunchCount = "GlobalExtraLaunchCount";
+    public const string GlobalExtraLaunchNameKeyFormat = "GlobalExtraLaunch_{0}_Name";
+    public const string GlobalExtraLaunchPathKeyFormat = "GlobalExtraLaunch_{0}_Path";
+    public const string GlobalExtraLaunchArgsKeyFormat = "GlobalExtraLaunch_{0}_Args";
+    public const string GlobalExtraLaunchWaitKeyFormat = "GlobalExtraLaunch_{0}_Wait";
+    public const string GlobalExtraLaunchEnabledKeyFormat = "GlobalExtraLaunch_{0}_Enabled";
 
     #endregion
 

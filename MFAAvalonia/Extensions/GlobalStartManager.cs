@@ -1,302 +1,162 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
-using System.Net;
-using System.Net.Sockets;
-using System.Threading;
 using System.Threading.Tasks;
 using MFAAvalonia.Configuration;
 using MFAAvalonia.Extensions.MaaFW;
 using MFAAvalonia.Helper;
-using MFAAvalonia.ViewModels.Windows;
 
 namespace MFAAvalonia.Extensions;
 
 /// <summary>
-/// 全局启动管理器：统一管理多开模拟器的发现、启动、端口检测和实例任务执行
+/// 使用各实例自身的启动设置批量启动所有实例。
 /// </summary>
 internal static class GlobalStartManager
 {
-    private const int MaxEmulatorEntries = 20;
-    private const int DefaultPort = 16384;
-    private const int PortOffsetPerInstance = 32;
-
-    /// <summary>
-    /// 从 GlobalConfiguration 读取所有已配置的模拟器条目
-    /// </summary>
-    public static List<(string Name, string Path, string Args)> DiscoverEmulators()
+    public static async Task StartAllAndRunTasks()
     {
-        var emulators = new List<(string Name, string Path, string Args)>();
-        for (var i = 0; i < MaxEmulatorEntries; i++)
+        try
         {
-            var path = GlobalConfiguration.GetValue(string.Format(ConfigurationKeys.GlobalEmulatorPathKeyFormat, i), string.Empty);
-            if (string.IsNullOrWhiteSpace(path)) continue;
-            var args = GlobalConfiguration.GetValue(string.Format(ConfigurationKeys.GlobalEmulatorArgsKeyFormat, i), string.Empty);
-            var name = GlobalConfiguration.GetValue(string.Format(ConfigurationKeys.GlobalEmulatorNameKeyFormat, i), $"模拟器 {i + 1}");
-            emulators.Add((name, path, args));
+            var manager = MaaProcessorManager.Instance;
+            var instances = manager.GetAllInstanceIdsAndNames()
+                .Where(instance => IsInstanceIncluded(manager, instance.Id))
+                .ToList();
+            var extraLaunchItems = DiscoverExtraLaunchItems();
+            if (instances.Count == 0 && extraLaunchItems.Count == 0)
+            {
+                LoggerHelper.Warning("全局启动：没有已启用的启动项");
+                return;
+            }
+
+            LoggerHelper.Info($"全局启动：准备启动 {instances.Count} 个实例和 {extraLaunchItems.Count} 个额外启动项");
+            var tasks = instances.Select(instance => StartInstance(instance.Id, instance.Name)).ToList();
+            tasks.AddRange(extraLaunchItems.Select(StartExtraLaunchItem));
+            var results = await Task.WhenAll(tasks);
+
+            var startedCount = results.Count(result => result == GlobalStartResult.Started);
+            var skippedCount = results.Count(result => result == GlobalStartResult.Skipped);
+            var failedCount = results.Count(result => result == GlobalStartResult.Failed);
+            LoggerHelper.Info($"全局启动完成：已启动 {startedCount} 个，跳过 {skippedCount} 个，失败 {failedCount} 个");
         }
-        return emulators;
+        catch (Exception ex)
+        {
+            LoggerHelper.Error($"全局启动失败: {ex.Message}", ex);
+        }
     }
 
-    /// <summary>
-    /// 启动所有配置的模拟器进程
-    /// </summary>
-    public static void StartEmulatorProcesses(List<(string Name, string Path, string Args)> emulators)
+    private static bool IsInstanceIncluded(MaaProcessorManager manager, string instanceId)
     {
-        LoggerHelper.Info($"全局启动：准备启动 {emulators.Count} 个模拟器");
-        foreach (var emu in emulators)
+        manager.EnsureInstanceLoaded(instanceId);
+        return manager.GetViewModel(instanceId)?.Processor.InstanceConfiguration
+            .GetValue(ConfigurationKeys.IncludeInGlobalStart, true) == true;
+    }
+
+    private static List<ExtraLaunchItem> DiscoverExtraLaunchItems()
+    {
+        var countText = GlobalConfiguration.GetValue(ConfigurationKeys.GlobalExtraLaunchCount, "0");
+        var count = int.TryParse(countText, out var parsedCount) ? Math.Max(0, parsedCount) : 0;
+        var items = new List<ExtraLaunchItem>();
+        for (var i = 0; i < count; i++)
         {
-            if (!System.IO.File.Exists(emu.Path))
+            var enabled = GlobalConfiguration.GetValue(
+                string.Format(ConfigurationKeys.GlobalExtraLaunchEnabledKeyFormat, i),
+                bool.TrueString) == bool.TrueString;
+            if (!enabled) continue;
+
+            var name = GlobalConfiguration.GetValue(
+                string.Format(ConfigurationKeys.GlobalExtraLaunchNameKeyFormat, i), $"额外启动项 {i + 1}");
+            var path = GlobalConfiguration.GetValue(
+                string.Format(ConfigurationKeys.GlobalExtraLaunchPathKeyFormat, i), string.Empty);
+            var args = GlobalConfiguration.GetValue(
+                string.Format(ConfigurationKeys.GlobalExtraLaunchArgsKeyFormat, i), string.Empty);
+            var waitText = GlobalConfiguration.GetValue(
+                string.Format(ConfigurationKeys.GlobalExtraLaunchWaitKeyFormat, i), "0");
+            var wait = double.TryParse(waitText, out var parsedWait) ? Math.Max(0, parsedWait) : 0;
+            items.Add(new ExtraLaunchItem(name, path, args, wait));
+        }
+
+        return items;
+    }
+
+    private static async Task<GlobalStartResult> StartExtraLaunchItem(ExtraLaunchItem item)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(item.Path) || !File.Exists(item.Path))
             {
-                LoggerHelper.Warning($"全局启动：{emu.Name} 路径不存在: {emu.Path}");
-                continue;
+                LoggerHelper.Warning($"全局启动：额外启动项 {item.Name} 的路径无效，已跳过: {item.Path}");
+                return GlobalStartResult.Failed;
             }
-            LoggerHelper.Info($"全局启动：启动 {emu.Name} - {emu.Path} {emu.Args}");
+
             var startInfo = new ProcessStartInfo
             {
-                FileName = emu.Path,
+                FileName = item.Path,
+                Arguments = item.Args,
                 UseShellExecute = true,
                 CreateNoWindow = false
             };
-            if (!string.IsNullOrWhiteSpace(emu.Args))
-                startInfo.Arguments = emu.Args;
             Process.Start(startInfo);
-        }
-    }
-
-    /// <summary>
-    /// 从模拟器参数中推导 ADB 端口号
-    /// </summary>
-    public static int DerivePort(string emuArgs, int fallbackIndex = 0)
-    {
-        if (!string.IsNullOrWhiteSpace(emuArgs))
-        {
-            var parts = emuArgs.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            for (var j = 0; j < parts.Length - 1; j++)
-            {
-                if (parts[j] == "-v" && int.TryParse(parts[j + 1], out var vmIndex))
-                    return DefaultPort + vmIndex * PortOffsetPerInstance;
-            }
-        }
-        return DefaultPort + fallbackIndex * PortOffsetPerInstance;
-    }
-
-    /// <summary>
-    /// 等待 ADB 端口就绪（使用 Stopwatch 精确计时）
-    /// </summary>
-    public static async Task WaitForPortReady(string host, int port, int maxWaitSeconds)
-    {
-        var timeout = TimeSpan.FromSeconds(maxWaitSeconds);
-        var stopwatch = Stopwatch.StartNew();
-
-        while (stopwatch.Elapsed < timeout)
-        {
-            var remaining = timeout - stopwatch.Elapsed;
-            if (remaining <= TimeSpan.Zero) break;
-
-            try
-            {
-                using var client = new TcpClient();
-                var result = client.BeginConnect(host, port, null, null);
-                var waitMs = (int)Math.Min(2000, remaining.TotalMilliseconds);
-                var success = result.AsyncWaitHandle.WaitOne(waitMs);
-                if (success && client.Connected)
-                {
-                    client.EndConnect(result);
-                    LoggerHelper.Info($"全局启动：ADB 端口 {host}:{port} 已就绪（等待了 {stopwatch.Elapsed.TotalSeconds:F1} 秒）");
-                    return;
-                }
-            }
-            catch { /* 忽略瞬时连接异常 */ }
-
-            remaining = timeout - stopwatch.Elapsed;
-            if (remaining <= TimeSpan.Zero) break;
-            var delay = remaining < TimeSpan.FromSeconds(3) ? remaining : TimeSpan.FromSeconds(3);
-            await Task.Delay(delay);
-        }
-
-        LoggerHelper.Warning($"全局启动：等待 ADB 端口 {host}:{port} 超时（已实际等待 {stopwatch.Elapsed.TotalSeconds:F1} 秒）");
-    }
-
-    /// <summary>
-    /// 启动所有模拟器，通过端口检测等待就绪，然后执行实例任务（端口检测版）
-    /// </summary>
-    public static async Task StartAllAndRunTasksWithPortCheck()
-    {
-        try
-        {
-            var emulators = DiscoverEmulators();
-            if (emulators.Count == 0)
-            {
-                LoggerHelper.Warning("全局启动：没有配置模拟器");
-                return;
-            }
-
-            StartEmulatorProcesses(emulators);
-
-            var manager = MaaProcessorManager.Instance;
-            var allInstances = manager.GetAllInstanceIdsAndNames().ToList();
-            LoggerHelper.Info($"全局启动：准备执行 {allInstances.Count} 个实例任务");
-
-            var portTasks = new List<Task>();
-            for (var i = 0; i < allInstances.Count; i++)
-            {
-                var instanceId = allInstances[i].Id;
-                manager.EnsureInstanceLoaded(instanceId);
-                var instVm = manager.GetViewModel(instanceId);
-                if (instVm == null || instVm.IsRunning) continue;
-
-                var idx = i;
-                var emuArgs = idx < emulators.Count ? emulators[idx].Args : string.Empty;
-                var port = DerivePort(emuArgs, idx);
-                const string host = "127.0.0.1";
-                LoggerHelper.Info($"全局启动：等待 {allInstances[idx].Name} 的 ADB 端口 {host}:{port} 就绪...");
-
-                portTasks.Add(Task.Run(async () =>
-                {
-                    await WaitForPortReady(host, port, 120);
-                    DispatcherHelper.RunOnMainThread(() =>
-                    {
-                        Instances.InstanceTabBarViewModel.SwitchToInstanceById(allInstances[idx].Id);
-                        instVm.TryReadAdbDeviceFromConfig(false, false, true, false);
-                        instVm.Processor.Start();
-                    });
-                }));
-            }
-
-            await Task.WhenAll(portTasks);
-            LoggerHelper.Info("全局启动：所有实例已启动");
+            if (item.WaitSeconds > 0)
+                await Task.Delay(TimeSpan.FromSeconds(item.WaitSeconds));
+            return GlobalStartResult.Started;
         }
         catch (Exception ex)
         {
-            LoggerHelper.Error($"全局启动失败: {ex.Message}", ex);
+            LoggerHelper.Error($"全局启动：额外启动项 {item.Name} 启动失败: {ex.Message}", ex);
+            return GlobalStartResult.Failed;
         }
     }
 
-    /// <summary>
-    /// 启动所有模拟器，等待固定时间后执行实例任务（定时器版）
-    /// </summary>
-    public static async Task StartAllAndRunTasksWithDelay()
-    {
-        try
-        {
-            var waitTimeStr = GlobalConfiguration.GetValue(ConfigurationKeys.GlobalWaitSoftwareTime, "60");
-            var waitTime = double.TryParse(waitTimeStr, out var parsed) ? parsed : 60.0;
-
-            var emulators = DiscoverEmulators();
-            if (emulators.Count == 0)
-            {
-                LoggerHelper.Warning("全局启动：没有配置模拟器");
-                return;
-            }
-
-            StartEmulatorProcesses(emulators);
-            LoggerHelper.Info($"全局启动：等待模拟器启动 {waitTime} 秒...");
-            await Task.Delay(TimeSpan.FromSeconds(waitTime));
-
-            var manager = MaaProcessorManager.Instance;
-            var allInstances = manager.GetAllInstanceIdsAndNames().ToList();
-            LoggerHelper.Info($"全局启动：开始执行 {allInstances.Count} 个实例任务");
-
-            for (var i = 0; i < allInstances.Count; i++)
-            {
-                var instanceId = allInstances[i].Id;
-                manager.EnsureInstanceLoaded(instanceId);
-                var vm = manager.GetViewModel(instanceId);
-                if (vm != null && !vm.IsRunning)
-                {
-                    var idx = i;
-                    DispatcherHelper.RunOnMainThread(() =>
-                    {
-                        Instances.InstanceTabBarViewModel.SwitchToInstanceById(allInstances[idx].Id);
-                        vm.StartTask();
-                    });
-                    await Task.Delay(3000);
-                }
-            }
-
-            LoggerHelper.Info("全局启动：所有实例已启动");
-        }
-        catch (Exception ex)
-        {
-            LoggerHelper.Error($"全局启动失败: {ex.Message}", ex);
-        }
-    }
-
-    /// <summary>
-    /// 启动所有模拟器，等待固定时间后执行实例任务（设置页手动触发版）
-    /// </summary>
-    public static async Task StartAllAndRunTasksManual(double waitSoftwareTime, IEnumerable<ViewModels.UsersControls.Settings.EmulatorStartEntry> emulatorEntries)
+    private static async Task<GlobalStartResult> StartInstance(string instanceId, string instanceName)
     {
         try
         {
             var manager = MaaProcessorManager.Instance;
-            var allInstances = manager.GetAllInstanceIdsAndNames().ToList();
-
-            LoggerHelper.Info($"全局启动：准备启动 {emulatorEntries.Count()} 个模拟器");
-
-            // 并行启动所有模拟器
-            foreach (var entry in emulatorEntries)
+            manager.EnsureInstanceLoaded(instanceId);
+            var vm = manager.GetViewModel(instanceId);
+            if (vm == null)
             {
-                if (string.IsNullOrWhiteSpace(entry.SoftwarePath)) continue;
-                if (!System.IO.File.Exists(entry.SoftwarePath))
-                {
-                    LoggerHelper.Warning($"全局启动：模拟器路径不存在: {entry.SoftwarePath}");
-                    continue;
-                }
-                LoggerHelper.Info($"全局启动：启动 {entry.Name} - {entry.SoftwarePath} {entry.EmulatorConfig}");
-                var startInfo = new ProcessStartInfo
-                {
-                    FileName = entry.SoftwarePath,
-                    UseShellExecute = true,
-                    CreateNoWindow = false
-                };
-                if (!string.IsNullOrWhiteSpace(entry.EmulatorConfig))
-                    startInfo.Arguments = entry.EmulatorConfig;
-                Process.Start(startInfo);
+                LoggerHelper.Warning($"全局启动：无法加载实例 {instanceName}");
+                return GlobalStartResult.Failed;
             }
 
-            LoggerHelper.Info($"全局启动：等待模拟器启动 {waitSoftwareTime} 秒...");
-            await Task.Delay(TimeSpan.FromSeconds(waitSoftwareTime));
-
-            LoggerHelper.Info("全局启动：开始执行所有实例任务");
-
-            var configuredCount = emulatorEntries.Count();
-            var instanceCount = allInstances.Count;
-            if (configuredCount != instanceCount)
+            if (vm.IsRunning)
             {
-                LoggerHelper.Warning($"全局启动：实例数量与模拟器配置数量不一致（实例数={instanceCount}，配置数={configuredCount}），按索引匹配");
+                LoggerHelper.Info($"全局启动：实例 {instanceName} 正在运行，已跳过");
+                return GlobalStartResult.Skipped;
             }
 
-            var maxIndex = Math.Min(configuredCount, instanceCount);
-            for (var i = 0; i < maxIndex; i++)
+            var beforeTask = vm.Processor.InstanceConfiguration.GetValue(ConfigurationKeys.BeforeTask, "None");
+            if (beforeTask.Contains("StartupSoftware", StringComparison.OrdinalIgnoreCase))
             {
-                var instanceId = allInstances[i].Id;
-                manager.EnsureInstanceLoaded(instanceId);
-                var vm = manager.GetViewModel(instanceId);
-                if (vm != null && !vm.IsRunning)
-                {
-                    var idx = i;
-                    DispatcherHelper.RunOnMainThread(() =>
-                    {
-                        Instances.InstanceTabBarViewModel.SwitchToInstanceById(allInstances[idx].Id);
-                        vm.StartTask();
-                    });
-                    await Task.Delay(3000);
-                }
+                LoggerHelper.Info($"全局启动：按实例配置启动 {instanceName} 的目标程序");
+                await vm.Processor.StartSoftware();
             }
 
-            if (configuredCount > instanceCount)
-                LoggerHelper.Warning($"全局启动：有 {configuredCount - instanceCount} 个模拟器配置未映射到实例，已跳过");
-            else if (instanceCount > configuredCount)
-                LoggerHelper.Warning($"全局启动：有 {instanceCount - configuredCount} 个实例没有模拟器配置，未启动");
+            await DispatcherHelper.RunOnMainThreadAsync(() =>
+            {
+                Instances.InstanceTabBarViewModel.SwitchToInstanceById(instanceId);
+                vm.TryReadAdbDeviceFromConfig(false, false, true, false);
+                vm.StartTask();
+            });
 
-            LoggerHelper.Info("全局启动：所有实例已启动");
+            return GlobalStartResult.Started;
         }
         catch (Exception ex)
         {
-            LoggerHelper.Error($"全局启动失败: {ex.Message}", ex);
+            LoggerHelper.Error($"全局启动：实例 {instanceName} 启动失败: {ex.Message}", ex);
+            return GlobalStartResult.Failed;
         }
     }
+
+    private enum GlobalStartResult
+    {
+        Started,
+        Skipped,
+        Failed
+    }
+
+    private sealed record ExtraLaunchItem(string Name, string Path, string Args, double WaitSeconds);
 }

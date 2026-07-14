@@ -432,7 +432,6 @@ public static partial class Instances
     private static VersionUpdateSettingsUserControlModel _versionUpdateSettingsUserControlModel;
     private static StartSettingsUserControl _startSettingsUserControl;
     private static StartSettingsUserControlModel _startSettingsUserControlModel;
-    private static GlobalStartSettingsUserControlModel _globalStartSettingsUserControlModel;
     private static AboutUserControl _aboutUserControl;
     private static HotKeySettingsUserControl _hotKeySettingsUserControl;
 
@@ -560,6 +559,10 @@ public static partial class Instances
                 start.WaitSoftwareTime = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.WaitSoftwareTime, 60.0);
                 start.BeforeTask = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.BeforeTask, "None");
                 start.AfterTask = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.AfterTask, "None");
+                start.GlobalStartEnabled = GlobalConfiguration.GetValue(
+                    ConfigurationKeys.GlobalStartEnabled,
+                    bool.FalseString) == bool.TrueString;
+                start.RefreshGlobalStartInstancesCommand.Execute(null);
             }
 
             if (IsResolved<GameSettingsUserControlModel>())

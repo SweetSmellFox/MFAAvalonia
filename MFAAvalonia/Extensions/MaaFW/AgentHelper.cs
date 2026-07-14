@@ -60,6 +60,7 @@ public static class AgentHelper
     /// 标记是否有过 AgentClient 创建历史，用于键冲突重试
     /// </summary>
     private static volatile bool _hasPreviousAgentClient = false;
+    private const int MaxAgentCreateAttempts = 2;
     private const string PiClientName = "MFAAvalonia";
     private static readonly JsonSerializerSettings CompactJsonSettings = new()
     {
@@ -75,6 +76,38 @@ public static class AgentHelper
             operation: operation,
             instanceId: processor.InstanceId,
             instanceName: MaaProcessorManager.Instance.GetInstanceName(processor.InstanceId));
+    }
+
+    private static MaaAgentClient CreateAgentClient(
+        MaaTasker tasker,
+        InstanceConfiguration instanceConfig,
+        string identifier,
+        bool retryOnFirstArgumentException)
+    {
+        for (var attempt = 1; attempt <= MaxAgentCreateAttempts; attempt++)
+        {
+            try
+            {
+                lock (AgentCreateLock)
+                {
+                    var client = instanceConfig.GetValue(ConfigurationKeys.AgentTcpMode, false)
+                        ? MaaAgentClient.CreateTcp(tasker)
+                        : MaaAgentClient.Create(identifier, tasker);
+                    _hasPreviousAgentClient = true;
+                    return client;
+                }
+            }
+            catch (ArgumentException) when (attempt < MaxAgentCreateAttempts
+                                             && (retryOnFirstArgumentException || _hasPreviousAgentClient))
+            {
+                LoggerHelper.Warning("AgentClient 创建失败，等待旧实例清理后重试一次...");
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                Thread.Sleep(1000);
+            }
+        }
+
+        throw new InvalidOperationException("AgentClient 创建重试流程异常结束。");
     }
 
     /// <summary>
@@ -148,39 +181,7 @@ public static class AgentHelper
             : $"{baseIdentifier}_{processor.InstanceId}";
         LoggerHelper.Info($"Agent 标识符：{identifier}");
 
-        bool retryCreate;
-        do
-        {
-            retryCreate = false;
-            var needsCleanup = false;
-            lock (AgentCreateLock)
-            {
-                try
-                {
-                    ctx.Client = instanceConfig.GetValue(ConfigurationKeys.AgentTcpMode, false)
-                        ? MaaAgentClient.CreateTcp(tasker)
-                        : MaaAgentClient.Create(identifier, tasker);
-                }
-                catch (ArgumentException) when (_hasPreviousAgentClient)
-                {
-                    needsCleanup = true;
-                }
-                finally
-                {
-                    _hasPreviousAgentClient = true;
-                }
-            }
-
-            if (needsCleanup)
-            {
-                // 在锁外执行 GC 和等待，避免长时间阻塞其他调用者
-                LoggerHelper.Warning("AgentClient 创建键冲突，等待清理后重试...");
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
-                Thread.Sleep(1000);
-                retryCreate = true;
-            }
-        } while (retryCreate);
+        ctx.Client = CreateAgentClient(tasker, instanceConfig, identifier, retryOnFirstArgumentException: false);
 
         var timeOut = agentConfig.Timeout ?? -1;
         if (timeOut > 0)
@@ -335,34 +336,7 @@ public static class AgentHelper
 
                     try
                     {
-                        bool retryRecreate;
-                        do
-                        {
-                            retryRecreate = false;
-                            var needsRecreateCleanup = false;
-                            lock (AgentCreateLock)
-                            {
-                                try
-                                {
-                                    ctx.Client = instanceConfig.GetValue(ConfigurationKeys.AgentTcpMode, false)
-                                        ? MaaAgentClient.CreateTcp(tasker)
-                                        : MaaAgentClient.Create(identifier, tasker);
-                                }
-                                catch (ArgumentException)
-                                {
-                                    needsRecreateCleanup = true;
-                                }
-                            }
-
-                            if (needsRecreateCleanup)
-                            {
-                                LoggerHelper.Warning("重建 AgentClient 时键冲突，等待清理后重试...");
-                                GC.Collect();
-                                GC.WaitForPendingFinalizers();
-                                Thread.Sleep(1000);
-                                retryRecreate = true;
-                            }
-                        } while (retryRecreate);
+                        ctx.Client = CreateAgentClient(tasker, instanceConfig, identifier, retryOnFirstArgumentException: true);
                         timeOut = agentConfig.Timeout ?? -1;
                         if (timeOut > 0)
                             ctx.Client.SetTimeout(TimeSpan.FromSeconds(timeOut));

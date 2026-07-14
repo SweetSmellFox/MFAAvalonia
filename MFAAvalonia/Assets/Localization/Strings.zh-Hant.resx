@@ -2098,6 +2098,24 @@
   <data name="InstanceDropdownJustNow" xml:space="preserve">
     <value>剛剛</value>
   </data>
+  <data name="GlobalBatchStartup" xml:space="preserve">
+    <value>應用程式啟動時批次啟動</value>
+  </data>
+  <data name="GlobalBatchStartupDescription" xml:space="preserve">
+    <value>啟用後，應用程式啟動和啟動類計時器會依照下方各執行個體設定批次執行。</value>
+  </data>
+  <data name="InstanceStartupSettings" xml:space="preserve">
+    <value>各執行個體啟動設定</value>
+  </data>
+  <data name="RefreshInstanceList" xml:space="preserve">
+    <value>重新整理執行個體清單</value>
+  </data>
+  <data name="IncludeInBatchStartup" xml:space="preserve"><value>包含在批次啟動中</value></data>
+  <data name="ExtraLaunchItems" xml:space="preserve"><value>額外啟動項目</value></data>
+  <data name="ExtraLaunchItem" xml:space="preserve"><value>額外啟動項目</value></data>
+  <data name="AddExtraLaunchItem" xml:space="preserve"><value>新增啟動項目</value></data>
+  <data name="RemoveExtraLaunchItem" xml:space="preserve"><value>刪除啟動項目</value></data>
+  <data name="LaunchItemName" xml:space="preserve"><value>啟動項目名稱</value></data>
 </root>
 
 

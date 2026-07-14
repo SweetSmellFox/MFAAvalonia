@@ -193,7 +193,7 @@ public partial class TimerModel : ViewModelBase
 
         // 检查全局启动设置
         var globalStartEnabled = GlobalConfiguration.GetValue(ConfigurationKeys.GlobalStartEnabled, bool.FalseString) == bool.TrueString;
-        if (globalStartEnabled)
+        if (globalStartEnabled && timer.TimerAction == TimerActionType.StartTask)
         {
             await StartAllEmulatorsAndRunTasks();
             return;
@@ -227,7 +227,7 @@ public partial class TimerModel : ViewModelBase
 
     private static async Task StartAllEmulatorsAndRunTasks()
     {
-        await GlobalStartManager.StartAllAndRunTasksWithDelay();
+        await GlobalStartManager.StartAllAndRunTasks();
     }
 
     private void ExecuteAction(TimerProperties timer, TaskQueueViewModel vm)
