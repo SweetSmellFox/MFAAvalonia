@@ -513,6 +513,7 @@ public class MaaProcessor
     public void Dispose()
     {
         _isClosed = true;
+        DetachScreenshotTasker(requireStopped: true);
         _detachedScreenshotCleanupCancellationTokenSource?.Cancel();
         _detachedScreenshotCleanupCancellationTokenSource?.Dispose();
         lock (_detachedScreenshotTaskersLock)
@@ -648,6 +649,8 @@ public class MaaProcessor
     public MaaTasker? MaaTasker { get; set; }
     private MaaTasker? _screenshotTasker;
     private Task<MaaTasker?>? _screenshotTaskerInitTask;
+    private long _screenshotTaskerGeneration;
+    private long _screenshotTaskerInitGeneration;
     private readonly Lock _screenshotTaskerInitLock = new();
     private sealed class DetachedScreenshotTaskerRecord
     {
@@ -700,10 +703,10 @@ public class MaaProcessor
             // terminate them, even when MaaTasker is already null.
             var agentsStopped = AgentHelper.KillAllAgents(_agentContexts, oldTasker);
             ViewModel?.SetConnected(false);
-            DetachScreenshotTasker();
+            var screenshotTaskerStopped = DetachScreenshotTasker(requireAllStopped);
 
-            if (requireAllStopped && (!taskerStopped || !agentsStopped))
-                throw new InvalidOperationException("更新前未能停止所有 MaaTasker 或 Agent 进程。");
+            if (requireAllStopped && (!taskerStopped || !agentsStopped || !screenshotTaskerStopped))
+                throw new InvalidOperationException("更新前未能停止所有 MaaTasker、截图 Tasker 或 Agent 进程。");
         }
         else if (maaTasker != null)
         {
@@ -713,20 +716,88 @@ public class MaaProcessor
         }
     }
 
-    private void DetachScreenshotTasker()
+    private bool DetachScreenshotTasker(bool requireStopped = false)
     {
-        var screenshotTasker = _screenshotTasker;
-        _screenshotTasker = null;
+        MaaTasker? screenshotTasker;
+        Task<MaaTasker?>? initTask;
         lock (_screenshotTaskerInitLock)
         {
+            _screenshotTaskerGeneration++;
+            screenshotTasker = _screenshotTasker;
+            _screenshotTasker = null;
+            initTask = _screenshotTaskerInitTask;
             _screenshotTaskerInitTask = null;
         }
 
+        if (!requireStopped)
+        {
+            QueueDetachedScreenshotTasker(screenshotTasker);
+            return true;
+        }
+
+        var taskersToStop = new List<MaaTasker>();
+        AddUniqueScreenshotTasker(taskersToStop, screenshotTasker);
+
+        List<DetachedScreenshotTaskerRecord> detachedSnapshot;
+        lock (_detachedScreenshotTaskersLock)
+        {
+            detachedSnapshot = _detachedScreenshotTaskers.ToList();
+            _detachedScreenshotTaskers.Clear();
+        }
+        foreach (var record in detachedSnapshot)
+            AddUniqueScreenshotTasker(taskersToStop, record.Tasker);
+
+        var allStopped = true;
+        if (initTask != null)
+        {
+            try
+            {
+                if (!initTask.Wait(TimeSpan.FromSeconds(5)))
+                {
+                    allStopped = false;
+                    LoggerHelper.Warning("等待截图 Tasker 初始化结束超时：已等待 5 秒。");
+                }
+                else if (initTask.Status == TaskStatus.RanToCompletion)
+                {
+                    AddUniqueScreenshotTasker(taskersToStop, initTask.Result);
+                }
+                else if (initTask.IsFaulted)
+                {
+                    LoggerHelper.Warning($"截图 Tasker 初始化失败：{initTask.Exception?.GetBaseException().Message}");
+                }
+            }
+            catch (Exception ex)
+            {
+                allStopped = false;
+                LoggerHelper.Warning($"等待截图 Tasker 初始化结束失败：{ex.Message}");
+            }
+        }
+
+        foreach (var tasker in taskersToStop)
+        {
+            if (StopAndDisposeScreenshotTasker(tasker)) continue;
+            allStopped = false;
+            QueueDetachedScreenshotTasker(tasker);
+        }
+
+        return allStopped;
+    }
+
+    private static void AddUniqueScreenshotTasker(List<MaaTasker> taskers, MaaTasker? tasker)
+    {
+        if (tasker != null && taskers.All(existing => !ReferenceEquals(existing, tasker)))
+            taskers.Add(tasker);
+    }
+
+    private void QueueDetachedScreenshotTasker(MaaTasker? screenshotTasker)
+    {
         if (screenshotTasker == null)
             return;
 
         lock (_detachedScreenshotTaskersLock)
         {
+            if (_detachedScreenshotTaskers.Any(record => ReferenceEquals(record.Tasker, screenshotTasker)))
+                return;
             _detachedScreenshotTaskers.Add(new DetachedScreenshotTaskerRecord
             {
                 Tasker = screenshotTasker
@@ -734,6 +805,42 @@ public class MaaProcessor
         }
         EnsureDetachedScreenshotTaskerCleanupLoop();
         LoggerHelper.Warning("主连接上下文已变化，旧截图任务执行器已脱钩，等待按新连接重建。");
+    }
+
+    private bool StopAndDisposeScreenshotTasker(MaaTasker screenshotTasker)
+    {
+        try
+        {
+            var stopTask = Task.Run(() =>
+            {
+                if (screenshotTasker.IsStopping)
+                    throw new InvalidOperationException("截图 Tasker 仍处于停止过程中。");
+                if (screenshotTasker.IsRunning && !screenshotTasker.IsStopping)
+                    screenshotTasker.Stop().Wait();
+            });
+            if (!stopTask.Wait(TimeSpan.FromSeconds(5)))
+            {
+                LoggerHelper.Warning("停止截图 Tasker 超时：已等待 5 秒。");
+                return false;
+            }
+            if (stopTask.IsFaulted)
+            {
+                LoggerHelper.Warning($"停止截图 Tasker 失败：{stopTask.Exception?.GetBaseException().Message}");
+                return false;
+            }
+
+            screenshotTasker.Dispose();
+            return true;
+        }
+        catch (ObjectDisposedException)
+        {
+            return true;
+        }
+        catch (Exception ex)
+        {
+            LoggerHelper.Warning($"停止或释放截图 Tasker 失败：{ex.Message}");
+            return false;
+        }
     }
 
     private void EnsureDetachedScreenshotTaskerCleanupLoop()
@@ -916,10 +1023,16 @@ public class MaaProcessor
             return;
 
         Task<MaaTasker?> initTask;
+        long initGeneration;
         lock (_screenshotTaskerInitLock)
         {
-            _screenshotTaskerInitTask ??= InitializeScreenshotTaskerAsync(token);
+            if (_screenshotTaskerInitTask == null)
+            {
+                _screenshotTaskerInitGeneration = _screenshotTaskerGeneration;
+                _screenshotTaskerInitTask = InitializeScreenshotTaskerAsync(token);
+            }
             initTask = _screenshotTaskerInitTask;
+            initGeneration = _screenshotTaskerInitGeneration;
         }
 
         MaaTasker? tasker = null;
@@ -936,14 +1049,7 @@ public class MaaProcessor
             LoggerHelper.Warning($"截图任务执行器预热失败：{ex.Message}");
         }
 
-        lock (_screenshotTaskerInitLock)
-        {
-            if (_screenshotTasker == null)
-            {
-                _screenshotTasker = tasker;
-            }
-            _screenshotTaskerInitTask = null;
-        }
+        PublishInitializedScreenshotTasker(initTask, tasker, initGeneration);
     }
 
     private bool UseSeparateScreenshotTasker =>
@@ -965,26 +1071,50 @@ public class MaaProcessor
         if (_screenshotTasker == null && !_isClosed)
         {
             Task<MaaTasker?> initTask;
+            long initGeneration;
             lock (_screenshotTaskerInitLock)
             {
-                _screenshotTaskerInitTask ??= InitializeScreenshotTaskerAsync(token);
+                if (_screenshotTaskerInitTask == null)
+                {
+                    _screenshotTaskerInitGeneration = _screenshotTaskerGeneration;
+                    _screenshotTaskerInitTask = InitializeScreenshotTaskerAsync(token);
+                }
                 initTask = _screenshotTaskerInitTask;
+                initGeneration = _screenshotTaskerInitGeneration;
             }
 
             initTask.Wait(token);
             var tasker = initTask.Result;
 
-            lock (_screenshotTaskerInitLock)
-            {
-                if (_screenshotTasker == null)
-                {
-                    _screenshotTasker = tasker;
-                }
-                _screenshotTaskerInitTask = null;
-            }
+            PublishInitializedScreenshotTasker(initTask, tasker, initGeneration);
         }
 
         return _screenshotTasker;
+    }
+
+    private void PublishInitializedScreenshotTasker(
+        Task<MaaTasker?> initTask,
+        MaaTasker? tasker,
+        long initGeneration)
+    {
+        var accepted = false;
+        lock (_screenshotTaskerInitLock)
+        {
+            if (ReferenceEquals(_screenshotTaskerInitTask, initTask))
+                _screenshotTaskerInitTask = null;
+
+            if (tasker != null
+                && initGeneration == _screenshotTaskerGeneration
+                && MaaTasker != null
+                && !_isClosed)
+            {
+                _screenshotTasker ??= tasker;
+                accepted = ReferenceEquals(_screenshotTasker, tasker);
+            }
+        }
+
+        if (!accepted)
+            QueueDetachedScreenshotTasker(tasker);
     }
 
     private bool ShouldRecreateScreenshotTasker()
@@ -1018,36 +1148,7 @@ public class MaaProcessor
 
     private void DisposeScreenshotTasker()
     {
-        if (_screenshotTasker == null)
-            return;
-
-        var screenshotTasker = _screenshotTasker;
-        _screenshotTasker = null;
-        lock (_screenshotTaskerInitLock)
-        {
-            _screenshotTaskerInitTask = null;
-        }
-
-        try
-        {
-            if (screenshotTasker.IsRunning && !screenshotTasker.IsStopping)
-            {
-                screenshotTasker.Stop().Wait();
-            }
-        }
-        catch (Exception ex)
-        {
-            LoggerHelper.Warning($"停止截图任务执行器失败：{ex.Message}");
-        }
-
-        try
-        {
-            screenshotTasker.Dispose();
-        }
-        catch (Exception ex)
-        {
-            LoggerHelper.Warning($"释放截图任务执行器失败：{ex.Message}");
-        }
+        DetachScreenshotTasker(requireStopped: true);
     }
 
     public ObservableCollection<DragItemViewModel> TasksSource { get; private set; } =
