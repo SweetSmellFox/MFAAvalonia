@@ -822,65 +822,12 @@ public static class VersionChecker
                 try
                 {
                     var changesJson = JsonConvert.DeserializeObject<MirrorChangesJson>(changes);
-                    if (changesJson?.Deleted != null)
-                    {
-                        var delPaths = changesJson.Deleted
-                            .Select(del =>
-                            {
-                                var isSafe = TryGetSafeUpdateTargetPath(del, out var fullPath);
-                                if (!isSafe)
-                                    LoggerHelper.Warning($"跳过越界删除路径: {del}");
-                                return (isSafe, fullPath);
-                            })
-                            .Where(item => item.isSafe && File.Exists(item.fullPath))
-                            .Select(item => item.fullPath);
-
-                        foreach (var delPath in delPaths)
-                        {
-                            try
-                            {
-
-                                LoggerHelper.Info($"准备删除增量更新中标记为 Deleted 的文件：文件={delPath}");
-                                DeleteFileWithBackup(delPath);
-
-                            }
-                            catch (Exception e)
-                            {
-                                LoggerHelper.Error($"删除增量更新中标记为 Deleted 的文件失败：文件={delPath}，原因={e.Message}", e);
-                            }
-                        }
-                    }
-                    if (changesJson?.Modified != null)
-                    {
-                        var delPaths = changesJson.Modified
-                            .Select(del =>
-                            {
-                                var isSafe = TryGetSafeUpdateTargetPath(del, out var fullPath);
-                                if (!isSafe)
-                                    LoggerHelper.Warning($"跳过越界修改路径: {del}");
-                                return (isSafe, fullPath);
-                            })
-                            .Where(item => item.isSafe && File.Exists(item.fullPath))
-                            .Select(item => item.fullPath);
-
-                        foreach (var delPath in delPaths)
-                        {
-                            try
-                            {
-                                LoggerHelper.Info($"准备删除增量更新中标记为 Modified 的旧文件：文件={delPath}");
-                                DeleteFileWithBackup(delPath);
-                            }
-                            catch (Exception e)
-                            {
-                                LoggerHelper.Error($"删除增量更新中标记为 Modified 的旧文件失败：文件={delPath}，原因={e.Message}", e);
-                            }
-
-                        }
-                    }
+                    ApplyIncrementalDeletions(changesJson);
                 }
                 catch (Exception e)
                 {
                     LoggerHelper.Error($"处理增量更新文件列表失败：changes.json={changesPath}，原因={e.Message}", e);
+                    throw;
                 }
             }
         }
@@ -893,29 +840,6 @@ public static class VersionChecker
         {
             await CopyUpdatePayload(originPath, progress, true, default, copyDataFiles: true, copyInstallFiles: !containsCoreApplicationFiles);
         }
-
-        // 最后再更新 interface.json，避免先写元数据后拷资源导致半更新状态
-        var newInterfacePath = Path.Combine(wpfDir, "interface.json");
-        if (File.Exists(interfacePath))
-        {
-            var jsonContent = await File.ReadAllTextAsync(interfacePath);
-            var @interface = JObject.Parse(jsonContent);
-            if (@interface != null)
-            {
-                @interface["github"] = MaaProcessor.Interface?.Github ?? MaaProcessor.Interface?.Url;
-                @interface["version"] = latestVersion;
-            }
-            await File.WriteAllTextAsync(newInterfacePath, @interface.ToString(Formatting.Indented));
-        }
-
-        SetProgress(progress, 100);
-        SetStatusText(textBlock, downloadSpeedTextBlock, LangKeys.UpdateCompleted.ToLocalization());
-        Instances.RootViewModel.SetUpdating(false);
-
-        if (closeDialog)
-            Dismiss(sukiToast);
-        shouldShowToast = true;
-        action?.Invoke();
 
         var restartExecutablePath = exeName;
         if (containsCoreApplicationFiles)
@@ -950,6 +874,29 @@ public static class VersionChecker
             }
         }
 
+        // 所有数据和安装文件成功写入后再提交版本元数据。
+        var newInterfacePath = Path.Combine(wpfDir, "interface.json");
+        if (File.Exists(interfacePath))
+        {
+            var jsonContent = await File.ReadAllTextAsync(interfacePath);
+            var @interface = JObject.Parse(jsonContent);
+            if (@interface != null)
+            {
+                @interface["github"] = MaaProcessor.Interface?.Github ?? MaaProcessor.Interface?.Url;
+                @interface["version"] = latestVersion;
+            }
+            await File.WriteAllTextAsync(newInterfacePath, @interface.ToString(Formatting.Indented));
+        }
+
+        SetProgress(progress, 100);
+        SetStatusText(textBlock, downloadSpeedTextBlock, LangKeys.UpdateCompleted.ToLocalization());
+        Instances.RootViewModel.SetUpdating(false);
+
+        if (closeDialog)
+            Dismiss(sukiToast);
+        shouldShowToast = true;
+        action?.Invoke();
+
         // 重启前执行清理（保存配置、释放资源等）
         DispatcherHelper.PostOnMainThread(() => Instances.RootView.BeforeClosed(true, true));
         await RestartApplicationAsync(restartExecutablePath);
@@ -974,6 +921,76 @@ public static class VersionChecker
             }
         });
         LoggerHelper.Info("程序更新前所有 MaaTasker 和 Agent 进程已停止。");
+    }
+
+    private static void ApplyIncrementalDeletions(MirrorChangesJson? changes)
+    {
+        DeleteIncrementalFiles(changes?.Deleted, "Deleted");
+        DeleteIncrementalFiles(changes?.Modified, "Modified");
+
+        var directories = (changes?.DeletedDirectories ?? [])
+            .Select(relativePath =>
+            {
+                if (!TryGetSafeUpdateTargetPath(relativePath, out var fullPath))
+                    throw new InvalidDataException($"增量更新包含越界删除目录：{relativePath}");
+                return (relativePath, fullPath);
+            })
+            .Where(item => Directory.Exists(item.fullPath))
+            .OrderByDescending(item => item.fullPath.Count(c => c == Path.DirectorySeparatorChar || c == Path.AltDirectorySeparatorChar));
+
+        foreach (var (relativePath, fullPath) in directories)
+        {
+            LoggerHelper.Info($"准备删除增量更新中标记为 deleted_dir 的目录：相对路径={relativePath}，目录={fullPath}");
+            DeleteDirectoryForUpdate(relativePath, fullPath);
+        }
+
+        foreach (var relativePath in changes?.AddedDirectories ?? [])
+        {
+            if (!TryGetSafeUpdateTargetPath(relativePath, out var fullPath))
+                throw new InvalidDataException($"增量更新包含越界新增目录：{relativePath}");
+
+            LoggerHelper.Info($"准备创建增量更新中标记为 added_dir 的目录：相对路径={relativePath}，目录={fullPath}");
+            Directory.CreateDirectory(fullPath);
+        }
+    }
+
+    private static void DeleteIncrementalFiles(IEnumerable<string>? relativePaths, string changeType)
+    {
+        foreach (var relativePath in relativePaths ?? [])
+        {
+            if (!TryGetSafeUpdateTargetPath(relativePath, out var fullPath))
+                throw new InvalidDataException($"增量更新包含越界{changeType}路径：{relativePath}");
+            if (!File.Exists(fullPath))
+                continue;
+
+            LoggerHelper.Info($"准备删除增量更新中标记为 {changeType} 的文件：文件={fullPath}");
+            DeleteFileWithBackup(fullPath);
+            if (File.Exists(fullPath))
+                throw new IOException($"无法删除或备份增量更新文件：{fullPath}");
+        }
+    }
+
+    private static void DeleteDirectoryForUpdate(string relativePath, string directoryPath)
+    {
+        const int maxRetries = 5;
+        for (var attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                Directory.Delete(directoryPath, recursive: true);
+                return;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                if (attempt == maxRetries)
+                    break;
+                LoggerHelper.Warning($"删除增量更新目录失败，准备重试：第 {attempt}/{maxRetries} 次，目录={directoryPath}，原因={ex.Message}");
+                Thread.Sleep(500 * attempt);
+            }
+        }
+
+        PendingUpdateDeletionHelper.EnqueueDirectory(relativePath);
+        LoggerHelper.Warning($"删除增量更新目录失败，已加入下次启动待删除清单：相对路径={relativePath}，目录={directoryPath}");
     }
 
     /// <summary>
@@ -2810,6 +2827,8 @@ public static class VersionChecker
         [JsonProperty("modified")] public List<string>? Modified;
         [JsonProperty("deleted")] public List<string>? Deleted;
         [JsonProperty("added")] public List<string>? Added;
+        [JsonProperty("deleted_dir")] public List<string>? DeletedDirectories;
+        [JsonProperty("added_dir")] public List<string>? AddedDirectories;
         [JsonExtensionData]
         public Dictionary<string, object>? AdditionalData { get; set; } = new();
     }

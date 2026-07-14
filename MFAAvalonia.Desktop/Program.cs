@@ -49,6 +49,7 @@ sealed class Program
 
             LoggerHelper.InitializeLogger();
             Directory.SetCurrentDirectory(AppContext.BaseDirectory);
+            PendingUpdateDeletionHelper.ProcessPendingDirectories();
             PrivatePathHelper.CleanupDuplicateLibraries(AppContext.BaseDirectory, AppContext.GetData("SubdirectoriesToProbe") as string);
             PrivatePathHelper.SetupNativeLibraryResolver();
 
