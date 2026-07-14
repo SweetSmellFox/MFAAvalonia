@@ -745,6 +745,21 @@ public static class VersionChecker
             isIncrementalPackage,
             debugEnabled,
             dryRun);
+
+        if (dryRun)
+        {
+            SetProgress(progress, 100);
+            SetStatusText(textBlock, downloadSpeedTextBlock, "UpdateResource DryRun completed");
+            LoggerHelper.Warning($"[UpdateResourceDebug] 已启用 DryRun，跳过实际覆盖与重启。tempExtractDir={tempExtractDir}");
+            ToastHelper.Info("UpdateResource DryRun 已完成", tempExtractDir, 5000);
+            Instances.RootViewModel.SetUpdating(false);
+            if (closeDialog)
+                Dismiss(sukiToast);
+            action?.Invoke();
+            return;
+        }
+
+        await StopTaskersAndAgentsForUpdateAsync();
         LoggerHelper.Info((isGithub || isFull || currentVersion.Equals("v0.0.0", StringComparison.OrdinalIgnoreCase)) ? "全量更新" : "增量更新");
         if (isGithub || isFull || currentVersion.Equals("v0.0.0", StringComparison.OrdinalIgnoreCase))
         {
@@ -873,19 +888,6 @@ public static class VersionChecker
 
         SetProgress(progress, 1);
 
-        if (dryRun)
-        {
-            SetProgress(progress, 100);
-            SetStatusText(textBlock, downloadSpeedTextBlock, "UpdateResource DryRun completed");
-            LoggerHelper.Warning($"[UpdateResourceDebug] 已启用 DryRun，跳过实际覆盖与重启。tempExtractDir={tempExtractDir}");
-            ToastHelper.Info("UpdateResource DryRun 已完成", tempExtractDir, 5000);
-            Instances.RootViewModel.SetUpdating(false);
-            if (closeDialog)
-                Dismiss(sukiToast);
-            action?.Invoke();
-            return;
-        }
-
         var di = new DirectoryInfo(originPath);
         if (di.Exists)
         {
@@ -939,7 +941,7 @@ public static class VersionChecker
                 default,
                 copyDataFiles: false,
                 copyInstallFiles: true,
-                continueOnCopyFailure: true,
+                continueOnCopyFailure: false,
                 skipRunningExecutable: true);
 
             if (HasExecutableFileNameChanged(exeName, restartExecutablePath))
@@ -951,6 +953,27 @@ public static class VersionChecker
         // 重启前执行清理（保存配置、释放资源等）
         DispatcherHelper.PostOnMainThread(() => Instances.RootView.BeforeClosed(true, true));
         await RestartApplicationAsync(restartExecutablePath);
+    }
+
+    private static async Task StopTaskersAndAgentsForUpdateAsync()
+    {
+        LoggerHelper.Info("程序更新前开始停止所有 MaaTasker 和 Agent 进程。");
+        await Task.Run(() =>
+        {
+            foreach (var processor in MaaProcessor.Processors.ToList())
+            {
+                try
+                {
+                    processor.SetTasker();
+                }
+                catch (Exception ex)
+                {
+                    LoggerHelper.Error($"程序更新前清理实例失败：实例ID={processor.InstanceId}，原因={ex.Message}", ex);
+                    throw;
+                }
+            }
+        });
+        LoggerHelper.Info("程序更新前所有 MaaTasker 和 Agent 进程已停止。");
     }
 
     /// <summary>
