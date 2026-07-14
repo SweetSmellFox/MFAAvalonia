@@ -290,6 +290,7 @@ public partial class RootView : SukiWindow
                             {
                                 MaaControllerTypes.Adb => "Emulator",
                                 MaaControllerTypes.Win32 => "Window",
+                                MaaControllerTypes.MacOS => "Window",
                                 MaaControllerTypes.PlayCover => "TabPlayCover",
                                 _ => "Window"
                             };
