@@ -40,8 +40,8 @@ public partial class ConnectSettingsUserControlModel : ViewModelBase
                 AdbInputMethods.None, [AdbInputMethods.All, AdbInputMethods.Default],
                 new UniversalEnumConverter<AdbInputMethods>());
             Win32ControlScreenCapType = config.GetValue(ConfigurationKeys.Win32ControlScreenCapType,
-                Win32ScreencapMethod.FramePool, Win32ScreencapMethod.None,
-                new UniversalEnumConverter<Win32ScreencapMethod>());
+                Win32ScreencapMethods.FramePool, Win32ScreencapMethods.None,
+                new UniversalEnumConverter<Win32ScreencapMethods>());
             Win32ControlMouseType = config.GetValue(ConfigurationKeys.Win32ControlMouseType,
                 Win32InputMethod.SendMessage, Win32InputMethod.None,
                 new UniversalEnumConverter<Win32InputMethod>());
@@ -143,9 +143,9 @@ public partial class ConnectSettingsUserControlModel : ViewModelBase
             Other = AdbInputMethods.EmulatorExtras
         },
     ];
-    public static ObservableCollection<Win32ScreencapMethod> Win32ControlScreenCapTypes =>
+    public static ObservableCollection<Win32ScreencapMethods> Win32ControlScreenCapTypes =>
     [
-        Win32ScreencapMethod.FramePool, Win32ScreencapMethod.DXGI_DesktopDup, Win32ScreencapMethod.DXGI_DesktopDup_Window, Win32ScreencapMethod.PrintWindow, Win32ScreencapMethod.ScreenDC, Win32ScreencapMethod.GDI
+        Win32ScreencapMethods.FramePool, Win32ScreencapMethods.DXGI_DesktopDup, Win32ScreencapMethods.DXGI_DesktopDup_Window, Win32ScreencapMethods.PrintWindow, Win32ScreencapMethods.ScreenDC, Win32ScreencapMethods.GDI
     ];
     public static ObservableCollection<Win32InputMethod> Win32ControlInputTypes =>
     [
@@ -158,8 +158,8 @@ public partial class ConnectSettingsUserControlModel : ViewModelBase
         ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.AdbControlScreenCapType, AdbScreencapMethods.None, [AdbScreencapMethods.All, AdbScreencapMethods.Default], new UniversalEnumConverter<AdbScreencapMethods>());
     [ObservableProperty] private AdbInputMethods _adbControlInputType =
         ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.AdbControlInputType, AdbInputMethods.None, [AdbInputMethods.All, AdbInputMethods.Default], new UniversalEnumConverter<AdbInputMethods>());
-    [ObservableProperty] private Win32ScreencapMethod _win32ControlScreenCapType =
-        ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.Win32ControlScreenCapType, Win32ScreencapMethod.FramePool, Win32ScreencapMethod.None, new UniversalEnumConverter<Win32ScreencapMethod>());
+    [ObservableProperty] private Win32ScreencapMethods _win32ControlScreenCapType =
+        ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.Win32ControlScreenCapType, Win32ScreencapMethods.FramePool, Win32ScreencapMethods.None, new UniversalEnumConverter<Win32ScreencapMethods>());
     [ObservableProperty] private Win32InputMethod _win32ControlMouseType =
         ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.Win32ControlMouseType, Win32InputMethod.SendMessage, Win32InputMethod.None, new UniversalEnumConverter<Win32InputMethod>());
     [ObservableProperty] private Win32InputMethod _win32ControlKeyboardType =
@@ -177,7 +177,7 @@ public partial class ConnectSettingsUserControlModel : ViewModelBase
         HandlePropertyChanged(ConfigurationKeys.AdbControlInputType, value.ToString(), () => MaaProcessorManager.Instance.Current.SetTasker());
     }
 
-    partial void OnWin32ControlScreenCapTypeChanged(Win32ScreencapMethod value)
+    partial void OnWin32ControlScreenCapTypeChanged(Win32ScreencapMethods value)
     {
         if (IsSyncing) return;
         HandlePropertyChanged(ConfigurationKeys.Win32ControlScreenCapType, value.ToString(), () => MaaProcessorManager.Instance.Current.SetTasker());

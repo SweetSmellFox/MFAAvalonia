@@ -530,8 +530,8 @@ public static partial class Instances
                         MaaFramework.Binding.AdbInputMethods.All,
                         MaaFramework.Binding.AdbInputMethods.Default
                     }, new Converters.UniversalEnumConverter<MaaFramework.Binding.AdbInputMethods>());
-                    connect.Win32ControlScreenCapType = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.Win32ControlScreenCapType, MaaFramework.Binding.Win32ScreencapMethod.FramePool, MaaFramework.Binding.Win32ScreencapMethod.None,
-                        new Converters.UniversalEnumConverter<MaaFramework.Binding.Win32ScreencapMethod>());
+                    connect.Win32ControlScreenCapType = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.Win32ControlScreenCapType, MaaFramework.Binding.Win32ScreencapMethods.FramePool, MaaFramework.Binding.Win32ScreencapMethods.None,
+                        new Converters.UniversalEnumConverter<MaaFramework.Binding.Win32ScreencapMethods>());
                     connect.Win32ControlMouseType = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.Win32ControlMouseType, MaaFramework.Binding.Win32InputMethod.SendMessage, MaaFramework.Binding.Win32InputMethod.None,
                         new Converters.UniversalEnumConverter<MaaFramework.Binding.Win32InputMethod>());
                     connect.Win32ControlKeyboardType = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.Win32ControlKeyboardType, MaaFramework.Binding.Win32InputMethod.SendMessage, MaaFramework.Binding.Win32InputMethod.None,

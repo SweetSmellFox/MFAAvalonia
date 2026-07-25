@@ -652,6 +652,7 @@ public class MaaProcessor
     private long _screenshotTaskerGeneration;
     private long _screenshotTaskerInitGeneration;
     private readonly Lock _screenshotTaskerInitLock = new();
+
     private sealed class DetachedScreenshotTaskerRecord
     {
         public MaaTasker Tasker { get; init; } = null!;
@@ -2057,18 +2058,32 @@ public class MaaProcessor
                 if (logConfig)
                 {
                     LoggerHelper.Info("当前控制器类型：MacOS");
-                    LoggerHelper.Info($"窗口名称：{Config.DesktopWindow.Name}");
-                    LoggerHelper.Info($"窗口句柄：{Config.DesktopWindow.HWnd}");
+                    LoggerHelper.Info($"窗口名称：{Config.MacOSWindow.Name}");
+                    LoggerHelper.Info($"窗口 ID：{Config.MacOSWindow.WindowId}");
                     LoggerHelper.Info($"截图模式：{Config.MacOSWindow.ScreenCap}");
                     LoggerHelper.Info($"输入模式：{Config.MacOSWindow.Input}");
                 }
 
                 return new MaaMacOSController(
-                    new DesktopWindowInfo(Config.DesktopWindow.HWnd, Config.DesktopWindow.Name, string.Empty),
+                    Config.MacOSWindow.WindowId,
                     Config.MacOSWindow.ScreenCap,
                     Config.MacOSWindow.Input,
                     Config.MacOSWindow.Link,
                     Config.MacOSWindow.Check);
+
+            case MaaControllerTypes.WlRoots:
+                if (logConfig)
+                {
+                    LoggerHelper.Info("当前控制器类型：WlRoots");
+                    LoggerHelper.Info($"Wayland Socket：{Config.WlRoots.SocketPath}");
+                    LoggerHelper.Info($"使用 Win32 VK 键码：{Config.WlRoots.UseWin32VirtualKeyCodes}");
+                }
+
+                return new MaaWlRootsController(
+                    Config.WlRoots.SocketPath,
+                    Config.WlRoots.UseWin32VirtualKeyCodes,
+                    Config.WlRoots.Link,
+                    Config.WlRoots.Check);
 
             case MaaControllerTypes.Gamepad:
                 // Gamepad 控制器使用 Win32 控制器的配置，但会创建虚拟手柄
@@ -2455,7 +2470,7 @@ public class MaaProcessor
                     }
                     catch (Exception ex)
                     {
-                    LoggerHelper.Warning($"创建资源目录失败：{rp}，原因：{ex.Message}");
+                        LoggerHelper.Warning($"创建资源目录失败：{rp}，原因：{ex.Message}");
                     }
                 }
             }
@@ -2644,11 +2659,11 @@ public class MaaProcessor
         }
     }
 
-    private Win32ScreencapMethod ConfigureWin32ScreenCapTypes()
+    private Win32ScreencapMethods ConfigureWin32ScreenCapTypes()
     {
         return InstanceConfiguration.GetValue(ConfigurationKeys.Win32ControlScreenCapType,
-            Win32ScreencapMethod.FramePool, Win32ScreencapMethod.None,
-            new UniversalEnumConverter<Win32ScreencapMethod>());
+            Win32ScreencapMethods.FramePool, Win32ScreencapMethods.None,
+            new UniversalEnumConverter<Win32ScreencapMethods>());
     }
 
     private Win32InputMethod ConfigureWin32MouseInputTypes()
@@ -2904,7 +2919,7 @@ public class MaaProcessor
     {
         ProcessHelper.HardRestartAdb(Config.AdbDevice.AdbPath);
     }
-    
+
     public async Task TestConnecting()
     {
         if (Interlocked.CompareExchange(ref _isConnecting, 1, 0) != 0)
@@ -2968,24 +2983,24 @@ public class MaaProcessor
         var currentControllerName = ViewModel?.GetCurrentControllerName();
 
         return source?
-                   .Where(task =>
-                   {
-                       if (task.IsResourceOptionItem)
-                       {
-                           return false;
-                       }
+                .Where(task =>
+                {
+                    if (task.IsResourceOptionItem)
+                    {
+                        return false;
+                    }
 
-                       var isSupported = task.SupportsResource(currentResourceName)
-                                         && task.SupportsController(currentControllerName);
+                    var isSupported = task.SupportsResource(currentResourceName)
+                        && task.SupportsController(currentControllerName);
 
-                       task.IsResourceSupported = task.SupportsResource(currentResourceName);
-                       task.IsControllerSupported = task.SupportsController(currentControllerName);
-                       task.IsTaskSupported = isSupported;
+                    task.IsResourceSupported = task.SupportsResource(currentResourceName);
+                    task.IsControllerSupported = task.SupportsController(currentControllerName);
+                    task.IsTaskSupported = isSupported;
 
-                       return (ignoreCheckedState || task.IsChecked || task.IsCheckedWithNull == null) && isSupported;
-                   })
-                   .ToList()
-                    ?? new List<DragItemViewModel>();
+                    return (ignoreCheckedState || task.IsChecked || task.IsCheckedWithNull == null) && isSupported;
+                })
+                .ToList()
+            ?? new List<DragItemViewModel>();
     }
 
     public CancellationTokenSource? CancellationTokenSource
@@ -3429,7 +3444,7 @@ public class MaaProcessor
     {
         var controllerType = ViewModel?.CurrentController ?? MaaControllerTypes.None;
         return MaaInterfaceActivationHelper.ResolveControllerName(Interface, controllerType)
-               ?? controllerType.ToJsonKey();
+            ?? controllerType.ToJsonKey();
     }
 
     private void InitializeConnectionTasksAsync(CancellationToken token)
@@ -3640,11 +3655,11 @@ public class MaaProcessor
     private bool ShouldStrictMatchSavedAdbTarget()
     {
         return (ViewModel?.CurrentController ?? MaaControllerTypes.Adb) == MaaControllerTypes.Adb
-               && InstanceConfiguration.GetValue(ConfigurationKeys.RememberAdb, true)
-               && InstanceConfiguration.TryGetValue(ConfigurationKeys.AdbDevice, out AdbDeviceInfo _,
-                   new UniversalEnumConverter<AdbInputMethods>(), new UniversalEnumConverter<AdbScreencapMethods>())
-               && InstanceConfiguration.GetValue(ConfigurationKeys.RetryOnDisconnected, false)
-               && CanStartSoftware(out _);
+            && InstanceConfiguration.GetValue(ConfigurationKeys.RememberAdb, true)
+            && InstanceConfiguration.TryGetValue(ConfigurationKeys.AdbDevice, out AdbDeviceInfo _,
+                new UniversalEnumConverter<AdbInputMethods>(), new UniversalEnumConverter<AdbScreencapMethods>())
+            && InstanceConfiguration.GetValue(ConfigurationKeys.RetryOnDisconnected, false)
+            && CanStartSoftware(out _);
     }
 
     async private Task<bool> RetryConnectionAsync(CancellationToken token, bool showMessage, Func<Task> action, string logKey, bool enable = true, Action? other = null)

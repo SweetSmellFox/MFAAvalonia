@@ -922,14 +922,18 @@ public partial class MaaInterface
 
     public class MaaResourceControllerMacOS
     {
-        [JsonProperty("class_regex")]
-        public string? ClassRegex { get; set; }
-        [JsonProperty("window_regex")]
-        public string? WindowRegex { get; set; }
+        [JsonProperty("title_regex")]
+        public string? TitleRegex { get; set; }
         [JsonProperty("input")]
         public object? Input { get; set; }
         [JsonProperty("screencap")]
         public object? ScreenCap { get; set; }
+    }
+
+    public class MaaResourceControllerWlRoots
+    {
+        [JsonProperty("use_win32_vk_code")]
+        public bool UseWin32VkCode { get; set; }
     }
 
     /// <summary>
@@ -1041,6 +1045,8 @@ public partial class MaaInterface
         public MaaResourceControllerGamepad? Gamepad { get; set; }
         [JsonProperty("macos")]
         public MaaResourceControllerMacOS? MacOS { get; set; }
+        [JsonProperty("wlroots")]
+        public MaaResourceControllerWlRoots? WlRoots { get; set; }
 
         /// <summary>显示名称（用于 UI 绑定）</summary>
         [ObservableProperty] [JsonIgnore] private string _displayName = string.Empty;

@@ -10,8 +10,9 @@ public class MaaFWConfiguration
     public AdbDeviceCoreConfig AdbDevice { get; set; } = new();
     public DesktopWindowCoreConfig DesktopWindow { get; set; } = new();
     public MacOSWindowCoreConfig MacOSWindow { get; set; } = new();
-    
-    public PlayCoverCoreConfig  PlayCover { get; set; } = new();
+    public WlRootsCoreConfig WlRoots { get; set; } = new();
+
+    public PlayCoverCoreConfig PlayCover { get; set; } = new();
 }
 
 /// <summary>
@@ -23,7 +24,7 @@ public class DesktopWindowCoreConfig
     public nint HWnd { get; set; }
     public Win32InputMethod Mouse { get; set; } = Win32InputMethod.SendMessage;
     public Win32InputMethod KeyBoard { get; set; } = Win32InputMethod.SendMessage;
-    public Win32ScreencapMethod ScreenCap { get; set; } = Win32ScreencapMethod.FramePool;
+    public Win32ScreencapMethods ScreenCap { get; set; } = Win32ScreencapMethods.FramePool;
     public LinkOption Link { get; set; } = LinkOption.Start;
     public CheckStatusOption Check { get; set; } = CheckStatusOption.ThrowIfNotSucceeded;
 }
@@ -57,8 +58,18 @@ public class PlayCoverCoreConfig
 /// </summary>
 public class MacOSWindowCoreConfig
 {
+    public uint WindowId { get; set; }
+    public string Name { get; set; } = string.Empty;
     public MacOSScreencapMethod ScreenCap { get; set; } = MacOSScreencapMethod.ScreenCaptureKit;
     public MacOSInputMethod Input { get; set; } = MacOSInputMethod.GlobalEvent;
+    public LinkOption Link { get; set; } = LinkOption.Start;
+    public CheckStatusOption Check { get; set; } = CheckStatusOption.ThrowIfNotSucceeded;
+}
+
+public class WlRootsCoreConfig
+{
+    public string SocketPath { get; set; } = string.Empty;
+    public bool UseWin32VirtualKeyCodes { get; set; }
     public LinkOption Link { get; set; } = LinkOption.Start;
     public CheckStatusOption Check { get; set; } = CheckStatusOption.ThrowIfNotSucceeded;
 }

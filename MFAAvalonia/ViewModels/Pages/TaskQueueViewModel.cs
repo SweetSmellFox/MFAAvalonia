@@ -105,6 +105,8 @@ public partial class TaskQueueViewModel : ViewModelBase
         {
             AdbDeviceInfo adb => $"{adb.Name} ({adb.AdbSerial})",
             DesktopWindowInfo win => $"{win.Name} (0x{win.Handle.ToInt64():X})",
+            MacOSWindowInfo macOS => $"{macOS.Name} ({macOS.WindowId})",
+            WlRootsSocketInfo wlRoots => wlRoots.SocketPath,
             null => "<none>",
             _ => CurrentDevice.ToString() ?? "<unknown>"
         };
@@ -356,6 +358,9 @@ public partial class TaskQueueViewModel : ViewModelBase
         if (type.Contains("macos", StringComparison.OrdinalIgnoreCase))
             return OperatingSystem.IsMacOS();
 
+        if (type.Contains("wlroots", StringComparison.OrdinalIgnoreCase))
+            return OperatingSystem.IsLinux();
+
         return true;
     }
 
@@ -406,6 +411,16 @@ public partial class TaskQueueViewModel : ViewModelBase
             };
             macOSController.InitializeDisplayName();
             controllers.Add(macOSController);
+        }
+        if (OperatingSystem.IsLinux())
+        {
+            var wlRootsController = new MaaInterface.MaaResourceController
+            {
+                Name = "WlRoots",
+                Type = MaaControllerTypes.WlRoots.ToJsonKey()
+            };
+            wlRootsController.InitializeDisplayName();
+            controllers.Add(wlRootsController);
         }
         return controllers;
     }
@@ -1119,7 +1134,8 @@ public partial class TaskQueueViewModel : ViewModelBase
         }, DispatcherPriority.Background);
     }
 
-    private static bool IsSelectableDevice(object? value) => value is AdbDeviceInfo or DesktopWindowInfo;
+    private static bool IsSelectableDevice(object? value) =>
+        value is AdbDeviceInfo or DesktopWindowInfo or MacOSWindowInfo or WlRootsSocketInfo;
 
     private static EmptyDevicePlaceholder CreateEmptyDevicePlaceholder(MaaControllerTypes controllerType) =>
         controllerType == MaaControllerTypes.Adb
@@ -1305,11 +1321,22 @@ public partial class TaskQueueViewModel : ViewModelBase
         {
             SetConnected(false);
         }
+        else if (value is MacOSWindowInfo macOSWindow)
+        {
+            if (!igoreToast)
+                ToastHelper.Info(LangKeys.WindowSelectionMessage.ToLocalizationFormatted(false, ""), macOSWindow.Name);
+            var isSameWindow = Processor.Config.MacOSWindow.WindowId == macOSWindow.WindowId
+                && macOSWindow.WindowId != 0;
+            Processor.Config.MacOSWindow.Name = macOSWindow.Name;
+            Processor.Config.MacOSWindow.WindowId = macOSWindow.WindowId;
+            Processor.InstanceConfiguration.SetValue(ConfigurationKeys.DesktopWindowName, macOSWindow.Name);
+            if (!Processor.IsConnecting && !isSameWindow)
+                Task.Run(() => Processor.SetTasker());
+        }
         else if (value is DesktopWindowInfo window)
         {
             if (!igoreToast) ToastHelper.Info(LangKeys.WindowSelectionMessage.ToLocalizationFormatted(false, ""), window.Name);
-            var isSameWindow = Processor.Config.DesktopWindow.HWnd == window.Handle
-                && Processor.Config.DesktopWindow.HWnd != IntPtr.Zero;
+            var isSameWindow = Processor.Config.DesktopWindow.HWnd == window.Handle && window.Handle != IntPtr.Zero;
             Processor.Config.DesktopWindow.Name = window.Name;
             Processor.Config.DesktopWindow.HWnd = window.Handle;
             // 记录 ClassName 和 WindowName，下次启动时优先匹配
@@ -1335,6 +1362,17 @@ public partial class TaskQueueViewModel : ViewModelBase
             if (!Processor.IsConnecting && !isSameDevice)
                 Task.Run(() => Processor.SetTasker());
             Processor.InstanceConfiguration.SetValue(ConfigurationKeys.AdbDevice, device);
+        }
+        else if (value is WlRootsSocketInfo socket && CurrentController == MaaControllerTypes.WlRoots)
+        {
+            var isSameSocket = string.Equals(
+                Processor.Config.WlRoots.SocketPath,
+                socket.SocketPath,
+                StringComparison.Ordinal);
+            Processor.Config.WlRoots.SocketPath = socket.SocketPath;
+            Processor.InstanceConfiguration.SetValue(ConfigurationKeys.WlRootsSocketPath, socket.SocketPath);
+            if (!Processor.IsConnecting && !isSameSocket)
+                Task.Run(() => Processor.SetTasker());
         }
     }
 
@@ -1539,8 +1577,12 @@ public partial class TaskQueueViewModel : ViewModelBase
             MaaControllerTypes.PlayCover => false,
             MaaControllerTypes.Adb => CurrentDevice is not AdbDeviceInfo adbInfo
                 || string.IsNullOrWhiteSpace(adbInfo.AdbSerial),
-            MaaControllerTypes.Win32 or MaaControllerTypes.Gamepad or MaaControllerTypes.MacOS => CurrentDevice is not DesktopWindowInfo window
+            MaaControllerTypes.Win32 or MaaControllerTypes.Gamepad => CurrentDevice is not DesktopWindowInfo window
                 || window.Handle == IntPtr.Zero,
+            MaaControllerTypes.MacOS => CurrentDevice is not MacOSWindowInfo macOSWindow
+                || macOSWindow.WindowId == 0,
+            MaaControllerTypes.WlRoots => CurrentDevice is not WlRootsSocketInfo socket
+                || string.IsNullOrWhiteSpace(socket.SocketPath),
             _ => CurrentDevice == null,
         };
     }
@@ -1674,7 +1716,13 @@ public partial class TaskQueueViewModel : ViewModelBase
             ToastHelper.Info(GetDetectionMessage(controllerType));
         SetConnected(false);
         token.ThrowIfCancellationRequested();
-        var (devices, index) = isAdb ? DetectAdbDevices(strictLaunchTarget) : DetectDesktopWindows(controllerType);
+        var (devices, index) = isAdb
+            ? DetectAdbDevices(strictLaunchTarget)
+            : controllerType == MaaControllerTypes.MacOS
+                ? DetectMacOsWindows(controllerType)
+                : controllerType == MaaControllerTypes.WlRoots
+                    ? DetectWlRootsSockets()
+                : DetectDesktopWindows(controllerType);
         token.ThrowIfCancellationRequested();
         UpdateDeviceList(devices, index);
         token.ThrowIfCancellationRequested();
@@ -1801,6 +1849,38 @@ public partial class TaskQueueViewModel : ViewModelBase
         return (new(filtered), index);
     }
 
+    private (ObservableCollection<object> devices, int index) DetectMacOsWindows(MaaControllerTypes controllerType)
+    {
+        Thread.Sleep(500);
+        // Binding currently exposes macOS window discovery through the cross-platform Desktop.Window API.
+        var windows = MaaProcessor.Toolkit.Desktop.Window.Find()
+            .Where(window => window.Handle != IntPtr.Zero && !string.IsNullOrWhiteSpace(window.Name))
+            .ToList();
+        var (index, filtered) = CalculateWindowIndex(windows, controllerType);
+        var macOSWindows = filtered
+            .Select(window => new MacOSWindowInfo(checked((uint)(nuint)window.Handle), window.Name))
+            .Cast<object>();
+        return (new ObservableCollection<object>(macOSWindows), index);
+    }
+
+    private (ObservableCollection<object> devices, int index) DetectWlRootsSockets()
+    {
+        Thread.Sleep(500);
+        var sockets = MaaProcessor.Toolkit.Desktop.Window.Find()
+            .Select(window => window.Name?.Trim())
+            .Where(socket => !string.IsNullOrWhiteSpace(socket))
+            .Distinct(StringComparer.Ordinal)
+            .Select(socket => new WlRootsSocketInfo(socket!))
+            .Cast<object>()
+            .ToList();
+        var savedSocket = Processor.InstanceConfiguration.GetValue(
+            ConfigurationKeys.WlRootsSocketPath,
+            Processor.Config.WlRoots.SocketPath);
+        var index = sockets.FindIndex(socket => socket is WlRootsSocketInfo info
+            && string.Equals(info.SocketPath, savedSocket, StringComparison.Ordinal));
+        return (new ObservableCollection<object>(sockets), index >= 0 ? index : 0);
+    }
+
     private (int index, List<DesktopWindowInfo> afterFiltered) CalculateWindowIndex(List<DesktopWindowInfo> windows, MaaControllerTypes controllerType)
     {
         var controller = MaaProcessor.Interface?.Controller?
@@ -1810,7 +1890,7 @@ public partial class TaskQueueViewModel : ViewModelBase
             || controllerType == MaaControllerTypes.Gamepad && controller?.Gamepad == null
             || controllerType == MaaControllerTypes.Win32 && controller?.Win32 == null)
         {
-            var idx = MatchPreviousWindow(windows);
+            var idx = MatchPreviousWindow(windows, controllerType);
             return (idx >= 0 ? idx : Math.Max(0, windows.FindIndex(win => !string.IsNullOrWhiteSpace(win.Name))), windows);
         }
 
@@ -1824,7 +1904,7 @@ public partial class TaskQueueViewModel : ViewModelBase
             _ => ApplyRegexFilters(filtered, controller!.Win32!)
         };
 
-        var matchedIdx = MatchPreviousWindow(filtered);
+        var matchedIdx = MatchPreviousWindow(filtered, controllerType);
         return (matchedIdx >= 0 ? matchedIdx : (filtered.Count > 0 ? 0 : 0), filtered.ToList());
     }
 
@@ -1833,10 +1913,26 @@ public partial class TaskQueueViewModel : ViewModelBase
     /// 当 CurrentDevice 为 null（启动初始化时）会从保存的配置中读取上次选中的窗口信息进行匹配，
     /// 后续刷新时 CurrentDevice 已有值，不会走配置回退逻辑。
     /// </summary>
-    private int MatchPreviousWindow(List<DesktopWindowInfo> windows)
+    private int MatchPreviousWindow(List<DesktopWindowInfo> windows, MaaControllerTypes controllerType)
     {
         if (windows.Count == 0)
             return -1;
+
+        if (controllerType == MaaControllerTypes.MacOS)
+        {
+            if (CurrentDevice is MacOSWindowInfo currentMacOSWindow)
+            {
+                var currentMatch = windows.FindIndex(window =>
+                    checked((uint)(nuint)window.Handle) == currentMacOSWindow.WindowId);
+                if (currentMatch >= 0)
+                    return currentMatch;
+            }
+
+            var savedTitle = Processor.InstanceConfiguration.GetValue(ConfigurationKeys.DesktopWindowName, string.Empty);
+            return string.IsNullOrWhiteSpace(savedTitle)
+                ? -1
+                : windows.FindIndex(window => string.Equals(window.Name, savedTitle, StringComparison.Ordinal));
+        }
 
         // 优先从内存中的当前设备匹配（用于同一会话内的刷新）
         if (CurrentDevice is DesktopWindowInfo prev)
@@ -1877,7 +1973,13 @@ public partial class TaskQueueViewModel : ViewModelBase
         => ApplyRegexFilters(windows, win32.ClassRegex, win32.WindowRegex);
 
     private List<DesktopWindowInfo> ApplyRegexFilters(List<DesktopWindowInfo> windows, MaaInterface.MaaResourceControllerMacOS macOS)
-        => ApplyRegexFilters(windows, macOS.ClassRegex, macOS.WindowRegex);
+    {
+        if (string.IsNullOrWhiteSpace(macOS.TitleRegex))
+            return windows;
+
+        var titleRegex = new Regex(macOS.TitleRegex);
+        return windows.Where(window => titleRegex.IsMatch(window.Name)).ToList();
+    }
 
     private List<DesktopWindowInfo> ApplyRegexFilters(List<DesktopWindowInfo> windows, MaaInterface.MaaResourceControllerGamepad gamepad)
         => ApplyRegexFilters(windows, gamepad.ClassRegex, gamepad.WindowRegex);
@@ -1947,6 +2049,12 @@ public partial class TaskQueueViewModel : ViewModelBase
             .FirstOrDefault(c => c.Type?.Equals(controllerType.ToJsonKey(), StringComparison.OrdinalIgnoreCase) == true);
 
         if (controller == null) return;
+
+        if (controllerType == MaaControllerTypes.WlRoots)
+        {
+            Processor.Config.WlRoots.UseWin32VirtualKeyCodes = controller.WlRoots?.UseWin32VkCode ?? false;
+            return;
+        }
 
         var isAdb = controllerType == MaaControllerTypes.Adb;
         HandleInputSettings(controller, isAdb);
@@ -2038,16 +2146,16 @@ public partial class TaskQueueViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// 解析 Win32ScreencapMethod，支持旧版 long 格式和新版 string 格式
+    /// 解析 Win32ScreencapMethods，支持旧版 long 格式和新版 string 格式
     /// </summary>
-    private static Win32ScreencapMethod? ParseWin32ScreencapMethod(object? value)
+    private static Win32ScreencapMethods? ParseWin32ScreencapMethods(object? value)
     {
         if (value == null) return null;
 
         // 新版 string 格式（枚举名）
         if (value is string strValue)
         {
-            if (Enum.TryParse<Win32ScreencapMethod>(strValue, ignoreCase: true, out var result))
+            if (Enum.TryParse<Win32ScreencapMethods>(strValue, ignoreCase: true, out var result))
                 return result;
             return null;
         }
@@ -2056,12 +2164,12 @@ public partial class TaskQueueViewModel : ViewModelBase
         var longValue = Convert.ToInt64(value);
         return longValue switch
         {
-            1 => Win32ScreencapMethod.GDI,
-            2 => Win32ScreencapMethod.FramePool,
-            4 => Win32ScreencapMethod.DXGI_DesktopDup,
-            8 => Win32ScreencapMethod.DXGI_DesktopDup_Window,
-            16 => Win32ScreencapMethod.PrintWindow,
-            32 => Win32ScreencapMethod.ScreenDC,
+            1 => Win32ScreencapMethods.GDI,
+            2 => Win32ScreencapMethods.FramePool,
+            4 => Win32ScreencapMethods.DXGI_DesktopDup,
+            8 => Win32ScreencapMethods.DXGI_DesktopDup_Window,
+            16 => Win32ScreencapMethods.PrintWindow,
+            32 => Win32ScreencapMethods.ScreenDC,
             _ => null
         };
     }
@@ -2130,7 +2238,7 @@ public partial class TaskQueueViewModel : ViewModelBase
 
             var screenCap = controller.Win32?.ScreenCap;
             if (screenCap == null) return;
-            var parsed = ParseWin32ScreencapMethod(screenCap);
+            var parsed = ParseWin32ScreencapMethods(screenCap);
             if (parsed != null)
                 Instances.ConnectSettingsUserControlModel.Win32ControlScreenCapType = parsed.Value;
         }

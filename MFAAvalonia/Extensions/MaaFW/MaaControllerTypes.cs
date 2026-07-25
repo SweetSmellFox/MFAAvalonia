@@ -9,6 +9,7 @@ public enum MaaControllerTypes
     PlayCover = 4,
     Gamepad = 8,
     MacOS = 16,
+    WlRoots = 32,
 }
 
 public static class MaaControllerHelper
@@ -24,6 +25,7 @@ public static class MaaControllerHelper
                 MaaControllerTypes.PlayCover => "TabPlayCover",
                 MaaControllerTypes.Gamepad => "TabGamepad",
                 MaaControllerTypes.MacOS => "TabMacOS",
+                MaaControllerTypes.WlRoots => "WlRoots",
                 _ => "TabADB"
             };
         }
@@ -36,6 +38,7 @@ public static class MaaControllerHelper
                 MaaControllerTypes.PlayCover => "playcover",
                 MaaControllerTypes.Gamepad => "gamepad",
                 MaaControllerTypes.MacOS => "macos",
+                MaaControllerTypes.WlRoots => "wlroots",
                 _ => "adb"
             };
         }
@@ -51,6 +54,8 @@ public static class MaaControllerHelper
             return MaaControllerTypes.Gamepad;
         if (type.Contains("macos", StringComparison.OrdinalIgnoreCase))
             return MaaControllerTypes.MacOS;
+        if (type.Contains("wlroots", StringComparison.OrdinalIgnoreCase))
+            return MaaControllerTypes.WlRoots;
         if (type.Contains("win32", StringComparison.OrdinalIgnoreCase))
             return MaaControllerTypes.Win32;
         if (type.Contains("adb", StringComparison.OrdinalIgnoreCase))

@@ -82,6 +82,7 @@ public static class ConfigurationKeys
     public const string DesktopWindowClassName = "DesktopWindowClassName";
     public const string DesktopWindowName = "DesktopWindowName";
     public const string PlayCoverConfig = "PlayCoverConfig";
+    public const string WlRootsSocketPath = "WlRootsSocketPath";
     public const string CurrentController = "CurrentController";
     public const string CurrentControllerName = "CurrentControllerName";
 
@@ -235,6 +236,7 @@ public static class ConfigurationKeys
         DesktopWindowClassName,
         DesktopWindowName,
         PlayCoverConfig,
+        WlRootsSocketPath,
         CurrentController,
         CurrentControllerName,
         Resource,
