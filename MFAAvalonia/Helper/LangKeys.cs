@@ -55,6 +55,7 @@ public static class LangKeys
 	public static readonly string ButtonSave = "ButtonSave";
 	public static readonly string CannotStart = "CannotStart";
 	public static readonly string CaptureModeOption = "CaptureModeOption";
+	public static readonly string VirtualGamepadType = "VirtualGamepadType";
 	public static readonly string CheckMFA = "CheckMFA";
 	public static readonly string CheckUpdate = "CheckUpdate";
 	public static readonly string CheckResource = "CheckResource";

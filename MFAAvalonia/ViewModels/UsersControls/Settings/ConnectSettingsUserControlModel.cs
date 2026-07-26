@@ -48,6 +48,14 @@ public partial class ConnectSettingsUserControlModel : ViewModelBase
             Win32ControlKeyboardType = config.GetValue(ConfigurationKeys.Win32ControlKeyboardType,
                 Win32InputMethod.SendMessage, Win32InputMethod.None,
                 new UniversalEnumConverter<Win32InputMethod>());
+            MacOSControlScreenCapType = config.GetValue(ConfigurationKeys.MacOSControlScreenCapType,
+                MacOSScreencapMethod.ScreenCaptureKit, default(MacOSScreencapMethod), new UniversalEnumConverter<MacOSScreencapMethod>());
+            MacOSControlInputType = config.GetValue(ConfigurationKeys.MacOSControlInputType,
+                MacOSInputMethod.GlobalEvent, default(MacOSInputMethod), new UniversalEnumConverter<MacOSInputMethod>());
+            GamepadControlScreenCapType = config.GetValue(ConfigurationKeys.GamepadControlScreenCapType,
+                Win32ScreencapMethods.FramePool, Win32ScreencapMethods.None, new UniversalEnumConverter<Win32ScreencapMethods>());
+            GamepadType = config.GetValue(ConfigurationKeys.GamepadType,
+                MaaFramework.Binding.GamepadType.Xbox360, default(MaaFramework.Binding.GamepadType), new UniversalEnumConverter<MaaFramework.Binding.GamepadType>());
             RetryOnDisconnected = config.GetValue(ConfigurationKeys.RetryOnDisconnected, false);
             RetryOnDisconnectedWin32 = config.GetValue(ConfigurationKeys.RetryOnDisconnectedWin32, false);
             AllowAdbRestart = config.GetValue(ConfigurationKeys.AllowAdbRestart, true);
@@ -153,6 +161,19 @@ public partial class ConnectSettingsUserControlModel : ViewModelBase
         Win32InputMethod.PostMessageWithCursorPos, Win32InputMethod.SendMessageWithWindowPos,
         Win32InputMethod.PostMessageWithWindowPos
     ];
+    public static ObservableCollection<MacOSScreencapMethod> MacOSControlScreenCapTypes =>
+    [
+        MacOSScreencapMethod.ScreenCaptureKit
+    ];
+    public static ObservableCollection<MacOSInputMethod> MacOSControlInputTypes =>
+    [
+        MacOSInputMethod.GlobalEvent, MacOSInputMethod.PostToPid
+    ];
+    public static ObservableCollection<Win32ScreencapMethods> GamepadControlScreenCapTypes => Win32ControlScreenCapTypes;
+    public static ObservableCollection<MaaFramework.Binding.GamepadType> GamepadTypes =>
+    [
+        MaaFramework.Binding.GamepadType.Xbox360, MaaFramework.Binding.GamepadType.DualShock4
+    ];
 
     [ObservableProperty] private AdbScreencapMethods _adbControlScreenCapType =
         ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.AdbControlScreenCapType, AdbScreencapMethods.None, [AdbScreencapMethods.All, AdbScreencapMethods.Default], new UniversalEnumConverter<AdbScreencapMethods>());
@@ -164,6 +185,14 @@ public partial class ConnectSettingsUserControlModel : ViewModelBase
         ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.Win32ControlMouseType, Win32InputMethod.SendMessage, Win32InputMethod.None, new UniversalEnumConverter<Win32InputMethod>());
     [ObservableProperty] private Win32InputMethod _win32ControlKeyboardType =
         ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.Win32ControlKeyboardType, Win32InputMethod.SendMessage, Win32InputMethod.None, new UniversalEnumConverter<Win32InputMethod>());
+    [ObservableProperty] private MacOSScreencapMethod _macOSControlScreenCapType =
+        ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.MacOSControlScreenCapType, MacOSScreencapMethod.ScreenCaptureKit, default(MacOSScreencapMethod), new UniversalEnumConverter<MacOSScreencapMethod>());
+    [ObservableProperty] private MacOSInputMethod _macOSControlInputType =
+        ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.MacOSControlInputType, MacOSInputMethod.GlobalEvent, default(MacOSInputMethod), new UniversalEnumConverter<MacOSInputMethod>());
+    [ObservableProperty] private Win32ScreencapMethods _gamepadControlScreenCapType =
+        ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.GamepadControlScreenCapType, Win32ScreencapMethods.FramePool, Win32ScreencapMethods.None, new UniversalEnumConverter<Win32ScreencapMethods>());
+    [ObservableProperty] private MaaFramework.Binding.GamepadType _gamepadType =
+        ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.GamepadType, MaaFramework.Binding.GamepadType.Xbox360, default(MaaFramework.Binding.GamepadType), new UniversalEnumConverter<MaaFramework.Binding.GamepadType>());
 
     partial void OnAdbControlScreenCapTypeChanged(AdbScreencapMethods value)
     {
@@ -193,6 +222,30 @@ public partial class ConnectSettingsUserControlModel : ViewModelBase
     {
         if (IsSyncing) return;
         HandlePropertyChanged(ConfigurationKeys.Win32ControlKeyboardType, value.ToString(), () => MaaProcessorManager.Instance.Current.SetTasker());
+    }
+
+    partial void OnMacOSControlScreenCapTypeChanged(MacOSScreencapMethod value)
+    {
+        if (IsSyncing) return;
+        HandlePropertyChanged(ConfigurationKeys.MacOSControlScreenCapType, value.ToString(), () => MaaProcessorManager.Instance.Current.SetTasker());
+    }
+
+    partial void OnMacOSControlInputTypeChanged(MacOSInputMethod value)
+    {
+        if (IsSyncing) return;
+        HandlePropertyChanged(ConfigurationKeys.MacOSControlInputType, value.ToString(), () => MaaProcessorManager.Instance.Current.SetTasker());
+    }
+
+    partial void OnGamepadControlScreenCapTypeChanged(Win32ScreencapMethods value)
+    {
+        if (IsSyncing) return;
+        HandlePropertyChanged(ConfigurationKeys.GamepadControlScreenCapType, value.ToString(), () => MaaProcessorManager.Instance.Current.SetTasker());
+    }
+
+    partial void OnGamepadTypeChanged(MaaFramework.Binding.GamepadType value)
+    {
+        if (IsSyncing) return;
+        HandlePropertyChanged(ConfigurationKeys.GamepadType, value.ToString(), () => MaaProcessorManager.Instance.Current.SetTasker());
     }
 
     [ObservableProperty] private bool _retryOnDisconnected = ConfigurationManager.CurrentInstance.GetValue(ConfigurationKeys.RetryOnDisconnected, false);

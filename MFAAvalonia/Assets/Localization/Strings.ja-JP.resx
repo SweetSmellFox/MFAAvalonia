@@ -2123,4 +2123,5 @@
   <data name="AddExtraLaunchItem" xml:space="preserve"><value>起動項目を追加</value></data>
   <data name="RemoveExtraLaunchItem" xml:space="preserve"><value>起動項目を削除</value></data>
   <data name="LaunchItemName" xml:space="preserve"><value>起動項目名</value></data>
+  <data name="VirtualGamepadType" xml:space="preserve"><value>仮想ゲームパッドの種類</value></data>
 </root>

@@ -2111,32 +2111,17 @@ public class MaaProcessor
                     Config.WlRoots.Check);
 
             case MaaControllerTypes.Gamepad:
-                // Gamepad 控制器使用 Win32 控制器的配置，但会创建虚拟手柄
                 if (logConfig)
                 {
                     LoggerHelper.Info("当前控制器类型：Gamepad");
                     LoggerHelper.Info($"窗口名称：{Config.DesktopWindow.Name}");
                     LoggerHelper.Info($"窗口句柄：{Config.DesktopWindow.HWnd}");
-                    LoggerHelper.Info($"截图模式：{Config.DesktopWindow.ScreenCap}");
-
-                    // 获取 Gamepad 特定配置
-                    var gamepadConfig = Interface?.Controller?.FirstOrDefault(c =>
-                        c.Type?.Equals("gamepad", StringComparison.OrdinalIgnoreCase) == true)?.Gamepad;
-                    if (gamepadConfig != null)
-                    {
-                        LoggerHelper.Info($"手柄类型：{gamepadConfig.GamepadType ?? "Xbox360"}");
-                        LoggerHelper.Info($"ClassRegex：{gamepadConfig.ClassRegex}");
-                        LoggerHelper.Info($"WindowRegex：{gamepadConfig.WindowRegex}");
-                    }
+                    LoggerHelper.Info($"截图模式：{Config.Gamepad.ScreenCap}");
+                    LoggerHelper.Info($"手柄类型：{Config.Gamepad.Type}");
                 }
 
-                // Gamepad 控制器目前使用 Win32 控制器实现
-                // TODO: 当MaaFramework 支持 Gamepad 控制器时，替换为专用实现
-                return new MaaWin32Controller(
-                    Config.DesktopWindow.HWnd,
-                    Config.DesktopWindow.ScreenCap, Config.DesktopWindow.Mouse, Config.DesktopWindow.KeyBoard,
-                    Config.DesktopWindow.Link,
-                    Config.DesktopWindow.Check);
+                return new MaaGamepadController(Config.DesktopWindow.HWnd, Config.Gamepad.Type,
+                    Config.Gamepad.ScreenCap, Config.DesktopWindow.Link, Config.DesktopWindow.Check);
 
             case MaaControllerTypes.Win32:
             default:
@@ -2677,6 +2662,8 @@ public class MaaProcessor
         }
         ConfigureMaaProcessorForADB(logConfig);
         ConfigureMaaProcessorForWin32(logConfig);
+        ConfigureMaaProcessorForMacOS(logConfig);
+        ConfigureMaaProcessorForGamepad(logConfig);
         ConfigureMaaProcessorForPlayCover();
     }
 
@@ -2761,6 +2748,34 @@ public class MaaProcessor
         {
             Config.PlayCover.UUID = controller.PlayCover.Uuid;
         }
+    }
+
+    private void ConfigureMaaProcessorForMacOS(bool logConfig)
+    {
+        if (ViewModel?.CurrentController != MaaControllerTypes.MacOS)
+            return;
+
+        Config.MacOSWindow.ScreenCap = InstanceConfiguration.GetValue(ConfigurationKeys.MacOSControlScreenCapType,
+            MacOSScreencapMethod.ScreenCaptureKit, default(MacOSScreencapMethod), new UniversalEnumConverter<MacOSScreencapMethod>());
+        Config.MacOSWindow.Input = InstanceConfiguration.GetValue(ConfigurationKeys.MacOSControlInputType,
+            MacOSInputMethod.GlobalEvent, default(MacOSInputMethod), new UniversalEnumConverter<MacOSInputMethod>());
+
+        if (logConfig)
+            LoggerHelper.Info($"{LangKeys.CaptureModeOption.ToLocalization()}:{Config.MacOSWindow.ScreenCap},{LangKeys.InputModeOption.ToLocalization()}:{Config.MacOSWindow.Input}");
+    }
+
+    private void ConfigureMaaProcessorForGamepad(bool logConfig)
+    {
+        if (ViewModel?.CurrentController != MaaControllerTypes.Gamepad)
+            return;
+
+        Config.Gamepad.ScreenCap = InstanceConfiguration.GetValue(ConfigurationKeys.GamepadControlScreenCapType,
+            Win32ScreencapMethods.FramePool, Win32ScreencapMethods.None, new UniversalEnumConverter<Win32ScreencapMethods>());
+        Config.Gamepad.Type = InstanceConfiguration.GetValue(ConfigurationKeys.GamepadType,
+            GamepadType.Xbox360, default(GamepadType), new UniversalEnumConverter<GamepadType>());
+
+        if (logConfig)
+            LoggerHelper.Info($"{LangKeys.CaptureModeOption.ToLocalization()}:{Config.Gamepad.ScreenCap},{LangKeys.VirtualGamepadType.ToLocalization()}:{Config.Gamepad.Type}");
     }
 
     private Win32ScreencapMethods ConfigureWin32ScreenCapTypes()

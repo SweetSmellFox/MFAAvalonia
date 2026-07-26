@@ -455,6 +455,18 @@ public partial class InstanceTabBarViewModel : ViewModelBase
             connect.Win32ControlKeyboardType = config.GetValue(MFAAvalonia.Configuration.ConfigurationKeys.Win32ControlKeyboardType,
                 MaaFramework.Binding.Win32InputMethod.SendMessage, MaaFramework.Binding.Win32InputMethod.None,
                 new MFAAvalonia.Helper.Converters.UniversalEnumConverter<MaaFramework.Binding.Win32InputMethod>());
+            connect.MacOSControlScreenCapType = config.GetValue(MFAAvalonia.Configuration.ConfigurationKeys.MacOSControlScreenCapType,
+                MaaFramework.Binding.MacOSScreencapMethod.ScreenCaptureKit,
+                default(MaaFramework.Binding.MacOSScreencapMethod), new MFAAvalonia.Helper.Converters.UniversalEnumConverter<MaaFramework.Binding.MacOSScreencapMethod>());
+            connect.MacOSControlInputType = config.GetValue(MFAAvalonia.Configuration.ConfigurationKeys.MacOSControlInputType,
+                MaaFramework.Binding.MacOSInputMethod.GlobalEvent,
+                default(MaaFramework.Binding.MacOSInputMethod), new MFAAvalonia.Helper.Converters.UniversalEnumConverter<MaaFramework.Binding.MacOSInputMethod>());
+            connect.GamepadControlScreenCapType = config.GetValue(MFAAvalonia.Configuration.ConfigurationKeys.GamepadControlScreenCapType,
+                MaaFramework.Binding.Win32ScreencapMethods.FramePool, MaaFramework.Binding.Win32ScreencapMethods.None,
+                new MFAAvalonia.Helper.Converters.UniversalEnumConverter<MaaFramework.Binding.Win32ScreencapMethods>());
+            connect.GamepadType = config.GetValue(MFAAvalonia.Configuration.ConfigurationKeys.GamepadType,
+                MaaFramework.Binding.GamepadType.Xbox360, default(MaaFramework.Binding.GamepadType),
+                new MFAAvalonia.Helper.Converters.UniversalEnumConverter<MaaFramework.Binding.GamepadType>());
             connect.RetryOnDisconnected = config.GetValue(MFAAvalonia.Configuration.ConfigurationKeys.RetryOnDisconnected, false);
             connect.RetryOnDisconnectedWin32 = config.GetValue(MFAAvalonia.Configuration.ConfigurationKeys.RetryOnDisconnectedWin32, false);
             connect.AllowAdbRestart = config.GetValue(MFAAvalonia.Configuration.ConfigurationKeys.AllowAdbRestart, true);

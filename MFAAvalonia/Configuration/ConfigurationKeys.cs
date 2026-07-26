@@ -71,6 +71,10 @@ public static class ConfigurationKeys
     public const string Win32ControlScreenCapType = "Win32ControlScreenCapType";
     public const string Win32ControlMouseType = "Win32ControlMouseType";
     public const string Win32ControlKeyboardType = "Win32ControlKeyboardType";
+    public const string MacOSControlScreenCapType = "MacOSControlScreenCapType";
+    public const string MacOSControlInputType = "MacOSControlInputType";
+    public const string GamepadControlScreenCapType = "GamepadControlScreenCapType";
+    public const string GamepadType = "GamepadType";
     public const string AllowAdbRestart = "AllowAdbRestart";
     public const string AllowAdbHardRestart = "AllowAdbHardRestart";
     public const string RetryOnDisconnected = "RetryOnDisconnected";
@@ -226,6 +230,10 @@ public static class ConfigurationKeys
         Win32ControlScreenCapType,
         Win32ControlMouseType,
         Win32ControlKeyboardType,
+        MacOSControlScreenCapType,
+        MacOSControlInputType,
+        GamepadControlScreenCapType,
+        GamepadType,
         AllowAdbRestart,
         AllowAdbHardRestart,
         RetryOnDisconnected,

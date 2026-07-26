@@ -2128,6 +2128,7 @@ Please do not copy only the main executable by itself.</value>
   <data name="AddExtraLaunchItem" xml:space="preserve"><value>Add launch item</value></data>
   <data name="RemoveExtraLaunchItem" xml:space="preserve"><value>Remove launch item</value></data>
   <data name="LaunchItemName" xml:space="preserve"><value>Launch item name</value></data>
+  <data name="VirtualGamepadType" xml:space="preserve"><value>Virtual gamepad type</value></data>
 </root>
 
 

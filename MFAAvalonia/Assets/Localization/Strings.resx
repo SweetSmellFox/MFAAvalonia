@@ -2138,6 +2138,7 @@
   <data name="AddExtraLaunchItem" xml:space="preserve"><value>添加启动项</value></data>
   <data name="RemoveExtraLaunchItem" xml:space="preserve"><value>删除启动项</value></data>
   <data name="LaunchItemName" xml:space="preserve"><value>启动项名称</value></data>
+  <data name="VirtualGamepadType" xml:space="preserve"><value>虚拟手柄类型</value></data>
 </root>
 
 

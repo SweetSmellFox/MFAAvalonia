@@ -11,6 +11,7 @@ public class MaaFWConfiguration
     public DesktopWindowCoreConfig DesktopWindow { get; set; } = new();
     public MacOSWindowCoreConfig MacOSWindow { get; set; } = new();
     public WlRootsCoreConfig WlRoots { get; set; } = new();
+    public GamepadCoreConfig Gamepad { get; set; } = new();
 
     public PlayCoverCoreConfig PlayCover { get; set; } = new();
 }
@@ -64,6 +65,12 @@ public class MacOSWindowCoreConfig
     public MacOSInputMethod Input { get; set; } = MacOSInputMethod.GlobalEvent;
     public LinkOption Link { get; set; } = LinkOption.Start;
     public CheckStatusOption Check { get; set; } = CheckStatusOption.ThrowIfNotSucceeded;
+}
+
+public class GamepadCoreConfig
+{
+    public GamepadType Type { get; set; } = GamepadType.Xbox360;
+    public Win32ScreencapMethods ScreenCap { get; set; } = Win32ScreencapMethods.FramePool;
 }
 
 public class WlRootsCoreConfig

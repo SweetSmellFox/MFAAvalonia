@@ -2082,7 +2082,15 @@ public partial class TaskQueueViewModel : ViewModelBase
             {
                 var macOSInput = ParseMacOSInputMethod(controller.MacOS?.Input);
                 if (macOSInput != null)
-                    Processor.Config.MacOSWindow.Input = macOSInput.Value;
+                    Instances.ConnectSettingsUserControlModel.MacOSControlInputType = macOSInput.Value;
+                return;
+            }
+
+            if (controller.ControllerType == MaaControllerTypes.Gamepad)
+            {
+                var gamepadType = ParseGamepadType(controller.Gamepad?.GamepadType);
+                if (gamepadType != null)
+                    Instances.ConnectSettingsUserControlModel.GamepadType = gamepadType.Value;
                 return;
             }
 
@@ -2208,6 +2216,19 @@ public partial class TaskQueueViewModel : ViewModelBase
         return Convert.ToUInt64(value) == 1 ? MacOSScreencapMethod.ScreenCaptureKit : null;
     }
 
+    private static GamepadType? ParseGamepadType(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+        if (value == "0")
+            return GamepadType.Xbox360;
+        if (value == "1")
+            return GamepadType.DualShock4;
+        if (value.Equals("DS4", StringComparison.OrdinalIgnoreCase))
+            return GamepadType.DualShock4;
+        return Enum.TryParse<GamepadType>(value, true, out var result) && Enum.IsDefined(result) ? result : null;
+    }
+
     private void HandleScreenCapSettings(MaaInterface.MaaResourceController controller, bool isAdb)
     {
         if (isAdb)
@@ -2232,7 +2253,16 @@ public partial class TaskQueueViewModel : ViewModelBase
             {
                 var macOSScreencap = ParseMacOSScreencapMethod(controller.MacOS?.ScreenCap);
                 if (macOSScreencap != null)
-                    Processor.Config.MacOSWindow.ScreenCap = macOSScreencap.Value;
+                    Instances.ConnectSettingsUserControlModel.MacOSControlScreenCapType = macOSScreencap.Value;
+                return;
+            }
+
+
+            if (controller.ControllerType == MaaControllerTypes.Gamepad)
+            {
+                var gamepadScreencap = ParseWin32ScreencapMethods(controller.Gamepad?.ScreenCap);
+                if (gamepadScreencap != null)
+                    Instances.ConnectSettingsUserControlModel.GamepadControlScreenCapType = gamepadScreencap.Value;
                 return;
             }
 
