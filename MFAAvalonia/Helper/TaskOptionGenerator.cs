@@ -173,7 +173,11 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
 
         Control control;
 
-        if (interfaceOption.IsInput)
+        if (interfaceOption.IsHotkey)
+        {
+            control = CreateHotkeyControl(option, interfaceOption);
+        }
+        else if (interfaceOption.IsInput)
         {
             control = CreateInputControl(option, interfaceOption);
         }
@@ -461,6 +465,28 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
         }
 
         return container;
+    }
+
+    private Control CreateHotkeyControl(MaaInterface.MaaInterfaceSelectOption option, MaaInterface.MaaInterfaceOption interfaceOption)
+    {
+        var inputDefinition = new MaaInterface.MaaInterfaceOption
+        {
+            Name = interfaceOption.Name,
+            Type = "input",
+            Label = interfaceOption.Label,
+            Description = interfaceOption.Description,
+            Icon = interfaceOption.Icon,
+            Document = interfaceOption.Document,
+            Inputs = interfaceOption.Hotkeys?.Select(h => new MaaInterface.MaaInterfaceOptionInput
+            {
+                Name = h.Name,
+                Label = h.Label,
+                Description = h.Description,
+                Default = h.Default,
+                PipelineType = "string"
+            }).ToList()
+        };
+        return CreateInputControl(option, inputDefinition);
     }
 
     private Control CreateStringInputControl(
@@ -889,7 +915,9 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
          if (MaaProcessor.Interface?.Option?.TryGetValue(subOption.Name ?? string.Empty, out var subInterfaceOption) != true) return;
          
          Control control;
-         if (subInterfaceOption.IsInput)
+         if (subInterfaceOption.IsHotkey)
+            control = CreateHotkeyControl(subOption, subInterfaceOption);
+         else if (subInterfaceOption.IsInput)
             control = CreateInputControl(subOption, subInterfaceOption);
          else if (subInterfaceOption.IsCheckbox)
             control = CreateCheckboxControl(subOption, subInterfaceOption, source);
@@ -1127,7 +1155,13 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
         var selectOption = new MaaInterface.MaaInterfaceSelectOption { Name = optionName, Index = 0 };
         if (MaaProcessor.Interface?.Option?.TryGetValue(optionName, out var interfaceOption) == true)
         {
-            if (interfaceOption.IsInput && interfaceOption.Inputs != null)
+            if (interfaceOption.IsHotkey && interfaceOption.Hotkeys != null)
+            {
+                selectOption.Data = interfaceOption.Hotkeys
+                    .Where(h => !string.IsNullOrEmpty(h.Name))
+                    .ToDictionary(h => h.Name!, h => (string?)(h.Default ?? string.Empty));
+            }
+            else if (interfaceOption.IsInput && interfaceOption.Inputs != null)
             {
                 selectOption.Data = new Dictionary<string, string?>();
                 foreach(var input in interfaceOption.Inputs)

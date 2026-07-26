@@ -59,16 +59,6 @@ public class TaskLoader(MaaInterface? maaInterface, TaskQueueViewModel taskQueue
             drags = items.Select(interfaceItem => new DragItemViewModel(interfaceItem) { OwnerViewModel = taskQueueViewModel }).ToList();
         }
 
-        // 检测是否为全新实例（既没有内存中的任务，也没有本地实例文件数据）
-        // 只在“真正首次初始化”的情况下才允许自动应用预设。
-        // 如果实例文件已存在但读取异常/字段缺失，宁可保持空，也不能误判成新实例然后套用预设，
-        // 否则用户会看到“标签是 id，点进去内容也完全不对”。
-        var hasExistingLocalConfig = instanceConfig.ConfigFileExists();
-        var isConfigEmpty = (oldDrags == null || oldDrags.Count == 0)
-            && drags.Count == 0
-            && currentTasks.Count == 0
-            && !hasExistingLocalConfig;
-
         if (firstTask)
         {
             InitializeResources();
@@ -95,17 +85,8 @@ public class TaskLoader(MaaInterface? maaInterface, TaskQueueViewModel taskQueue
 
         UpdateViewModels(updateList, tasks, tasksSource);
 
-        // 如果配置均为空且预设不为空，使用所有预设作为默认值
-        if (isConfigEmpty && maaInterface?.Preset is { Count: > 0 } presets)
-        {
-            DispatcherHelper.RunOnMainThread(() =>
-            {
-                foreach (var preset in presets)
-                {
-                    taskQueueViewModel.ApplyPresetCommand.Execute(preset);
-                }
-            });
-        }
+        // preset 是用户显式应用的快照，不是初始化默认值。全新实例继续使用 task.default_check；
+        // 基于 preset 创建的实例由 MaaProcessorManager 在实例创建流程中显式应用对应 preset。
     }
 
     private void InitializeResources()
@@ -604,7 +585,7 @@ public class TaskLoader(MaaInterface? maaInterface, TaskQueueViewModel taskQueue
             {
                 option.Index = defaultIndex;
             }
-            else if (!io.IsInput && !io.IsCheckbox && io.Cases is { Count: > 0 } && option.Index == null)
+            else if (!io.IsInput && !io.IsHotkey && !io.IsCheckbox && io.Cases is { Count: > 0 } && option.Index == null)
             {
                 // 若未显式声明 default_case，UI 会按第 0 个 case 展示，
                 // 数据层也需要同步落成 0，执行合并时才能命中默认分支。
@@ -616,6 +597,13 @@ public class TaskLoader(MaaInterface? maaInterface, TaskQueueViewModel taskQueue
                 foreach (var input in io.Inputs)
                     if (!string.IsNullOrEmpty(input.Name) && !option.Data.ContainsKey(input.Name))
                         option.Data[input.Name] = input.Default ?? string.Empty;
+            }
+            if (io.IsHotkey && io.Hotkeys != null)
+            {
+                option.Data ??= new Dictionary<string, string?>();
+                foreach (var hotkey in io.Hotkeys)
+                    if (!string.IsNullOrEmpty(hotkey.Name) && !option.Data.ContainsKey(hotkey.Name))
+                        option.Data[hotkey.Name] = hotkey.Default ?? string.Empty;
             }
             // checkbox 类型：从 DefaultCases 初始化 SelectedCases
             if (io.IsCheckbox)
@@ -704,6 +692,13 @@ public class TaskLoader(MaaInterface? maaInterface, TaskQueueViewModel taskQueue
         // 创建最终的任务列表
         var finalItems = new List<DragItemViewModel>();
 
+        // PI v2.8.0 setting：复用现有 option 渲染器生成独立设置分区。
+        foreach (var setting in maaInterface?.Setting ?? [])
+        {
+            var settingItem = CreateSettingItem(setting, drags);
+            if (settingItem != null) finalItems.Add(settingItem);
+        }
+
         // 如果有 global_option，置顶显示一个全局设置项（包含所有全局选项）
         if (maaInterface?.GlobalOption is { Count: > 0 } && maaInterface.GlobalSelectOptions is { Count: > 0 })
         {
@@ -757,6 +752,40 @@ public class TaskLoader(MaaInterface? maaInterface, TaskQueueViewModel taskQueue
             // 根据当前资源更新任务的可见性
             taskQueueViewModel.UpdateTasksForResource(currentResourceName);
         });
+    }
+
+    private DragItemViewModel? CreateSettingItem(MaaInterface.MaaInterfaceSetting setting, IList<DragItemViewModel>? existingDrags)
+    {
+        if (setting.Option is not { Count: > 0 }) return null;
+        var syntheticName = $"__Setting__{setting.Name}";
+        var existing = existingDrags?.FirstOrDefault(d => d.IsResourceOptionItem && d.ResourceItem?.Name == syntheticName);
+        if (existing != null) return existing;
+
+        var saved = taskQueueViewModel.Processor.InstanceConfiguration.GetValue(
+            ConfigurationKeys.ResourceOptionItems,
+            new Dictionary<string, List<MaaInterface.MaaInterfaceSelectOption>>());
+        var savedOptions = saved.GetValueOrDefault(syntheticName)?.ToDictionary(x => x.Name ?? string.Empty);
+        var options = setting.Option.Select(name =>
+        {
+            var value = savedOptions?.GetValueOrDefault(name) ?? new MaaInterface.MaaInterfaceSelectOption { Name = name };
+            SetDefaultOptionValue(maaInterface, value);
+            return value;
+        }).ToList();
+        var synthetic = new MaaInterface.MaaInterfaceResource
+        {
+            Name = syntheticName,
+            Label = setting.Label ?? setting.Name,
+            Description = setting.Description,
+            Icon = setting.Icon,
+            SelectOptions = options
+        };
+        synthetic.InitializeDisplayName();
+        return new DragItemViewModel(synthetic)
+        {
+            OwnerViewModel = taskQueueViewModel,
+            IsVisible = true,
+            EnableSetting = setting.DefaultExpand ?? true
+        };
     }
 
     /// <summary>

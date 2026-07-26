@@ -714,8 +714,8 @@ public partial class TaskQueueViewModel : ViewModelBase
             }
 
             // 设置勾选状态
-            if (presetTask.Enabled.HasValue)
-                dragItem.IsCheckedWithNull = presetTask.Enabled.Value;
+            // PI v2.3.0: preset.task.enabled 可选且默认 true；应用 preset 时它覆盖 task.default_check。
+            dragItem.IsCheckedWithNull = presetTask.Enabled ?? true;
 
             // 设置选项值
             if (presetTask.Option != null && dragItem.InterfaceItem?.Option != null)
@@ -2598,7 +2598,8 @@ public partial class TaskQueueViewModel : ViewModelBase
     private static bool IsRealResourceOptionItem(DragItemViewModel item) =>
         item.IsResourceOptionItem &&
         item.ResourceItem?.Name != "__GlobalOption__" &&
-        item.ResourceItem?.Name?.StartsWith("__ControllerOption__") != true;
+        item.ResourceItem?.Name?.StartsWith("__ControllerOption__") != true &&
+        item.ResourceItem?.Name?.StartsWith("__Setting__") != true;
 
     /// <summary>
     /// 根据当前资源更新任务列表的可见性和资源选项项

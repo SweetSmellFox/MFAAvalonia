@@ -1516,6 +1516,17 @@ public class MaaProcessor
         {
             return (null, false, false);
         }
+        try
+        {
+            await RunPreTasksAsync(token);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex)
+        {
+            LoggerHelper.Error("执行 PI pretask 失败", ex);
+            AddLog($"pretask failed: {ex.Message}", Brushes.OrangeRed, changeColor: false);
+            return (null, true, false);
+        }
         MaaResource maaResource = null;
         try
         {
@@ -1524,6 +1535,20 @@ public class MaaProcessor
             // 优先使用 ResolvedPath（运行时路径），如果没有则使用 Path
             var resources = currentResource?.ResolvedPath ?? currentResource?.Path ?? [];
             resources = resources.Select(Path.GetFullPath).ToList();
+
+            // PI v2.6.0 要求 hash 只基于 resource.path，必须在 attach_resource_path 之前校验。
+            if (!string.IsNullOrWhiteSpace(currentResource?.Hash))
+            {
+                using var hashResource = new MaaResource(resources);
+                var actualHash = hashResource.Hash;
+                if (!string.Equals(actualHash, currentResource.Hash, StringComparison.OrdinalIgnoreCase))
+                {
+                    var message = $"资源完整性校验不匹配：expected={currentResource.Hash}, actual={actualHash}";
+                    LoggerHelper.Warning(message);
+                    AddLog(message, Brushes.OrangeRed, changeColor: false);
+                    ToastHelper.Warn(message);
+                }
+            }
 
             var controllerType = ViewModel?.CurrentController ?? MaaControllerTypes.Adb;
             var controllerName = controllerType.ToJsonKey();
@@ -2297,7 +2322,8 @@ public class MaaProcessor
         if (loaded == null)
             throw new Exception($"Failed to load interface file: {fullPath}");
 
-        var result = new MaaInterface();
+        // PI import 的顺序为主文件在前、随后按 import 数组顺序追加；同名 option 以后导入者为准。
+        var result = loaded;
 
         if (loaded.Import != null)
         {
@@ -2314,12 +2340,18 @@ public class MaaProcessor
                     var filteredImport = new MaaInterface
                     {
                         Group = imported.Group,
-                        Task = imported.Task,
                         Option = imported.Option,
-                        Preset = imported.Preset
+                        PreTask = imported.PreTask,
+                        GlobalOption = imported.GlobalOption,
+                        Setting = imported.Setting
                     };
 
                     result.Merge(filteredImport);
+                    // 协议规定 task / preset 按 import 顺序追加，不按名称覆盖或去重。
+                    if (imported.Task is { Count: > 0 })
+                        result.Task = [.. result.Task ?? [], .. imported.Task];
+                    if (imported.Preset is { Count: > 0 })
+                        result.Preset = [.. result.Preset ?? [], .. imported.Preset];
                 }
                 catch (Exception ex)
                 {
@@ -2328,8 +2360,80 @@ public class MaaProcessor
             }
         }
 
-        result.Merge(loaded);
         return result;
+    }
+
+    private async Task RunPreTasksAsync(CancellationToken token)
+    {
+        if (Interface?.PreTask is not { Count: > 0 }) return;
+        var controllerName = MaaInterfaceActivationHelper.ResolveControllerName(
+            Interface, ViewModel?.CurrentController ?? MaaControllerTypes.None)
+            ?? ViewModel?.CurrentController.ToJsonKey();
+        var resourceName = ViewModel?.CurrentResource;
+
+        foreach (var preTask in Interface.PreTask)
+        {
+            if (string.IsNullOrWhiteSpace(preTask.Exec))
+                throw new InvalidDataException("pretask.exec is required");
+            if (preTask.Controller is { Count: > 0 } && !preTask.Controller.Contains(controllerName)) continue;
+            if (preTask.Resource is { Count: > 0 } && !preTask.Resource.Contains(resourceName)) continue;
+
+            var exec = MaaInterface.ReplacePlaceholder(preTask.Exec, ResourceBase) ?? preTask.Exec;
+            var info = new ProcessStartInfo
+            {
+                FileName = exec,
+                WorkingDirectory = ResourceBase,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            foreach (var arg in preTask.Args ?? []) info.ArgumentList.Add(arg);
+            if (preTask.Option is { Count: > 0 })
+                info.ArgumentList.Add(BuildPreTaskOptionJson(preTask.Option, controllerName, resourceName));
+
+            LoggerHelper.Info($"执行 pretask：{preTask.Name ?? preTask.Exec}");
+            using var process = Process.Start(info) ?? throw new InvalidOperationException($"无法启动 pretask: {preTask.Exec}");
+            await process.WaitForExitAsync(token);
+            if (process.ExitCode != 0)
+                throw new InvalidOperationException($"pretask '{preTask.Name ?? preTask.Exec}' exited with code {process.ExitCode}");
+        }
+    }
+
+    private string BuildPreTaskOptionJson(IEnumerable<string> optionNames, string? controllerName, string? resourceName)
+    {
+        var result = new JObject();
+        var selected = ViewModel?.TaskItemViewModels
+            .SelectMany(item => item.IsResourceOptionItem
+                ? item.ResourceItem?.SelectOptions ?? []
+                : item.InterfaceItem?.Option ?? [])
+            .Where(option => !string.IsNullOrWhiteSpace(option.Name))
+            .GroupBy(option => option.Name!)
+            .ToDictionary(group => group.Key, group => group.First())
+            ?? new Dictionary<string, MaaInterface.MaaInterfaceSelectOption>();
+
+        foreach (var name in optionNames)
+        {
+            if (Interface?.Option?.TryGetValue(name, out var definition) != true) continue;
+            if (!MaaInterfaceActivationHelper.IsOptionApplicable(Interface, definition, controllerName, resourceName)) continue;
+            selected.TryGetValue(name, out var value);
+            if (definition.IsCheckbox)
+                result[name] = JToken.FromObject(value?.SelectedCases ?? definition.DefaultCases ?? []);
+            else if (definition.IsInput || definition.IsHotkey)
+            {
+                var data = value?.Data ?? new Dictionary<string, string?>();
+                var defaults = definition.IsHotkey
+                    ? definition.Hotkeys?.ToDictionary(x => x.Name ?? string.Empty, x => x.Default ?? string.Empty)
+                    : definition.Inputs?.ToDictionary(x => x.Name ?? string.Empty, x => x.Default ?? string.Empty);
+                result[name] = JObject.FromObject(defaults == null
+                    ? data
+                    : defaults.Concat(data).GroupBy(x => x.Key).ToDictionary(x => x.Key, x => x.Last().Value));
+            }
+            else
+            {
+                var index = value?.Index ?? Math.Max(0, definition.Cases?.FindIndex(x => x.Name == definition.DefaultCase) ?? 0);
+                result[name] = definition.Cases?.ElementAtOrDefault(index)?.Name ?? definition.DefaultCase ?? string.Empty;
+            }
+        }
+        return result.ToString(Formatting.None);
     }
 
     public bool InitializeData(Collection<DragItemViewModel>? dragItem = null)
