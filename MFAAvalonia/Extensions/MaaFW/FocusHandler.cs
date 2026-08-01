@@ -6,6 +6,7 @@ using Markdown.Avalonia.Full;
 using Markdown.Avalonia.Html;
 using Markdown.Avalonia.Svg;
 using Markdown.Avalonia.SyntaxHigh;
+using Markdown.Avalonia.Math;
 using MaaFramework.Binding.Buffers;
 using MaaFramework.Binding.Notification;
 using MFAAvalonia.Extensions;
@@ -540,6 +541,7 @@ public class FocusHandler
         plugins.Plugins.Add(new SvgFormat());
         plugins.Plugins.Add(new Markdown.Avalonia.ChatAISetup());
         plugins.Plugins.Add(new SyntaxHighlight());
+        plugins.Plugins.Add(new MathPlugin());
         return plugins;
     }
 

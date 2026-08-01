@@ -769,12 +769,14 @@ namespace Markdown.Avalonia.Html.Core.Parsers
 
         public void ExtraModifySubscript(CSpan span, HtmlNode node, ReplaceManager manager)
         {
-            // TODO: 实现下标逻辑
+            span.TextVerticalAlignment = TextVerticalAlignment.Bottom;
+            span.FontSize = 10;
         }
 
         public void ExtraModifySuperscript(CSpan span, HtmlNode node, ReplaceManager manager)
         {
-            // TODO: 实现上标逻辑
+            span.TextVerticalAlignment = TextVerticalAlignment.Top;
+            span.FontSize = 10;
         }
 
         public void ExtraModifyAcronym(CSpan span, HtmlNode node, ReplaceManager manager)

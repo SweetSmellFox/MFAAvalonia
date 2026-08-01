@@ -50,8 +50,14 @@ sealed class Program
             LoggerHelper.InitializeLogger();
             Directory.SetCurrentDirectory(AppContext.BaseDirectory);
             PendingUpdateDeletionHelper.ProcessPendingDirectories();
+#if DEBUG
+            // Debug must load freshly built managed assemblies from the output root.
+            // Falling back to libs can silently run stale Markdown/UI binaries.
+            PrivatePathHelper.SetupNativeLibraryResolver(enableManagedLibraryResolver: false);
+#else
             PrivatePathHelper.CleanupDuplicateLibraries(AppContext.BaseDirectory, AppContext.GetData("SubdirectoriesToProbe") as string);
             PrivatePathHelper.SetupNativeLibraryResolver();
+#endif
 
             List<string> resultDirectories = new();
 

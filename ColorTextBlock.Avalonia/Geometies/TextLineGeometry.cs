@@ -19,7 +19,10 @@ namespace ColorTextBlock.Avalonia.Geometries
                     SimpleTextSource text,
                     TextLine tline,
                     bool linebreak) :
-                    base(owner, tline.Width, tline.Height, tline.Baseline, owner.TextVerticalAlignment, linebreak)
+                    // TextLine.Width excludes trailing whitespace. Inline boundaries such as
+                    // "label [link]" therefore collapsed visually even though Markdown kept
+                    // the space. Layout must reserve the complete typographic advance.
+                    base(owner, tline.WidthIncludingTrailingWhitespace, tline.Height, tline.Baseline, owner.TextVerticalAlignment, linebreak)
                 {
                     Text = text;
                     Line = tline;

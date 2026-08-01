@@ -27,6 +27,7 @@ namespace Markdown.Avalonia.SyntaxHigh
         private readonly string _lang;
         private readonly string _code;
         private readonly Lazy<Border> _control;
+        private readonly bool _isLargeCodeBlock;
         private TextEditor? _textEditor;
         // private bool _highlightApplied;
 
@@ -39,6 +40,7 @@ namespace Markdown.Avalonia.SyntaxHigh
             _provider = provider;
             _lang = lang;
             _code = code;
+            _isLargeCodeBlock = code.Length > 1_000_000 || CountLines(code) > 2000;
             _control = new Lazy<Border>(() => Create(lang, code));
         }
 
@@ -143,8 +145,11 @@ namespace Markdown.Avalonia.SyntaxHigh
                 IsReadOnly = true,
                 ShowLineNumbers = true,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
-                VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                VerticalScrollBarVisibility = _isLargeCodeBlock
+                    ? ScrollBarVisibility.Auto
+                    : ScrollBarVisibility.Disabled,
                 Margin = new Thickness(0, 0, 0, 8),
+                MaxHeight = _isLargeCodeBlock ? 600 : double.PositiveInfinity,
                 Tag = lang // 保留语言标签用于其他用途
             };
 
@@ -154,7 +159,25 @@ namespace Markdown.Avalonia.SyntaxHigh
             _textEditor.Classes.Add("CodeBlockEditor");
 
             // 使用 TextMate 应用语法高亮（支持更多语言如 jsonc）
-            _provider.ApplyTextMateHighlighting(_textEditor, lang);
+            if (!_isLargeCodeBlock)
+                _provider.ApplyTextMateHighlighting(_textEditor, lang);
+
+            // Virtualization removes the editor from the visual tree. The
+            // provider disposes TextMate on detach, so reinstall it when the
+            // same control is realized again.
+            if (!_isLargeCodeBlock)
+            {
+                _textEditor.AttachedToVisualTree += (_, _) =>
+                {
+                    var editor = _textEditor;
+                    if (editor is null)
+                        return;
+
+                    Dispatcher.UIThread.Post(
+                        () => _provider.ApplyTextMateHighlighting(editor, _lang),
+                        DispatcherPriority.Render);
+                };
+            }
 
 
             // 代码内容容器（可折叠）
@@ -201,6 +224,17 @@ namespace Markdown.Avalonia.SyntaxHigh
             result.Child = mainContainer;
 
             return result;
+        }
+
+        private static int CountLines(string text)
+        {
+            var count = 1;
+            foreach (var character in text)
+            {
+                if (character == '\n')
+                    count++;
+            }
+            return count;
         }
     }
 }
