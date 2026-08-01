@@ -2,6 +2,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:mdc="clr-namespace:Markdown.Avalonia.Controls;assembly=Markdown.Avalonia"
         xmlns:ctxt="clr-namespace:ColorTextBlock.Avalonia;assembly=ColorTextBlock.Avalonia"
+        xmlns:animations="clr-namespace:SukiUI.Animations;assembly=SukiUI"
+        xmlns:helper="clr-namespace:MFAAvalonia.Helper"
+        xmlns:markup="https://codewf.com"
         xmlns:suki="https://github.com/kikipoulet/SukiUI"
         xmlns:avaloniaEdit="https://github.com/avaloniaui/avaloniaedit">
 
@@ -167,6 +170,12 @@
     </Style>
     <Style Selector=".Markdown_Avalonia_MarkdownViewer PathIcon.CodeBlockCopyIcon">
         <Setter Property="Foreground" Value="{DynamicResource SukiLowText}" />
+    </Style>
+    <Style Selector=".Markdown_Avalonia_MarkdownViewer Button.CodeBlockCopyButton">
+        <Setter Property="animations:FloatingTextExtensions.Text"
+                Value="{markup:I18n {x:Static helper:LangKeys.CopySuccess}}" />
+        <Setter Property="animations:FloatingTextExtensions.Duration" Value="900" />
+        <Setter Property="animations:FloatingTextExtensions.Distance" Value="44" />
     </Style>
     <Style
         Selector=".Markdown_Avalonia_MarkdownViewer Button.CodeBlockCopyButton:pointerover PathIcon.CodeBlockCopyIcon">

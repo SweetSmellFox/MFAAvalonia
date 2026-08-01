@@ -87,6 +87,7 @@ public static class LangKeys
 	public static readonly string ConnectionSettings = "ConnectionSettings";
 	public static readonly string ControllerType = "ControllerType";
 	public static readonly string CopiedToClipboard = "CopiedToClipboard";
+	public static readonly string CopySuccess = "CopySuccess";
 	public static readonly string Copy = "Copy";
 	public static readonly string CopyErrorMessage = "CopyErrorMessage";
 	public static readonly string CopyKey = "CopyKey";

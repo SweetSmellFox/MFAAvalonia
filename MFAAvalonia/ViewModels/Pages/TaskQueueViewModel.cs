@@ -32,7 +32,7 @@ using System.Threading.Tasks;
 
 namespace MFAAvalonia.ViewModels.Pages;
 
-public partial class TaskQueueViewModel : ViewModelBase
+public partial class TaskQueueViewModel : ViewModelBase, IDisposable
 {
     private readonly MaaProcessor _processorField;
     private string? _savedControllerName;
@@ -3005,6 +3005,7 @@ public partial class TaskQueueViewModel : ViewModelBase
 
     private readonly System.Timers.Timer _liveViewTimer;
     private int _liveViewTickInProgress;
+    private int _isDisposed;
     private bool _liveViewNoImageLogged;
 
     private void UpdateLiveViewTimerInterval()
@@ -3015,6 +3016,9 @@ public partial class TaskQueueViewModel : ViewModelBase
 
     private void OnLiveViewTimerElapsed(object? sender, System.Timers.ElapsedEventArgs e)
     {
+        if (Volatile.Read(ref _isDisposed) != 0)
+            return;
+
         if (Interlocked.Exchange(ref _liveViewTickInProgress, 1) == 1)
         {
             return;
@@ -3225,9 +3229,7 @@ public partial class TaskQueueViewModel : ViewModelBase
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
                     LiveViewImage = null;
-                    _liveViewWriteableBitmap?.Dispose();
-                    _liveViewWriteableBitmap = null;
-                    Array.Fill(_liveViewImageCache, null);
+                    DisposeLiveViewBitmaps();
                     _liveViewImageNewestCount = 0;
                     _liveViewImageCount = 0;
                 });
@@ -3258,6 +3260,9 @@ public partial class TaskQueueViewModel : ViewModelBase
             // 使用 Invoke 而不是 InvokeAsync，确保同步执行完成后再释放 buffer
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
+                if (Volatile.Read(ref _isDisposed) != 0)
+                    return;
+
                 try
                 {
                     // 再次验证指针有效性（防止在等待期间失效）
@@ -3403,6 +3408,45 @@ public partial class TaskQueueViewModel : ViewModelBase
     public void RequestSetOption(DragItemViewModel item, bool value)
     {
         SetOptionRequested?.Invoke(item, value);
+    }
+
+    private void DisposeLiveViewBitmaps()
+    {
+        var activeBitmap = _liveViewWriteableBitmap;
+        _liveViewWriteableBitmap = null;
+
+        foreach (var bitmap in _liveViewImageCache)
+        {
+            if (bitmap != null && !ReferenceEquals(bitmap, activeBitmap))
+                bitmap.Dispose();
+        }
+
+        Array.Fill(_liveViewImageCache, null);
+        activeBitmap?.Dispose();
+    }
+
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _isDisposed, 1) != 0)
+            return;
+
+        _liveViewTimer.Stop();
+        _liveViewTimer.Elapsed -= OnLiveViewTimerElapsed;
+        _liveViewTimer.Dispose();
+
+        _processorField.TaskQueue.CountChanged -= OnTaskQueueCountChanged;
+        LanguageHelper.LanguageChanged -= OnLanguageChanged;
+
+        _refreshCancellationTokenSource?.Cancel();
+        _refreshCancellationTokenSource?.Dispose();
+        _refreshCancellationTokenSource = null;
+
+        LiveViewImage = null;
+        DisposeLiveViewBitmaps();
+        LiveViewRefreshRateChanged = null;
+        SetOptionRequested = null;
+
+        GC.SuppressFinalize(this);
     }
 
     [ObservableProperty] private string? _currentConfiguration = ConfigurationManager.GetCurrentConfiguration();

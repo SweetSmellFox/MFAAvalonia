@@ -180,7 +180,9 @@ public partial class MonitorViewModel : ViewModelBase, IDisposable
     {
         LeaveLiveViewOverride();
         _timer.Stop();
+        MaaProcessor.Processors.CollectionChanged -= Processors_CollectionChanged;
         foreach(var item in Items) item.Dispose();
+        Items.Clear();
         GC.SuppressFinalize(this);
     }
 }

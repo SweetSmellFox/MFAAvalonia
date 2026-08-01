@@ -243,6 +243,9 @@
     <data name="CopiedToClipboard" xml:space="preserve">
         <value>已複製到剪貼簿</value>
     </data>
+    <data name="CopySuccess" xml:space="preserve">
+        <value>複製成功</value>
+    </data>
     <data name="Copy" xml:space="preserve">
         <value>複製</value>
     </data>

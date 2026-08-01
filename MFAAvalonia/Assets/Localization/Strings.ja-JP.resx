@@ -163,6 +163,9 @@
   <data name="CopiedToClipboard" xml:space="preserve">
     <value>クリップボードにコピーしました</value>
   </data>
+  <data name="CopySuccess" xml:space="preserve">
+    <value>コピーしました</value>
+  </data>
   <data name="Copy" xml:space="preserve">
     <value>コピー</value>
   </data>

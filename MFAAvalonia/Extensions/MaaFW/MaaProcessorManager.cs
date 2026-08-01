@@ -377,6 +377,11 @@ public sealed class MaaProcessorManager
                 // 删除实例独立配置文件 config/instances/{id}.json
                 processor.InstanceConfiguration.DeleteConfigFile();
 
+                if (_viewModels.TryGetValue(instanceId, out var viewModel))
+                {
+                    viewModel.Dispose();
+                }
+
                 processor.Dispose();
                 _instances.Remove(instanceId);
                 _instanceNames.Remove(instanceId);

@@ -11,6 +11,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using ColorDocument.Avalonia;
 using System.Text;
+using SukiUI.Animations;
 
 namespace Markdown.Avalonia.SyntaxHigh
 {
@@ -190,10 +191,14 @@ namespace Markdown.Avalonia.SyntaxHigh
             codeContent.Classes.Add("CodeBlockContent");
 
             // 复制按钮点击事件
-            copyButton.Click += (s, e) =>
+            copyButton.Click += async (s, e) =>
             {
                 var clipboard = TopLevel.GetTopLevel(_textEditor)?.Clipboard;
-                clipboard?.SetTextAsync(_textEditor?.Text ?? code);
+                if (clipboard == null)
+                    return;
+
+                await clipboard.SetTextAsync(_textEditor?.Text ?? code);
+                FloatingTextExtensions.Show(copyButton);
             };
 
             // Header 点击事件（展开/折叠）
