@@ -781,7 +781,14 @@ namespace Markdown.Avalonia.Html.Core.Parsers
 
         public void ExtraModifyAcronym(CSpan span, HtmlNode node, ReplaceManager manager)
         {
-            // TODO: 实现首字母缩写逻辑
+            span.IsUnderline = true;
+            span.UnderlineStyle = CTextUnderlineStyle.Dotted;
+
+            var title = HtmlEntity.DeEntitize(node.GetAttributeValue("title", String.Empty));
+            if (!String.IsNullOrWhiteSpace(title))
+            {
+                span.ToolTipText = title;
+            }
         }
 
         public void ExtraModifyCenter(Border center, HtmlNode node, ReplaceManager manager)

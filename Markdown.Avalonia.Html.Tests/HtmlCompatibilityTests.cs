@@ -89,6 +89,39 @@ public class HtmlCompatibilityTests
         Assert.Equal(expected, text);
     }
 
+    [Theory]
+    [InlineData("abbr")]
+    [InlineData("acronym")]
+    public void HtmlAbbreviation_UsesDottedUnderlineAndDecodedTitle(string tag)
+    {
+        var engine = CreateFullEngine();
+        var markdown = $"The <{tag} title=\"World Wide Web &amp; Consortium\">W3C</{tag}>.";
+
+        var span = Assert.Single(
+            DescendantSpans(engine.ParseGamutInline(markdown))
+                .OfType<CSpan>()
+                .Where(candidate => candidate.AsString() == "W3C"));
+
+        Assert.True(span.IsUnderline);
+        Assert.Equal(CTextUnderlineStyle.Dotted, span.UnderlineStyle);
+        Assert.Equal("World Wide Web & Consortium", span.ToolTipText);
+    }
+
+    [Fact]
+    public void HtmlAbbreviation_WithoutTitleDoesNotCreateEmptyToolTip()
+    {
+        var engine = CreateFullEngine();
+
+        var span = Assert.Single(
+            DescendantSpans(engine.ParseGamutInline("<abbr>HTML</abbr>"))
+                .OfType<CSpan>()
+                .Where(candidate => candidate.AsString() == "HTML"));
+
+        Assert.True(span.IsUnderline);
+        Assert.Equal(CTextUnderlineStyle.Dotted, span.UnderlineStyle);
+        Assert.Null(span.ToolTipText);
+    }
+
     [Fact]
     public void ViewerPipeline_RendersMixedMarkdownAndHtmlDecorationsIndependently()
     {

@@ -59,7 +59,15 @@ namespace ColorTextBlock.Avalonia.Geometries
             if (IsUnderline)
             {
                 var ypos = Math.Round(Top + Height);
-                ctx.DrawLine(new Pen(foreground, 2),
+                var pen = UnderlineStyle == CTextUnderlineStyle.Dotted
+                    ? new Pen(
+                        foreground,
+                        1,
+                        DashStyle.Dot,
+                        PenLineCap.Round,
+                        PenLineJoin.Round)
+                    : new Pen(foreground, 2);
+                ctx.DrawLine(pen,
                     new Point(Left, ypos),
                     new Point(Left + Width, ypos));
             }
