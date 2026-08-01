@@ -680,7 +680,7 @@ public sealed class DashboardCardGrid : Panel
         return occupied;
     }
 
-    private static bool HasOverlaps(IEnumerable<DashboardCardLayout> layouts, int columns, int rows)
+    private bool HasOverlaps(IEnumerable<DashboardCardLayout> layouts, int columns, int rows)
     {
         columns = Math.Max(1, columns);
         rows = Math.Max(1, rows);
@@ -690,6 +690,17 @@ public sealed class DashboardCardGrid : Panel
         foreach (var layout in layouts)
         {
             if (string.IsNullOrWhiteSpace(layout.Id))
+            {
+                continue;
+            }
+
+            // Hidden cards do not occupy dashboard cells. This is especially important for
+            // LiveView: when it is disabled, another card may intentionally be moved into its
+            // saved position. Treating the hidden card as occupied here would reject that valid
+            // layout on the next launch and silently restore the default layout.
+            var card = Children.OfType<DashboardCard>()
+                .FirstOrDefault(c => string.Equals(c.CardId, layout.Id, StringComparison.OrdinalIgnoreCase));
+            if (card is { IsVisible: false })
             {
                 continue;
             }
