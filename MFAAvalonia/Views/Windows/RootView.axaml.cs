@@ -270,7 +270,7 @@ public partial class RootView : SukiWindow
 
             if (AppRuntime.IsAutoStart)
             {
-                StartCommandLineAutoRun(vm, AppRuntime.QuitAfterRun);
+                StartCommandLineAutoRun(vm, AppRuntime.QuitAfterRun, AppRuntime.ForceStart);
                 return;
             }
 
@@ -777,7 +777,7 @@ public partial class RootView : SukiWindow
 
         var viewModel = manager.GetViewModel(targetId);
         if (viewModel != null)
-            StartCommandLineAutoRun(viewModel, command.QuitAfterRun);
+            StartCommandLineAutoRun(viewModel, command.QuitAfterRun, command.ForceStart);
     }
 
     private async Task BringToForegroundAsync()
@@ -854,8 +854,28 @@ public partial class RootView : SukiWindow
         }
     }
 
-    private static void StartCommandLineAutoRun(TaskQueueViewModel viewModel, bool quitAfterRun)
+    private static void StartCommandLineAutoRun(
+        TaskQueueViewModel viewModel,
+        bool quitAfterRun,
+        bool forceStart = false)
     {
+        if (viewModel.IsRunning)
+        {
+            if (!forceStart)
+            {
+                LoggerHelper.Info($"命令行自动启动已跳过：实例 {viewModel.Processor.InstanceId} 正在运行");
+                return;
+            }
+
+            LoggerHelper.Info($"命令行强制启动：正在停止实例 {viewModel.Processor.InstanceId} 的现有任务");
+            viewModel.StopTask(() => DispatcherHelper.PostOnMainThread(async () =>
+            {
+                await Task.Delay(100);
+                StartCommandLineAutoRun(viewModel, quitAfterRun);
+            }));
+            return;
+        }
+
         var hasStarted = viewModel.IsRunning;
         System.ComponentModel.PropertyChangedEventHandler? handler = null;
 

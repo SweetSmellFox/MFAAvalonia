@@ -321,9 +321,15 @@ MFAAvalonia --autostart -i "实例名称"
 
 # 自动执行完成后退出
 MFAAvalonia --autostart -i 1a2b3c4d --quit-after-run
+
+# 如果实例正在运行，停止现有任务后重新启动
+MFAAvalonia --autostart -i "实例名称" --forceStart
+MFAAvalonia --autostart -i 1a2b3c4d -f
 ```
 
 `-c`、`-i` 和 `--instance` 含义相同，均支持实例名称或实例 ID。实例名称匹配不区分大小写，实例 ID 优先匹配。
+
+`-f` 和 `--forceStart` 含义相同，仅在同时指定 `--autostart` 与实例时生效。目标实例已在运行且未指定该参数时，本次自动启动会被跳过；指定后会先停止该实例的当前任务，再重新启动。
 
 ### 自定义图标
 

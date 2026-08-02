@@ -15,7 +15,11 @@ namespace MFAAvalonia;
 
 public static class AppRuntime
 {
-    public sealed record LaunchCommand(bool AutoStart, bool QuitAfterRun, string? InstanceSelector);
+    public sealed record LaunchCommand(
+        bool AutoStart,
+        bool QuitAfterRun,
+        bool ForceStart,
+        string? InstanceSelector);
 
     public static Dictionary<string, string> Args { get; private set; } = new(StringComparer.OrdinalIgnoreCase);
 
@@ -37,6 +41,11 @@ public static class AppRuntime
     public static bool IsAutoStart => Args.ContainsKey("autostart");
 
     public static bool QuitAfterRun => Args.ContainsKey("quit-after-run");
+
+    public static bool ForceStart =>
+        IsAutoStart
+        && RequestedInstance != null
+        && Args.ContainsKey("force-start");
 
     public static string? RequestedInstance =>
         Args.TryGetValue("instance", out var value) && !string.IsNullOrWhiteSpace(value)
@@ -79,6 +88,7 @@ public static class AppRuntime
         {
             "c" or "i" => "instance",
             "q" => "quit-after-run",
+            "f" or "forcestart" => "force-start",
             "h" => "help",
             _ => key.ToLowerInvariant()
         };
@@ -112,9 +122,14 @@ MFAAvalonia 命令行参数
   -q, --quit-after-run
       本次命令行自动执行的任务完成后退出程序
 
+  -f, --forceStart
+      仅与 --autostart 和 -i/-c/--instance 同时使用时生效
+      如果目标实例正在运行，先停止其当前任务，再重新启动
+
 示例:
   {executableName} --instance "日常任务"
   {executableName} --autostart -i "日常任务" --quit-after-run
+  {executableName} --autostart -i "日常任务" --forceStart
 """;
     }
 
@@ -171,7 +186,7 @@ MFAAvalonia 命令行参数
         if (IsNewInstance || string.IsNullOrEmpty(_pipeName))
             return false;
 
-        var command = new LaunchCommand(IsAutoStart, QuitAfterRun, RequestedInstance);
+        var command = new LaunchCommand(IsAutoStart, QuitAfterRun, ForceStart, RequestedInstance);
         var deadline = Environment.TickCount64 + timeoutMilliseconds;
 
         while (Environment.TickCount64 < deadline)
