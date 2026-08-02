@@ -232,6 +232,12 @@ public partial class RootView : SukiWindow
             var vm = Instances.InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel;
             if (vm == null) return;
 
+            if (AppRuntime.IsAutoStart)
+            {
+                StartCommandLineAutoRun(vm);
+                return;
+            }
+
             // 全局启动设置：启动所有模拟器并执行所有实例任务
             var globalStartEnabled = GlobalConfiguration.GetValue(ConfigurationKeys.GlobalStartEnabled, bool.FalseString) == bool.TrueString;
             if (globalStartEnabled && !Convert.ToBoolean(GlobalConfiguration.GetValue(ConfigurationKeys.NoAutoStart, bool.FalseString)))
@@ -690,5 +696,37 @@ public partial class RootView : SukiWindow
     private async Task StartAllGlobalEmulatorsAndTasks()
     {
         await GlobalStartManager.StartAllAndRunTasks();
+    }
+
+    private static void StartCommandLineAutoRun(TaskQueueViewModel viewModel)
+    {
+        var hasStarted = viewModel.IsRunning;
+        System.ComponentModel.PropertyChangedEventHandler? handler = null;
+
+        if (AppRuntime.QuitAfterRun)
+        {
+            handler = (_, args) =>
+            {
+                if (args.PropertyName != nameof(TaskQueueViewModel.IsRunning)) return;
+
+                if (viewModel.IsRunning)
+                {
+                    hasStarted = true;
+                }
+                else if (hasStarted)
+                {
+                    viewModel.PropertyChanged -= handler;
+                    Instances.ShutdownApplication();
+                }
+            };
+            viewModel.PropertyChanged += handler;
+        }
+
+        DispatcherHelper.RunOnMainThread(async () =>
+        {
+            await Task.Delay(500);
+            viewModel.StartTask();
+            hasStarted |= viewModel.IsRunning;
+        });
     }
 }

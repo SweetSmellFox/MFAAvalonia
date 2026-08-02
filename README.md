@@ -309,9 +309,21 @@ lang/
 ### 启动参数
 
 ```bash
-# 使用指定配置文件启动
-MFAAvalonia -c 配置名称
+# 查看帮助
+MFAAvalonia --help
+
+# 使用实例名称或实例 ID 启动
+MFAAvalonia --instance "实例名称"
+MFAAvalonia -c 1a2b3c4d
+
+# 启动后自动执行指定实例
+MFAAvalonia --autostart -i "实例名称"
+
+# 自动执行完成后退出
+MFAAvalonia --autostart -i 1a2b3c4d --quit-after-run
 ```
+
+`-c`、`-i` 和 `--instance` 含义相同，均支持实例名称或实例 ID。实例名称匹配不区分大小写，实例 ID 优先匹配。
 
 ### 自定义图标
 

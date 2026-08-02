@@ -38,6 +38,12 @@ sealed class Program
             return;
         }
 
+        if (AppRuntime.IsHelpRequested(args))
+        {
+            Console.Write(AppRuntime.GetHelpText(Environment.ProcessPath));
+            return;
+        }
+
         try
         {
             CheckSkiaAvailability();

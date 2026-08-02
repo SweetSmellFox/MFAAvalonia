@@ -2142,6 +2142,7 @@
   <data name="RemoveExtraLaunchItem" xml:space="preserve"><value>删除启动项</value></data>
   <data name="LaunchItemName" xml:space="preserve"><value>启动项名称</value></data>
   <data name="VirtualGamepadType" xml:space="preserve"><value>虚拟手柄类型</value></data>
+  <data name="CopyInstanceId" xml:space="preserve"><value>复制实例 ID</value></data>
 </root>
 
 

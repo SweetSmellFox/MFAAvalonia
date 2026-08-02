@@ -117,6 +117,26 @@ public partial class InstanceTabBar : UserControl
             await DuplicateInstanceAsync(vm, tab);
         };
 
+        var copyIdItem = new MenuItem
+        {
+            Header = "CopyInstanceId".ToLocalization(),
+            Icon = new FluentIcons.Avalonia.Fluent.FluentIcon
+            {
+                Icon = FluentIcons.Common.Icon.Clipboard,
+                IconSize = FluentIcons.Common.IconSize.Size16,
+                IconVariant = FluentIcons.Common.IconVariant.Regular
+            }
+        };
+        copyIdItem.Click += async (_, _) =>
+        {
+            if (container.DataContext is not InstanceTabViewModel tab) return;
+            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+            if (clipboard == null) return;
+
+            await clipboard.SetTextAsync(tab.InstanceId);
+            ToastHelper.Info(LangKeys.CopiedToClipboard.ToLocalization());
+        };
+
         var renameItem = new MenuItem();
         renameItem.Header = "重命名";
         renameItem.Icon = new FluentIcons.Avalonia.Fluent.FluentIcon
@@ -199,6 +219,7 @@ public partial class InstanceTabBar : UserControl
             {
                 addItem,
                 copyItem,
+                copyIdItem,
                 renameItem,
                 new Separator(),
                 closeItem,

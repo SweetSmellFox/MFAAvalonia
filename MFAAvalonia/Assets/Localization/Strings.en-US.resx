@@ -2132,6 +2132,7 @@ Please do not copy only the main executable by itself.</value>
   <data name="RemoveExtraLaunchItem" xml:space="preserve"><value>Remove launch item</value></data>
   <data name="LaunchItemName" xml:space="preserve"><value>Launch item name</value></data>
   <data name="VirtualGamepadType" xml:space="preserve"><value>Virtual gamepad type</value></data>
+  <data name="CopyInstanceId" xml:space="preserve"><value>Copy instance ID</value></data>
 </root>
 
 
