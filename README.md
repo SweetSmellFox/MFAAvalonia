@@ -110,6 +110,50 @@ MaaFramework [项目模板](https://github.com/MaaXYZ/MaaPracticeBoilerplate/)�
 
    根据下方配置说明修改 `interface.json` 文件</details>
 
+## 🧭 启动参数
+
+MFAAvalonia 支持通过命令行选择实例并执行任务。实例可以使用名称或实例 ID 指定；实例 ID 可在实例标签页的右键菜单中复制。
+
+```text
+MFAAvalonia.exe [参数]
+```
+
+| 参数 | 作用 |
+|:---|:---|
+| `-h`, `--help` | 显示命令行帮助并退出 |
+| `-c <实例>`, `-i <实例>`, `--instance <实例>` | 按实例名称或实例 ID 激活目标实例；名称匹配不区分大小写，实例 ID 优先匹配 |
+| `--autostart` | 自动执行目标实例中当前配置并勾选的任务；未指定实例时使用当前激活的实例 |
+| `-q`, `--quit-after-run` | 本次命令行自动启动的任务完成后退出 MFAAvalonia，仅与 `--autostart` 配合时有效 |
+| `-f`, `--forceStart` | 目标实例已运行时，先停止当前任务再重新启动；仅与 `--autostart` 和实例参数同时使用时有效 |
+
+### 常用示例
+
+```powershell
+# 查看帮助
+.\MFAAvalonia.exe --help
+
+# 使用实例名称或实例 ID 切换实例
+.\MFAAvalonia.exe --instance "日常任务"
+.\MFAAvalonia.exe -i 1a2b3c4d
+
+# 自动执行指定实例
+.\MFAAvalonia.exe --autostart -i "日常任务"
+
+# 自动执行完成后退出
+.\MFAAvalonia.exe --autostart -i 1a2b3c4d -q
+
+# 目标实例已运行时，停止现有任务并重新启动
+.\MFAAvalonia.exe --autostart -i "日常任务" --forceStart
+.\MFAAvalonia.exe --autostart -c 1a2b3c4d -f
+```
+
+### 参数组合规则
+
+- 仅指定实例参数时，只会切换到对应实例，不会自动执行任务。
+- 使用 `--autostart` 启动一个已经运行的实例时，默认跳过本次启动，不会重复添加任务。
+- 同时使用 `--autostart`、实例参数和 `-f` 时，会等待该实例的现有任务停止后再重新启动。
+- `-q` 只跟踪本次命令启动的任务；与 `-f` 配合时，不会把停止旧任务误判为执行完成。
+
 ## ⚙️ 配置说明
 
 ### 基础配置结构
@@ -305,31 +349,6 @@ lang/
 ### 公告系统
 
 将 `.md` 文件放入 `resource/announcement/` 目录即可作为公告显示。资源更新时会自动下载 Changelog 作为公告。
-
-### 启动参数
-
-```bash
-# 查看帮助
-MFAAvalonia --help
-
-# 使用实例名称或实例 ID 启动
-MFAAvalonia --instance "实例名称"
-MFAAvalonia -c 1a2b3c4d
-
-# 启动后自动执行指定实例
-MFAAvalonia --autostart -i "实例名称"
-
-# 自动执行完成后退出
-MFAAvalonia --autostart -i 1a2b3c4d --quit-after-run
-
-# 如果实例正在运行，停止现有任务后重新启动
-MFAAvalonia --autostart -i "实例名称" --forceStart
-MFAAvalonia --autostart -i 1a2b3c4d -f
-```
-
-`-c`、`-i` 和 `--instance` 含义相同，均支持实例名称或实例 ID。实例名称匹配不区分大小写，实例 ID 优先匹配。
-
-`-f` 和 `--forceStart` 含义相同，仅在同时指定 `--autostart` 与实例时生效。目标实例已在运行且未指定该参数时，本次自动启动会被跳过；指定后会先停止该实例的当前任务，再重新启动。
 
 ### 自定义图标
 

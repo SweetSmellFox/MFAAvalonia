@@ -108,6 +108,50 @@ For automatic installation, please **carefully read** the [How to Develop](https
 3. **Configure interface.json**
    Modify the `interface.json` file according to the configuration guide below</details>
 
+## 🧭 Launch Parameters
+
+MFAAvalonia supports selecting instances and running tasks from the command line. An instance can be specified by name or instance ID. The instance ID can be copied from the context menu of an instance tab.
+
+```text
+MFAAvalonia.exe [options]
+```
+
+| Option | Description |
+|:---|:---|
+| `-h`, `--help` | Show command-line help and exit |
+| `-c <instance>`, `-i <instance>`, `--instance <instance>` | Select an instance by name or ID. Name matching is case-insensitive, and an exact instance ID match takes priority |
+| `--autostart` | Run the tasks currently configured and selected in the target instance. If no instance is specified, the active instance is used |
+| `-q`, `--quit-after-run` | Exit MFAAvalonia after the task started by this command finishes. Only effective with `--autostart` |
+| `-f`, `--forceStart` | If the target instance is already running, stop its current task and start it again. Only effective when used with `--autostart` and an instance option |
+
+### Common Examples
+
+```powershell
+# Show help
+.\MFAAvalonia.exe --help
+
+# Select an instance by name or ID
+.\MFAAvalonia.exe --instance "Daily Tasks"
+.\MFAAvalonia.exe -i 1a2b3c4d
+
+# Run the selected instance automatically
+.\MFAAvalonia.exe --autostart -i "Daily Tasks"
+
+# Exit after the automatically started task finishes
+.\MFAAvalonia.exe --autostart -i 1a2b3c4d -q
+
+# Stop and restart the target instance if it is already running
+.\MFAAvalonia.exe --autostart -i "Daily Tasks" --forceStart
+.\MFAAvalonia.exe --autostart -c 1a2b3c4d -f
+```
+
+### Option Combinations
+
+- An instance option by itself only selects the target instance; it does not start any tasks.
+- If `--autostart` targets an instance that is already running, the new start request is skipped by default.
+- With `--autostart`, an instance option, and `-f`, MFAAvalonia waits for the current task to stop before starting the instance again.
+- `-q` tracks only the task started by the current command. When combined with `-f`, stopping the previous task is not treated as task completion.
+
 ## ⚙️ Configuration Guide
 
 ### Basic Configuration Structure
@@ -305,13 +349,6 @@ translations based on language settings.
 
 Place `.md` files in the `resource/announcement/` directory to display them as announcements. Changelog will be
 automatically downloaded as an announcement when resources are updated.
-
-### Launch Parameters
-
-```bash
-# Launch with specific configuration file
-MFAAvalonia -c config-name
-```
 
 ### Custom Icon
 
