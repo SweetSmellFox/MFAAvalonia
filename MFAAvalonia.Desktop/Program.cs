@@ -46,6 +46,19 @@ sealed class Program
 
         try
         {
+            var executablePath = Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "MFAAvalonia.exe");
+            var instanceKey = AppRuntime.CreateInstanceKey(executablePath);
+            AppRuntime.Initialize(args, instanceKey);
+
+            if (!AppRuntime.IsNewInstance && AppRuntime.TryForwardLaunchCommand())
+            {
+                AppRuntime.ReleaseMutex();
+                return;
+            }
+
+            if (!AppRuntime.IsNewInstance)
+                _ = AppRuntime.TryRecoverUnresponsiveInstance();
+
             CheckSkiaAvailability();
 
             if (IsRunningInTemp())
@@ -106,15 +119,6 @@ sealed class Program
                 }
                 NativeBindingContext.AppendNativeLibrarySearchPaths(resultDirectories);
             }
-
-            var mutexName = "MFAAvalonia_"
-                + RootViewModel.Version
-                + "_"
-                + Directory.GetCurrentDirectory().Replace("\\", "_")
-                    .Replace("/", "_")
-                    .Replace(":", string.Empty);
-
-            AppRuntime.Initialize(args, mutexName);
 
             try
             {

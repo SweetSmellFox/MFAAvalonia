@@ -36,6 +36,24 @@ public partial class RootView : SukiWindow
 
         // 初始化组件
         InitializeComponent();
+        AppRuntime.RegisterLaunchCommandHandler(command =>
+        {
+            var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            DispatcherHelper.PostOnMainThread(() =>
+            {
+                try
+                {
+                    HandleForwardedLaunchCommand(command);
+                    completion.TrySetResult(true);
+                }
+                catch (Exception e)
+                {
+                    LoggerHelper.Error($"处理转发启动命令失败：{e.Message}", e);
+                    completion.TrySetResult(false);
+                }
+            });
+            return completion.Task;
+        });
 
         // 设置事件处理
         PropertyChanged += (_, e) =>
@@ -76,6 +94,10 @@ public partial class RootView : SukiWindow
 
 
     private bool _isInitializing = true;
+    private bool _exitConfirmed;
+    private bool _exitConfirmationInProgress;
+    private int _beforeClosed;
+    private CancellationTokenSource? _attentionAnimationCancellation;
     private bool _hasValidPosition = false;
     // 缓存最后一个有效的窗口位置和大小
     private PixelPoint _lastValidPosition;
@@ -105,12 +127,36 @@ public partial class RootView : SukiWindow
 #pragma warning disable CS4014 // 由于此调用不会等待，因此在此调用完成之前将会继续执行当前方法。请考虑将 "await" 运算符应用于调用结果。
     protected override void OnClosing(WindowClosingEventArgs e)
     {
-        if (Instances.RootViewModel.IsRunning)
+        if (Instances.RootViewModel.IsRunning && !_exitConfirmed)
         {
             e.Cancel = true;
-            ConfirmExit(() => OnClosed(e));
+            if (!_exitConfirmationInProgress)
+                _ = ConfirmExitAndShutdownAsync();
+            return;
         }
+
+        Instances.EnsureShutdownWatchdogStarted();
         base.OnClosing(e);
+    }
+
+    private async Task ConfirmExitAndShutdownAsync()
+    {
+        _exitConfirmationInProgress = true;
+        try
+        {
+            if (!await ConfirmExit()) return;
+            ShutdownAfterConfirmedExit();
+        }
+        finally
+        {
+            _exitConfirmationInProgress = false;
+        }
+    }
+
+    public void ShutdownAfterConfirmedExit()
+    {
+        _exitConfirmed = true;
+        Instances.ShutdownApplication();
     }
 
     protected override void OnClosed(EventArgs e)
@@ -121,6 +167,8 @@ public partial class RootView : SukiWindow
 
     public void BeforeClosed(bool noLog, bool stopTask)
     {
+        if (Interlocked.Exchange(ref _beforeClosed, 1) != 0) return;
+
         if (!GlobalHotkeyService.IsStopped)
         {
             if (Instances.RootViewModel.IsRunning)
@@ -171,7 +219,7 @@ public partial class RootView : SukiWindow
         BeforeClosed(false, true);
     }
 
-    public async Task<bool> ConfirmExit(Action? action = null)
+    public async Task<bool> ConfirmExit()
     {
         if (!Instances.RootViewModel.IsRunning)
             return true;
@@ -187,19 +235,7 @@ public partial class RootView : SukiWindow
         });
 
         if (result is SukiMessageBoxResult.Yes)
-        {
-            try
-            {
-                action?.Invoke();
-            }
-            catch (Exception e)
-            {
-                LoggerHelper.Error($"执行关闭前回调失败：原因={e.Message}", e);
-            }
-            finally { Instances.ShutdownApplication(); }
-
             return true;
-        }
         return false;
     }
 
@@ -234,7 +270,7 @@ public partial class RootView : SukiWindow
 
             if (AppRuntime.IsAutoStart)
             {
-                StartCommandLineAutoRun(vm);
+                StartCommandLineAutoRun(vm, AppRuntime.QuitAfterRun);
                 return;
             }
 
@@ -698,12 +734,132 @@ public partial class RootView : SukiWindow
         await GlobalStartManager.StartAllAndRunTasks();
     }
 
-    private static void StartCommandLineAutoRun(TaskQueueViewModel viewModel)
+    private void HandleForwardedLaunchCommand(AppRuntime.LaunchCommand command)
+    {
+        var wasActive = IsActive && IsVisible && WindowState != WindowState.Minimized;
+
+        if (WindowState == WindowState.Minimized)
+        {
+            WindowState = PreviousVisibleWindowState == WindowState.Minimized
+                ? WindowState.Normal
+                : PreviousVisibleWindowState;
+        }
+
+        Show();
+        if (wasActive)
+        {
+            _ = PlayAlreadyActiveAttentionAnimationAsync();
+        }
+        else
+        {
+            _ = BringToForegroundAsync();
+        }
+
+        if (string.IsNullOrWhiteSpace(command.InstanceSelector) && !command.AutoStart)
+            return;
+
+        var manager = MaaProcessorManager.Instance;
+        var targetId = string.IsNullOrWhiteSpace(command.InstanceSelector)
+            ? manager.Current.InstanceId
+            : manager.ResolveInstanceId(command.InstanceSelector);
+
+        if (targetId == null)
+        {
+            LoggerHelper.Warning($"转发启动命令未找到实例：{command.InstanceSelector}");
+            return;
+        }
+
+        manager.EnsureInstanceLoaded(targetId);
+        Instances.InstanceTabBarViewModel.ReloadTabs();
+        Instances.InstanceTabBarViewModel.SwitchToInstanceById(targetId);
+
+        if (!command.AutoStart) return;
+
+        var viewModel = manager.GetViewModel(targetId);
+        if (viewModel != null)
+            StartCommandLineAutoRun(viewModel, command.QuitAfterRun);
+    }
+
+    private async Task BringToForegroundAsync()
+    {
+        var wasTopmost = Topmost;
+        try
+        {
+            if (!wasTopmost)
+                Topmost = true;
+            Activate();
+            await Task.Delay(120);
+        }
+        finally
+        {
+            if (!wasTopmost)
+                Topmost = false;
+        }
+    }
+
+    private async Task PlayAlreadyActiveAttentionAnimationAsync()
+    {
+        _attentionAnimationCancellation?.Cancel();
+        _attentionAnimationCancellation?.Dispose();
+        var cancellation = new CancellationTokenSource();
+        _attentionAnimationCancellation = cancellation;
+
+        try
+        {
+            if (WindowState == WindowState.Normal)
+            {
+                var originalPosition = Position;
+                int[] offsets = [8, -8, 6, -6, 3, -3, 0];
+                try
+                {
+                    foreach (var offset in offsets)
+                    {
+                        cancellation.Token.ThrowIfCancellationRequested();
+                        Position = new PixelPoint(originalPosition.X + offset, originalPosition.Y);
+                        await Task.Delay(35, cancellation.Token);
+                    }
+                }
+                finally
+                {
+                    if (WindowState == WindowState.Normal)
+                        Position = originalPosition;
+                }
+            }
+            else
+            {
+                var originalOpacity = Opacity;
+                try
+                {
+                    foreach (var opacity in new[] { 0.92, 1.0, 0.92, 1.0 })
+                    {
+                        cancellation.Token.ThrowIfCancellationRequested();
+                        Opacity = opacity;
+                        await Task.Delay(55, cancellation.Token);
+                    }
+                }
+                finally
+                {
+                    Opacity = originalOpacity;
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        finally
+        {
+            if (ReferenceEquals(_attentionAnimationCancellation, cancellation))
+                _attentionAnimationCancellation = null;
+            cancellation.Dispose();
+        }
+    }
+
+    private static void StartCommandLineAutoRun(TaskQueueViewModel viewModel, bool quitAfterRun)
     {
         var hasStarted = viewModel.IsRunning;
         System.ComponentModel.PropertyChangedEventHandler? handler = null;
 
-        if (AppRuntime.QuitAfterRun)
+        if (quitAfterRun)
         {
             handler = (_, args) =>
             {

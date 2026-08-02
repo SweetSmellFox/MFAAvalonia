@@ -187,6 +187,28 @@ public static partial class Instances
     /// <summary>
     /// 关闭当前应用程序
     /// </summary>
+    private static class ShutdownState
+    {
+        internal static int Requested;
+        internal static int WatchdogStarted;
+    }
+
+    public static void EnsureShutdownWatchdogStarted()
+    {
+        if (Interlocked.Exchange(ref ShutdownState.WatchdogStarted, 1) != 0) return;
+
+        new Thread(() =>
+        {
+            Thread.Sleep(5000);
+            Environment.Exit(0);
+        })
+        {
+            Name = "MFAAvalonia-ShutdownWatchdog",
+            IsBackground = true,
+            Priority = ThreadPriority.BelowNormal
+        }.Start();
+    }
+
     public static void ShutdownApplication()
     {
         ShutdownApplication(false);
@@ -194,17 +216,21 @@ public static partial class Instances
 
     public static void ShutdownApplication(bool forceStop)
     {
-        PersistRuntimeState();
-        AppRuntime.ReleaseMutex();
+        var isFirstRequest = Interlocked.Exchange(ref ShutdownState.Requested, 1) == 0;
+        if (isFirstRequest)
+            PersistRuntimeState();
+
         if (forceStop)
         {
+            AppRuntime.ReleaseMutex();
             // 强制退出时，只做最基本的清理，避免卡住
             TryBeforeClosed(true, false);
             Environment.Exit(0);
             return;
         }
-        // 使用异步投递避免从后台线程同步调用UI线程导致死锁
-        // 然后使用 Environment.Exit 确保进程退出
+
+        // 关闭可能先被运行中任务的确认框取消；确认后必须允许再次投递关闭请求。
+        // 看门狗由 RootView.OnClosing 在窗口真正开始关闭时启动。
         DispatcherHelper.PostOnMainThread(() => ApplicationLifetime.Shutdown());
     }
 

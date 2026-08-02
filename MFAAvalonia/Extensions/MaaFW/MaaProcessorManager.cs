@@ -1378,6 +1378,20 @@ public sealed class MaaProcessorManager
         }
     }
 
+    public string? ResolveInstanceId(string selector)
+    {
+        if (string.IsNullOrWhiteSpace(selector)) return null;
+
+        lock (_lock)
+        {
+            return _instanceOrder.FirstOrDefault(id =>
+                       id.Equals(selector, StringComparison.OrdinalIgnoreCase))
+                   ?? _instanceOrder.FirstOrDefault(id =>
+                       _instanceNames.TryGetValue(id, out var name)
+                       && name.Equals(selector, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
     /// <summary>
     /// 启动懒加载流程（三阶段）
     /// </summary>
