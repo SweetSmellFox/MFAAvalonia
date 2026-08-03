@@ -2563,7 +2563,9 @@ public static class VersionChecker
                     var orderedAssets = assets
                         .Select(asset => new
                         {
-                            Url = asset["browser_download_url"]?.ToString(),
+                            // The API asset URL supports authenticated downloads for private repositories.
+                            // Keep browser_download_url as a fallback for older/non-standard API responses.
+                            Url = asset["url"]?.ToString() ?? asset["browser_download_url"]?.ToString(),
                             Name = asset["name"]?.ToString().ToLower(),
                             Sha256 = ExtractSha256FromDigest(asset["digest"]?.ToString())
                         })
@@ -2859,7 +2861,21 @@ public static class VersionChecker
             httpClient.DefaultRequestHeaders.Accept.Clear();
             httpClient.DefaultRequestHeaders.Accept.ParseAdd("*/*");
 
-            using var response = await httpClient.SendAsync(new HttpRequestMessage(HttpMethod.Get, url), HttpCompletionOption.ResponseHeadersRead);
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            if (IsGitHubReleaseAssetApiUrl(url))
+            {
+                request.Headers.Accept.Clear();
+                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/octet-stream"));
+                request.Headers.TryAddWithoutValidation("X-GitHub-Api-Version", "2022-11-28");
+
+                var gitHubToken = Instances.VersionUpdateSettingsUserControlModel.GitHubToken;
+                if (!string.IsNullOrWhiteSpace(gitHubToken))
+                {
+                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", gitHubToken);
+                }
+            }
+
+            using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
             response.EnsureSuccessStatusCode();
 
             if (response.Content.Headers.ContentDisposition != null)
@@ -2960,6 +2976,13 @@ public static class VersionChecker
             LoggerHelper.Error($"下载文件时发生未知错误：原因={ex.Message}", ex);
             return (false, targetFilePath);
         }
+    }
+
+    private static bool IsGitHubReleaseAssetApiUrl(string url)
+    {
+        return Uri.TryCreate(url, UriKind.Absolute, out var uri)
+            && uri.Host.Equals("api.github.com", StringComparison.OrdinalIgnoreCase)
+            && uri.AbsolutePath.Contains("/releases/assets/", StringComparison.OrdinalIgnoreCase);
     }
 
     async private static Task<bool> VerifyFileSha256Async(string filePath, string expectedSha256)
