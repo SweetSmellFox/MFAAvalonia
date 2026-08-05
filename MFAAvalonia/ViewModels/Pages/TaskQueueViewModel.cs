@@ -35,6 +35,8 @@ namespace MFAAvalonia.ViewModels.Pages;
 public partial class TaskQueueViewModel : ViewModelBase, IDisposable
 {
     private readonly MaaProcessor _processorField;
+    private readonly DispatcherTimer _taskRunElapsedTimer;
+    private long _taskRunId;
     private string? _savedControllerName;
     public MaaProcessor Processor => _processorField;
 
@@ -60,6 +62,12 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
         _liveViewTimer.Elapsed += OnLiveViewTimerElapsed;
         UpdateLiveViewTimerInterval();
         _liveViewTimer.Start();
+
+        _taskRunElapsedTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(250)
+        };
+        _taskRunElapsedTimer.Tick += OnTaskRunElapsedTimerTick;
 
         IsRunning = _processorField.TaskQueue.Count > 0;
         _processorField.TaskQueue.CountChanged += OnTaskQueueCountChanged;
@@ -136,6 +144,140 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
     private bool _isRunning;
 
     public bool Idle => !IsRunning;
+
+    public long BeginTaskRun(IReadOnlyCollection<DragItemViewModel> tasks)
+    {
+        return DispatcherHelper.RunOnMainThread(() =>
+        {
+            var runId = Interlocked.Increment(ref _taskRunId);
+            _taskRunElapsedTimer.Stop();
+
+            foreach (var item in TaskItemViewModels)
+            {
+                item.RunId = runId;
+                item.RunState = TaskRunState.None;
+                item.RunElapsed = TimeSpan.Zero;
+                item.RunStartedAt = null;
+                item.CompletedRunCount = 0;
+                item.TotalRunCount = 0;
+                item.RunErrorMessage = null;
+            }
+
+            foreach (var item in tasks.Where(item => !item.IsResourceOptionItem))
+            {
+                item.RunId = runId;
+                item.RunState = TaskRunState.Queued;
+                item.TotalRunCount = item.InterfaceItem?.Repeatable == true
+                    ? item.InterfaceItem.RepeatCount ?? 1
+                    : 1;
+            }
+
+            return runId;
+        });
+    }
+
+    public void MarkTaskRunning(DragItemViewModel? item, long runId)
+    {
+        UpdateTaskRunState(item, runId, task =>
+        {
+            if (task.RunState == TaskRunState.Running)
+                return;
+
+            task.RunState = TaskRunState.Running;
+            task.RunStartedAt = DateTimeOffset.UtcNow - task.RunElapsed;
+            _taskRunElapsedTimer.Start();
+        });
+    }
+
+    public void MarkTaskIterationCompleted(DragItemViewModel? item, long runId)
+    {
+        UpdateTaskRunState(item, runId, task => task.CompletedRunCount++);
+    }
+
+    public void MarkTaskSucceeded(DragItemViewModel? item, long runId)
+    {
+        CompleteTaskRun(item, runId, TaskRunState.Succeeded, null);
+    }
+
+    public void MarkTaskFailed(DragItemViewModel? item, long runId, string? errorMessage = null)
+    {
+        CompleteTaskRun(item, runId, TaskRunState.Failed, errorMessage);
+    }
+
+    public void MarkTaskStopped(DragItemViewModel? item, long runId)
+    {
+        CompleteTaskRun(item, runId, TaskRunState.Stopped, null);
+    }
+
+    public void FinalizeTaskRun(long runId)
+    {
+        DispatcherHelper.RunOnMainThread(() =>
+        {
+            foreach (var item in TaskItemViewModels.Where(item => item.RunId == runId))
+            {
+                if (item.RunState == TaskRunState.Queued)
+                    item.RunState = TaskRunState.Skipped;
+                else if (item.RunState == TaskRunState.Running)
+                    CompleteTaskRunCore(item, TaskRunState.Stopped, null);
+            }
+
+            StopTaskRunElapsedTimerIfIdle();
+        });
+    }
+
+    private void CompleteTaskRun(DragItemViewModel? item, long runId, TaskRunState state, string? errorMessage)
+    {
+        UpdateTaskRunState(item, runId, task =>
+        {
+            CompleteTaskRunCore(task, state, errorMessage);
+            StopTaskRunElapsedTimerIfIdle();
+        });
+    }
+
+    private static void CompleteTaskRunCore(DragItemViewModel item, TaskRunState state, string? errorMessage)
+    {
+        if (item.RunStartedAt is { } startedAt)
+            item.RunElapsed = DateTimeOffset.UtcNow - startedAt;
+
+        item.RunStartedAt = null;
+        item.RunErrorMessage = errorMessage;
+        item.RunState = state;
+    }
+
+    private void UpdateTaskRunState(DragItemViewModel? item, long runId, Action<DragItemViewModel> update)
+    {
+        if (item == null)
+            return;
+
+        DispatcherHelper.RunOnMainThread(() =>
+        {
+            if (item.RunId == runId && runId == Volatile.Read(ref _taskRunId))
+                update(item);
+        });
+    }
+
+    private void OnTaskRunElapsedTimerTick(object? sender, EventArgs e)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var hasRunningTask = false;
+        foreach (var item in TaskItemViewModels)
+        {
+            if (item.RunState != TaskRunState.Running || item.RunStartedAt is not { } startedAt)
+                continue;
+
+            item.RunElapsed = now - startedAt;
+            hasRunningTask = true;
+        }
+
+        if (!hasRunningTask)
+            _taskRunElapsedTimer.Stop();
+    }
+
+    private void StopTaskRunElapsedTimerIfIdle()
+    {
+        if (TaskItemViewModels.All(item => item.RunState != TaskRunState.Running))
+            _taskRunElapsedTimer.Stop();
+    }
 
     [ObservableProperty] private bool _isCompactMode = false;
 
@@ -3433,6 +3575,9 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
         _liveViewTimer.Stop();
         _liveViewTimer.Elapsed -= OnLiveViewTimerElapsed;
         _liveViewTimer.Dispose();
+
+        _taskRunElapsedTimer.Stop();
+        _taskRunElapsedTimer.Tick -= OnTaskRunElapsedTimerTick;
 
         _processorField.TaskQueue.CountChanged -= OnTaskQueueCountChanged;
         LanguageHelper.LanguageChanged -= OnLanguageChanged;

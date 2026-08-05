@@ -3142,12 +3142,14 @@ public class MaaProcessor
 
         var token = CancellationTokenSource.Token;
 
+        var runId = 0L;
         if (!onlyStart)
         {
             tasks ??= new List<DragItemViewModel>();
             _tempTasks = tasks;
+            runId = ViewModel?.BeginTaskRun(tasks) ?? 0;
             LoggerHelper.Info($"准备执行任务队列：任务数量={tasks.Count}");
-            var taskAndParams = tasks.Select((task, index) => CreateNodeAndParam(task, index + 1)).ToList();
+            var taskAndParams = tasks.Select((task, index) => CreateNodeAndParam(task, index + 1, runId)).ToList();
             InitializeConnectionTasksAsync(token);
             AddCoreTasksAsync(taskAndParams, token);
         }
@@ -3163,11 +3165,19 @@ public class MaaProcessor
             ClearTaskbarProgress();
         }
 
-        await TaskManager.RunTaskAsync(async () =>
+        try
         {
-            await ExecuteTasks(token);
-            Stop(Status, true, onlyStart);
-        }, token: token, name: "启动任务");
+            await TaskManager.RunTaskAsync(async () =>
+            {
+                await ExecuteTasks(token);
+                Stop(Status, true, onlyStart);
+            }, token: token, name: "启动任务");
+        }
+        finally
+        {
+            if (!onlyStart)
+                ViewModel?.FinalizeTaskRun(runId);
+        }
 
     }
 
@@ -3207,6 +3217,8 @@ public class MaaProcessor
         //     set;
         // }
         public string? Param { get; set; }
+        public DragItemViewModel? SourceItem { get; set; }
+        public long RunId { get; set; }
     }
 
     private void UpdateTaskDictionary(ref MaaToken taskModels,
@@ -3462,7 +3474,7 @@ public class MaaProcessor
         }
     }
 
-    private NodeAndParam CreateNodeAndParam(DragItemViewModel task, int index)
+    private NodeAndParam CreateNodeAndParam(DragItemViewModel task, int index, long runId)
     {
         var taskModels = JsonConvert.DeserializeObject<Dictionary<string, JToken>>(JsonConvert.SerializeObject(task.InterfaceItem?.PipelineOverride ?? new Dictionary<string, JToken>(), new JsonSerializerSettings()
         {
@@ -3503,7 +3515,9 @@ public class MaaProcessor
             Entry = task.InterfaceItem?.Entry,
             Count = task.InterfaceItem?.Repeatable == true ? (task.InterfaceItem?.RepeatCount ?? 1) : 1,
             // Tasks = tasks,
-            Param = taskParams
+            Param = taskParams,
+            SourceItem = task,
+            RunId = runId
         };
     }
 
@@ -3844,24 +3858,19 @@ public class MaaProcessor
                     token.ThrowIfCancellationRequested();
                     // if (task.Tasks != null)
                     //     NodeDictionary = task.Tasks;
-                    await TryRunTasksAsync(MaaTasker, task.Entry, task.Param, token);
-                }, task.Count ?? 1
+                    return await TryRunTasksAsync(MaaTasker, task.Entry, task.Param, token);
+                }, task.Count ?? 1, task.SourceItem, task.RunId
             ));
         }
     }
 
-    async private Task TryRunTasksAsync(MaaTasker? maa, string? task, string? param, CancellationToken token)
+    async private Task<MaaJobStatus> TryRunTasksAsync(MaaTasker? maa, string? task, string? param, CancellationToken token)
     {
-        if (maa == null || task == null) return;
+        if (maa == null || task == null) return MaaJobStatus.Invalid;
 
         var job = maa.AppendTask(task, param ?? "{}");
-        await TaskManager.RunTaskAsync((Action)(() =>
-        {
-            if (InstanceConfiguration.GetValue(ConfigurationKeys.ContinueRunningWhenError, true))
-                job.Wait();
-            else
-                job.Wait().ThrowIfNot(MaaJobStatus.Succeeded);
-        }), token, (ex) => throw ex, name: "队列任务", catchException: true, shouldLog: false);
+        return await TaskManager.RunTaskAsync(() => job.Wait(), token, (ex) => throw ex,
+            name: "队列任务", catchException: true, shouldLog: false);
     }
 
     async private Task RunScript(string str = "Prescript")
@@ -3887,15 +3896,19 @@ public class MaaProcessor
         }
     }
 
-    private MFATask CreateMaaFWTask(string? name, Func<Task> action, int count = 1)
+    private MFATask CreateMaaFWTask(string? name, Func<Task<MaaJobStatus>> action, int count = 1,
+        DragItemViewModel? sourceItem = null, long runId = 0)
     {
         return new MFATask
         {
             Name = name,
             Count = count,
             Type = MFATask.MFATaskType.MAAFW,
-            Action = action,
-            OwnerViewModel = ViewModel
+            MaaAction = action,
+            OwnerViewModel = ViewModel,
+            SourceItem = sourceItem,
+            RunId = runId,
+            ContinueOnError = InstanceConfiguration.GetValue(ConfigurationKeys.ContinueRunningWhenError, true)
         };
     }
 

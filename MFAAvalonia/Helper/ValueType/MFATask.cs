@@ -33,10 +33,14 @@ public partial class MFATask : ObservableObject
     [ObservableProperty] private MFATaskType _type = MFATaskType.MFA;
     [ObservableProperty] private int _count = 1;
     [ObservableProperty] private Func<Task> _action;
+    public Func<Task<MaaJobStatus>>? MaaAction { get; set; }
     // [ObservableProperty] private Dictionary<string, MaaNode> _tasks = new();
     [ObservableProperty] private bool _isUpdateRelated;
 
     public TaskQueueViewModel? OwnerViewModel { get; set; }
+    public DragItemViewModel? SourceItem { get; set; }
+    public long RunId { get; set; }
+    public bool ContinueOnError { get; set; }
 
     public async Task<MFATaskStatus> Run(CancellationToken token)
     {
@@ -44,6 +48,9 @@ public partial class MFATask : ObservableObject
         {
             if (Count < 0)
                 Count = int.MaxValue;
+            OwnerViewModel?.MarkTaskRunning(SourceItem, RunId);
+            var hasFailed = false;
+            string? failureMessage = null;
             for (int i = 0; i < Count; i++)
             {
                 token.ThrowIfCancellationRequested();
@@ -52,21 +59,46 @@ public partial class MFATask : ObservableObject
                     OwnerViewModel?.AddLogByKey(LangKeys.TaskStart, (Avalonia.Media.IBrush?)null, true, true, LanguageHelper.GetLocalizedString(Name));
                     OwnerViewModel?.SetCurrentTaskName(LanguageHelper.GetLocalizedString(Name));
                 }
-                await Action();
+                if (MaaAction != null)
+                {
+                    var jobStatus = await MaaAction();
+                    if (jobStatus != MaaJobStatus.Succeeded)
+                    {
+                        hasFailed = true;
+                        failureMessage = jobStatus.ToString();
+                        if (!ContinueOnError)
+                        {
+                            OwnerViewModel?.MarkTaskFailed(SourceItem, RunId, failureMessage);
+                            return MFATaskStatus.FAILED;
+                        }
+                    }
+                }
+                else
+                {
+                    await Action();
+                }
+                OwnerViewModel?.MarkTaskIterationCompleted(SourceItem, RunId);
             }
+            if (hasFailed)
+                OwnerViewModel?.MarkTaskFailed(SourceItem, RunId, failureMessage);
+            else
+                OwnerViewModel?.MarkTaskSucceeded(SourceItem, RunId);
             return MFATaskStatus.SUCCEEDED;
         }
-        catch (MaaJobStatusException)
+        catch (MaaJobStatusException ex)
         {
+            OwnerViewModel?.MarkTaskFailed(SourceItem, RunId, ex.Message);
             LoggerHelper.Error($"任务执行失败：{LanguageHelper.GetLocalizedString(Name)}");
             return MFATaskStatus.FAILED;
         }
         catch (OperationCanceledException)
         {
+            OwnerViewModel?.MarkTaskStopped(SourceItem, RunId);
             return MFATaskStatus.STOPPED;
         }
         catch (Exception ex)
         {
+            OwnerViewModel?.MarkTaskFailed(SourceItem, RunId, ex.Message);
             LoggerHelper.Error($"任务执行异常：任务={LanguageHelper.GetLocalizedString(Name)}，原因={ex.Message}", ex);
             return MFATaskStatus.FAILED;
         }
