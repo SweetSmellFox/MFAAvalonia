@@ -6,3 +6,17 @@ riderModule.iml
 .dotnet-cli/
 .dotnet/
 .idea/
+artifacts/
+
+# Local IDE and user settings
+*.sln.DotSettings.user
+
+# Local diagnostics and generated output
+.tmp_*
+build_output.txt
+**/logs/
+*.csproj.SdkResolver.*.proj.Backup.tmp
+
+# Local development scratch data
+/plans/
+/test_interface/
