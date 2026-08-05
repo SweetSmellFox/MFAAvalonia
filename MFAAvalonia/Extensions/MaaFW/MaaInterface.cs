@@ -555,12 +555,7 @@ public partial class MaaInterface
             if (input == null) return (true, null);
 
             if (string.IsNullOrEmpty(input.Verify))
-            {
-                // 默认验证：不为空
-                if (string.IsNullOrWhiteSpace(value))
-                    return (false, input.PatternMsg ?? $"{LanguageHelper.GetLocalizedDisplayName(input.Label, input.Name ?? string.Empty)}");
                 return (true, null);
-            }
 
             try
             {
