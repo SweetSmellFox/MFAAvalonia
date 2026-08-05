@@ -195,6 +195,7 @@ public partial class App : Application
                 Services = services.BuildServiceProvider();
 
                 MaaProcessorManager.Instance.LoadInstanceConfig();
+                TelemetryService.InitializeFromInterface();
 
                 // 启动懒加载：先加载 ActiveTab，再加载有定时任务的，最后加载其余
                 _ = MaaProcessorManager.Instance.StartLazyLoadingAsync();
@@ -236,6 +237,7 @@ public partial class App : Application
                 Services = services.BuildServiceProvider();
 
                 MaaProcessorManager.Instance.LoadInstanceConfig();
+                TelemetryService.InitializeFromInterface();
 
                 // 启动懒加载
                 _ = MaaProcessorManager.Instance.StartLazyLoadingAsync();
@@ -275,6 +277,7 @@ public partial class App : Application
 
     private void OnShutdownRequested(object sender, ShutdownRequestedEventArgs e)
     {
+        TelemetryService.Shutdown();
         TrayIconManager.DisposeTrayIcon(this);
 
         Instances.PersistRuntimeState();
@@ -409,6 +412,7 @@ public partial class App : Application
 
             e.Handled = true;
             LoggerHelper.Error(e.Exception);
+            TelemetryService.CaptureException(e.Exception, "ui-thread");
             ErrorView.ShowException(e.Exception);
         }
         catch (Exception ex)
@@ -447,6 +451,7 @@ public partial class App : Application
 
             if (e.ExceptionObject is Exception ex2)
             {
+                TelemetryService.CaptureException(ex2, "app-domain");
                 ErrorView.ShowException(ex2);
                 sbEx.Append(ex2);
             }
@@ -482,6 +487,7 @@ public partial class App : Application
             else
             {
                 LoggerHelper.Error(e.Exception);
+                TelemetryService.CaptureException(e.Exception, "unobserved-task");
                 ErrorView.ShowException(e.Exception);
 
                 foreach (var item in e.Exception.InnerExceptions ?? Enumerable.Empty<Exception>())

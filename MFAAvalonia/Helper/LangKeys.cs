@@ -550,6 +550,8 @@ public static class LangKeys
 	public static readonly string FontScaleTitle = "FontScaleTitle";
 	public static readonly string FontScaleDescription = "FontScaleDescription";
 	public static readonly string FontScaleValue = "FontScaleValue";
+	public static readonly string HelpImproveSoftware = "HelpImproveSoftware";
+	public static readonly string HelpImproveSoftwareDescription = "HelpImproveSoftwareDescription";
 	public static readonly string ResourceAutoSwitched = "ResourceAutoSwitched";
 	public static readonly string ResourceNotSupportController = "ResourceNotSupportController";
 	public static readonly string ResourceNotSelected = "ResourceNotSelected";

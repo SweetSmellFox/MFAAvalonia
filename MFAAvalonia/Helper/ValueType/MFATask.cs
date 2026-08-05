@@ -44,6 +44,17 @@ public partial class MFATask : ObservableObject
 
     public async Task<MFATaskStatus> Run(CancellationToken token)
     {
+        var instanceId = OwnerViewModel?.Processor.InstanceId;
+        if (instanceId != null)
+            TelemetryService.StartTask(instanceId, this);
+
+        MFATaskStatus Complete(MFATaskStatus status)
+        {
+            if (instanceId != null)
+                TelemetryService.FinishTask(instanceId, this, status);
+            return status;
+        }
+
         try
         {
             if (Count < 0)
@@ -69,7 +80,7 @@ public partial class MFATask : ObservableObject
                         if (!ContinueOnError)
                         {
                             OwnerViewModel?.MarkTaskFailed(SourceItem, RunId, failureMessage);
-                            return MFATaskStatus.FAILED;
+                            return Complete(MFATaskStatus.FAILED);
                         }
                     }
                 }
@@ -83,24 +94,24 @@ public partial class MFATask : ObservableObject
                 OwnerViewModel?.MarkTaskFailed(SourceItem, RunId, failureMessage);
             else
                 OwnerViewModel?.MarkTaskSucceeded(SourceItem, RunId);
-            return MFATaskStatus.SUCCEEDED;
+            return Complete(MFATaskStatus.SUCCEEDED);
         }
         catch (MaaJobStatusException ex)
         {
             OwnerViewModel?.MarkTaskFailed(SourceItem, RunId, ex.Message);
             LoggerHelper.Error($"任务执行失败：{LanguageHelper.GetLocalizedString(Name)}");
-            return MFATaskStatus.FAILED;
+            return Complete(MFATaskStatus.FAILED);
         }
         catch (OperationCanceledException)
         {
             OwnerViewModel?.MarkTaskStopped(SourceItem, RunId);
-            return MFATaskStatus.STOPPED;
+            return Complete(MFATaskStatus.STOPPED);
         }
         catch (Exception ex)
         {
             OwnerViewModel?.MarkTaskFailed(SourceItem, RunId, ex.Message);
             LoggerHelper.Error($"任务执行异常：任务={LanguageHelper.GetLocalizedString(Name)}，原因={ex.Message}", ex);
-            return MFATaskStatus.FAILED;
+            return Complete(MFATaskStatus.FAILED);
         }
     }
 }

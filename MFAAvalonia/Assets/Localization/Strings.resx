@@ -2143,6 +2143,8 @@
   <data name="LaunchItemName" xml:space="preserve"><value>启动项名称</value></data>
   <data name="VirtualGamepadType" xml:space="preserve"><value>虚拟手柄类型</value></data>
   <data name="CopyInstanceId" xml:space="preserve"><value>复制实例 ID</value></data>
+  <data name="HelpImproveSoftware" xml:space="preserve"><value>帮助改进软件</value></data>
+  <data name="HelpImproveSoftwareDescription" xml:space="preserve"><value>匿名发送崩溃信息和任务运行结果，帮助资源作者定位问题。不会发送设备地址、路径或用户输入。</value></data>
 </root>
 
 

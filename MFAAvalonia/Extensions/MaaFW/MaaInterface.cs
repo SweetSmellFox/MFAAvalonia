@@ -1452,6 +1452,30 @@ public partial class MaaInterface
     [JsonProperty("version")]
     public string? Version { get; set; }
 
+    [JsonProperty("telemetry")]
+    public MaaInterfaceTelemetry? Telemetry { get; set; }
+
+    public class MaaInterfaceTelemetry
+    {
+        [JsonProperty("sentry")]
+        public MaaInterfaceSentryTelemetry? Sentry { get; set; }
+    }
+
+    public class MaaInterfaceSentryTelemetry
+    {
+        [JsonProperty("dsn")]
+        public string? Dsn { get; set; }
+
+        [JsonProperty("tracing")]
+        public bool? Tracing { get; set; }
+
+        [JsonProperty("traces_sample_rate")]
+        public double? TracesSampleRate { get; set; }
+
+        [JsonProperty("environment")]
+        public string? Environment { get; set; }
+    }
+
     [JsonProperty("__mfa_max_version")]
     public string? MFAMaxVersion { get; set; }
 
@@ -1677,6 +1701,7 @@ public partial class MaaInterface
         if (!string.IsNullOrEmpty(other.Name)) Name = other.Name;
         if (!string.IsNullOrEmpty(other.Label)) Label = other.Label;
         if (!string.IsNullOrEmpty(other.Version)) Version = other.Version;
+        if (other.Telemetry != null) Telemetry = other.Telemetry;
         if (!string.IsNullOrEmpty(other.MFAMaxVersion)) MFAMaxVersion = other.MFAMaxVersion;
         if (!string.IsNullOrEmpty(other.MFAMinVersion)) MFAMinVersion = other.MFAMinVersion;
         if (!string.IsNullOrEmpty(other.Welcome)) Welcome = other.Welcome;

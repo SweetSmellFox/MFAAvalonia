@@ -1787,6 +1787,8 @@ public class MaaProcessor
         }
 
         var callbackName = jObject["name"]?.ToString() ?? string.Empty;
+        if (args.Message.Contains("PipelineNode.Failed", StringComparison.OrdinalIgnoreCase))
+            TelemetryService.RecordFailedNode(InstanceId, callbackName);
 
         MaaTasker? tasker = null;
         if (sender is MaaTasker t)
@@ -3165,6 +3167,9 @@ public class MaaProcessor
             ClearTaskbarProgress();
         }
 
+        if (!onlyStart)
+            TelemetryService.StartRun(InstanceId, tasks?.Count ?? 0);
+
         try
         {
             await TaskManager.RunTaskAsync(async () =>
@@ -3176,7 +3181,10 @@ public class MaaProcessor
         finally
         {
             if (!onlyStart)
+            {
+                TelemetryService.FinishRun(InstanceId, Status);
                 ViewModel?.FinalizeTaskRun(runId);
+            }
         }
 
     }
@@ -4553,6 +4561,7 @@ public class MaaProcessor
             tasker.Resource.Register(new Custom.KillProcessAction());
             tasker.Resource.Register(new Custom.ComputerOperationAction());
             tasker.Resource.Register(new Custom.WebhookAction());
+            tasker.Resource.Register(new Custom.HeiLiuAction((content, color) => AddLog(content, color)));
             LoggerHelper.Info("已注册内置特殊任务动作。");
 
             // 获取当前资源的自定义目录

@@ -14,6 +14,7 @@ public static class ConfigurationKeys
     public const string ForceScheduledStart = "ForceScheduledStart";
     public const string CustomConfig = "CustomConfig";
     public const string NoAutoStart = "NoAutoStart";
+    public const string HelpImproveSoftware = "HelpImproveSoftware";
 
     #endregion
 
