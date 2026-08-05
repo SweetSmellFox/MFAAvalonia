@@ -20,3 +20,7 @@ build_output.txt
 # Local development scratch data
 /plans/
 /test_interface/
+
+# Local-only verification project
+/MFAAvalonia.Tests/
+/MFAAvalonia/AssemblyInfo.cs

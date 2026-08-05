@@ -1594,15 +1594,17 @@ public class MaaProcessor
             LoggerHelper.Warning("资源加载已取消。");
             return (null, InvalidResource, ShouldRetry);
         }
-        catch (MaaJobStatusException)
+        catch (MaaJobStatusException ex)
         {
             ShouldRetry = false;
+            TelemetryService.RecordTaskFailure(InstanceId, "resource_initialization_failed", "resource_load", ex);
             return (null, InvalidResource, ShouldRetry);
         }
         catch (Exception e)
         {
             ShouldRetry = false;
             LoggerHelper.Error("资源初始化失败", e);
+            TelemetryService.RecordTaskFailure(InstanceId, "resource_initialization_failed", "resource_load", e);
             return (null, InvalidResource, ShouldRetry);
         }
 
@@ -1625,6 +1627,7 @@ public class MaaProcessor
             if (controller == null)
             {
                 LoggerHelper.Warning("控制器初始化结果为空，已中止本次连接尝试。");
+                TelemetryService.RecordTaskFailure(InstanceId, "controller_initialization_failed", "controller", "null_result");
                 return (null, InvalidResource, ShouldRetry);
             }
 
@@ -1644,13 +1647,15 @@ public class MaaProcessor
             LoggerHelper.Warning("控制器初始化已取消。");
             return (null, InvalidResource, ShouldRetry);
         }
-        catch (MaaException)
+        catch (MaaException ex)
         {
+            TelemetryService.RecordTaskFailure(InstanceId, "controller_initialization_failed", "controller", ex);
             return (null, InvalidResource, ShouldRetry); // 控制器异常可以重试
         }
         catch (Exception e)
         {
             LoggerHelper.Error("控制器初始化失败", e);
+            TelemetryService.RecordTaskFailure(InstanceId, "controller_initialization_failed", "controller", e);
             return (null, InvalidResource, ShouldRetry); // 控制器错误可以重试
         }
 
@@ -1671,11 +1676,25 @@ public class MaaProcessor
             // 尝试连接控制器，验证连接是否成功
             // 这对于 Win32 控制器特别重要，因为当 HWnd 为 IntPtr.Zero 时，
             // MaaWin32Controller 创建成功但LinkStart 会失败
-            var linkStatus = tasker.Controller?.LinkStart().Wait();
+            MaaJobStatus? linkStatus;
+            try
+            {
+                linkStatus = tasker.Controller?.LinkStart().Wait();
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                TelemetryService.RecordTaskFailure(InstanceId, "controller_link_start_failed", "controller", ex);
+                throw;
+            }
             if (linkStatus != MaaJobStatus.Succeeded)
             {
                 LoggerHelper.Warning($"控制器 LinkStart 失败：状态={linkStatus}");
                 tasker.Dispose();
+                TelemetryService.RecordTaskFailure(InstanceId, "controller_link_start_failed", "controller", linkStatus.ToString());
                 return (null, InvalidResource, ShouldRetry);
             }
 
@@ -1713,8 +1732,9 @@ public class MaaProcessor
                     _agentContexts = await AgentHelper.StartAgentsAsync(tasker, agentConfigs!, InstanceConfiguration, this, token);
                     if (_agentContexts.Count == 0 && agentConfigs!.Any(a => a.ChildExec != null))
                     {
-                        // Agent 启动失败（StartAgentsAsync 内部已处理错误日志）
+                        // A configured Agent that produces no context is a failure even without an exception.
                         ShouldRetry = false;
+                        TelemetryService.RecordTaskFailure(InstanceId, "agent_start_failed", "agent", "no_agent_context");
                         return (null, InvalidResource, ShouldRetry);
                     }
                     _agentStarted = true;
@@ -1737,6 +1757,7 @@ public class MaaProcessor
                         ToastHelper.Error(LangKeys.AgentStartFailed.ToLocalization(), ex.Message);
                     AgentHelper.KillAllAgents(_agentContexts);
                     ShouldRetry = false;
+                    TelemetryService.RecordTaskFailure(InstanceId, "agent_start_failed", "agent", ex);
                     return (null, InvalidResource, ShouldRetry);
                 }
             }
@@ -1757,13 +1778,15 @@ public class MaaProcessor
             LoggerHelper.Warning("任务执行器初始化已取消。");
             return (null, InvalidResource, ShouldRetry);
         }
-        catch (MaaException)
+        catch (MaaException ex)
         {
+            TelemetryService.RecordTaskFailure(InstanceId, "tasker_initialization_failed", "tasker", ex);
             return (null, InvalidResource, ShouldRetry);
         }
         catch (Exception e)
         {
             LoggerHelper.Error("任务执行器初始化失败", e);
+            TelemetryService.RecordTaskFailure(InstanceId, "tasker_initialization_failed", "tasker", e);
             return (null, InvalidResource, ShouldRetry);
         }
 
@@ -3229,7 +3252,17 @@ public class MaaProcessor
         }
 
         if (!onlyStart)
-            TelemetryService.StartRun(InstanceId, tasks?.Count ?? 0);
+        {
+            var telemetryTaskNames = (tasks ?? [])
+                .Select(task => task.InterfaceItem?.Name ?? task.Name ?? "unknown")
+                .ToList();
+            var controllerType = ViewModel?.CurrentController ?? MaaControllerTypes.None;
+            TelemetryService.StartRun(
+                InstanceId,
+                telemetryTaskNames,
+                ViewModel?.GetCurrentControllerName(),
+                controllerType.ToJsonKey());
+        }
 
         try
         {
@@ -3764,7 +3797,10 @@ public class MaaProcessor
                 _suppressConnectionAttemptErrorToast = previousSuppressConnectionAttemptErrorToast;
                 if (!tuple.Item2 && shouldRetry)
                     HandleConnectionFailureAsync(controllerType, token);
-                throw new Exception(ConnectionFailedAfterAllRetriesMessage);
+                var connectionException = new InvalidOperationException(ConnectionFailedAfterAllRetriesMessage);
+                connectionException.Data["controller.type"] = controllerType.ToString();
+                TelemetryService.RecordTaskFailure(InstanceId, "connection_failed", "connection", connectionException);
+                throw connectionException;
             }
 
             if (isAdb)
@@ -3948,6 +3984,7 @@ public class MaaProcessor
         if (maa == null || task == null) return MaaJobStatus.Invalid;
 
         var job = maa.AppendTask(task, param ?? "{}");
+        TelemetryService.SetActiveTaskId(InstanceId, job.Id);
         return await TaskManager.RunTaskAsync(() => job.Wait(), token, (ex) => throw ex,
             name: "队列任务", catchException: true, shouldLog: false);
     }

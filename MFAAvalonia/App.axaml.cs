@@ -128,6 +128,7 @@ public partial class App : Application
     {
         try
         {
+            TelemetryService.InitializeBootstrapFromInterface(AppContext.BaseDirectory);
             base.Initialize();
             AppPaths.Initialize();
             LoggerHelper.InitializeLogger();
@@ -625,6 +626,16 @@ public partial class App : Application
             System.Threading.Thread.Sleep(100); // 等待一下让第一个线程显示对话框
             Environment.Exit(1);
             return;
+        }
+
+        TelemetryService.CaptureException(exception, "startup");
+        try
+        {
+            Sentry.SentrySdk.FlushAsync(TimeSpan.FromSeconds(1)).GetAwaiter().GetResult();
+        }
+        catch
+        {
+            // Startup diagnostics must not delay or replace the original failure.
         }
 
         try

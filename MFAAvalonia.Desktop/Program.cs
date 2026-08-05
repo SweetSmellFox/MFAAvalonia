@@ -49,6 +49,7 @@ sealed class Program
             var executablePath = Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "MFAAvalonia.exe");
             var instanceKey = AppRuntime.CreateInstanceKey(executablePath);
             AppRuntime.Initialize(args, instanceKey);
+            TelemetryService.InitializeBootstrapFromInterface(AppContext.BaseDirectory);
 
             if (!AppRuntime.IsNewInstance && AppRuntime.TryForwardLaunchCommand())
             {

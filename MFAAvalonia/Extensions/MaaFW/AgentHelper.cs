@@ -144,12 +144,10 @@ public static class AgentHelper
             }
             catch (Exception ex)
             {
-                LoggerHelper.Error($"启动 Agent 失败：{agentConfig.ChildExec}，原因：{ex.Message}");
-                processor.AddLogByKey(LangKeys.AgentStartFailed, Avalonia.Media.Brushes.OrangeRed, changeColor: false);
-                ToastHelper.Error(LangKeys.AgentStartFailed.ToLocalization(), ex.Message);
-                // 清理已启动的 agent
                 KillAllAgents(contexts);
-                return [];
+                throw new InvalidOperationException(
+                    $"Agent '{agentConfig.ChildExec}' failed to start: {ex.Message}",
+                    ex);
             }
         }
 
@@ -425,7 +423,9 @@ public static class AgentHelper
                     LoggerHelper.Warning($"读取 Agent 进程输出失败：{readEx.Message}");
                 }
             }
-            throw new Exception(errorMessage);
+            throw lastException == null
+                ? new InvalidOperationException(errorMessage)
+                : new InvalidOperationException(errorMessage, lastException);
         }
 
         return ctx;

@@ -14,11 +14,22 @@ using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using System.Management;
+using System.IO;
+using System.Text.RegularExpressions;
 
 namespace MFAAvalonia.Helper;
 
 public static class TelemetryService
 {
+    internal sealed record BootstrapTelemetryConfig(
+        string Dsn,
+        string ResourceName,
+        string ResourceVersion,
+        string? Environment = null,
+        bool Tracing = true,
+        double TracesSampleRate = 1.0,
+        double FailureAttachmentsSampleRate = 1.0);
+
     private sealed class RunState
     {
         public required ITransactionTracer Transaction { get; init; }
@@ -54,9 +65,11 @@ public static class TelemetryService
     }
 
     private const int MaxFailedNodesPerRun = 32;
+    private const int MaxFailureDetailLength = 2048;
     private static readonly object SyncRoot = new();
     private static readonly Dictionary<string, RunState> Runs = new();
     private static IDisposable? _sdk;
+    private static bool _isBootstrapSdk;
     private static readonly string AnonymousMachineId = CreateAnonymousMachineId();
     private static double FailureAttachmentSampleRate = 1.0;
     private static readonly List<PendingFailureWorker> PendingAttachmentWorkers = new();
@@ -70,20 +83,14 @@ public static class TelemetryService
         }
     }
 
-    public static void InitializeFromInterface()
+    public static void InitializeBootstrapFromInterface(string dataRoot)
     {
-        var config = MaaProcessor.Interface?.Telemetry?.Sentry;
-        if (config == null || string.IsNullOrWhiteSpace(config.Dsn))
-        {
-            LoggerHelper.Info("[Telemetry] interface 未配置 Sentry DSN，跳过初始化");
+        if (!IsBootstrapTelemetryEnabled(dataRoot))
             return;
-        }
 
-        if (!IsUserEnabled() || IsBlockedBuild(MaaProcessor.Interface?.Version))
-        {
-            LoggerHelper.Info("[Telemetry] 用户已关闭或当前为调试资源，跳过初始化");
+        var bootstrapConfig = TryReadBootstrapTelemetryConfig(dataRoot);
+        if (bootstrapConfig == null || IsBlockedBuild(bootstrapConfig.ResourceVersion))
             return;
-        }
 
         lock (SyncRoot)
         {
@@ -92,16 +99,74 @@ public static class TelemetryService
 
             try
             {
+                _sdk = SentrySdk.Init(options =>
+                {
+                    options.Dsn = bootstrapConfig.Dsn;
+                    options.SendDefaultPii = false;
+                    options.AttachStacktrace = false;
+                    options.AutoSessionTracking = true;
+                    options.IsGlobalModeEnabled = true;
+                    options.ShutdownTimeout = TimeSpan.FromSeconds(1);
+                    options.Release = $"MFA@{RootViewModel.Version}+{bootstrapConfig.ResourceName}@{bootstrapConfig.ResourceVersion}";
+                    options.Environment = string.IsNullOrWhiteSpace(bootstrapConfig.Environment)
+                        ? GetDefaultEnvironment(bootstrapConfig.ResourceVersion)
+                        : bootstrapConfig.Environment;
+                    options.TracesSampleRate = bootstrapConfig.Tracing
+                        ? Math.Clamp(bootstrapConfig.TracesSampleRate, 0.0, 1.0)
+                        : 0;
+                });
+                FailureAttachmentSampleRate = Math.Clamp(bootstrapConfig.FailureAttachmentsSampleRate, 0.0, 1.0);
+                _isBootstrapSdk = true;
+                ConfigureScope(bootstrapConfig.ResourceName, bootstrapConfig.ResourceVersion);
+            }
+            catch
+            {
+                _sdk?.Dispose();
+                _sdk = null;
+            }
+        }
+    }
+
+    public static void InitializeFromInterface()
+    {
+        var config = MaaProcessor.Interface?.Telemetry?.Sentry;
+        if (config == null || string.IsNullOrWhiteSpace(config.Dsn))
+        {
+            ShutdownBootstrapSdk();
+            LoggerHelper.Info("[Telemetry] interface 未配置 Sentry DSN，跳过初始化");
+            return;
+        }
+
+        if (!IsUserEnabled() || IsBlockedBuild(MaaProcessor.Interface?.Version))
+        {
+            ShutdownBootstrapSdk();
+            LoggerHelper.Info("[Telemetry] 用户已关闭或当前为调试资源，跳过初始化");
+            return;
+        }
+
+        lock (SyncRoot)
+        {
+            try
+            {
                 var resourceName = MaaProcessor.Interface?.Name ?? "unknown";
                 var resourceVersion = MaaProcessor.Interface?.Version ?? "0.0.0";
+                FailureAttachmentSampleRate = Math.Clamp(config.FailureAttachmentsSampleRate ?? 1.0, 0.0, 1.0);
+
+                if (_sdk != null)
+                {
+                    _isBootstrapSdk = false;
+                    ConfigureScope(resourceName, resourceVersion);
+                    return;
+                }
+
                 var tracing = config.Tracing ?? true;
                 var sampleRate = Math.Clamp(config.TracesSampleRate ?? 1.0, 0.0, 1.0);
-                FailureAttachmentSampleRate = Math.Clamp(config.FailureAttachmentsSampleRate ?? 1.0, 0.0, 1.0);
 
                 _sdk = SentrySdk.Init(options =>
                 {
                     options.Dsn = config.Dsn;
                     options.SendDefaultPii = false;
+                    options.AttachStacktrace = false;
                     options.AutoSessionTracking = true;
                     options.IsGlobalModeEnabled = true;
                     options.ShutdownTimeout = TimeSpan.FromSeconds(1);
@@ -112,20 +177,7 @@ public static class TelemetryService
                     options.TracesSampleRate = tracing ? sampleRate : 0;
                 });
 
-                SentrySdk.ConfigureScope(scope =>
-                {
-                    scope.SetTag("resource.name", resourceName);
-                    scope.SetTag("resource.version", resourceVersion);
-                    scope.SetTag("mfa.version", RootViewModel.Version);
-                    scope.User = new SentryUser { Id = AnonymousMachineId };
-                    scope.Contexts["hardware"] = CollectHardwareContext();
-                    scope.Contexts["client"] = new Dictionary<string, object>
-                    {
-                        ["name"] = "MFAAvalonia",
-                        ["version"] = RootViewModel.Version,
-                        ["runtime"] = RuntimeInformation.FrameworkDescription
-                    };
-                });
+                ConfigureScope(resourceName, resourceVersion);
                 LoggerHelper.Info("[Telemetry] Sentry 已初始化");
             }
             catch (Exception ex)
@@ -146,19 +198,189 @@ public static class TelemetryService
             Shutdown();
     }
 
+    private static void ShutdownBootstrapSdk()
+    {
+        lock (SyncRoot)
+        {
+            if (!_isBootstrapSdk)
+                return;
+
+            SentrySdk.EndSession(SessionEndStatus.Exited);
+            _sdk?.Dispose();
+            _sdk = null;
+            _isBootstrapSdk = false;
+        }
+    }
+
     public static void CaptureException(Exception exception, string source)
     {
         if (!IsActive)
             return;
 
-        using (SentrySdk.PushScope())
+        try
         {
-            SentrySdk.ConfigureScope(scope => scope.SetTag("exception.source", source));
-            SentrySdk.CaptureException(exception);
+            using (SentrySdk.PushScope())
+            {
+                SentrySdk.ConfigureScope(scope =>
+                {
+                    scope.SetTag("exception.source", source);
+                    var (code, family) = ClassifyException(exception);
+                    scope.SetTag("error.code", code);
+                    scope.SetTag("error.family", family);
+                });
+                SentrySdk.CaptureException(exception);
+            }
+        }
+        catch
+        {
+            // Diagnostics must never replace the original exception.
         }
     }
 
-    public static void StartRun(string instanceId, int taskCount)
+    private static void ConfigureScope(string resourceName, string resourceVersion)
+    {
+        SentrySdk.ConfigureScope(scope =>
+        {
+            scope.SetTag("app.name", resourceName);
+            scope.SetTag("app.version", resourceVersion);
+            scope.SetTag("mfa.version", RootViewModel.Version);
+            scope.SetTag("resource.name", resourceName);
+            scope.SetTag("resource.version", resourceVersion);
+            scope.User = new SentryUser { Id = AnonymousMachineId };
+            scope.Contexts["hardware"] = CollectHardwareContext();
+            scope.Contexts["client"] = new Dictionary<string, object>
+            {
+                ["name"] = "MFAAvalonia",
+                ["version"] = RootViewModel.Version,
+                ["runtime"] = RuntimeInformation.FrameworkDescription
+            };
+        });
+    }
+
+    internal static string? TryReadBootstrapDsn(string dataRoot) =>
+        TryReadBootstrapTelemetryConfig(dataRoot)?.Dsn;
+
+    internal static BootstrapTelemetryConfig? TryReadBootstrapTelemetryConfig(string dataRoot)
+    {
+        foreach (var fileName in new[] { "interface.jsonc", "interface.json" })
+        {
+            var path = Path.Combine(dataRoot, fileName);
+            if (!File.Exists(path))
+                continue;
+
+            try
+            {
+                var root = JObject.Parse(File.ReadAllText(path), new JsonLoadSettings { CommentHandling = CommentHandling.Ignore });
+                var dsn = root["telemetry"]?["sentry"]?["dsn"]?.Value<string>();
+                if (IsSentryDsn(dsn))
+                    return new BootstrapTelemetryConfig(
+                        dsn,
+                        root["name"]?.Value<string>() ?? "unknown",
+                        root["version"]?.Value<string>() ?? "0.0.0",
+                        root["telemetry"]?["sentry"]?["environment"]?.Value<string>(),
+                        root["telemetry"]?["sentry"]?["tracing"]?.Value<bool?>() ?? true,
+                        root["telemetry"]?["sentry"]?["traces_sample_rate"]?.Value<double?>() ?? 1.0,
+                        root["telemetry"]?["sentry"]?["failure_attachments_sample_rate"]?.Value<double?>() ?? 1.0);
+            }
+            catch
+            {
+                try
+                {
+                    var content = File.ReadAllText(path);
+                    var match = Regex.Match(content, "\\\"telemetry\\\"\\s*:\\s*\\{.*?\\\"sentry\\\"\\s*:\\s*\\{.*?\\\"dsn\\\"\\s*:\\s*\\\"(?<dsn>[^\\\"]+)\\\"", RegexOptions.Singleline);
+                    var dsn = match.Groups["dsn"].Value;
+                    if (IsSentryDsn(dsn))
+                        return new BootstrapTelemetryConfig(
+                            dsn,
+                            TryReadBootstrapValue(content, "name") ?? "unknown",
+                            TryReadBootstrapValue(content, "version") ?? "0.0.0",
+                            TryReadBootstrapValue(content, "environment"));
+                }
+                catch
+                {
+                    // Bootstrap telemetry must never change startup behavior.
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static string? TryReadBootstrapValue(string content, string propertyName)
+    {
+        var match = Regex.Match(content, $"\\\"{Regex.Escape(propertyName)}\\\"\\s*:\\s*\\\"(?<value>[^\\\"]+)\\\"", RegexOptions.Singleline);
+        return match.Success ? match.Groups["value"].Value : null;
+    }
+
+    private static bool IsSentryDsn(string? value) =>
+        Uri.TryCreate(value, UriKind.Absolute, out var uri)
+        && uri.Scheme == Uri.UriSchemeHttps
+        && uri.Host.Contains(".ingest.", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsBootstrapTelemetryEnabled(string dataRoot)
+    {
+        try
+        {
+            var path = Path.Combine(dataRoot, "appsettings.json");
+            if (!File.Exists(path))
+                return true;
+
+            var root = JObject.Parse(File.ReadAllText(path));
+            var value = root[ConfigurationKeys.HelpImproveSoftware]?.Value<string>();
+            return !bool.TryParse(value, out var enabled) || enabled;
+        }
+        catch
+        {
+            // Match GlobalConfiguration's default when its file cannot be read.
+            return true;
+        }
+    }
+
+    private static (string Code, string Family) ClassifyException(Exception exception)
+    {
+        var all = EnumerateExceptions(exception).ToList();
+        var text = string.Join("\n", all.Select(item => item.ToString()));
+        if (text.Contains("GetProcAddress failed", StringComparison.OrdinalIgnoreCase) || all.Any(item => item is EntryPointNotFoundException))
+            return ("native_symbol_missing", "native_library");
+        if (text.Contains("MaaFramework library not loaded", StringComparison.OrdinalIgnoreCase))
+            return ("maafw_library_not_loaded", "native_library");
+        if (text.Contains("native library directory", StringComparison.OrdinalIgnoreCase)
+            && text.Contains("resolver", StringComparison.OrdinalIgnoreCase))
+            return ("native_library_resolver_failed", "native_library");
+        if (text.Contains("appindicator", StringComparison.OrdinalIgnoreCase) || text.Contains("ayatana", StringComparison.OrdinalIgnoreCase))
+            return ("linux_tray_library_missing", "desktop_integration");
+        if (all.Any(item => item is OutOfMemoryException) || text.Contains("failed to spawn thread", StringComparison.OrdinalIgnoreCase))
+            return ("system_resource_exhausted", "runtime");
+        if (all.Any(item => item is DllNotFoundException or BadImageFormatException)
+            || text.Contains("Unable to load shared library", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("cannot open shared object file", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("specified module could not be found", StringComparison.OrdinalIgnoreCase))
+            return ("native_library_load_failed", "native_library");
+        if (all.Any(item => item is FileNotFoundException))
+            return ("file_not_found", "file_system");
+        return ("unhandled_exception", "runtime");
+    }
+
+    private static IEnumerable<Exception> EnumerateExceptions(Exception exception)
+    {
+        yield return exception;
+        if (exception is AggregateException aggregate)
+        {
+            foreach (var inner in aggregate.InnerExceptions.SelectMany(EnumerateExceptions))
+                yield return inner;
+        }
+        else if (exception.InnerException != null)
+        {
+            foreach (var inner in EnumerateExceptions(exception.InnerException))
+                yield return inner;
+        }
+    }
+
+    public static void StartRun(
+        string instanceId,
+        IReadOnlyCollection<string> taskNames,
+        string? controllerName,
+        string? controllerType)
     {
         if (!IsActive)
             return;
@@ -166,9 +388,21 @@ public static class TelemetryService
         lock (SyncRoot)
         {
             FinishRunLocked(instanceId, SpanStatus.Cancelled);
-            var transaction = SentrySdk.StartTransaction("task-list", "mfa.task-list");
-            transaction.SetData("task.count", taskCount);
-            Runs[instanceId] = new RunState { Transaction = transaction, TaskCount = taskCount };
+            var transaction = SentrySdk.StartTransaction("mfa.task_run", "mfa.run");
+            transaction.SetData("task_count", taskNames.Count);
+            if (taskNames.Count > 0)
+                transaction.SetData("tasks", string.Join(",", taskNames));
+            if (!string.IsNullOrWhiteSpace(controllerName))
+            {
+                transaction.SetData("controller.name", controllerName);
+                transaction.SetTag("controller.name", controllerName);
+            }
+            if (!string.IsNullOrWhiteSpace(controllerType))
+            {
+                transaction.SetData("controller.type", controllerType);
+                transaction.SetTag("controller.type", controllerType);
+            }
+            Runs[instanceId] = new RunState { Transaction = transaction, TaskCount = taskNames.Count };
         }
     }
 
@@ -181,6 +415,7 @@ public static class TelemetryService
 
             var name = task.SourceItem?.InterfaceItem?.Name ?? task.Name ?? "unknown";
             var span = run.Transaction.StartChild("mfa.task", name);
+            span.SetData("task", name);
             span.SetData("repeat.count", task.Count);
             foreach (var option in BuildOptionSummary(task))
             {
@@ -220,6 +455,19 @@ public static class TelemetryService
         }
     }
 
+    public static void SetActiveTaskId(string instanceId, long taskId)
+    {
+        lock (SyncRoot)
+        {
+            if (!Runs.TryGetValue(instanceId, out var run)
+                || run.ActiveTask == null
+                || !run.Tasks.TryGetValue(run.ActiveTask, out var span))
+                return;
+
+            span.SetData("task_id", taskId);
+        }
+    }
+
     public static void RecordFailedNode(string instanceId, string? nodeName, string? stage = null, long? nodeId = null, long? taskId = null, long? durationMs = null)
     {
         lock (SyncRoot)
@@ -230,16 +478,60 @@ public static class TelemetryService
                 || run.FailedNodeCount++ >= MaxFailedNodesPerRun)
                 return;
 
-            var span = taskSpan.StartChild("mfa.pipeline-node", string.IsNullOrWhiteSpace(nodeName) ? "unknown" : nodeName);
+            var taskName = run.ActiveTask.SourceItem?.InterfaceItem?.Name ?? run.ActiveTask.Name ?? "unknown";
+            var span = taskSpan.StartChild("mfa.node", string.IsNullOrWhiteSpace(nodeName) ? "unknown" : nodeName);
             span.SetData("stage", stage ?? "unknown");
-            if (nodeId.HasValue) span.SetData("node.id", nodeId.Value);
-            if (taskId.HasValue) span.SetData("task.id", taskId.Value);
+            span.SetData("task", taskName);
+            if (nodeId.HasValue) span.SetData("node_id", nodeId.Value);
+            if (taskId.HasValue) span.SetData("task_id", taskId.Value);
             if (durationMs.HasValue) span.SetData("duration_ms", durationMs.Value);
             span.Status = SpanStatus.InternalError;
             span.Finish();
             var failure = new FailureInfo(nodeName ?? "unknown", stage ?? "unknown", nodeId, taskId, durationMs);
             run.RootFailure ??= failure;
             run.TerminalFailure = failure;
+        }
+    }
+
+    public static void RecordTaskFailure(string instanceId, string code, string stage, string? detail = null)
+    {
+        RecordTaskFailure(instanceId, code, stage, detail, null);
+    }
+
+    public static void RecordTaskFailure(string instanceId, string code, string stage, Exception exception)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+        RecordTaskFailure(instanceId, code, stage, BuildExceptionDetail(exception), exception);
+    }
+
+    private static void RecordTaskFailure(
+        string instanceId,
+        string code,
+        string stage,
+        string? detail,
+        Exception? exception)
+    {
+        if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(stage))
+            return;
+
+        lock (SyncRoot)
+        {
+            if (!Runs.TryGetValue(instanceId, out var run)
+                || run.ActiveTask == null
+                || !run.Tasks.TryGetValue(run.ActiveTask, out var taskSpan))
+                return;
+
+            var failure = new FailureInfo(code, stage, null, null, null, detail, exception);
+            run.RootFailure ??= failure;
+            run.TerminalFailure = failure;
+            var taskName = run.ActiveTask.SourceItem?.InterfaceItem?.Name ?? run.ActiveTask.Name ?? "unknown";
+            var span = taskSpan.StartChild("mfa.error", code);
+            span.SetData("stage", stage);
+            span.SetData("task", taskName);
+            if (!string.IsNullOrWhiteSpace(detail))
+                span.SetData("detail", detail);
+            span.Status = SpanStatus.InternalError;
+            span.Finish();
         }
     }
 
@@ -279,10 +571,12 @@ public static class TelemetryService
             run.RootFailure ??= failure;
             run.TerminalFailure = failure;
             if (run.FailedNodeCount > MaxFailedNodesPerRun) return;
-            var span = taskSpan.StartChild("mfa.pipeline-node", failedNode);
+            var taskName = run.ActiveTask.SourceItem?.InterfaceItem?.Name ?? run.ActiveTask.Name ?? "unknown";
+            var span = taskSpan.StartChild("mfa.node", failedNode);
             span.SetData("stage", stage);
-            span.SetData("task.id", taskId.Value);
-            if (nodeId.HasValue) span.SetData("node.id", nodeId.Value);
+            span.SetData("task", taskName);
+            span.SetData("task_id", taskId.Value);
+            if (nodeId.HasValue) span.SetData("node_id", nodeId.Value);
             if (duration.HasValue) span.SetData("duration_ms", duration.Value);
             span.Status = SpanStatus.InternalError;
             span.Finish();
@@ -322,8 +616,11 @@ public static class TelemetryService
             }
             lock (SyncRoot)
             {
+                if (_sdk != null)
+                    SentrySdk.EndSession(SessionEndStatus.Exited);
                 _sdk?.Dispose();
                 _sdk = null;
+                _isBootstrapSdk = false;
                 PendingAttachmentWorkers.Clear();
             }
         }
@@ -358,11 +655,34 @@ public static class TelemetryService
 #if DEBUG
         return true;
 #else
-        var version = resourceVersion?.Trim() ?? string.Empty;
-        return version.Equals("DEBUG_VERSION", StringComparison.OrdinalIgnoreCase)
-               || version.Contains("alpha", StringComparison.OrdinalIgnoreCase)
-               || version.Contains("dev", StringComparison.OrdinalIgnoreCase);
+        return IsDebugResourceVersion(resourceVersion);
 #endif
+    }
+
+    internal static bool IsDebugResourceVersion(string? resourceVersion)
+    {
+        var version = resourceVersion?.Trim() ?? string.Empty;
+        if (version.Length == 0)
+            return false;
+        if (version.Equals("DEBUG_VERSION", StringComparison.Ordinal))
+            return true;
+
+        var normalized = version.TrimStart('v', 'V');
+        var match = Regex.Match(normalized, @"^(?<major>\d+)(?:\.(?<minor>\d+))?(?:\.(?<patch>\d+))?(?:-(?<pre>[^+]+))?");
+        if (!match.Success)
+            return false;
+
+        var major = int.Parse(match.Groups["major"].Value);
+        var minor = match.Groups["minor"].Success ? int.Parse(match.Groups["minor"].Value) : 0;
+        var patch = match.Groups["patch"].Success ? int.Parse(match.Groups["patch"].Value) : 0;
+        if ((major, minor, patch).CompareTo((1, 0, 0)) < 0)
+            return true;
+
+        if (!match.Groups["pre"].Success)
+            return false;
+
+        var prerelease = match.Groups["pre"].Value.Split('.', StringSplitOptions.RemoveEmptyEntries);
+        return !prerelease.Any(tag => tag is "beta" or "rc");
     }
 
     private static string GetDefaultEnvironment(string version) =>
@@ -384,19 +704,34 @@ public static class TelemetryService
         _ => "failure"
     };
 
-    private sealed record FailureInfo(string Node, string Stage, long? NodeId, long? TaskId, long? DurationMs);
+    private sealed record FailureInfo(
+        string Node,
+        string Stage,
+        long? NodeId,
+        long? TaskId,
+        long? DurationMs,
+        string? Detail = null,
+        Exception? Exception = null);
 
     private static void CaptureFailureEvent(string instanceId, MFATask task, ISpan taskSpan, RunState run)
     {
         var taskName = task.SourceItem?.InterfaceItem?.Name ?? task.Name ?? "unknown-task";
-        var @event = new SentryEvent
-        {
-            Message = $"Maa task failed: {taskName}",
-            TransactionName = "mfa.task.failure",
-            Fingerprint = new[] { "mfa-task-failure", MaaProcessor.Interface?.Name ?? "unknown", taskName, run.RootFailure?.Node ?? "terminal_failure", run.RootFailure?.Stage ?? "unknown" }
-        };
+        var failureName = run.RootFailure == null
+            ? taskName
+            : $"{taskName} ({run.RootFailure.Node}/{run.RootFailure.Stage})";
+        var rootException = run.RootFailure?.Exception ?? run.TerminalFailure?.Exception;
+        var @event = rootException == null ? new SentryEvent() : new SentryEvent(rootException);
+        @event.Message = $"Maa task failed: {failureName}";
+        @event.TransactionName = "mfa.task.failure";
+        @event.Fingerprint = new[] { "mfa-task-failure", MaaProcessor.Interface?.Name ?? "unknown", taskName, run.RootFailure?.Node ?? "terminal_failure", run.RootFailure?.Stage ?? "unknown" };
         @event.SetTag("task.name", taskName);
         @event.SetTag("result", "failure");
+        if (rootException != null)
+        {
+            var (errorCode, errorFamily) = ClassifyException(rootException);
+            @event.SetTag("error.code", errorCode);
+            @event.SetTag("error.family", errorFamily);
+        }
         var traceHeader = taskSpan.GetTraceHeader();
         @event.Contexts.Trace.TraceId = traceHeader.TraceId;
         @event.Contexts.Trace.SpanId = traceHeader.SpanId;
@@ -482,6 +817,18 @@ public static class TelemetryService
         if (failure.NodeId.HasValue) @event.SetExtra($"{prefix}.node_id", failure.NodeId.Value);
         if (failure.TaskId.HasValue) @event.SetExtra($"{prefix}.task_id", failure.TaskId.Value);
         if (failure.DurationMs.HasValue) @event.SetExtra($"{prefix}.duration_ms", failure.DurationMs.Value);
+        if (!string.IsNullOrWhiteSpace(failure.Detail)) @event.SetExtra($"{prefix}.detail", failure.Detail);
+    }
+
+    private static string BuildExceptionDetail(Exception exception)
+    {
+        var detail = string.Join(" -> ", EnumerateExceptions(exception)
+            .Select(item => string.IsNullOrWhiteSpace(item.Message)
+                ? item.GetType().Name
+                : $"{item.GetType().Name}: {item.Message}"));
+        return detail.Length <= MaxFailureDetailLength
+            ? detail
+            : detail[..MaxFailureDetailLength];
     }
 
     private static string ToAttachmentStatus(TaskEvidenceBuildStatus status) => status switch
