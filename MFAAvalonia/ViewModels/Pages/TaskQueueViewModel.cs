@@ -136,7 +136,7 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
     {
         DispatcherHelper.RunOnMainThread(() =>
         {
-            IsRunning = e.NewValue > 0;
+            IsRunning = Processor.IsTaskRunActive || e.NewValue > 0;
         });
     }
 

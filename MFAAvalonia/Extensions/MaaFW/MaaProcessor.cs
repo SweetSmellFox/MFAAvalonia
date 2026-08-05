@@ -46,6 +46,7 @@ public class MaaProcessor
 
     private static readonly Random Random = new();
     private int _taskQueueTotal;
+    private int _isTaskRunActive;
     private readonly BlockingCollection<Func<Task>> _commandQueue = new();
     private readonly object _commandThreadLock = new();
     private readonly CancellationTokenSource _commandThreadCts = new();
@@ -1169,8 +1170,10 @@ public class MaaProcessor
     private bool _screencapDisconnectedLogPending;
     private bool _screencapFailureLogged;
     private int _isConnecting;
+    private readonly SemaphoreSlim _connectionGate = new(1, 1);
     private bool _suppressConnectionAttemptErrorToast;
     public bool IsConnecting => _isConnecting != 0;
+    public bool IsTaskRunActive => Volatile.Read(ref _isTaskRunActive) != 0;
 
     private MaaController? GetScreenshotController(bool test)
     {
@@ -3043,8 +3046,8 @@ public class MaaProcessor
 
     public async Task TestConnecting()
     {
-        if (Interlocked.CompareExchange(ref _isConnecting, 1, 0) != 0)
-            return;
+        await _connectionGate.WaitAsync();
+        Interlocked.Exchange(ref _isConnecting, 1);
         try
         {
             await GetTaskerAsync();
@@ -3055,6 +3058,7 @@ public class MaaProcessor
         finally
         {
             Interlocked.Exchange(ref _isConnecting, 0);
+            _connectionGate.Release();
         }
     }
 
@@ -3066,11 +3070,21 @@ public class MaaProcessor
 
     public void Start(bool onlyStart = false, bool checkUpdate = false)
     {
+        if (!TryBeginTaskRun())
+        {
+            LoggerHelper.Info("任务启动请求已忽略：当前已有任务链正在启动或运行。");
+            return;
+        }
         EnqueueCommand(() => StartInternal(null, onlyStart, checkUpdate));
     }
 
     public void Start(List<DragItemViewModel> dragItemViewModels, bool onlyStart = false, bool checkUpdate = false, bool ignoreCheckedState = false)
     {
+        if (!TryBeginTaskRun())
+        {
+            LoggerHelper.Info("任务启动请求已忽略：当前已有任务链正在启动或运行。");
+            return;
+        }
         EnqueueCommand(() => StartInternal(dragItemViewModels, onlyStart, checkUpdate, ignoreCheckedState));
     }
 
@@ -3092,10 +3106,57 @@ public class MaaProcessor
                 tasks = FilterExecutableTasks(dragItemViewModels, ignoreCheckedState);
             }
 
-            _ = StartTask(tasks, onlyStart, checkUpdate);
+            _ = RunTaskChainAsync(tasks, onlyStart, checkUpdate);
+            return Task.CompletedTask;
         }
 
+        EndTaskRun();
         return Task.CompletedTask;
+    }
+
+    private bool TryBeginTaskRun()
+    {
+        if (Interlocked.CompareExchange(ref _isTaskRunActive, 1, 0) != 0)
+            return false;
+
+        DispatcherHelper.PostOnMainThread(() =>
+        {
+            if (ViewModel != null)
+                ViewModel.IsRunning = true;
+        });
+        return true;
+    }
+
+    private void EndTaskRun()
+    {
+        Interlocked.Exchange(ref _isTaskRunActive, 0);
+        DispatcherHelper.PostOnMainThread(() =>
+        {
+            if (ViewModel != null)
+                ViewModel.IsRunning = TaskQueue.Count > 0;
+        });
+    }
+
+    private async Task RunTaskChainAsync(List<DragItemViewModel> tasks, bool onlyStart, bool checkUpdate)
+    {
+        try
+        {
+            await StartTask(tasks, onlyStart, checkUpdate);
+        }
+        catch (OperationCanceledException)
+        {
+            Status = MFATask.MFATaskStatus.STOPPED;
+        }
+        catch (Exception ex)
+        {
+            Status = MFATask.MFATaskStatus.FAILED;
+            LoggerHelper.Error($"任务链执行异常：reason={ex.Message}", ex);
+            Stop(Status, true, onlyStart);
+        }
+        finally
+        {
+            EndTaskRun();
+        }
     }
 
     private List<DragItemViewModel> FilterExecutableTasks(IEnumerable<DragItemViewModel>? source, bool ignoreCheckedState = false)
@@ -3191,7 +3252,8 @@ public class MaaProcessor
 
     async private Task ExecuteTasks(CancellationToken token)
     {
-        while (TaskQueue.Count > 0 && !token.IsCancellationRequested)
+        var completedWithFailures = false;
+        while (!token.IsCancellationRequested && TaskQueue.TryDequeue(out var task))
         {
             // 等待 modal 弹窗确认（display=modal 时任务队列暂停推进）
             while (_isWaitingForModal && !token.IsCancellationRequested)
@@ -3200,16 +3262,26 @@ public class MaaProcessor
             }
             if (token.IsCancellationRequested) break;
 
-            var task = TaskQueue.Dequeue();
-            var status = await task.Run(token);
-            if (status != MFATask.MFATaskStatus.SUCCEEDED)
+            var result = await task.Run(token);
+            if (result.Status == MFATask.MFATaskStatus.FAILED)
             {
-                Status = status;
+                completedWithFailures = true;
+                if (result.ContinueQueue)
+                    continue;
+            }
+
+            if (result.Status != MFATask.MFATaskStatus.SUCCEEDED)
+            {
+                Status = result.Status;
                 return;
             }
         }
         if (Status == MFATask.MFATaskStatus.NOT_STARTED)
-            Status = !token.IsCancellationRequested ? MFATask.MFATaskStatus.SUCCEEDED : MFATask.MFATaskStatus.STOPPED;
+            Status = token.IsCancellationRequested
+                ? MFATask.MFATaskStatus.STOPPED
+                : completedWithFailures
+                    ? MFATask.MFATaskStatus.FAILED
+                    : MFATask.MFATaskStatus.SUCCEEDED;
     }
 
     public class NodeAndParam
@@ -3621,10 +3693,8 @@ public class MaaProcessor
 
     async private Task HandleDeviceConnectionAsync(CancellationToken token, bool showMessage = true)
     {
-        if (Interlocked.CompareExchange(ref _isConnecting, 1, 0) != 0)
-        {
-            return;
-        }
+        await _connectionGate.WaitAsync(token);
+        Interlocked.Exchange(ref _isConnecting, 1);
 
         var previousSuppressConnectionAttemptErrorToast = _suppressConnectionAttemptErrorToast;
         _suppressConnectionAttemptErrorToast = true;
@@ -3710,6 +3780,7 @@ public class MaaProcessor
             ViewModel?.SetAdbRecoverySelectionLock(false);
             _suppressConnectionAttemptErrorToast = previousSuppressConnectionAttemptErrorToast;
             Interlocked.Exchange(ref _isConnecting, 0);
+            _connectionGate.Release();
         }
     }
 
