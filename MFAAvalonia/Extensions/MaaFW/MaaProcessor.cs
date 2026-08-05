@@ -1787,7 +1787,8 @@ public class MaaProcessor
         }
 
         var callbackName = jObject["name"]?.ToString() ?? string.Empty;
-        TelemetryService.RecordNodeEvent(InstanceId, args.Message, args.Details);
+        if (CancellationTokenSource?.IsCancellationRequested != true)
+            TelemetryService.RecordNodeEvent(InstanceId, args.Message, args.Details);
 
         MaaTasker? tasker = null;
         if (sender is MaaTasker t)

@@ -1295,13 +1295,13 @@
                                               VerticalAlignment="Center"
                                               IsVisible="{Binding IsRunFailed}" />
                                         <Path Width="15" Height="15" Stretch="Uniform"
-                                              Data="{x:Static suki:Icons.CircleOutlineMinus}"
+                                              Data="{x:Static suki:Icons.CircleOutline}"
                                               Fill="{DynamicResource SukiLowText}"
                                               HorizontalAlignment="Center"
                                               VerticalAlignment="Center"
                                               IsVisible="{Binding IsRunQueued}" />
                                         <Path Width="15" Height="15" Stretch="Uniform"
-                                              Data="{x:Static suki:Icons.CircleOutlineMinus}"
+                                              Data="{x:Static suki:Icons.Cancel}"
                                               Fill="{DynamicResource SukiLowText}"
                                               HorizontalAlignment="Center"
                                               VerticalAlignment="Center"

@@ -73,6 +73,7 @@ public partial class MFATask : ObservableObject
                 if (MaaAction != null)
                 {
                     var jobStatus = await MaaAction();
+                    token.ThrowIfCancellationRequested();
                     if (jobStatus != MaaJobStatus.Succeeded)
                     {
                         hasFailed = true;
@@ -87,6 +88,7 @@ public partial class MFATask : ObservableObject
                 else
                 {
                     await Action();
+                    token.ThrowIfCancellationRequested();
                 }
                 OwnerViewModel?.MarkTaskIterationCompleted(SourceItem, RunId);
             }
@@ -95,6 +97,11 @@ public partial class MFATask : ObservableObject
             else
                 OwnerViewModel?.MarkTaskSucceeded(SourceItem, RunId);
             return Complete(MFATaskStatus.SUCCEEDED, hasFailed);
+        }
+        catch (Exception) when (token.IsCancellationRequested)
+        {
+            OwnerViewModel?.MarkTaskStopped(SourceItem, RunId);
+            return Complete(MFATaskStatus.STOPPED);
         }
         catch (MaaJobStatusException ex)
         {
