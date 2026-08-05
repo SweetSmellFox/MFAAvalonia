@@ -147,6 +147,8 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
             Margin = new Thickness(0, 2, 0, 2),
             Increment = 1,
             Minimum = -1,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            Classes = { "TaskOptionLikeCombo" },
         };
         
         BindIdleEnabled(numericUpDown);
