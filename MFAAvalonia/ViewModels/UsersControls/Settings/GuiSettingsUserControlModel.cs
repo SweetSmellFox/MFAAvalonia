@@ -55,11 +55,6 @@ public partial class GuiSettingsUserControlModel : ViewModelBase
     [ObservableProperty] private bool _enableToastNotification = ConfigurationManager.Current.GetValue(ConfigurationKeys.EnableToastNotification, true);
     partial void OnEnableToastNotificationChanged(bool value) => HandlePropertyChanged(ConfigurationKeys.EnableToastNotification, value);
 
-    [ObservableProperty] private bool _helpImproveSoftware =
-        bool.TryParse(GlobalConfiguration.GetValue(ConfigurationKeys.HelpImproveSoftware, bool.TrueString), out var helpImproveSoftware)
-        && helpImproveSoftware;
-    partial void OnHelpImproveSoftwareChanged(bool value) => TelemetryService.SetEnabled(value);
-
     // Background Image properties
     [ObservableProperty] private string? _backgroundImagePath =
         ConfigurationManager.Current.GetValue(ConfigurationKeys.BackgroundImagePath, string.Empty);
