@@ -214,26 +214,83 @@ public static class TelemetryService
 
     public static void CaptureException(Exception exception, string source)
     {
+        CaptureException(exception, source, useRootCause: false);
+    }
+
+    public static void CaptureStartupException(Exception exception)
+    {
+        CaptureException(exception, "startup", useRootCause: true);
+    }
+
+    private static void CaptureException(Exception exception, string source, bool useRootCause)
+    {
         if (!IsActive)
             return;
 
         try
         {
+            var capturedException = useRootCause ? GetRootCause(exception) : exception;
             using (SentrySdk.PushScope())
             {
                 SentrySdk.ConfigureScope(scope =>
                 {
                     scope.SetTag("exception.source", source);
-                    var (code, family) = ClassifyException(exception);
+                    var (code, family) = ClassifyException(capturedException);
                     scope.SetTag("error.code", code);
                     scope.SetTag("error.family", family);
+                    scope.SetTag("exception.root_type", capturedException.GetType().FullName ?? capturedException.GetType().Name);
+                    if (!ReferenceEquals(capturedException, exception))
+                    {
+                        scope.SetExtra("exception.wrapper_type", exception.GetType().FullName ?? exception.GetType().Name);
+                        scope.SetExtra("exception.wrapper_message", exception.Message);
+                    }
                 });
-                SentrySdk.CaptureException(exception);
+
+                if (useRootCause)
+                {
+                    capturedException.SetSentryMechanism(
+                        "startup",
+                        "Fatal exception during application startup",
+                        handled: false,
+                        terminal: true);
+                    var @event = new SentryEvent(capturedException)
+                    {
+                        Message = capturedException.Message,
+                        TransactionName = "mfa.startup.failure",
+                    };
+                    SentrySdk.CaptureEvent(@event);
+                }
+                else
+                {
+                    SentrySdk.CaptureException(capturedException);
+                }
             }
         }
         catch
         {
             // Diagnostics must never replace the original exception.
+        }
+    }
+
+    private static Exception GetRootCause(Exception exception)
+    {
+        var current = exception;
+        while (true)
+        {
+            if (current is AggregateException aggregate)
+            {
+                var flattened = aggregate.Flatten().InnerExceptions;
+                if (flattened.Count == 1)
+                {
+                    current = flattened[0];
+                    continue;
+                }
+            }
+
+            if (current.InnerException == null)
+                return current;
+
+            current = current.InnerException;
         }
     }
 

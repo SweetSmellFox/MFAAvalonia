@@ -638,7 +638,7 @@ public partial class App : Application
             return;
         }
 
-        TelemetryService.CaptureException(exception, "startup");
+        TelemetryService.CaptureStartupException(exception);
         try
         {
             Sentry.SentrySdk.FlushAsync(TimeSpan.FromSeconds(1)).GetAwaiter().GetResult();
