@@ -48,10 +48,10 @@ public partial class MFATask : ObservableObject
         if (instanceId != null)
             TelemetryService.StartTask(instanceId, this);
 
-        MFATaskStatus Complete(MFATaskStatus status)
+        MFATaskStatus Complete(MFATaskStatus status, bool hadFailure = false)
         {
             if (instanceId != null)
-                TelemetryService.FinishTask(instanceId, this, status);
+                TelemetryService.FinishTask(instanceId, this, status, hadFailure);
             return status;
         }
 
@@ -94,7 +94,7 @@ public partial class MFATask : ObservableObject
                 OwnerViewModel?.MarkTaskFailed(SourceItem, RunId, failureMessage);
             else
                 OwnerViewModel?.MarkTaskSucceeded(SourceItem, RunId);
-            return Complete(MFATaskStatus.SUCCEEDED);
+            return Complete(MFATaskStatus.SUCCEEDED, hasFailed);
         }
         catch (MaaJobStatusException ex)
         {

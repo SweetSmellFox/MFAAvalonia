@@ -2129,5 +2129,5 @@
   <data name="VirtualGamepadType" xml:space="preserve"><value>仮想ゲームパッドの種類</value></data>
   <data name="CopyInstanceId" xml:space="preserve"><value>インスタンス ID をコピー</value></data>
   <data name="HelpImproveSoftware" xml:space="preserve"><value>ソフトウェアの改善に協力する</value></data>
-  <data name="HelpImproveSoftwareDescription" xml:space="preserve"><value>匿名のクラッシュ情報とタスク実行結果を送信し、リソース作成者による問題調査に役立てます。デバイスアドレス、パス、ユーザー入力は送信されません。</value></data>
+  <data name="HelpImproveSoftwareDescription" xml:space="preserve"><value>匿名のクラッシュ情報、タスク実行結果、失敗したタスクの関連ログとエラースクリーンショットを送信し、問題調査に役立てます。</value></data>
 </root>

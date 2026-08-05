@@ -2134,7 +2134,7 @@ Please do not copy only the main executable by itself.</value>
   <data name="VirtualGamepadType" xml:space="preserve"><value>Virtual gamepad type</value></data>
   <data name="CopyInstanceId" xml:space="preserve"><value>Copy instance ID</value></data>
   <data name="HelpImproveSoftware" xml:space="preserve"><value>Help improve the software</value></data>
-  <data name="HelpImproveSoftwareDescription" xml:space="preserve"><value>Send anonymous crash reports and task results to help resource authors diagnose issues. Device addresses, paths, and user input are not sent.</value></data>
+  <data name="HelpImproveSoftwareDescription" xml:space="preserve"><value>Send anonymous crash reports, task results, and relevant logs and error screenshots from failed tasks to help resource authors diagnose issues.</value></data>
 </root>
 
 

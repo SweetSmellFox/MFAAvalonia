@@ -2122,7 +2122,7 @@
   <data name="VirtualGamepadType" xml:space="preserve"><value>虛擬手把類型</value></data>
   <data name="CopyInstanceId" xml:space="preserve"><value>複製實例 ID</value></data>
   <data name="HelpImproveSoftware" xml:space="preserve"><value>協助改進軟體</value></data>
-  <data name="HelpImproveSoftwareDescription" xml:space="preserve"><value>匿名傳送崩潰資訊和任務執行結果，協助資源作者定位問題。不會傳送裝置位址、路徑或使用者輸入。</value></data>
+  <data name="HelpImproveSoftwareDescription" xml:space="preserve"><value>匿名傳送崩潰資訊、任務執行結果，以及失敗任務的相關日誌和錯誤截圖，協助資源作者定位問題。</value></data>
 </root>
 
 

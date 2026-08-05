@@ -1787,8 +1787,7 @@ public class MaaProcessor
         }
 
         var callbackName = jObject["name"]?.ToString() ?? string.Empty;
-        if (args.Message.Contains("PipelineNode.Failed", StringComparison.OrdinalIgnoreCase))
-            TelemetryService.RecordFailedNode(InstanceId, callbackName);
+        TelemetryService.RecordNodeEvent(InstanceId, args.Message, args.Details);
 
         MaaTasker? tasker = null;
         if (sender is MaaTasker t)

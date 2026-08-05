@@ -1472,6 +1472,9 @@ public partial class MaaInterface
         [JsonProperty("traces_sample_rate")]
         public double? TracesSampleRate { get; set; }
 
+        [JsonProperty("failure_attachments_sample_rate")]
+        public double? FailureAttachmentsSampleRate { get; set; }
+
         [JsonProperty("environment")]
         public string? Environment { get; set; }
     }
