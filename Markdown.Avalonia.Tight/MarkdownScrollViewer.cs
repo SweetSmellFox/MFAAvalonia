@@ -691,8 +691,21 @@ namespace Markdown.Avalonia
 
         private void UpdateMarkdown()
         {
-            if (_wrapper.Document is null && String.IsNullOrEmpty(Markdown))
+            if (String.IsNullOrEmpty(Markdown))
+            {
+                CancelProgressiveRendering();
+
+                if (_wrapper.ContentControl is Control oldContentControl)
+                {
+                    oldContentControl.SizeChanged -= OnViewportSizeChanged;
+                }
+
+                _document = null;
+                _wrapper.Document = null;
+                _currentContentHash = null;
+                _headerRects = null;
                 return;
+            }
 
             // 首先取消任何正在进行的渐进式渲染
             CancelProgressiveRendering();
