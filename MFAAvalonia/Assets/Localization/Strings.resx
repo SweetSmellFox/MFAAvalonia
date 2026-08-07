@@ -2163,6 +2163,28 @@
   <data name="ImportInstanceConfigInvalid" xml:space="preserve"><value>无法识别该实例配置。</value></data>
   <data name="ImportInstanceConfigProjectMismatch" xml:space="preserve"><value>该配置属于其他项目，无法导入。</value></data>
   <data name="ImportInstanceConfigUnsupportedVersion" xml:space="preserve"><value>该配置版本暂不受支持。</value></data>
+  <data name="DroppedResourceNameMismatch" xml:space="preserve">
+    <value>资源名称不匹配：压缩包为“{0}”，当前资源为“{1}”。</value>
+  </data>
+  <data name="DroppedResourcePackageInvalid" xml:space="preserve">
+    <value>该压缩包不是有效的资源更新包。</value>
+  </data>
+  <data name="DroppedResourceUpdateConfirm" xml:space="preserve">
+    <value>检测到“{0}”资源更新包。
+当前版本：{1}
+包版本：{2}
+
+是否使用该压缩包更新？</value>
+  </data>
+  <data name="DroppedResourceVersionTooLow" xml:space="preserve">
+    <value>压缩包版本 {0} 低于当前版本 {1}。</value>
+  </data>
+  <data name="StopTaskBeforeUpdateResource" xml:space="preserve">
+    <value>更新资源前请先停止任务</value>
+  </data>
+  <data name="DroppedResourceRidMismatch" xml:space="preserve">
+    <value>资源 ID 不匹配：压缩包为“{0}”，当前资源为“{1}”。</value>
+  </data>
 </root>
 
 

@@ -2148,4 +2148,26 @@
   <data name="ImportInstanceConfigInvalid" xml:space="preserve"><value>インスタンス設定を認識できませんでした。</value></data>
   <data name="ImportInstanceConfigProjectMismatch" xml:space="preserve"><value>この設定は別のプロジェクト用です。</value></data>
   <data name="ImportInstanceConfigUnsupportedVersion" xml:space="preserve"><value>この設定バージョンはサポートされていません。</value></data>
+  <data name="DroppedResourceNameMismatch" xml:space="preserve">
+    <value>リソース名が一致しません。パッケージ:「{0}」、現在のリソース:「{1}」。</value>
+  </data>
+  <data name="DroppedResourcePackageInvalid" xml:space="preserve">
+    <value>このアーカイブは有効なリソース更新パッケージではありません。</value>
+  </data>
+  <data name="DroppedResourceUpdateConfirm" xml:space="preserve">
+    <value>「{0}」のリソース更新パッケージを検出しました。
+現在のバージョン: {1}
+パッケージのバージョン: {2}
+
+このアーカイブを使用して更新しますか？</value>
+  </data>
+  <data name="DroppedResourceVersionTooLow" xml:space="preserve">
+    <value>パッケージのバージョン {0} は現在のバージョン {1} より古いです。</value>
+  </data>
+  <data name="StopTaskBeforeUpdateResource" xml:space="preserve">
+    <value>リソースを更新する前に実行中のタスクを停止してください。</value>
+  </data>
+  <data name="DroppedResourceRidMismatch" xml:space="preserve">
+    <value>リソース ID が一致しません。パッケージ:「{0}」、現在のリソース:「{1}」。</value>
+  </data>
 </root>

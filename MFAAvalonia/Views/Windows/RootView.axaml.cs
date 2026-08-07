@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Notifications;
 using Avalonia.Input;
+using Avalonia.Platform.Storage;
 using MFAAvalonia;
 using System.Collections.Generic;
 using Avalonia.Media;
@@ -36,6 +37,9 @@ public partial class RootView : SukiWindow
 
         // 初始化组件
         InitializeComponent();
+        DragDrop.SetAllowDrop(this, true);
+        AddHandler(DragDrop.DragOverEvent, OnResourcePackageDragOver);
+        AddHandler(DragDrop.DropEvent, OnResourcePackageDrop);
         AppRuntime.RegisterLaunchCommandHandler(command =>
         {
             var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -90,6 +94,7 @@ public partial class RootView : SukiWindow
     private bool _exitConfirmationInProgress;
     private int _beforeClosed;
     private CancellationTokenSource? _attentionAnimationCancellation;
+    private int _resourcePackageDropInProgress;
     private bool _hasValidPosition = false;
     // 缓存最后一个有效的窗口位置和大小
     private PixelPoint _lastValidPosition;
@@ -107,6 +112,107 @@ public partial class RootView : SukiWindow
         {
             Instances.RootViewModel.IsWindowVisible = WindowState != WindowState.Minimized;
         }
+    }
+
+    private void OnResourcePackageDragOver(object? sender, DragEventArgs e)
+    {
+        var files = e.DataTransfer.TryGetFiles()?.ToList();
+        var packagePath = files is { Count: 1 } ? files[0].TryGetLocalPath() : null;
+        e.DragEffects = !Instances.RootViewModel.IsRunning
+                        && !Instances.RootViewModel.IsUpdating
+                        && packagePath != null
+                        && VersionChecker.IsSupportedLocalResourcePackage(packagePath)
+            ? DragDropEffects.Copy
+            : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private async void OnResourcePackageDrop(object? sender, DragEventArgs e)
+    {
+        e.Handled = true;
+        var files = e.DataTransfer.TryGetFiles()?.ToList();
+        var packagePath = files is { Count: 1 } ? files[0].TryGetLocalPath() : null;
+        if (packagePath == null || !VersionChecker.IsSupportedLocalResourcePackage(packagePath))
+            return;
+
+        if (IsResourcePackageDropBlocked(showMessage: true))
+            return;
+
+        if (Interlocked.Exchange(ref _resourcePackageDropInProgress, 1) != 0)
+            return;
+
+        try
+        {
+            var inspection = await VersionChecker.InspectLocalResourcePackageAsync(packagePath);
+            if (!inspection.HasInterface)
+                return;
+
+            if (IsResourcePackageDropBlocked(showMessage: true))
+                return;
+
+            if (!inspection.IsValid)
+            {
+                ToastHelper.Warn(LangKeys.Warning.ToLocalization(), inspection.ErrorMessage, -1);
+                return;
+            }
+
+            var result = await SukiMessageBox.ShowDialog(new SukiMessageBoxHost
+            {
+                Content = LangKeys.DroppedResourceUpdateConfirm.ToLocalizationFormatted(
+                    false,
+                    inspection.ResourceName,
+                    inspection.CurrentVersion,
+                    inspection.PackageVersion),
+                ActionButtonsPreset = SukiMessageBoxButtons.YesNo,
+                IconPreset = SukiMessageBoxIcons.Information
+            }, new SukiMessageBoxOptions
+            {
+                Title = LangKeys.UpdateResource.ToLocalization()
+            });
+
+            if (result.Equals(SukiMessageBoxResult.Yes))
+            {
+                if (IsResourcePackageDropBlocked(showMessage: true))
+                    return;
+
+                VersionChecker.UpdateResourceFromLocalPackageAsync(packagePath, inspection.CurrentVersion);
+            }
+        }
+        catch (Exception ex)
+        {
+            LoggerHelper.Error($"处理拖拽资源包失败：文件={packagePath}，原因={ex.Message}", ex);
+            ToastHelper.Warn(LangKeys.Warning.ToLocalization(),
+                LangKeys.DroppedResourcePackageInvalid.ToLocalization(), -1);
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _resourcePackageDropInProgress, 0);
+        }
+    }
+
+    private static bool IsResourcePackageDropBlocked(bool showMessage)
+    {
+        if (Instances.RootViewModel.IsRunning)
+        {
+            if (showMessage)
+            {
+                ToastHelper.Warn(LangKeys.Warning.ToLocalization(),
+                    LangKeys.StopTaskBeforeUpdateResource.ToLocalization());
+            }
+
+            return true;
+        }
+
+        if (!Instances.RootViewModel.IsUpdating)
+            return false;
+
+        if (showMessage)
+        {
+            ToastHelper.Warn(LangKeys.Warning.ToLocalization(),
+                LangKeys.CurrentOtherUpdatingTask.ToLocalization());
+        }
+
+        return true;
     }
 
     public void ShowWindow()

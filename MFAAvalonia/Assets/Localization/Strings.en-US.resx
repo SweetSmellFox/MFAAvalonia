@@ -2153,6 +2153,28 @@ Please do not copy only the main executable by itself.</value>
   <data name="ImportInstanceConfigInvalid" xml:space="preserve"><value>The instance configuration could not be recognized.</value></data>
   <data name="ImportInstanceConfigProjectMismatch" xml:space="preserve"><value>This configuration belongs to another project.</value></data>
   <data name="ImportInstanceConfigUnsupportedVersion" xml:space="preserve"><value>This configuration version is not supported.</value></data>
+  <data name="DroppedResourceNameMismatch" xml:space="preserve">
+    <value>Resource name mismatch: the package contains "{0}", but the current resource is "{1}".</value>
+  </data>
+  <data name="DroppedResourcePackageInvalid" xml:space="preserve">
+    <value>This archive is not a valid resource update package.</value>
+  </data>
+  <data name="DroppedResourceUpdateConfirm" xml:space="preserve">
+    <value>A resource update package for "{0}" was detected.
+Current version: {1}
+Package version: {2}
+
+Update using this archive?</value>
+  </data>
+  <data name="DroppedResourceVersionTooLow" xml:space="preserve">
+    <value>Package version {0} is older than the current version {1}.</value>
+  </data>
+  <data name="StopTaskBeforeUpdateResource" xml:space="preserve">
+    <value>Stop the running task before updating resources.</value>
+  </data>
+  <data name="DroppedResourceRidMismatch" xml:space="preserve">
+    <value>Resource ID mismatch: the package contains "{0}", but the current resource is "{1}".</value>
+  </data>
 </root>
 
 

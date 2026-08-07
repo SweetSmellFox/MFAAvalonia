@@ -15,6 +15,7 @@ using MFAAvalonia.Views.Windows;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Semver;
+using SharpCompress.Archives;
 using SukiUI.Controls;
 using SukiUI.Dialogs;
 using SukiUI.Enums;
@@ -67,6 +68,150 @@ public static class VersionChecker
     private static int _restartPending;
 
     public static bool IsRestartPending => Volatile.Read(ref _restartPending) != 0;
+
+    public sealed record LocalResourcePackageInspection(
+        bool HasInterface,
+        bool IsValid,
+        string ResourceName,
+        string CurrentVersion,
+        string PackageVersion,
+        string ErrorMessage);
+
+    public static bool IsSupportedLocalResourcePackage(string packagePath)
+    {
+        if (string.IsNullOrWhiteSpace(packagePath))
+            return false;
+
+        var fileName = Path.GetFileName(packagePath);
+        return fileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)
+               || fileName.EndsWith(".tar", StringComparison.OrdinalIgnoreCase)
+               || fileName.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase)
+               || fileName.EndsWith(".tgz", StringComparison.OrdinalIgnoreCase)
+               || fileName.EndsWith(".rar", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static Task<LocalResourcePackageInspection> InspectLocalResourcePackageAsync(string packagePath) =>
+        Task.Run(() => InspectLocalResourcePackage(packagePath));
+
+    private static LocalResourcePackageInspection InspectLocalResourcePackage(string packagePath)
+    {
+        var currentName = MaaProcessor.Interface?.Name?.Trim() ?? string.Empty;
+        var currentRid = MaaProcessor.Interface?.RID?.Trim() ?? string.Empty;
+        var currentVersion = MaaProcessor.Interface?.Version?.Trim() ?? string.Empty;
+
+        try
+        {
+            if (!File.Exists(packagePath) || !IsSupportedLocalResourcePackage(packagePath))
+                return new(false, false, string.Empty, currentVersion, string.Empty, string.Empty);
+
+            using var archive = ArchiveFactory.Open(packagePath);
+            var entries = archive.Entries
+                .Where(entry => !entry.IsDirectory)
+                .Select(entry => new
+                {
+                    Entry = entry,
+                    Path = NormalizeArchiveEntryPath(entry.Key)
+                })
+                .Where(item => !string.IsNullOrWhiteSpace(item.Path))
+                .ToList();
+
+            var interfaceEntry = entries
+                .Where(item => IsSupportedPackageInterfacePath(item.Path))
+                .OrderBy(item => item.Path.Count(character => character == '/'))
+                .FirstOrDefault();
+            if (interfaceEntry == null)
+                return new(false, false, string.Empty, currentVersion, string.Empty, string.Empty);
+
+            var packageRoot = interfaceEntry.Path[..^"interface.json".Length];
+            var hasResourceContent = entries.Any(item =>
+                item.Path.StartsWith($"{packageRoot}resource/", StringComparison.OrdinalIgnoreCase));
+            var hasIncrementalManifest = entries.Any(item =>
+                item.Path.Equals($"{packageRoot}changes.json", StringComparison.OrdinalIgnoreCase));
+            if (!hasResourceContent && !hasIncrementalManifest)
+            {
+                return new(true, false, string.Empty, currentVersion, string.Empty,
+                    LangKeys.DroppedResourcePackageInvalid.ToLocalization());
+            }
+
+            JObject packageInterface;
+            try
+            {
+                using var entryStream = interfaceEntry.Entry.OpenEntryStream();
+                using var reader = new StreamReader(entryStream, Encoding.UTF8, true);
+                packageInterface = JObject.Parse(reader.ReadToEnd(), new JsonLoadSettings
+                {
+                    CommentHandling = CommentHandling.Ignore,
+                    LineInfoHandling = LineInfoHandling.Load
+                });
+            }
+            catch (Exception ex)
+            {
+                LoggerHelper.Warning($"拖拽资源包 interface.json 解析失败：文件={packagePath}，原因={ex.Message}");
+                return new(true, false, string.Empty, currentVersion, string.Empty,
+                    LangKeys.DroppedResourcePackageInvalid.ToLocalization());
+            }
+
+            var packageName = packageInterface["name"]?.ToString().Trim() ?? string.Empty;
+            var packageRid = packageInterface["mirrorchyan_rid"]?.ToString().Trim() ?? string.Empty;
+            var packageVersion = packageInterface["version"]?.ToString().Trim() ?? string.Empty;
+            var displayName = !string.IsNullOrWhiteSpace(packageName)
+                ? packageName
+                : !string.IsNullOrWhiteSpace(currentName)
+                    ? currentName
+                    : packageRid;
+
+            if (!string.IsNullOrWhiteSpace(currentRid) && !string.IsNullOrWhiteSpace(packageRid))
+            {
+                if (!packageRid.Equals(currentRid, StringComparison.OrdinalIgnoreCase))
+                {
+                    return new(true, false, displayName, currentVersion, packageVersion,
+                        LangKeys.DroppedResourceRidMismatch.ToLocalizationFormatted(false, packageRid, currentRid));
+                }
+            }
+            else if (string.IsNullOrWhiteSpace(currentName)
+                     || string.IsNullOrWhiteSpace(packageName)
+                     || !packageName.Equals(currentName, StringComparison.OrdinalIgnoreCase))
+            {
+                return new(true, false, displayName, currentVersion, packageVersion,
+                    LangKeys.DroppedResourceNameMismatch.ToLocalizationFormatted(false, packageName, currentName));
+            }
+
+            if (!TryCompareVersions(packageVersion, currentVersion, out var versionComparison))
+            {
+                return new(true, false, displayName, currentVersion, packageVersion,
+                    LangKeys.DroppedResourcePackageInvalid.ToLocalization());
+            }
+
+            if (versionComparison < 0)
+            {
+                return new(true, false, displayName, currentVersion, packageVersion,
+                    LangKeys.DroppedResourceVersionTooLow.ToLocalizationFormatted(false, packageVersion, currentVersion));
+            }
+
+            // TODO: Use the currently loaded MaaFramework to preflight package resources and agents.
+            return new(true, true, displayName, currentVersion, packageVersion, string.Empty);
+        }
+        catch (Exception ex)
+        {
+            LoggerHelper.Error($"检查拖拽资源包失败：文件={packagePath}，原因={ex.Message}", ex);
+            return new(false, false, string.Empty, currentVersion, string.Empty, string.Empty);
+        }
+    }
+
+    private static string NormalizeArchiveEntryPath(string entryPath) =>
+        (entryPath ?? string.Empty).Replace('\\', '/').TrimStart('/');
+
+    private static bool IsSupportedPackageInterfacePath(string entryPath)
+    {
+        var segments = entryPath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length == 1)
+            return segments[0].Equals("interface.json", StringComparison.OrdinalIgnoreCase);
+        if (segments.Length == 2)
+            return segments[1].Equals("interface.json", StringComparison.OrdinalIgnoreCase);
+        return segments.Length == 3
+               && segments[1].Equals("assets", StringComparison.OrdinalIgnoreCase)
+               && segments[2].Equals("interface.json", StringComparison.OrdinalIgnoreCase);
+    }
 
     private static bool IsEnvEnabled(string envName)
     {
@@ -234,7 +379,12 @@ public static class VersionChecker
     public static void UpdateResourceAsync(string
         currentVersion = "") => TaskManager.RunTaskAsync(() => UpdateResource(Instances.VersionUpdateSettingsUserControlModel.DownloadSourceIndex == 0, currentVersion: currentVersion), name: "更新MFA");
     public static void UpdateResourceFromLocalPackageAsync(string packagePath, string currentVersion = "") =>
-        TaskManager.RunTaskAsync(() => UpdateResource(false, currentVersion: currentVersion, localPackagePath: packagePath), name: "本地更新包更新");
+        TaskManager.RunTaskAsync(
+            () => Task.Run(() => UpdateResource(
+                false,
+                currentVersion: currentVersion,
+                localPackagePath: packagePath)),
+            name: "本地更新包更新");
     public static void UpdateMFAAsync() => TaskManager.RunTaskAsync(() => UpdateMFA(Instances.VersionUpdateSettingsUserControlModel.DownloadSourceIndex == 0), name: "更新资源");
 
     public static void UpdateMaaFwAsync() => TaskManager.RunTaskAsync(() => UpdateMaaFw(), name: "更新MaaFw");
@@ -3073,37 +3223,22 @@ public static class VersionChecker
         out string resourceDirPath,
         out string validationMessage)
     {
-        var candidateRoots = new List<string>
-        {
-            tempExtractDir,
-            Path.Combine(tempExtractDir, "assets")
-        };
-
-        try
-        {
-            var directChildDirectories = Directory.Exists(tempExtractDir)
-                ? Directory.GetDirectories(tempExtractDir, "*", SearchOption.TopDirectoryOnly)
-                : [];
-
-            if (directChildDirectories.Length == 1)
-            {
-                candidateRoots.Add(directChildDirectories[0]);
-                candidateRoots.Add(Path.Combine(directChildDirectories[0], "assets"));
-            }
-        }
-        catch
-        {
-            // Ignore probing failures and fall back to default candidates.
-        }
+        var candidateRoots = GetResourcePackageCandidateRoots(tempExtractDir);
 
         originPath = tempExtractDir;
         interfacePath = Path.Combine(tempExtractDir, "interface.json");
         resourceDirPath = Path.Combine(tempExtractDir, "resource");
         validationMessage = string.Empty;
 
-        foreach (var candidateRoot in candidateRoots
-                     .Where(path => !string.IsNullOrWhiteSpace(path))
-                     .Distinct(StringComparer.OrdinalIgnoreCase))
+        if (!isIncrementalPackage
+            && TryFindFullResourcePackageRoot(tempExtractDir, out var fullPackageRoot,
+                out var fullPackageInterfacePath, out var fullPackageResourcePath))
+        {
+            originPath = fullPackageRoot;
+            interfacePath = fullPackageInterfacePath;
+            resourceDirPath = fullPackageResourcePath;
+        }
+        else foreach (var candidateRoot in candidateRoots)
         {
             var candidateInterfacePath = Path.Combine(candidateRoot, "interface.json");
             var candidateResourcePath = Path.Combine(candidateRoot, "resource");
@@ -3173,6 +3308,85 @@ public static class VersionChecker
         }
 
         return true;
+    }
+
+    private static bool TryCompareVersions(string leftVersion, string rightVersion, out int comparison)
+    {
+        comparison = 0;
+        if (string.IsNullOrWhiteSpace(leftVersion) || string.IsNullOrWhiteSpace(rightVersion))
+            return false;
+
+        const string versionPattern = @"^[vV]?\d+(?:\.\d+)?(?:\.\d+)?(?:-[0-9a-zA-Z\-\.]+)?(?:\+[0-9a-zA-Z\-\.]+)?$";
+        if (!Regex.IsMatch(leftVersion.Trim(), versionPattern)
+            || !Regex.IsMatch(rightVersion.Trim(), versionPattern))
+            return false;
+
+        try
+        {
+            comparison = ParseAndNormalizeVersion(leftVersion).ComparePrecedenceTo(ParseAndNormalizeVersion(rightVersion));
+            return true;
+        }
+        catch (Exception ex)
+        {
+            LoggerHelper.Warning($"比较拖拽资源包版本失败：package={leftVersion}, current={rightVersion}, reason={ex.Message}");
+            return false;
+        }
+    }
+
+    private static IReadOnlyList<string> GetResourcePackageCandidateRoots(string extractDirectory)
+    {
+        var candidateRoots = new List<string>
+        {
+            extractDirectory,
+            Path.Combine(extractDirectory, "assets")
+        };
+
+        try
+        {
+            var directChildDirectories = Directory.Exists(extractDirectory)
+                ? Directory.GetDirectories(extractDirectory, "*", SearchOption.TopDirectoryOnly)
+                : [];
+
+            if (directChildDirectories.Length == 1)
+            {
+                candidateRoots.Add(directChildDirectories[0]);
+                candidateRoots.Add(Path.Combine(directChildDirectories[0], "assets"));
+            }
+        }
+        catch
+        {
+            // Ignore probing failures and fall back to the direct package roots.
+        }
+
+        return candidateRoots
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static bool TryFindFullResourcePackageRoot(
+        string extractDirectory,
+        out string packageRoot,
+        out string interfacePath,
+        out string resourceDirectory)
+    {
+        foreach (var candidateRoot in GetResourcePackageCandidateRoots(extractDirectory))
+        {
+            var candidateInterface = Path.Combine(candidateRoot, "interface.json");
+            var candidateResource = Path.Combine(candidateRoot, "resource");
+            if (!File.Exists(candidateInterface) || !Directory.Exists(candidateResource))
+                continue;
+
+            packageRoot = candidateRoot;
+            interfacePath = candidateInterface;
+            resourceDirectory = candidateResource;
+            return true;
+        }
+
+        packageRoot = extractDirectory;
+        interfacePath = Path.Combine(extractDirectory, "interface.json");
+        resourceDirectory = Path.Combine(extractDirectory, "resource");
+        return false;
     }
 
     private static bool ContainsCoreApplicationFiles(string packageRoot)

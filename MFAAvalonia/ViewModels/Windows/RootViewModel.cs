@@ -179,7 +179,7 @@ public partial class RootViewModel : ViewModelBase
 
     public void SetUpdating(bool isUpdating)
     {
-        IsUpdating = isUpdating;
+        DispatcherHelper.RunOnMainThread(() => IsUpdating = isUpdating);
     }
     
     partial void OnIsDebugModeChanged(bool value)

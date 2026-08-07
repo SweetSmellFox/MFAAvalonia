@@ -107,6 +107,11 @@ public static class LangKeys
 	public static readonly string DingTalk = "DingTalk";
 	public static readonly string DingTalkMessageAsync = "DingTalkMessageAsync";
 	public static readonly string DownloadFailed = "DownloadFailed";
+	public static readonly string DroppedResourceNameMismatch = "DroppedResourceNameMismatch";
+	public static readonly string DroppedResourcePackageInvalid = "DroppedResourcePackageInvalid";
+	public static readonly string DroppedResourceRidMismatch = "DroppedResourceRidMismatch";
+	public static readonly string DroppedResourceUpdateConfirm = "DroppedResourceUpdateConfirm";
+	public static readonly string DroppedResourceVersionTooLow = "DroppedResourceVersionTooLow";
 	public static readonly string Downloading = "Downloading";
 	public static readonly string DuplicateTaskError = "DuplicateTaskError";
 	public static readonly string DuplicateTaskNameError = "DuplicateTaskNameError";
@@ -460,6 +465,7 @@ public static class LangKeys
 	public static readonly string PlatformNotSupportedOperation = "PlatformNotSupportedOperation";
 	public static readonly string StopTaskBeforeExportLog = "StopTaskBeforeExportLog";
 	public static readonly string StopTaskBeforeClearCache = "StopTaskBeforeClearCache";
+	public static readonly string StopTaskBeforeUpdateResource = "StopTaskBeforeUpdateResource";
 	public static readonly string MirrorCdkEmpty = "MirrorCdkEmpty";
 	public static readonly string ContinueRunningWhenError = "ContinueRunningWhenError";
 	public static readonly string CurrentOtherUpdatingTask = "CurrentOtherUpdatingTask";
