@@ -233,7 +233,7 @@ public partial class RootView : SukiWindow
         {
             if (AppRuntime.IsNewInstance)
             {
-                // 与 MXU 一致：interface/config 就绪且窗口已显示后立即检查更新。
+                // interface/config 就绪且窗口已显示后立即检查更新。
                 // 自动启动任务会等待本次检查结束，避免刚启动任务就被自动更新打断。
                 await VersionChecker.CheckOnStartupAsync();
             }

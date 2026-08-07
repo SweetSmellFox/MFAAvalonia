@@ -8,6 +8,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Metadata;
 using Avalonia.Platform;
+using Avalonia.Reactive;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using ColorDocument.Avalonia;
@@ -126,6 +127,17 @@ namespace Markdown.Avalonia
             AvaloniaProperty.Register<MarkdownScrollViewer, bool>(
                 nameof(SaveScrollValueWhenContentUpdated),
                 defaultValue: false);
+
+        public static readonly StyledProperty<ScrollBarVisibility> HorizontalScrollBarVisibilityProperty =
+            AvaloniaProperty.Register<MarkdownScrollViewer, ScrollBarVisibility>(
+                nameof(HorizontalScrollBarVisibility),
+                defaultValue: ScrollBarVisibility.Disabled);
+
+        public static readonly StyledProperty<ScrollBarVisibility> VerticalScrollBarVisibilityProperty =
+            AvaloniaProperty.Register<MarkdownScrollViewer, ScrollBarVisibility>(
+                nameof(VerticalScrollBarVisibility),
+                defaultValue: ScrollBarVisibility.Auto);
+
         public static readonly StyledProperty<bool> EnableProgressiveRenderingProperty =
             AvaloniaProperty.Register<MarkdownScrollViewer, bool>(
                 nameof(EnableProgressiveRendering),
@@ -299,9 +311,13 @@ namespace Markdown.Avalonia
             {
                 // TODO: ScrollViewer does not seem to take Padding into account in 11.0.0-preview1
                 Padding = new Thickness(0),
-                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             };
+            _viewer.Bind(
+                ScrollViewer.HorizontalScrollBarVisibilityProperty,
+                this.GetObservable(HorizontalScrollBarVisibilityProperty));
+            _viewer.Bind(
+                ScrollViewer.VerticalScrollBarVisibilityProperty,
+                this.GetObservable(VerticalScrollBarVisibilityProperty));
 
             ((ISetLogicalParent)_viewer).SetParent(this);
             VisualChildren.Add(_viewer);
@@ -1666,6 +1682,18 @@ namespace Markdown.Avalonia
                 Level = level;
                 Text = text;
             }
+        }
+
+        public ScrollBarVisibility HorizontalScrollBarVisibility
+        {
+            set => SetValue(HorizontalScrollBarVisibilityProperty, value);
+            get => GetValue(HorizontalScrollBarVisibilityProperty);
+        }
+
+        public ScrollBarVisibility VerticalScrollBarVisibility
+        {
+            set => SetValue(VerticalScrollBarVisibilityProperty, value);
+            get => GetValue(VerticalScrollBarVisibilityProperty);
         }
 
         class Wrapper : Control, ISelectionRenderHelper, ILogicalScrollable

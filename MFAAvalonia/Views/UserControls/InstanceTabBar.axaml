@@ -223,7 +223,7 @@
             <Setter Property="MaxHeight" Value="1000" />
         </Style>
 
-        <Style Selector="full|MarkdownScrollViewer.PresetDescriptionMarkdown ScrollViewer">
+        <Style Selector="full|MarkdownScrollViewer.PresetDescriptionMarkdown">
             <Setter Property="HorizontalScrollBarVisibility" Value="Disabled" />
             <Setter Property="VerticalScrollBarVisibility" Value="Hidden" />
         </Style>

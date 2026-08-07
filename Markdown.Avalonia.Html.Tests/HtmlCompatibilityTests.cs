@@ -18,6 +18,23 @@ namespace Markdown.Avalonia.Html.Tests;
 public class HtmlCompatibilityTests
 {
     [Fact]
+    public void MarkdownScrollViewer_ForwardsScrollbarVisibilityProperties()
+    {
+        var viewer = new global::Markdown.Avalonia.MarkdownScrollViewer
+        {
+            HorizontalScrollBarVisibility = global::Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = global::Avalonia.Controls.Primitives.ScrollBarVisibility.Hidden
+        };
+
+        Assert.Equal(
+            global::Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+            viewer.ScrollViewer.HorizontalScrollBarVisibility);
+        Assert.Equal(
+            global::Avalonia.Controls.Primitives.ScrollBarVisibility.Hidden,
+            viewer.ScrollViewer.VerticalScrollBarVisibility);
+    }
+
+    [Fact]
     public void DecodeEntities_PreservesNonBreakingSpacesAndEscapedSyntax()
     {
         var run = new CRun
