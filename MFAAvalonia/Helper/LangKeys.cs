@@ -678,6 +678,8 @@ public static class LangKeys
 	public static readonly string InstanceAddTooltip = "InstanceAddTooltip";
 	public static readonly string InstanceAddFollowLast = "InstanceAddFollowLast";
 	public static readonly string InstancePresetTaskCountFormat = "InstancePresetTaskCountFormat";
+	public static readonly string ExpandDescription = "ExpandDescription";
+	public static readonly string CollapseDescription = "CollapseDescription";
 	public static readonly string InstanceCannotCloseLast = "InstanceCannotCloseLast";
 	public static readonly string InstanceRunningCloseConfirm = "InstanceRunningCloseConfirm";
 	public static readonly string InstanceCloseTitle = "InstanceCloseTitle";

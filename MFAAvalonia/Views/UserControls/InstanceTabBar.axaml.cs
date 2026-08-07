@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using Lang.Avalonia.MarkupExtensions;
@@ -253,6 +254,15 @@ public partial class InstanceTabBar : UserControl
 
         return menu;
     }
+
+    private static void OnPresetDescriptionTogglePointerPressed(object? sender, PointerPressedEventArgs e)
+        => e.Handled = true;
+
+    private static void OnPresetDescriptionTogglePointerReleased(object? sender, PointerReleasedEventArgs e)
+        => e.Handled = true;
+
+    private static void OnPresetDescriptionToggleClick(object? sender, RoutedEventArgs e)
+        => e.Handled = true;
 
     private static async Task DuplicateInstanceAsync(InstanceTabBarViewModel vm, InstanceTabViewModel sourceTab)
     {

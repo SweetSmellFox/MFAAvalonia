@@ -826,6 +826,12 @@
   <data name="InstancePresetTaskCountFormat" xml:space="preserve">
     <value>{0}/{1} タスク</value>
   </data>
+  <data name="ExpandDescription" xml:space="preserve">
+    <value>説明を展開</value>
+  </data>
+  <data name="CollapseDescription" xml:space="preserve">
+    <value>説明を折りたたむ</value>
+  </data>
   <data name="InstanceCannotCloseLast" xml:space="preserve">
     <value>最後のインスタンスは閉じられません</value>
   </data>

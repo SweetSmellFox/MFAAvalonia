@@ -2017,6 +2017,12 @@
     <data name="InstancePresetTaskCountFormat" xml:space="preserve">
         <value>{0} 個任務</value>
     </data>
+    <data name="ExpandDescription" xml:space="preserve">
+        <value>展開描述</value>
+    </data>
+    <data name="CollapseDescription" xml:space="preserve">
+        <value>收起描述</value>
+    </data>
     <data name="InstanceCannotCloseLast" xml:space="preserve">
         <value>無法關閉最後一個實例</value>
     </data>

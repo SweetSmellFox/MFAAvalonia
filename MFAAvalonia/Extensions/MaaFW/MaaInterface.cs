@@ -1297,6 +1297,8 @@ public partial class MaaInterface
 
         [ObservableProperty] [JsonIgnore] private string _taskCountText = string.Empty;
 
+        [ObservableProperty] [JsonIgnore] private bool _canExpandDescription;
+
         public void InitializeDisplayName()
         {
             UpdateDisplayName();
@@ -1315,12 +1317,14 @@ public partial class MaaInterface
             {
                 DisplayDescription = LanguageHelper.GetLocalizedString(Description.ResolveContentAsync().Result);
                 HasDescription = !string.IsNullOrWhiteSpace(DisplayDescription);
+                CanExpandDescription = IsDescriptionLikelyOverflowing(DisplayDescription);
             }
             catch (Exception ex)
             {
                 LoggerHelper.Warning($"Failed to resolve preset description for '{Name}': {ex.Message}");
                 DisplayDescription = string.Empty;
                 HasDescription = false;
+                CanExpandDescription = false;
             }
             if (!string.IsNullOrWhiteSpace(Icon))
             {
@@ -1338,6 +1342,16 @@ public partial class MaaInterface
         public void Dispose()
         {
             LanguageHelper.LanguageChanged -= OnLanguageChanged;
+        }
+
+        private static bool IsDescriptionLikelyOverflowing(string description)
+        {
+            var normalized = description.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
+            if (normalized.Count(character => character == '\n') >= 2)
+                return true;
+
+            var visualUnits = normalized.Sum(character => character <= sbyte.MaxValue ? 1 : 2);
+            return visualUnits > 84;
         }
     }
 

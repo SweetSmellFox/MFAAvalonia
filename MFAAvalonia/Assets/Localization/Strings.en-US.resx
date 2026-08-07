@@ -2029,6 +2029,12 @@ Please do not copy only the main executable by itself.</value>
     <data name="InstancePresetTaskCountFormat" xml:space="preserve">
         <value>{0}/{1} tasks</value>
     </data>
+    <data name="ExpandDescription" xml:space="preserve">
+        <value>Expand description</value>
+    </data>
+    <data name="CollapseDescription" xml:space="preserve">
+        <value>Collapse description</value>
+    </data>
     <data name="InstanceCannotCloseLast" xml:space="preserve">
         <value>Cannot close the last instance</value>
     </data>
