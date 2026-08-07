@@ -2141,6 +2141,18 @@ Please do not copy only the main executable by itself.</value>
   <data name="CopyInstanceId" xml:space="preserve"><value>Copy instance ID</value></data>
   <data name="HelpImproveSoftware" xml:space="preserve"><value>Help improve the software</value></data>
   <data name="HelpImproveSoftwareDescription" xml:space="preserve"><value>Send anonymous crash reports, task results, and relevant logs and error screenshots from failed tasks to help resource authors diagnose issues.</value></data>
+  <data name="ExportInstanceConfig" xml:space="preserve"><value>Export instance configuration</value></data>
+  <data name="ImportInstanceConfig" xml:space="preserve"><value>Import instance configuration</value></data>
+  <data name="ExportToClipboard" xml:space="preserve"><value>Copy to clipboard</value></data>
+  <data name="ExportToFile" xml:space="preserve"><value>Export to file</value></data>
+  <data name="ImportFromClipboard" xml:space="preserve"><value>Import from clipboard</value></data>
+  <data name="ImportFromFile" xml:space="preserve"><value>Import from file</value></data>
+  <data name="ExportInstanceConfigSuccess" xml:space="preserve"><value>Instance configuration exported.</value></data>
+  <data name="ExportInstanceConfigFailed" xml:space="preserve"><value>Failed to export the instance configuration.</value></data>
+  <data name="ImportInstanceConfigSuccess" xml:space="preserve"><value>Instance configuration imported with {0} tasks.</value></data>
+  <data name="ImportInstanceConfigInvalid" xml:space="preserve"><value>The instance configuration could not be recognized.</value></data>
+  <data name="ImportInstanceConfigProjectMismatch" xml:space="preserve"><value>This configuration belongs to another project.</value></data>
+  <data name="ImportInstanceConfigUnsupportedVersion" xml:space="preserve"><value>This configuration version is not supported.</value></data>
 </root>
 
 

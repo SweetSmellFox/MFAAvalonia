@@ -2151,6 +2151,18 @@
   <data name="CopyInstanceId" xml:space="preserve"><value>复制实例 ID</value></data>
   <data name="HelpImproveSoftware" xml:space="preserve"><value>帮助改进软件</value></data>
   <data name="HelpImproveSoftwareDescription" xml:space="preserve"><value>匿名发送崩溃信息、任务运行结果，以及失败任务的相关日志和错误截图，帮助资源作者定位问题。</value></data>
+  <data name="ExportInstanceConfig" xml:space="preserve"><value>导出实例配置</value></data>
+  <data name="ImportInstanceConfig" xml:space="preserve"><value>导入实例配置</value></data>
+  <data name="ExportToClipboard" xml:space="preserve"><value>复制到剪贴板</value></data>
+  <data name="ExportToFile" xml:space="preserve"><value>导出到文件</value></data>
+  <data name="ImportFromClipboard" xml:space="preserve"><value>从剪贴板导入</value></data>
+  <data name="ImportFromFile" xml:space="preserve"><value>从文件导入</value></data>
+  <data name="ExportInstanceConfigSuccess" xml:space="preserve"><value>实例配置已导出。</value></data>
+  <data name="ExportInstanceConfigFailed" xml:space="preserve"><value>实例配置导出失败。</value></data>
+  <data name="ImportInstanceConfigSuccess" xml:space="preserve"><value>实例配置已导入，共载入 {0} 个任务。</value></data>
+  <data name="ImportInstanceConfigInvalid" xml:space="preserve"><value>无法识别该实例配置。</value></data>
+  <data name="ImportInstanceConfigProjectMismatch" xml:space="preserve"><value>该配置属于其他项目，无法导入。</value></data>
+  <data name="ImportInstanceConfigUnsupportedVersion" xml:space="preserve"><value>该配置版本暂不受支持。</value></data>
 </root>
 
 

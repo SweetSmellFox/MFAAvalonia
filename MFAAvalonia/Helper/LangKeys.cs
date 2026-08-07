@@ -701,6 +701,18 @@ public static class LangKeys
 	public static readonly string RemoveTimer = "RemoveTimer";
 	public static readonly string TimerStopConnectedProcess = "TimerStopConnectedProcess";
 	public static readonly string TimerStopMFA = "TimerStopMFA";
+	public static readonly string ExportInstanceConfig = "ExportInstanceConfig";
+	public static readonly string ImportInstanceConfig = "ImportInstanceConfig";
+	public static readonly string ExportToClipboard = "ExportToClipboard";
+	public static readonly string ExportToFile = "ExportToFile";
+	public static readonly string ImportFromClipboard = "ImportFromClipboard";
+	public static readonly string ImportFromFile = "ImportFromFile";
+	public static readonly string ExportInstanceConfigSuccess = "ExportInstanceConfigSuccess";
+	public static readonly string ExportInstanceConfigFailed = "ExportInstanceConfigFailed";
+	public static readonly string ImportInstanceConfigSuccess = "ImportInstanceConfigSuccess";
+	public static readonly string ImportInstanceConfigInvalid = "ImportInstanceConfigInvalid";
+	public static readonly string ImportInstanceConfigProjectMismatch = "ImportInstanceConfigProjectMismatch";
+	public static readonly string ImportInstanceConfigUnsupportedVersion = "ImportInstanceConfigUnsupportedVersion";
 	
 }
 

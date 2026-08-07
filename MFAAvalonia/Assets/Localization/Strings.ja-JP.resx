@@ -2136,4 +2136,16 @@
   <data name="CopyInstanceId" xml:space="preserve"><value>インスタンス ID をコピー</value></data>
   <data name="HelpImproveSoftware" xml:space="preserve"><value>ソフトウェアの改善に協力する</value></data>
   <data name="HelpImproveSoftwareDescription" xml:space="preserve"><value>匿名のクラッシュ情報、タスク実行結果、失敗したタスクの関連ログとエラースクリーンショットを送信し、問題調査に役立てます。</value></data>
+  <data name="ExportInstanceConfig" xml:space="preserve"><value>インスタンス設定をエクスポート</value></data>
+  <data name="ImportInstanceConfig" xml:space="preserve"><value>インスタンス設定をインポート</value></data>
+  <data name="ExportToClipboard" xml:space="preserve"><value>クリップボードにコピー</value></data>
+  <data name="ExportToFile" xml:space="preserve"><value>ファイルにエクスポート</value></data>
+  <data name="ImportFromClipboard" xml:space="preserve"><value>クリップボードからインポート</value></data>
+  <data name="ImportFromFile" xml:space="preserve"><value>ファイルからインポート</value></data>
+  <data name="ExportInstanceConfigSuccess" xml:space="preserve"><value>インスタンス設定をエクスポートしました。</value></data>
+  <data name="ExportInstanceConfigFailed" xml:space="preserve"><value>インスタンス設定のエクスポートに失敗しました。</value></data>
+  <data name="ImportInstanceConfigSuccess" xml:space="preserve"><value>インスタンス設定をインポートしました（{0} タスク）。</value></data>
+  <data name="ImportInstanceConfigInvalid" xml:space="preserve"><value>インスタンス設定を認識できませんでした。</value></data>
+  <data name="ImportInstanceConfigProjectMismatch" xml:space="preserve"><value>この設定は別のプロジェクト用です。</value></data>
+  <data name="ImportInstanceConfigUnsupportedVersion" xml:space="preserve"><value>この設定バージョンはサポートされていません。</value></data>
 </root>

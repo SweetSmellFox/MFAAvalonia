@@ -150,11 +150,6 @@ public class TaskLoader(MaaInterface? maaInterface, TaskQueueViewModel taskQueue
 
         maaInterface.GlobalSelectOptions = maaInterface.GlobalOption.Select(optionName =>
         {
-            if (existingDict.TryGetValue(optionName, out var existing))
-            {
-                SetDefaultOptionValue(maaInterface, existing);
-                return existing;
-            }
             if (savedDict.TryGetValue(optionName, out var saved))
             {
                 var savedOption = new MaaInterface.MaaInterfaceSelectOption
@@ -163,9 +158,15 @@ public class TaskLoader(MaaInterface? maaInterface, TaskQueueViewModel taskQueue
                     Index = saved.Index,
                     Data = saved.Data != null ? new Dictionary<string, string?>(saved.Data) : null,
                     SelectedCases = saved.SelectedCases != null ? new List<string>(saved.SelectedCases) : null,
+                    SubOptions = saved.SubOptions != null ? CloneSubOptions(saved.SubOptions) : null,
                 };
                 SetDefaultOptionValue(maaInterface, savedOption);
                 return savedOption;
+            }
+            if (existingDict.TryGetValue(optionName, out var existing))
+            {
+                SetDefaultOptionValue(maaInterface, existing);
+                return existing;
             }
             var opt = new MaaInterface.MaaInterfaceSelectOption { Name = optionName };
             SetDefaultOptionValue(maaInterface, opt);
@@ -228,15 +229,7 @@ public class TaskLoader(MaaInterface? maaInterface, TaskQueueViewModel taskQueue
             .Where(optionName => !subOptionNames.Contains(optionName))
             .Select(optionName =>
             {
-                // 优先使用已有的值（保留运行时的修改）
-                if (existingDict.TryGetValue(optionName, out var existingOpt))
-                {
-                    SetDefaultOptionValue(maaInterface, existingOpt);
-                    return existingOpt;
-                }
-
-                // 其次使用配置中保存的值
-                // 其次使用配置中保存的值
+                // 配置文件中的值属于当前实例，应优先于 Interface 上其他实例留下的运行时状态。
                 if (savedDict?.TryGetValue(optionName, out var savedOpt) == true)
                 {
                     // 克隆保存的选项，避免引用问题
@@ -250,6 +243,11 @@ public class TaskLoader(MaaInterface? maaInterface, TaskQueueViewModel taskQueue
                     };
                     SetDefaultOptionValue(maaInterface, clonedOpt);
                     return clonedOpt;
+                }
+                if (existingDict.TryGetValue(optionName, out var existingOpt))
+                {
+                    SetDefaultOptionValue(maaInterface, existingOpt);
+                    return existingOpt;
                 }
                 // 最后创建新的并设置默认值
                 var selectOption = new MaaInterface.MaaInterfaceSelectOption
@@ -852,11 +850,6 @@ public class TaskLoader(MaaInterface? maaInterface, TaskQueueViewModel taskQueue
 
         controller.SelectOptions = controller.Option.Select(optionName =>
         {
-            if (existingDict.TryGetValue(optionName, out var existing))
-            {
-                SetDefaultOptionValue(maaInterface, existing);
-                return existing;
-            }
             if (savedDict?.TryGetValue(optionName, out var saved) == true)
             {
                 var savedOption = new MaaInterface.MaaInterfaceSelectOption
@@ -865,9 +858,15 @@ public class TaskLoader(MaaInterface? maaInterface, TaskQueueViewModel taskQueue
                     Index = saved.Index,
                     Data = saved.Data != null ? new Dictionary<string, string?>(saved.Data) : null,
                     SelectedCases = saved.SelectedCases != null ? new List<string>(saved.SelectedCases) : null,
+                    SubOptions = saved.SubOptions != null ? CloneSubOptions(saved.SubOptions) : null,
                 };
                 SetDefaultOptionValue(maaInterface, savedOption);
                 return savedOption;
+            }
+            if (existingDict.TryGetValue(optionName, out var existing))
+            {
+                SetDefaultOptionValue(maaInterface, existing);
+                return existing;
             }
             var opt = new MaaInterface.MaaInterfaceSelectOption { Name = optionName };
             SetDefaultOptionValue(maaInterface, opt);
