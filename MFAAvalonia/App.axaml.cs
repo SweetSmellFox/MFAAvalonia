@@ -142,6 +142,10 @@ public partial class App : Application
             base.Initialize();
             AppPaths.Initialize();
             LoggerHelper.InitializeLogger();
+            if (!IsRuntimeMissingMode && !IsTempDirMode)
+            {
+                MaaProcessor.StartInterfacePreload();
+            }
             AppPaths.CleanupObsoleteExecutableBackups(
                 message => LoggerHelper.Info(message),
                 message => LoggerHelper.Warning(message));

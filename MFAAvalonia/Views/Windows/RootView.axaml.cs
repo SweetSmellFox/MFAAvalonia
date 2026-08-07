@@ -73,16 +73,7 @@ public partial class RootView : SukiWindow
         Loaded += (_, _) =>
         {
             LoggerHelper.Info("界面初始化开始");
-
-            // 确保在UI线程上执行
-            DispatcherHelper.PostOnMainThread(() =>
-            {
-                // 初始化完成
-                _isInitializing = false;
-
-                // 加载UI
-                LoadUI();
-            });
+            _ = InitializeAfterLoadedAsync();
         };
         if (AppRuntime.IsNewInstance)
         {
@@ -94,6 +85,7 @@ public partial class RootView : SukiWindow
 
 
     private bool _isInitializing = true;
+    private int _loadedInitializationStarted;
     private bool _exitConfirmed;
     private bool _exitConfirmationInProgress;
     private int _beforeClosed;
@@ -122,6 +114,33 @@ public partial class RootView : SukiWindow
         Show();
         WindowState = WindowState.Normal;
         Activate();
+    }
+
+    private async Task InitializeAfterLoadedAsync()
+    {
+        if (Interlocked.Exchange(ref _loadedInitializationStarted, 1) != 0)
+            return;
+
+        _isInitializing = false;
+
+        try
+        {
+            if (AppRuntime.IsNewInstance)
+            {
+                // 与 MXU 一致：interface/config 就绪且窗口已显示后立即检查更新。
+                // 自动启动任务会等待本次检查结束，避免刚启动任务就被自动更新打断。
+                await VersionChecker.CheckOnStartupAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            LoggerHelper.Error($"启动更新检测失败：{ex.Message}", ex);
+        }
+
+        if (!VersionChecker.IsRestartPending)
+        {
+            LoadUI();
+        }
     }
 
 #pragma warning disable CS4014 // 由于此调用不会等待，因此在此调用完成之前将会继续执行当前方法。请考虑将 "await" 运算符应用于调用结果。
@@ -323,7 +342,7 @@ public partial class RootView : SukiWindow
                                 vm.TryReadAdbDeviceFromConfig(false, false);
                             }
                             var onlyStart = beforeTask.Equals("StartupSoftware", StringComparison.OrdinalIgnoreCase);
-                            vm.Processor.Start(onlyStart, checkUpdate: true);
+                            vm.Processor.Start(onlyStart, checkUpdate: false);
                         }
                         else
                         {
@@ -355,7 +374,7 @@ public partial class RootView : SukiWindow
                                 Action = async () => await vm.Processor.TestConnecting(),
                                 OwnerViewModel = vm,
                             });
-                            vm.Processor.Start(true, checkUpdate: true);
+                            vm.Processor.Start(true, checkUpdate: false);
                         }
 
                         GlobalConfiguration.SetValue(ConfigurationKeys.NoAutoStart, bool.FalseString);

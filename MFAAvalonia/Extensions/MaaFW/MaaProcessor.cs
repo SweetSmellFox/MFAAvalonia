@@ -438,7 +438,8 @@ public class MaaProcessor
         return null;
     }
 
-    private static bool? _cachedIsV3;
+    private static readonly object InterfacePreloadLock = new();
+    private static Task<MaaInterface>? _interfacePreloadTask;
 
     public MaaProcessor(string instanceId)
     {
@@ -469,34 +470,9 @@ public class MaaProcessor
             }
         };
 
-        // 使用缓存避免每个实例都重复读取 interface.json
-        if (_cachedIsV3.HasValue)
-        {
-            IsV3 = _cachedIsV3.Value;
-        }
-        else
-        {
-            CheckInterface(out _, out _, out _, out _, out _);
-            try
-            {
-                var filePath = GetInterfaceFilePath();
-                if (filePath != null)
-                {
-                    var content = File.ReadAllText(filePath);
-                    var @interface = JObject.Parse(content, JsoncLoadSettings);
-                    var interfaceVersion = @interface["interface_version"]?.ToString();
-                    if (int.TryParse(interfaceVersion, out var result) && result >= 3)
-                    {
-                        IsV3 = true;
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                LoggerHelper.Error($"读取 interface_version 失败：file={GetInterfaceFilePath()}, reason={e.Message}", e);
-            }
-            _cachedIsV3 = IsV3;
-        }
+        // 这里只读取预加载数据的协议版本，不应用 Interface。
+        // MaaProcessorManager 的 Lazy 构造完成后，LoadInstanceConfig 才会在主线程应用完整数据。
+        IsV3 = GetPreloadedInterfaceVersion() >= 3;
     }
     private bool _isClosed = false;
     public bool IsClosed => _isClosed;
@@ -2241,8 +2217,75 @@ public class MaaProcessor
 // 防止 interface 加载失败时 Toast 重复显示
     private static bool _interfaceLoadErrorShown = false;
 
+    /// <summary>
+    /// 在 UI 和实例初始化期间并行预加载 interface。此阶段只读取和解析数据，
+    /// 不设置 Interface，避免从后台线程触发语言及 UI 刷新。
+    /// </summary>
+    public static void StartInterfacePreload()
+    {
+        lock (InterfacePreloadLock)
+        {
+            if (Interface != null || _interfacePreloadTask != null)
+            {
+                return;
+            }
+
+            var interfacePath = GetInterfaceFilePath();
+            if (interfacePath == null)
+            {
+                return;
+            }
+
+            _interfacePreloadTask = Task.Run(() =>
+            {
+                var stopwatch = Stopwatch.StartNew();
+                var result = LoadMaaInterfaceRecursive(interfacePath);
+                LoggerHelper.Info($"[Interface] 预加载完成，耗时 {stopwatch.ElapsedMilliseconds} ms");
+                return result;
+            });
+        }
+    }
+
+    private static int? GetPreloadedInterfaceVersion()
+    {
+        if (Interface != null)
+        {
+            return Interface.InterfaceVersion;
+        }
+
+        StartInterfacePreload();
+
+        Task<MaaInterface>? preloadTask;
+        lock (InterfacePreloadLock)
+        {
+            preloadTask = _interfacePreloadTask;
+        }
+
+        if (preloadTask == null)
+        {
+            return null;
+        }
+
+        try
+        {
+            return preloadTask.GetAwaiter().GetResult().InterfaceVersion;
+        }
+        catch
+        {
+            // ReadInterface 会在管理器构造完成后统一记录并展示解析错误。
+            // 此处等待任务也确保预加载异常已被观察，不会落到终结器线程。
+            return null;
+        }
+    }
+
     public static (string Key, string Fallback, string Version, string CustomTitle, string CustomFallback) ReadInterface()
     {
+        if (Interface != null)
+        {
+            return (Interface.Label ?? string.Empty, Interface.Name ?? string.Empty, Interface.Version ?? string.Empty,
+                Interface.Title ?? string.Empty, Interface.CustomTitle ?? string.Empty);
+        }
+
         if (CheckInterface(out string name, out string back, out string version, out string customTitle, out var fallBack))
         {
             return (name, back, version, customTitle, fallBack);
@@ -2254,13 +2297,20 @@ public class MaaProcessor
 
         try
         {
-            // 使用递归加载支持 import
-            Interface = LoadMaaInterfaceRecursive(interfacePath);
+            Task<MaaInterface>? preloadTask;
+            lock (InterfacePreloadLock)
+            {
+                preloadTask = _interfacePreloadTask;
+            }
+
+            // 优先复用启动阶段的预加载结果；非标准启动流程仍同步加载。
+            Interface = preloadTask?.GetAwaiter().GetResult() ?? LoadMaaInterfaceRecursive(interfacePath);
         }
         catch (Exception ex)
         {
             Interface = defaultValue;
             var error = "";
+            LoggerHelper.Error($"加载界面资源定义失败：file={interfaceFileName}, reason={ex.Message}", ex);
 
             try
             {

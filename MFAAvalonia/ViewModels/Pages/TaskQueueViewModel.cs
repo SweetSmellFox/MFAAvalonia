@@ -1473,7 +1473,7 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
             Processor.Config.MacOSWindow.WindowId = macOSWindow.WindowId;
             Processor.InstanceConfiguration.SetValue(ConfigurationKeys.DesktopWindowName, macOSWindow.Name);
             if (!Processor.IsConnecting && !isSameWindow)
-                Task.Run(() => Processor.SetTasker());
+                ResetTaskerInBackground();
         }
         else if (value is DesktopWindowInfo window)
         {
@@ -1486,7 +1486,7 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
             Processor.InstanceConfiguration.SetValue(ConfigurationKeys.DesktopWindowName, window.Name);
             // 正在连接或设备未变更时跳过 SetTasker，避免打断进行中的连接
             if (!Processor.IsConnecting && !isSameWindow)
-                Task.Run(() => Processor.SetTasker());
+                ResetTaskerInBackground();
         }
         else if (value is AdbDeviceInfo device)
         {
@@ -1502,7 +1502,7 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
             Processor.Config.AdbDevice.Info = device;
             // 正在连接或设备未变更时跳过 SetTasker，避免打断进行中的连接
             if (!Processor.IsConnecting && !isSameDevice)
-                Task.Run(() => Processor.SetTasker());
+                ResetTaskerInBackground();
             Processor.InstanceConfiguration.SetValue(ConfigurationKeys.AdbDevice, device);
         }
         else if (value is WlRootsSocketInfo socket && CurrentController == MaaControllerTypes.WlRoots)
@@ -1514,8 +1514,23 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
             Processor.Config.WlRoots.SocketPath = socket.SocketPath;
             Processor.InstanceConfiguration.SetValue(ConfigurationKeys.WlRootsSocketPath, socket.SocketPath);
             if (!Processor.IsConnecting && !isSameSocket)
-                Task.Run(() => Processor.SetTasker());
+                ResetTaskerInBackground();
         }
+    }
+
+    private void ResetTaskerInBackground()
+    {
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                Processor.SetTasker();
+            }
+            catch (Exception ex)
+            {
+                LoggerHelper.Error($"后台重建任务执行器失败：实例={Processor.InstanceId}，原因={ex.Message}", ex);
+            }
+        });
     }
 
     [ObservableProperty]
@@ -2688,7 +2703,7 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
             if (!string.IsNullOrWhiteSpace(value))
             {
                 // SetTasker 内部会同步等待旧 Tasker 停止，移到后台线程避免阻塞 UI
-                Task.Run(() => Processor.SetTasker());
+                ResetTaskerInBackground();
             }
 
             SetNewProperty(ref _currentResource, value);

@@ -61,6 +61,12 @@ public static class VersionChecker
     }
 
     private static readonly ConcurrentQueue<ValueType.MFATask> Queue = new();
+    private static readonly SemaphoreSlim CheckExecutionLock = new(1, 1);
+    private static readonly object StartupCheckLock = new();
+    private static Task? _startupCheckTask;
+    private static int _restartPending;
+
+    public static bool IsRestartPending => Volatile.Read(ref _restartPending) != 0;
 
     private static bool IsEnvEnabled(string envName)
     {
@@ -161,25 +167,48 @@ public static class VersionChecker
         _ = CheckAsync();
     }
 
-    public static Task CheckAsync()
+    /// <summary>
+    /// 主窗口首次就绪后执行一次启动更新检查。后续调用复用同一个任务，
+    /// 避免窗口重复 Loaded 或多个实例初始化导致重复请求与重复更新。
+    /// </summary>
+    public static Task CheckOnStartupAsync()
     {
-        var config = new
+        lock (StartupCheckLock)
         {
-            AutoUpdateResource = ConfigurationManager.Current.GetValue(ConfigurationKeys.EnableAutoUpdateResource, false),
-            AutoUpdateMFA = ConfigurationManager.Current.GetValue(ConfigurationKeys.EnableAutoUpdateMFA, false),
-            CheckVersion = ConfigurationManager.Current.GetValue(ConfigurationKeys.EnableCheckVersion, true),
-        };
-
-        AddCDKCheckTask();
-
-        if (config.AutoUpdateResource && !GetResourceVersion().Contains("debug", StringComparison.OrdinalIgnoreCase))
-        {
-            AddResourceUpdateTask(config.AutoUpdateMFA);
+            return _startupCheckTask ??= CheckAsync(isStartup: true);
         }
-        else if (config.CheckVersion && !GetResourceVersion().Contains("debug", StringComparison.OrdinalIgnoreCase))
+    }
+
+    public static async Task CheckAsync(bool isStartup = false)
+    {
+        await CheckExecutionLock.WaitAsync();
+        try
         {
-            AddResourceCheckTask();
-        }
+            var config = new
+            {
+                AutoUpdateResource = ConfigurationManager.Current.GetValue(ConfigurationKeys.EnableAutoUpdateResource, false),
+                AutoUpdateMFA = ConfigurationManager.Current.GetValue(ConfigurationKeys.EnableAutoUpdateMFA, false),
+                CheckVersion = ConfigurationManager.Current.GetValue(ConfigurationKeys.EnableCheckVersion, true),
+            };
+            var resourceVersion = GetResourceVersion();
+
+            if ((!config.AutoUpdateResource && !config.CheckVersion)
+                || resourceVersion.Contains("debug", StringComparison.OrdinalIgnoreCase))
+            {
+                LoggerHelper.Info("已按更新设置或调试资源版本跳过启动更新检测。");
+                return;
+            }
+
+            AddCDKCheckTask();
+
+            if (config.AutoUpdateResource)
+            {
+                AddResourceUpdateTask(config.AutoUpdateMFA);
+            }
+            else if (config.CheckVersion)
+            {
+                AddResourceCheckTask(notifyWhenUpToDate: !isStartup, notifyOnError: !isStartup);
+            }
 
         // if (config.AutoUpdateMFA)
         // {
@@ -190,8 +219,13 @@ public static class VersionChecker
         //     AddMFACheckTask();
         // }
 
-        return TaskManager.RunTaskAsync(async () => await ExecuteTasksAsync(),
-            () => ToastNotification.Show("自动更新时发生错误！"), "启动检测");
+            await TaskManager.RunTaskAsync(async () => await ExecuteTasksAsync(),
+                () => ToastNotification.Show("自动更新时发生错误！"), isStartup ? "启动更新检测" : "更新检测");
+        }
+        finally
+        {
+            CheckExecutionLock.Release();
+        }
     }
 
     public static void CheckCDKAsync() => TaskManager.RunTaskAsync(() => CheckForCDK(Instances.VersionUpdateSettingsUserControlModel.DownloadSourceIndex == 0), name: "查询CDK剩余时间");
@@ -205,11 +239,14 @@ public static class VersionChecker
 
     public static void UpdateMaaFwAsync() => TaskManager.RunTaskAsync(() => UpdateMaaFw(), name: "更新MaaFw");
 
-    private static void AddResourceCheckTask()
+    private static void AddResourceCheckTask(bool notifyWhenUpToDate = true, bool notifyOnError = true)
     {
         Queue.Enqueue(new ValueType.MFATask
         {
-            Action = async () => await CheckForResourceUpdatesAsync(Instances.VersionUpdateSettingsUserControlModel.DownloadSourceIndex == 0),
+            Action = async () => await CheckForResourceUpdatesAsync(
+                Instances.VersionUpdateSettingsUserControlModel.DownloadSourceIndex == 0,
+                notifyWhenUpToDate,
+                notifyOnError),
             Name = "更新资源"
         });
     }
@@ -271,7 +308,10 @@ public static class VersionChecker
         }
     }
 
-    public static async Task CheckForResourceUpdatesAsync(bool isGithub = true)
+    public static async Task CheckForResourceUpdatesAsync(
+        bool isGithub = true,
+        bool notifyWhenUpToDate = true,
+        bool notifyOnError = true)
     {
         Instances.RootViewModel.SetUpdating(true);
         var url = MaaProcessor.Interface?.Github ?? MaaProcessor.Interface?.Url ?? string.Empty;
@@ -349,17 +389,21 @@ public static class VersionChecker
             else
             {
                 DispatcherHelper.RunOnMainThread(ChangelogViewModel.CheckChangelog);
-                ToastHelper.Info(LangKeys.ResourcesAreLatestVersion.ToLocalization());
+                if (notifyWhenUpToDate)
+                    ToastHelper.Info(LangKeys.ResourcesAreLatestVersion.ToLocalization());
             }
             Instances.RootViewModel.SetUpdating(false);
         }
         catch (Exception ex)
         {
             Instances.RootViewModel.SetUpdating(false);
-            if (ex.Message.Contains("resource not found"))
-                ToastHelper.Error(LangKeys.CurrentResourcesNotSupportMirror.ToLocalization());
-            else
-                ToastHelper.Error(LangKeys.ErrorWhenCheck.ToLocalizationFormatted(true, "Resource"), ex.Message, -1);
+            if (notifyOnError)
+            {
+                if (ex.Message.Contains("resource not found"))
+                    ToastHelper.Error(LangKeys.CurrentResourcesNotSupportMirror.ToLocalization());
+                else
+                    ToastHelper.Error(LangKeys.ErrorWhenCheck.ToLocalizationFormatted(true, "Resource"), ex.Message, -1);
+            }
             LoggerHelper.Error($"检查资源更新失败：来源={(isGithub ? "GitHub" : "Mirror")}，原因={ex.Message}", ex);
         }
     }
@@ -903,6 +947,7 @@ public static class VersionChecker
         action?.Invoke();
 
         // 重启前执行清理（保存配置、释放资源等）
+        Interlocked.Exchange(ref _restartPending, 1);
         DispatcherHelper.PostOnMainThread(() => Instances.RootView.BeforeClosed(true, true));
         await RestartApplicationAsync(restartExecutablePath);
     }
