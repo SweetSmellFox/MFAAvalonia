@@ -299,12 +299,44 @@ public static class VersionChecker
 
     private static string GetLocalPackageExtractDirectory(string localPackagePath)
     {
-        var packageDirectory = Path.GetDirectoryName(localPackagePath);
-        var packageName = Path.GetFileNameWithoutExtension(localPackagePath);
-        if (string.IsNullOrWhiteSpace(packageDirectory))
-            return Path.Combine(AppContext.BaseDirectory, $"{packageName}_extracted");
+        var normalizedPackagePath = Path.GetFullPath(localPackagePath);
+        var pathHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(normalizedPackagePath)))[..12]
+            .ToLowerInvariant();
+        return Path.Combine(AppPaths.TempResourceDirectory, $"local_package_{pathHash}_extracted");
+    }
 
-        return Path.Combine(packageDirectory, $"{packageName}_extracted");
+    private static async Task UpdateResourceFromLocalPackageCoreAsync(string packagePath, string currentVersion)
+    {
+        var extractDirectory = GetLocalPackageExtractDirectory(packagePath);
+        try
+        {
+            await UpdateResource(
+                    false,
+                    currentVersion: currentVersion,
+                    localPackagePath: packagePath)
+                .ConfigureAwait(false);
+        }
+        finally
+        {
+            CleanupLocalPackageExtractDirectory(extractDirectory);
+        }
+    }
+
+    private static void CleanupLocalPackageExtractDirectory(string extractDirectory)
+    {
+        try
+        {
+            if (!Directory.Exists(extractDirectory))
+                return;
+
+            Directory.Delete(extractDirectory, true);
+            LoggerHelper.Info($"已清理本地资源包解压目录：目录={extractDirectory}");
+        }
+        catch (Exception ex)
+        {
+            // App startup also clears temp_res, so a locked directory is cleaned on the next launch.
+            LoggerHelper.Warning($"清理本地资源包解压目录失败，将在下次启动时重试：目录={extractDirectory}，原因={ex.Message}");
+        }
     }
 
     public static void Check()
@@ -380,10 +412,7 @@ public static class VersionChecker
         currentVersion = "") => TaskManager.RunTaskAsync(() => UpdateResource(Instances.VersionUpdateSettingsUserControlModel.DownloadSourceIndex == 0, currentVersion: currentVersion), name: "更新MFA");
     public static void UpdateResourceFromLocalPackageAsync(string packagePath, string currentVersion = "") =>
         TaskManager.RunTaskAsync(
-            () => Task.Run(() => UpdateResource(
-                false,
-                currentVersion: currentVersion,
-                localPackagePath: packagePath)),
+            () => Task.Run(() => UpdateResourceFromLocalPackageCoreAsync(packagePath, currentVersion)),
             name: "本地更新包更新");
     public static void UpdateMFAAsync() => TaskManager.RunTaskAsync(() => UpdateMFA(Instances.VersionUpdateSettingsUserControlModel.DownloadSourceIndex == 0), name: "更新资源");
 
@@ -1095,6 +1124,9 @@ public static class VersionChecker
             Dismiss(sukiToast);
         shouldShowToast = true;
         action?.Invoke();
+
+        if (isLocalPackage)
+            CleanupLocalPackageExtractDirectory(tempExtractDir);
 
         // 重启前执行清理（保存配置、释放资源等）
         Interlocked.Exchange(ref _restartPending, 1);
