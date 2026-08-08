@@ -35,6 +35,8 @@ internal static class TaskDiagnostics
     private const long MaxRawBytes = 64 * 1024 * 1024;
     private const int MaxCompressedBytes = 10 * 1024 * 1024;
     private const int LogPreludeBytes = 64 * 1024;
+    private const int ExceptionLogTailBytes = 256 * 1024;
+    private const int MaxExceptionLogFiles = 5;
 
     internal static TaskEvidenceSnapshot CaptureStart(bool isolated)
     {
@@ -112,6 +114,47 @@ internal static class TaskDiagnostics
             return new TaskEvidenceBuildResult(TaskEvidenceBuildStatus.CompressedTooLarge, null, logCount, imageCount, rawBytes);
 
         return new TaskEvidenceBuildResult(TaskEvidenceBuildStatus.Success, output.ToArray(), logCount, imageCount, rawBytes);
+    }
+
+    internal static TaskEvidenceBuildResult BuildRecentLogs()
+    {
+        var selected = EnumerateEvidenceFiles()
+            .Where(path => IsLog(Relative(path)))
+            .Select(path =>
+            {
+                try { return (path, info: new FileInfo(path)); }
+                catch { return default; }
+            })
+            .Where(item => item.path != null && item.info != null)
+            .OrderByDescending(item => item.info!.LastWriteTimeUtc)
+            .Take(MaxExceptionLogFiles)
+            .Select(item =>
+            {
+                var length = Math.Min(item.info!.Length, ExceptionLogTailBytes);
+                return (path: item.path!, name: Relative(item.path!), start: item.info.Length - length, length);
+            })
+            .ToList();
+
+        if (selected.Count == 0)
+            return new TaskEvidenceBuildResult(TaskEvidenceBuildStatus.NoEvidence, null, 0, 0, 0);
+
+        var rawBytes = selected.Sum(item => item.length);
+        using var output = new MemoryStream();
+        using (var archive = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (var item in selected)
+            {
+                var entry = archive.CreateEntry(item.name, CompressionLevel.Fastest);
+                using var target = entry.Open();
+                using var source = new FileStream(item.path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                source.Position = item.start;
+                source.CopyTo(target);
+            }
+        }
+
+        return output.Length > MaxCompressedBytes
+            ? new TaskEvidenceBuildResult(TaskEvidenceBuildStatus.CompressedTooLarge, null, selected.Count, 0, rawBytes)
+            : new TaskEvidenceBuildResult(TaskEvidenceBuildStatus.Success, output.ToArray(), selected.Count, 0, rawBytes);
     }
 
     private static IEnumerable<string> EnumerateEvidenceFiles()

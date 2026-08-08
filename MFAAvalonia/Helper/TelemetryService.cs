@@ -58,7 +58,8 @@ public static class TelemetryService
                 if (_captured || !IsActive) return false;
                 _captured = true;
                 configure(Event);
-                SentrySdk.CaptureEvent(Event, hint, _ => { });
+                var eventId = SentrySdk.CaptureEvent(Event, hint, _ => { });
+                LoggerHelper.Info($"[Telemetry] 失败事件已加入发送队列：event_id={eventId}");
                 return true;
             }
         }
@@ -246,6 +247,7 @@ public static class TelemetryService
                     }
                 });
 
+                var @event = new SentryEvent(capturedException);
                 if (useRootCause)
                 {
                     capturedException.SetSentryMechanism(
@@ -253,17 +255,29 @@ public static class TelemetryService
                         "Fatal exception during application startup",
                         handled: false,
                         terminal: true);
-                    var @event = new SentryEvent(capturedException)
-                    {
-                        Message = capturedException.Message,
-                        TransactionName = "mfa.startup.failure",
-                    };
-                    SentrySdk.CaptureEvent(@event);
+                    @event.Message = capturedException.Message;
+                    @event.TransactionName = "mfa.startup.failure";
                 }
-                else
+
+                var hint = new SentryHint();
+                if (ShouldSampleAttachment(source, capturedException.GetType().FullName ?? capturedException.GetType().Name,
+                        FailureAttachmentSampleRate))
                 {
-                    SentrySdk.CaptureException(capturedException);
+                    var logs = TaskDiagnostics.BuildRecentLogs();
+                    @event.SetExtra("attachment.status", ToAttachmentStatus(logs.Status));
+                    @event.SetExtra("attachment.log_count", logs.LogCount);
+                    @event.SetExtra("attachment.selected_raw_bytes", logs.RawBytes);
+                    if (logs.Status == TaskEvidenceBuildStatus.Success && logs.Data != null)
+                    {
+                        hint.AddAttachment(logs.Data, "mfa-exception-logs.zip", AttachmentType.Default, "application/zip");
+                        @event.SetExtra("attachment.status", "attached");
+                        @event.SetExtra("attachment.compressed_bytes", logs.Data.Length);
+                    }
                 }
+                else @event.SetExtra("attachment.status", "not_selected");
+
+                var eventId = SentrySdk.CaptureEvent(@event, hint, _ => { });
+                LoggerHelper.Info($"[Telemetry] 异常事件已加入发送队列：source={source}, event_id={eventId}, attachment={@event.Extra?.GetValueOrDefault("attachment.status")}");
             }
         }
         catch
@@ -861,7 +875,8 @@ public static class TelemetryService
         }
 
         @event.SetExtra("attachment.status", "not_selected");
-        SentrySdk.CaptureEvent(@event, new SentryHint(), _ => { });
+        var eventId = SentrySdk.CaptureEvent(@event, new SentryHint(), _ => { });
+        LoggerHelper.Info($"[Telemetry] 任务失败事件已加入发送队列：event_id={eventId}, task={taskName}, attachment={@event.Extra?.GetValueOrDefault("attachment.status")}");
     }
 
     private static void SetFailureData(SentryEvent @event, string prefix, FailureInfo failure, bool asTags)
