@@ -1497,7 +1497,11 @@ public class MaaProcessor
         }
         try
         {
-            await RunPreTasksAsync(token);
+            var preTaskExecuted = await RunPreTasksAsync(token);
+            if (preTaskExecuted && ViewModel?.CurrentController != MaaControllerTypes.PlayCover && ViewModel?.CurrentDevice == null)
+            {
+                await Task.Run(() => ViewModel.AutoDetectDevice(token, showToast: false), token);
+            }
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
@@ -1789,7 +1793,7 @@ public class MaaProcessor
         }
 
         var callbackName = jObject["name"]?.ToString() ?? string.Empty;
-        if (CancellationTokenSource?.IsCancellationRequested != true)
+        if (CancellationTokenSource?.IsCancellationRequested != true && ShouldTraceNodeEvent(jObject, args.Message))
             TelemetryService.RecordNodeEvent(InstanceId, args.Message, args.Details);
 
         MaaTasker? tasker = null;
@@ -2426,20 +2430,24 @@ public class MaaProcessor
         return result;
     }
 
-    private async Task RunPreTasksAsync(CancellationToken token)
+    private async Task<bool> RunPreTasksAsync(CancellationToken token)
     {
-        if (Interface?.PreTask is not { Count: > 0 }) return;
-        var controllerName = MaaInterfaceActivationHelper.ResolveControllerName(
-            Interface, ViewModel?.CurrentController ?? MaaControllerTypes.None)
+        if (Interface?.PreTask is not { Count: > 0 }) return false;
+        var controllerName = ViewModel?.GetCurrentControllerName()
+            ?? MaaInterfaceActivationHelper.ResolveControllerName(
+                Interface, ViewModel?.CurrentController ?? MaaControllerTypes.None)
             ?? ViewModel?.CurrentController.ToJsonKey();
         var resourceName = ViewModel?.CurrentResource;
+        var executed = false;
 
         foreach (var preTask in Interface.PreTask)
         {
             if (string.IsNullOrWhiteSpace(preTask.Exec))
                 throw new InvalidDataException("pretask.exec is required");
-            if (preTask.Controller is { Count: > 0 } && !preTask.Controller.Contains(controllerName)) continue;
-            if (preTask.Resource is { Count: > 0 } && !preTask.Resource.Contains(resourceName)) continue;
+            if (preTask.Controller is { Count: > 0 }
+                && !preTask.Controller.Any(name => string.Equals(name, controllerName, StringComparison.OrdinalIgnoreCase))) continue;
+            if (preTask.Resource is { Count: > 0 }
+                && !preTask.Resource.Any(name => string.Equals(name, resourceName, StringComparison.OrdinalIgnoreCase))) continue;
 
             var exec = MaaInterface.ReplacePlaceholder(preTask.Exec, ResourceBase) ?? preTask.Exec;
             var info = new ProcessStartInfo
@@ -2454,11 +2462,25 @@ public class MaaProcessor
                 info.ArgumentList.Add(BuildPreTaskOptionJson(preTask.Option, controllerName, resourceName));
 
             LoggerHelper.Info($"执行 pretask：{preTask.Name ?? preTask.Exec}");
+            executed = true;
             using var process = Process.Start(info) ?? throw new InvalidOperationException($"无法启动 pretask: {preTask.Exec}");
             await process.WaitForExitAsync(token);
             if (process.ExitCode != 0)
                 throw new InvalidOperationException($"pretask '{preTask.Name ?? preTask.Exec}' exited with code {process.ExitCode}");
         }
+
+        return executed;
+    }
+
+    private static bool ShouldTraceNodeEvent(JObject details, string message)
+    {
+        var defaultValue = message.Equals("Node.PipelineNode.Failed", StringComparison.Ordinal);
+        if (details["focus"] is not JObject focus
+            || !focus.TryGetValue(message, StringComparison.Ordinal, out var template)
+            || template is not JObject templateObject)
+            return defaultValue;
+
+        return templateObject["trace"]?.Value<bool?>() ?? defaultValue;
     }
 
     private string BuildPreTaskOptionJson(IEnumerable<string> optionNames, string? controllerName, string? resourceName)

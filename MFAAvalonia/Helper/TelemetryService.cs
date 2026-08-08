@@ -594,8 +594,7 @@ public static class TelemetryService
 
     public static void RecordNodeEvent(string instanceId, string message, string details)
     {
-        if (!message.Equals("Node.PipelineNode.Starting", StringComparison.Ordinal)
-            && !message.Equals("Node.PipelineNode.Failed", StringComparison.Ordinal))
+        if (!message.StartsWith("Node.", StringComparison.Ordinal))
             return;
 
         JObject detail;
@@ -608,7 +607,7 @@ public static class TelemetryService
         lock (SyncRoot)
         {
             if (!Runs.TryGetValue(instanceId, out var run)) return;
-            if (message.Equals("Node.PipelineNode.Starting", StringComparison.Ordinal))
+            if (message.EndsWith(".Starting", StringComparison.Ordinal))
             {
                 if (nodeId.HasValue) run.LastPipelineSteps[taskId.Value] = (nodeId.Value, DateTimeOffset.UtcNow);
                 return;
@@ -619,23 +618,29 @@ public static class TelemetryService
             var failedNode = string.IsNullOrWhiteSpace(hitNode) ? fallbackNode : hitNode;
             if (string.IsNullOrWhiteSpace(failedNode) || run.ActiveTask == null
                 || !run.Tasks.TryGetValue(run.ActiveTask, out var taskSpan)) return;
-            var stage = string.IsNullOrWhiteSpace(hitNode) ? "recognition" : "action";
+            var stage = message.Contains(".Recognition.", StringComparison.Ordinal) ? "recognition"
+                : message.Contains(".Action.", StringComparison.Ordinal) ? "action"
+                : "pipeline";
             var duration = run.LastPipelineSteps.Remove(taskId.Value, out var step)
                 && nodeId.HasValue && step.NodeId == nodeId.Value
                 ? (long?)(DateTimeOffset.UtcNow - step.StartedAt).TotalMilliseconds : null;
-            run.FailedNodeCount++;
-            var failure = new FailureInfo(failedNode!, stage, nodeId, taskId, duration);
-            run.RootFailure ??= failure;
-            run.TerminalFailure = failure;
-            if (run.FailedNodeCount > MaxFailedNodesPerRun) return;
+            var isFailure = message.EndsWith(".Failed", StringComparison.Ordinal);
+            if (isFailure)
+            {
+                var failure = new FailureInfo(failedNode!, stage, nodeId, taskId, duration);
+                run.RootFailure ??= failure;
+                run.TerminalFailure = failure;
+                if (++run.FailedNodeCount > MaxFailedNodesPerRun) return;
+            }
             var taskName = run.ActiveTask.SourceItem?.InterfaceItem?.Name ?? run.ActiveTask.Name ?? "unknown";
             var span = taskSpan.StartChild("mfa.node", failedNode);
+            span.SetData("message", message);
             span.SetData("stage", stage);
             span.SetData("task", taskName);
             span.SetData("task_id", taskId.Value);
             if (nodeId.HasValue) span.SetData("node_id", nodeId.Value);
             if (duration.HasValue) span.SetData("duration_ms", duration.Value);
-            span.Status = SpanStatus.InternalError;
+            span.Status = isFailure ? SpanStatus.InternalError : SpanStatus.Ok;
             span.Finish();
         }
     }

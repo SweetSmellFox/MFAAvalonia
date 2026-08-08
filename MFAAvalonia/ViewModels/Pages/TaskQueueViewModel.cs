@@ -635,7 +635,8 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
 
         var beforeTask = Processor.InstanceConfiguration.GetValue(ConfigurationKeys.BeforeTask, "None");
         var skipDeviceCheck = beforeTask.Contains("StartupSoftware", StringComparison.OrdinalIgnoreCase)
-            || Instances.ConnectSettingsUserControlModel.AutoDetectOnConnectionFailed;
+            || Instances.ConnectSettingsUserControlModel.AutoDetectOnConnectionFailed
+            || HasApplicablePreTask();
 
         if (!skipDeviceCheck)
         {
@@ -692,6 +693,17 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
         }
 
         Processor.Start();
+    }
+
+    private bool HasApplicablePreTask()
+    {
+        var controllerName = GetCurrentControllerName();
+        var resourceName = CurrentResource;
+        return MaaProcessor.Interface?.PreTask?.Any(preTask =>
+            (preTask.Controller is not { Count: > 0 }
+             || preTask.Controller.Any(name => string.Equals(name, controllerName, StringComparison.OrdinalIgnoreCase)))
+            && (preTask.Resource is not { Count: > 0 }
+                || preTask.Resource.Any(name => string.Equals(name, resourceName, StringComparison.OrdinalIgnoreCase)))) == true;
     }
 
     public void StopTask(Action? action = null)
