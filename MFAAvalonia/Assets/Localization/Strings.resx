@@ -1257,6 +1257,9 @@
     <data name="TaskFailed" xml:space="preserve">
         <value>任务运行失败！</value>
     </data>
+    <data name="TaskFailedWithName" xml:space="preserve">
+        <value>任务失败：{0}</value>
+    </data>
     <data name="ExternalNotificationCustomNotificationContentFailure" xml:space="preserve">
         <value>自定义失败通知内容</value>
     </data>

@@ -1242,9 +1242,12 @@
     <data name="UpcomingChanges" xml:space="preserve">
         <value>即將發生的變更</value>
     </data>
-    <data name="TaskFailed" xml:space="preserve">
-        <value>任務運行失敗！</value>
-    </data>
+  <data name="TaskFailed" xml:space="preserve">
+    <value>任務運行失敗！</value>
+  </data>
+  <data name="TaskFailedWithName" xml:space="preserve">
+    <value>任務失敗：{0}</value>
+  </data>
     <data name="ExternalNotificationCustomNotificationContentSuccess" xml:space="preserve">
         <value>自訂成功通知內容</value>
     </data>

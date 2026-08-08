@@ -1242,6 +1242,9 @@
     <data name="TaskFailed" xml:space="preserve">
         <value>Task execution failed!</value>
     </data>
+    <data name="TaskFailedWithName" xml:space="preserve">
+        <value>Task failed: {0}</value>
+    </data>
     <data name="ExternalNotificationCustomNotificationContentSuccess" xml:space="preserve">
         <value>Customize success notification content</value>
     </data>

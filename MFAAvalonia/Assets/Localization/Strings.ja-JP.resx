@@ -784,6 +784,9 @@
   <data name="TaskFailed" xml:space="preserve">
     <value>タスクの実行に失敗しました！</value>
   </data>
+  <data name="TaskFailedWithName" xml:space="preserve">
+    <value>タスクに失敗しました：{0}</value>
+  </data>
   <data name="StartupErrorTitle" xml:space="preserve">
     <value>起動に失敗しました</value>
   </data>

@@ -11,6 +11,7 @@ using MFAAvalonia.Helper.Converters;
 using MFAAvalonia.Helper.ValueType;
 using MFAAvalonia.ViewModels.UsersControls.Settings;
 using MFAAvalonia.ViewModels.Windows;
+using MFAAvalonia.Views.UserControls;
 using MFAAvalonia.Views.Windows;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -487,6 +488,28 @@ public static class VersionChecker
         }
     }
 
+    private static object CreateUpdateToastContent(string subject, string latestVersion)
+    {
+        var summary = subject + LangKeys.NewVersionAvailableLatestVersion.ToLocalization() + latestVersion;
+        var releasePath = Path.Combine(AppPaths.ResourceDirectory, ChangelogViewModel.ReleaseFileName);
+
+        try
+        {
+            if (File.Exists(releasePath))
+            {
+                var release = File.ReadAllText(releasePath);
+                if (!string.IsNullOrWhiteSpace(release) && !release.Trim().Equals("placeholder", StringComparison.OrdinalIgnoreCase))
+                    return new UpdateToastContentView($"{summary}\n\n{release}");
+            }
+        }
+        catch (Exception ex)
+        {
+            LoggerHelper.Warning($"读取更新说明失败：{ex.Message}");
+        }
+
+        return summary;
+    }
+
     public static async Task CheckForResourceUpdatesAsync(
         bool isGithub = true,
         bool notifyWhenUpToDate = true,
@@ -539,7 +562,8 @@ public static class VersionChecker
                     Instances.RootViewModel.WindowUpdateInfo = LangKeys.MirrorChyanResourceUpdateShortTip.ToLocalizationFormatted(false, latestVersion);
 
                     Instances.ToastManager.CreateToast().WithTitle(LangKeys.UpdateResource.ToLocalization())
-                        .WithContent(LangKeys.ResourceOption.ToLocalization() + LangKeys.NewVersionAvailableLatestVersion.ToLocalization() + latestVersion).Dismiss().After(TimeSpan.FromSeconds(6))
+                        .WithContent(CreateUpdateToastContent(
+                            LangKeys.ResourceOption.ToLocalization(), latestVersion)).Dismiss().After(TimeSpan.FromSeconds(6))
                         .WithActionButton(LangKeys.Later.ToLocalization(), _ => { }, true, SukiButtonStyles.Basic)
                         .WithActionButton(LangKeys.Update.ToLocalization(), _ =>
                         {
@@ -553,7 +577,8 @@ public static class VersionChecker
                     DispatcherHelper.PostOnMainThread(() =>
                     {
                         Instances.ToastManager.CreateToast().WithTitle(LangKeys.UpdateResource.ToLocalization())
-                            .WithContent(LangKeys.ResourceOption.ToLocalization() + LangKeys.NewVersionAvailableLatestVersion.ToLocalization() + latestVersion).Dismiss().After(TimeSpan.FromSeconds(6))
+                            .WithContent(CreateUpdateToastContent(
+                                LangKeys.ResourceOption.ToLocalization(), latestVersion)).Dismiss().After(TimeSpan.FromSeconds(6))
                             .WithActionButton(LangKeys.Later.ToLocalization(), _ => { }, true, SukiButtonStyles.Basic)
                             .WithActionButton(LangKeys.Update.ToLocalization(), _ =>
                             {
@@ -563,11 +588,9 @@ public static class VersionChecker
                                     ToastHelper.Warn(LangKeys.Warning.ToLocalization(), LangKeys.CurrentOtherUpdatingTask.ToLocalization());
                             }, true).Queue();
                     });
-                DispatcherHelper.RunOnMainThread(ChangelogViewModel.CheckReleaseNote);
             }
             else
             {
-                DispatcherHelper.RunOnMainThread(ChangelogViewModel.CheckChangelog);
                 if (notifyWhenUpToDate)
                     ToastHelper.Info(LangKeys.ResourcesAreLatestVersion.ToLocalization());
             }
@@ -618,7 +641,7 @@ public static class VersionChecker
                 DispatcherHelper.PostOnMainThread(() =>
                 {
                     Instances.ToastManager.CreateToast().WithTitle(LangKeys.SoftwareUpdate.ToLocalization())
-                        .WithContent("MFA" + LangKeys.NewVersionAvailableLatestVersion.ToLocalization() + latestVersion).Dismiss().After(TimeSpan.FromSeconds(6))
+                        .WithContent(CreateUpdateToastContent("MFA", latestVersion)).Dismiss().After(TimeSpan.FromSeconds(6))
                         .WithActionButton(LangKeys.Later.ToLocalization(), _ => { }, true, SukiButtonStyles.Basic)
                         .WithActionButton(LangKeys.Update.ToLocalization(), _ =>
                         {

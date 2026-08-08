@@ -3,6 +3,7 @@ using MaaFramework.Binding;
 using MFAAvalonia.Extensions.MaaFW;
 using MFAAvalonia.ViewModels.Pages;
 using MFAAvalonia.Views.Windows;
+using Avalonia.Media;
 using MFAAvalonia.Helper;
 using Serilog;
 using System;
@@ -57,6 +58,18 @@ public partial class MFATask : ObservableObject
             return new RunResult(status, continueQueue);
         }
 
+        void MarkFailed(string? detail = null)
+        {
+            var taskName = LanguageHelper.GetLocalizedString(Name);
+            OwnerViewModel?.AddLogByKey(
+                LangKeys.TaskFailedWithName,
+                Brushes.OrangeRed,
+                changeColor: false,
+                transformKey: true,
+                taskName);
+            OwnerViewModel?.MarkTaskFailed(SourceItem, RunId, detail);
+        }
+
         try
         {
             if (Count < 0)
@@ -82,7 +95,7 @@ public partial class MFATask : ObservableObject
                         failureMessage = jobStatus.ToString();
                         if (!ContinueOnError)
                         {
-                            OwnerViewModel?.MarkTaskFailed(SourceItem, RunId, failureMessage);
+                            MarkFailed(failureMessage);
                             return Complete(MFATaskStatus.FAILED);
                         }
                     }
@@ -96,7 +109,7 @@ public partial class MFATask : ObservableObject
             }
             if (hasFailed)
             {
-                OwnerViewModel?.MarkTaskFailed(SourceItem, RunId, failureMessage);
+                MarkFailed(failureMessage);
                 return Complete(MFATaskStatus.FAILED, ContinueOnError);
             }
             else
@@ -110,7 +123,7 @@ public partial class MFATask : ObservableObject
         }
         catch (MaaJobStatusException ex)
         {
-            OwnerViewModel?.MarkTaskFailed(SourceItem, RunId, ex.Message);
+            MarkFailed(ex.Message);
             LoggerHelper.Error($"任务执行失败：{LanguageHelper.GetLocalizedString(Name)}");
             return Complete(MFATaskStatus.FAILED, ContinueOnError);
         }
@@ -121,7 +134,7 @@ public partial class MFATask : ObservableObject
         }
         catch (Exception ex)
         {
-            OwnerViewModel?.MarkTaskFailed(SourceItem, RunId, ex.Message);
+            MarkFailed(ex.Message);
             LoggerHelper.Error($"任务执行异常：任务={LanguageHelper.GetLocalizedString(Name)}，原因={ex.Message}", ex);
             return Complete(MFATaskStatus.FAILED, ContinueOnError);
         }
