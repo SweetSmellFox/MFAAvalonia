@@ -829,10 +829,12 @@ public static class TelemetryService
             @event.SetExtra("attachment.status", "pending");
             var evidence = run.Evidence;
             var pendingWorker = new PendingFailureWorker { Event = @event };
-            var workerTask = Task.Run(() =>
+            var workerTask = Task.Run(async () =>
             {
                 try
                 {
+                    // MaaFramework may still be flushing its on_error image when the failure callback arrives.
+                    await Task.Delay(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
                     var result = TaskDiagnostics.Build(evidence);
                     if (result.Status != TaskEvidenceBuildStatus.Success || result.Data == null)
                     {

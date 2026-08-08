@@ -10,7 +10,7 @@ internal sealed class TaskEvidenceSnapshot
 {
     internal required DateTimeOffset StartedAt { get; init; }
     internal required Dictionary<string, long> LogLengths { get; init; }
-    internal required HashSet<string> ExistingErrorImages { get; init; }
+    internal required Dictionary<string, (long Length, DateTime LastWriteUtc)> ExistingErrorImages { get; init; }
     internal required bool Isolated { get; init; }
 }
 
@@ -41,14 +41,18 @@ internal static class TaskDiagnostics
     internal static TaskEvidenceSnapshot CaptureStart(bool isolated)
     {
         var logs = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
-        var images = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var images = new Dictionary<string, (long Length, DateTime LastWriteUtc)>(StringComparer.OrdinalIgnoreCase);
         foreach (var path in EnumerateEvidenceFiles())
         {
             var relative = Relative(path);
             try
             {
                 if (IsLog(relative)) logs[relative] = new FileInfo(path).Length;
-                else if (IsErrorImage(relative)) images.Add(relative);
+                else if (IsErrorImage(relative))
+                {
+                    var info = new FileInfo(path);
+                    images[relative] = (info.Length, info.LastWriteTimeUtc);
+                }
             }
             catch { }
         }
@@ -75,8 +79,11 @@ internal static class TaskDiagnostics
                     selected.Add((path, relative, start, info.Length - start));
                     logCount++;
                 }
-                else if (IsErrorImage(relative) && !snapshot.ExistingErrorImages.Contains(relative)
-                         && info.LastWriteTimeUtc >= snapshot.StartedAt.UtcDateTime.AddSeconds(-2))
+                else if (IsErrorImage(relative)
+                         && info.LastWriteTimeUtc >= snapshot.StartedAt.UtcDateTime.AddSeconds(-2)
+                         && (!snapshot.ExistingErrorImages.TryGetValue(relative, out var previous)
+                             || previous.Length != info.Length
+                             || previous.LastWriteUtc != info.LastWriteTimeUtc))
                 {
                     selected.Add((path, relative, 0, info.Length));
                     imageCount++;
