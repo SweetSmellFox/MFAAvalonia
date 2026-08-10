@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
 using System.Security.Cryptography;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -165,7 +166,12 @@ MFAAvalonia 命令行参数
         Args = ParseArguments(args);
         _instanceKey = instanceKey;
         _executablePath = Environment.ProcessPath;
-        _pipeName = $"MFAAvalonia_{instanceKey}";
+        // Unix domain socket paths have a short platform limit; keep the
+        // full key for mutexes and instance records, but bound the pipe name.
+        var pipeInstanceKey = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            ? instanceKey
+            : instanceKey.Length > 12 ? instanceKey[..12] : instanceKey;
+        _pipeName = $"MFAAvalonia_{pipeInstanceKey}";
         _instanceRecordPath = Path.Combine(Path.GetTempPath(), "MFAAvalonia", "instances", $"{instanceKey}.json");
         _mutex = new Mutex(true, $"MFAAvalonia_{instanceKey}", out var isNewInstance);
         IsNewInstance = isNewInstance;
