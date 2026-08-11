@@ -150,11 +150,26 @@
     </Target>
 
     <ItemGroup>
-        <AndroidNativeLibrary Remove="Native\build-arm64\**\*.so" />
-        <AndroidNativeLibrary Remove="Native\build-x64\**\*.so" />
-        <AndroidNativeLibrary Include="$(NuGetPackageRoot)maa.framework.runtime.android-arm64\5.12.3\bin\*.so" Abi="arm64-v8a" Condition="'$(RuntimeIdentifier)' == '' Or '$(RuntimeIdentifier)' == 'android-arm64'" />
-        <AndroidNativeLibrary Include="$(NuGetPackageRoot)maa.framework.runtime.android-x64\5.12.3\bin\*.so" Abi="x86_64" Condition="'$(RuntimeIdentifier)' == '' Or '$(RuntimeIdentifier)' == 'android-x64'" />
+        <AndroidNativeLibrary Remove="Native/build-arm64/**/*.so" />
+        <AndroidNativeLibrary Remove="Native/build-x64/**/*.so" />
+        <!--
+          GeneratePathProperty on the PackageReference creates these Pkg* properties using the
+          actual restored package path. Avoid composing NuGetPackageRoot with a hard-coded version
+          and Windows separators: that evaluated on Windows but produced no native items on the
+          Ubuntu release runner.
+        -->
+        <AndroidNativeLibrary Include="$(PkgMaa_Framework_Runtime_android-arm64)/bin/*.so" Abi="arm64-v8a" Condition="'$(RuntimeIdentifier)' == '' Or '$(RuntimeIdentifier)' == 'android-arm64'" />
+        <AndroidNativeLibrary Include="$(PkgMaa_Framework_Runtime_android-x64)/bin/*.so" Abi="x86_64" Condition="'$(RuntimeIdentifier)' == '' Or '$(RuntimeIdentifier)' == 'android-x64'" />
     </ItemGroup>
+
+    <Target Name="ValidateAndroidMaaFrameworkNativeLibraries" BeforeTargets="PrepareForBuild">
+        <ItemGroup>
+            <_AndroidMaaFrameworkNativeLibrary Include="@(AndroidNativeLibrary)"
+                                               Condition="'%(AndroidNativeLibrary.Filename)%(AndroidNativeLibrary.Extension)' == 'libMaaFramework.so'" />
+        </ItemGroup>
+        <Error Condition="'@(_AndroidMaaFrameworkNativeLibrary)' == ''"
+               Text="MaaFramework Android native libraries were not resolved for $(RuntimeIdentifier). Check the Maa.Framework.Runtime.android-* package paths." />
+    </Target>
 
     <ItemGroup>
         <ProjectReference Include="..\MFAAvalonia\MFAAvalonia.csproj" GlobalPropertiesToRemove="RuntimeIdentifier;RuntimeIdentifiers" />

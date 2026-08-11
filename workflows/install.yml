@@ -418,6 +418,8 @@ jobs:
           fi
           if ! grep -Fxq "lib/${{ matrix.abi }}/libMaaFramework.so" "$apk_entries"; then
             echo "[ERR] APK does not contain MaaFramework for ${{ matrix.abi }}"
+            echo "[DBG] Native APK entries:"
+            grep -E '^lib/[^/]+/(libMaa|libmfabridge|libonnxruntime|libopencv)' "$apk_entries" || true
             exit 1
           fi
           if [[ -n "$PYTHON_AAR" ]] && ! grep -Eq "^lib/${{ matrix.abi }}/libpython3\.[0-9]+\.so$" "$apk_entries"; then
