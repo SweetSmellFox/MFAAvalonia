@@ -16,6 +16,11 @@
         <AndroidManifestPlaceholders>applicationLabel=$(AndroidLauncherLabel);$(AndroidManifestPlaceholders)</AndroidManifestPlaceholders>
         <AndroidPackageFormat>apk</AndroidPackageFormat>
         <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
+        <!--
+          中文：规避旧版 .NET for Android marshal method rewriter 生成的 _mm_wrapper 无权访问 AndroidEnvironmentInternal.UnhandledException，详见 dotnet/android#10602。升级到包含上游修复的 Android workload 并完成真机验证前不要移除此项。
+          English: Avoid the old .NET for Android marshal-method rewriter generating _mm_wrapper methods that cannot access AndroidEnvironmentInternal.UnhandledException; see dotnet/android#10602. Keep this disabled until an Android workload containing the upstream fix has been adopted and verified on devices.
+        -->
+        <AndroidEnableMarshalMethods>false</AndroidEnableMarshalMethods>
         <AcceptAndroidSDKLicenses>true</AcceptAndroidSDKLicenses>
         <JavaSdkDirectory Condition="'$(JavaSdkDirectory)' == '' And '$(JAVA_HOME)' != ''">$(JAVA_HOME)</JavaSdkDirectory>
         <RuntimeIdentifiers Condition="'$(RuntimeIdentifier)' == ''">android-arm64;android-x64</RuntimeIdentifiers>

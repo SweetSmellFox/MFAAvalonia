@@ -693,6 +693,16 @@ print("*info: Agent server started", flush=True)
 
 不要只根据 UI 的“连接失败”判断 Python、Shizuku 或资源是哪一层出错，应以异常堆栈中的类名和阶段日志为准。
 
+### 12.11 `AndroidEnvironmentInternal.UnhandledException is inaccessible`
+
+若 Release APK 在 AndroidX 回调中崩溃，且日志同时包含 `System.MethodAccessException` 和 `_mm_wrapper`，这是 [.NET for Android 的 marshal methods 已知问题](https://github.com/dotnet/android/issues/10602)，不是 interface、资源、Shizuku、Python Agent 或 `libmfabridge.so` 首先引起的。MFA Android 壳已显式设置：
+
+```xml
+<AndroidEnableMarshalMethods>false</AndroidEnableMarshalMethods>
+```
+
+资源工作流应检出包含该设置的 MFA 版本。若资源仓库通过 `MFA_ANDROID_MFA_REF` 固定到了旧提交，应更新到修复后的提交再重新构建；不要在资源项目里删除或覆盖这个属性。崩溃栈末尾出现 `libmfabridge.so` 的 `std::terminate` 通常只是托管进程因未处理异常退出时的后续清理栈。禁用 marshal methods 后若仍有异常，应以新日志暴露出的首个原始异常继续排查。
+
 ## 13. 给 AI 的实施契约
 
 将本文交给 AI 修改资源仓库时，可以要求它严格遵守以下约束：
