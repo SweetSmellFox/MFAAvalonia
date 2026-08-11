@@ -89,6 +89,8 @@ GitHub 公共仓库默认不需要个人访问令牌。工作流可使用 GitHub
 ├─ python/                        # 额外的跨平台 Python 模块，可选
 ├─ data/                          # Agent/任务数据，可选
 ├─ tasks/                         # 项目自己的任务配置，可选
+├─ android/
+│  └─ icon.png                    # Android Launcher 图标，可选，不进入运行时 payload
 ├─ requirements-android.txt       # 仅作为项目说明；工作流不会自动读取
 ├─ README.md
 └─ LICENSE
@@ -278,6 +280,7 @@ Settings → Secrets and variables → Actions → Variables → New repository 
 | --- | --- | --- |
 | `MFA_ANDROID_RESOURCE_ROOT` | `.` | 统一目录项目的资源包根，相对于资源仓库根目录 |
 | `MFA_ANDROID_LAUNCHER_LABEL` | GitHub 仓库名 | Android Launcher 图标下显示的名称 |
+| `MFA_ANDROID_LAUNCHER_ICON` | 空（使用 MFA 默认图标） | Android Launcher PNG 图标，相对于资源仓库根目录 |
 | `MFA_ANDROID_PYTHON_REQUIREMENTS` | `python3` | 传给 P4A 的逗号分隔 requirements，不会自动读取 `requirements.txt` |
 | `MFA_ANDROID_PYTHON_ENTRYPOINT` | 空 | 强制指定 payload 内的 Python Agent 入口；为空时从 interface 推断 |
 | `MFA_ANDROID_P4A_LOCAL_RECIPES` | 空 | P4A local recipes 目录，相对于资源仓库根目录 |
@@ -289,6 +292,7 @@ Settings → Secrets and variables → Actions → Variables → New repository 
 
 ```text
 MFA_ANDROID_LAUNCHER_LABEL=MaaXXX
+MFA_ANDROID_LAUNCHER_ICON=android/icon.png
 MFA_ANDROID_PYTHON_REQUIREMENTS=python3,numpy,strenum
 MFA_ANDROID_PYTHON_ENTRYPOINT=agent/main.py
 ```
@@ -301,6 +305,8 @@ MFA_ANDROID_MFA_REF=<包含修复的分支或 commit SHA>
 ```
 
 本地工作区里的未提交修改不会被 GitHub Runner 看见。`MFA_ANDROID_MFA_REF` 最好在验证后固定到 Tag 或 commit SHA；长期跟随 `main` 虽然方便，但会降低构建可复现性。
+
+Launcher 图标必须是资源仓库内的 PNG 文件。Android 资源编译器不能直接使用桌面项目常见的 `logo.ico`；这类项目可以保留原有 ICO，同时另行导出一份带透明背景的方形 PNG，例如 `android/icon.png`，再通过 `MFA_ANDROID_LAUNCHER_ICON` 指定。该文件只参与 APK 构建，不会复制进 `assets/MfaPackage/package.zip`。修改仓库变量后，可从 Actions 页面手动运行一次 `install`；推荐把图标放在 `android/` 下，这样修改图标文件也会触发模板的路径过滤器。
 
 `MFA_ANDROID_P4A_LOCAL_RECIPES` 指向资源仓库内的目录，例如：
 
@@ -725,6 +731,7 @@ print("*info: Agent server started", flush=True)
 - [ ] 原桌面矩阵不再把普通文件目录伪装成 Android APK。
 - [ ] `build-android` 同时构建 `android-arm64` 和 `android-x64`。
 - [ ] Launcher 名称使用项目名称。
+- [ ] 如需项目专属图标，`MFA_ANDROID_LAUNCHER_ICON` 指向仓库内有效的 PNG。
 - [ ] payload 根直接包含 interface。
 - [ ] 所有 Pipeline、图片、模型、Agent 和任务数据都被复制。
 - [ ] OCR 等由 submodule 生成的资源已在 payload 准备前生成。

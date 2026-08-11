@@ -8,10 +8,11 @@
         <ApplicationVersion>1</ApplicationVersion>
         <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
         <!--
-          中文：资源开发者可在这里替换 Android Launcher 图标下方的应用名称。它是构建期元数据，不能在安装后由 interface.json 动态修改；也可通过 /p:AndroidLauncherLabel=应用名称 覆盖。
-          English: Resource developers can replace the application name shown under the Android Launcher icon here. This is build-time metadata and cannot be changed by interface.json after installation; it can also be overridden with /p:AndroidLauncherLabel=AppName.
+          中文：资源开发者可在这里替换 Android Launcher 图标下方的应用名称和 PNG 图标。它们是构建期元数据，不能在安装后由 interface.json 动态修改；也可通过 /p:AndroidLauncherLabel=应用名称 /p:AndroidLauncherIcon=PNG绝对路径 覆盖。
+          English: Resource developers can replace the application name and PNG icon shown in Android Launcher here. They are build-time metadata and cannot be changed by interface.json after installation; they can also be overridden with /p:AndroidLauncherLabel=AppName /p:AndroidLauncherIcon=AbsolutePngPath.
         -->
         <AndroidLauncherLabel Condition="'$(AndroidLauncherLabel)' == ''">MFAAvalonia</AndroidLauncherLabel>
+        <AndroidLauncherIcon Condition="'$(AndroidLauncherIcon)' == ''">$(MSBuildProjectDirectory)\Icon.png</AndroidLauncherIcon>
         <AndroidManifestPlaceholders>applicationLabel=$(AndroidLauncherLabel);$(AndroidManifestPlaceholders)</AndroidManifestPlaceholders>
         <AndroidPackageFormat>apk</AndroidPackageFormat>
         <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
@@ -47,12 +48,17 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <AndroidResource Include="Icon.png">
+        <AndroidResource Include="$(AndroidLauncherIcon)">
             <Link>Resources\drawable\Icon.png</Link>
         </AndroidResource>
         <AndroidJavaSource Include="Java\com\fox\MFAAvalonia\MfaShizukuUserService.java" />
         <AndroidJavaSource Include="Java\com\fox\MFAAvalonia\MfaNativeBridge.java" />
     </ItemGroup>
+
+    <Target Name="ValidateAndroidLauncherIcon" BeforeTargets="PrepareForBuild">
+        <Error Condition="!Exists('$(AndroidLauncherIcon)')" Text="Android Launcher icon does not exist: $(AndroidLauncherIcon)" />
+        <Error Condition="'$([System.IO.Path]::GetExtension($(AndroidLauncherIcon)))' != '.png'" Text="Android Launcher icon must be a PNG file: $(AndroidLauncherIcon)" />
+    </Target>
 
     <ItemGroup Condition="'$(AndroidPythonRuntimeAar)' != ''">
         <AndroidLibrary Include="$(AndroidPythonRuntimeAar)" Bind="false" />

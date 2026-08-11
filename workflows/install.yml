@@ -16,6 +16,7 @@
 #   MFA_ANDROID_PYTHON_REQUIREMENTS=python3
 #   MFA_ANDROID_PYTHON_ENTRYPOINT=agent/main.py
 #   MFA_ANDROID_P4A_LOCAL_RECIPES=p4a-recipes
+#   MFA_ANDROID_LAUNCHER_ICON=android/icon.png
 #
 # 中文：不使用 Python Agent 时，可注释掉下方标记为“Python runtime block”的三个步骤；随后
 # python_runtime 的输出为空，dotnet publish 不会合入 AAR。requirements 必须能被 p4a 编译；仅提供
@@ -35,6 +36,7 @@ on:
     paths:
       - ".github/workflows/install.yml"
       - "agent/**"
+      - "android/**"
       - "data/**"
       - "python/**"
       - "resource/**"
@@ -50,6 +52,7 @@ on:
     paths:
       - ".github/workflows/install.yml"
       - "agent/**"
+      - "android/**"
       - "data/**"
       - "python/**"
       - "resource/**"
@@ -243,14 +246,41 @@ jobs:
         shell: bash
         env:
           LAUNCHER_LABEL_INPUT: ${{ vars.MFA_ANDROID_LAUNCHER_LABEL || '' }}
+          LAUNCHER_ICON_INPUT: ${{ vars.MFA_ANDROID_LAUNCHER_ICON || '' }}
         run: |
           repository_name="${GITHUB_REPOSITORY##*/}"
           launcher_label="$LAUNCHER_LABEL_INPUT"
           if [[ -z "$launcher_label" ]]; then
             launcher_label="$repository_name"
           fi
+
+          launcher_icon=""
+          if [[ -n "$LAUNCHER_ICON_INPUT" ]]; then
+            source_checkout=$(realpath resource-source)
+            launcher_icon=$(realpath -m "resource-source/$LAUNCHER_ICON_INPUT")
+            case "$launcher_icon" in
+              "$source_checkout"/*) ;;
+              *)
+                echo "[ERR] MFA_ANDROID_LAUNCHER_ICON must stay inside the resource repository"
+                exit 1
+                ;;
+            esac
+            if [[ ! -f "$launcher_icon" ]]; then
+              echo "[ERR] Android Launcher icon does not exist: $launcher_icon"
+              exit 1
+            fi
+            case "${launcher_icon,,}" in
+              *.png) ;;
+              *)
+                echo "[ERR] MFA_ANDROID_LAUNCHER_ICON must point to a PNG file"
+                exit 1
+                ;;
+            esac
+          fi
+
           safe_repository_name=$(printf '%s' "$repository_name" | tr -cs 'A-Za-z0-9._-' '-')
           echo "launcher_label=$launcher_label" >> "$GITHUB_OUTPUT"
+          echo "launcher_icon=$launcher_icon" >> "$GITHUB_OUTPUT"
           echo "output_name=${safe_repository_name}-${{ needs.meta.outputs.tag }}-android-${{ matrix.arch }}.apk" >> "$GITHUB_OUTPUT"
           echo "artifact_name=${safe_repository_name}-android-${{ matrix.arch }}" >> "$GITHUB_OUTPUT"
 
@@ -379,9 +409,15 @@ jobs:
           NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
           PAYLOAD_ROOT: ${{ steps.payload.outputs.root }}
           LAUNCHER_LABEL: ${{ steps.metadata.outputs.launcher_label }}
+          LAUNCHER_ICON: ${{ steps.metadata.outputs.launcher_icon }}
           PYTHON_AAR: ${{ steps.python_runtime.outputs.aar }}
         working-directory: mfa-source
         run: |
+          launcher_icon_args=()
+          if [[ -n "$LAUNCHER_ICON" ]]; then
+            launcher_icon_args+=("-p:AndroidLauncherIcon=$LAUNCHER_ICON")
+          fi
+
           dotnet publish MFAAvalonia.Android/MFAAvalonia.Android.csproj \
             -c Release \
             -f net10.0-android \
@@ -392,7 +428,8 @@ jobs:
             "-p:AndroidResourcePackageSource=$PAYLOAD_ROOT" \
             "-p:AndroidLauncherLabel=$LAUNCHER_LABEL" \
             "-p:AndroidPythonRuntimeAar=$PYTHON_AAR" \
-            "-p:AndroidPythonAgentEntryPoint=$P4A_ENTRYPOINT"
+            "-p:AndroidPythonAgentEntryPoint=$P4A_ENTRYPOINT" \
+            "${launcher_icon_args[@]}"
 
       - name: Verify and collect Android APK
         id: apk
