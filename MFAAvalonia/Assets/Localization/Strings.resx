@@ -131,6 +131,9 @@
     <data name="BackgroundTransitionsTitle" xml:space="preserve">
         <value>背景过渡效果</value>
     </data>
+    <data name="Back" xml:space="preserve">
+        <value>返回</value>
+    </data>
     <data name="BaseTheme" xml:space="preserve">
         <value>基本主题</value>
     </data>
@@ -2188,6 +2191,56 @@
   <data name="DroppedResourceRidMismatch" xml:space="preserve">
     <value>资源 ID 不匹配：压缩包为“{0}”，当前资源为“{1}”。</value>
   </data>
+  <!-- Android mobile interface -->
+  <data name="AccentColor" xml:space="preserve"><value>强调色</value></data>
+  <data name="Appearance" xml:space="preserve"><value>外观</value></data>
+  <data name="ConfigurationActive" xml:space="preserve"><value>已切换至该配置</value></data>
+  <data name="ConfigurationAdded" xml:space="preserve"><value>配置已添加</value></data>
+  <data name="ConfigurationDeleted" xml:space="preserve"><value>配置已删除</value></data>
+  <data name="ConfigurationRenamed" xml:space="preserve"><value>配置已重命名</value></data>
+  <data name="Configurations" xml:space="preserve"><value>配置</value></data>
+  <data name="CurrentConfiguration" xml:space="preserve"><value>当前配置</value></data>
+  <data name="Dark" xml:space="preserve"><value>深色</value></data>
+  <data name="DisplayLanguage" xml:space="preserve"><value>显示语言</value></data>
+  <data name="ForceScheduledStartDescription" xml:space="preserve"><value>停止当前任务，并在停止完成后启动计划任务</value></data>
+  <data name="Idle" xml:space="preserve"><value>空闲</value></data>
+  <data name="Language" xml:space="preserve"><value>语言</value></data>
+  <data name="Light" xml:space="preserve"><value>浅色</value></data>
+  <data name="RuntimeReady" xml:space="preserve"><value>正在初始化控制器</value></data>
+  <data name="Schedule" xml:space="preserve"><value>定时</value></data>
+  <data name="ScheduleDescription" xml:space="preserve"><value>配置任务的定时启动计划</value></data>
+  <data name="SingleActiveConfiguration" xml:space="preserve"><value>同一时间只能运行一个配置</value></data>
+  <data name="StartStop" xml:space="preserve"><value>任务控制</value></data>
+  <data name="StartTasks" xml:space="preserve"><value>开始任务</value></data>
+  <data name="StopBeforeDelete" xml:space="preserve"><value>请先停止该配置的任务，再删除</value></data>
+  <data name="StopBeforeSwitch" xml:space="preserve"><value>请先停止当前任务，再切换配置</value></data>
+  <data name="StopTasks" xml:space="preserve"><value>停止任务</value></data>
+  <data name="TargetPackage" xml:space="preserve"><value>目标应用包名</value></data>
+  <data name="TaskQueue" xml:space="preserve"><value>任务列表</value></data>
+  <data name="TaskQueueDescription" xml:space="preserve"><value>选择任务并调整执行顺序</value></data>
+  <data name="Tasks" xml:space="preserve"><value>任务</value></data>
+  <data name="ThemeMode" xml:space="preserve"><value>主题模式</value></data>
+  <data name="UserLogs" xml:space="preserve"><value>用户日志</value></data>
+  <data name="VirtualAlreadyRunning" xml:space="preserve"><value>虚拟屏幕已在运行</value></data>
+  <data name="VirtualAppLaunched" xml:space="preserve"><value>已在虚拟屏幕启动应用</value></data>
+  <data name="VirtualCreateFailed" xml:space="preserve"><value>创建虚拟屏幕失败</value></data>
+  <data name="VirtualDisplay" xml:space="preserve"><value>虚拟屏幕</value></data>
+  <data name="VirtualLaunchFailed" xml:space="preserve"><value>启动应用失败</value></data>
+  <data name="VirtualNoActivityOptions" xml:space="preserve"><value>无法创建应用启动参数</value></data>
+  <data name="VirtualNoDisplayManager" xml:space="preserve"><value>无法获取 Android 显示管理服务</value></data>
+  <data name="VirtualOperationFailed" xml:space="preserve"><value>虚拟屏幕操作失败</value></data>
+  <data name="VirtualPackageNotFound" xml:space="preserve"><value>未找到目标应用</value></data>
+  <data name="VirtualPackageRequired" xml:space="preserve"><value>请输入目标应用包名</value></data>
+  <data name="VirtualRequiresAndroid8" xml:space="preserve"><value>虚拟屏幕需要 Android 8.0 或更高版本</value></data>
+  <data name="VirtualStarted" xml:space="preserve"><value>虚拟屏幕已启动</value></data>
+  <data name="VirtualStopped" xml:space="preserve"><value>虚拟屏幕未启动</value></data>
+  <data name="VirtualStoppedDone" xml:space="preserve"><value>虚拟屏幕已停止</value></data>
+  <data name="VirtualUnsupported" xml:space="preserve"><value>控制器未连接，无法获取画面</value></data>
+  <data name="Blue" xml:space="preserve"><value>蓝色</value></data>
+  <data name="Green" xml:space="preserve"><value>绿色</value></data>
+  <data name="Red" xml:space="preserve"><value>红色</value></data>
+  <data name="Orange" xml:space="preserve"><value>橙色</value></data>
+  <data name="Purple" xml:space="preserve"><value>紫色</value></data>
 </root>
 
 

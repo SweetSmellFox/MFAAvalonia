@@ -94,7 +94,11 @@
         <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.6.3" />
         <PackageReference Include="WindowsAPICodePack" Version="8.0.14" />
 
-        <ProjectReference Include="../LazyStaticGenerator/LazyStaticGenerator.csproj" OutputItemType="Analyzer" ExcludeAssets="runtime;build;native;contentfiles" ReferenceOutputAssembly="false" />
+        <ProjectReference Include="../LazyStaticGenerator/LazyStaticGenerator.csproj"
+                          OutputItemType="Analyzer"
+                          ExcludeAssets="runtime;build;native;contentfiles"
+                          ReferenceOutputAssembly="false"
+                          GlobalPropertiesToRemove="RuntimeIdentifier;RuntimeIdentifiers" />
         <ProjectReference Include="../SukiUI/SukiUI.csproj" />
         <ProjectReference Include="../Markdown.Avalonia/Markdown.Avalonia.csproj" />
     </ItemGroup>

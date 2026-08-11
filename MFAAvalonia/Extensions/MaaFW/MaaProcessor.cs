@@ -1031,7 +1031,8 @@ public class MaaProcessor
     }
 
     private bool UseSeparateScreenshotTasker =>
-        InstanceConfiguration.GetValue(ConfigurationKeys.UseSeparateScreenshotTasker, true);
+        !PlatformControllerFactory.CanInitializeWithoutDevice
+        && InstanceConfiguration.GetValue(ConfigurationKeys.UseSeparateScreenshotTasker, true);
 
     private MaaTasker? GetScreenshotTasker(CancellationToken token = default)
     {
@@ -2047,6 +2048,14 @@ public class MaaProcessor
     private MaaController InitializeController(MaaControllerTypes controllerType, bool logConfig)
     {
         ConnectToMAA(logConfig);
+
+        var platformController = PlatformControllerFactory.TryCreate(controllerType);
+        if (platformController != null)
+        {
+            if (logConfig)
+                LoggerHelper.Info($"当前平台已接管控制器：{platformController.GetType().Name}");
+            return platformController;
+        }
 
         // 对于 Win32 和 Gamepad 控制器，检查管理员权限
         if (OperatingSystem.IsWindows() && (controllerType == MaaControllerTypes.Win32 || controllerType == MaaControllerTypes.Gamepad))
@@ -3818,13 +3827,16 @@ public class MaaProcessor
             }
 
             var controllerType = ViewModel?.CurrentController ?? MaaControllerTypes.Adb;
-            var isAdb = controllerType == MaaControllerTypes.Adb;
+            // Android interfaces commonly declare an ADB controller for compatibility,
+            // but the registered platform factory owns the complete connection lifecycle.
+            var isPlatformController = PlatformControllerFactory.CanInitializeWithoutDevice;
+            var isAdb = controllerType == MaaControllerTypes.Adb && !isPlatformController;
             var isPlayCover = controllerType == MaaControllerTypes.PlayCover;
             var strictRecoveryTarget = isAdb && ShouldStrictMatchSavedAdbTarget();
             ViewModel?.SetAdbRecoverySelectionLock(strictRecoveryTarget);
             var targetKey = controllerType switch
             {
-                MaaControllerTypes.Adb => LangKeys.Emulator,
+                MaaControllerTypes.Adb when !isPlatformController => LangKeys.Emulator,
                 MaaControllerTypes.Win32 => LangKeys.Window,
                 MaaControllerTypes.PlayCover => LangKeys.TabPlayCover,
                 _ => LangKeys.Window
@@ -3842,7 +3854,7 @@ public class MaaProcessor
                 await EnsureAdbTargetReadyAsync(token, showMessage, delayFingerprintMatching);
             }
 
-            if (!isPlayCover && ViewModel?.CurrentDevice == null && InstanceConfiguration.GetValue(ConfigurationKeys.AutoDetectOnConnectionFailed, true) && !delayFingerprintMatching)
+            if (!isPlatformController && !isPlayCover && ViewModel?.CurrentDevice == null && InstanceConfiguration.GetValue(ConfigurationKeys.AutoDetectOnConnectionFailed, true) && !delayFingerprintMatching)
                 ViewModel?.TryReadAdbDeviceFromConfig(false, true, true, false, strictRecoveryTarget);
 
             var tuple = await TryConnectAsync(token);
@@ -4741,7 +4753,7 @@ public class MaaProcessor
             tasker.Resource.Register(new Custom.KillProcessAction());
             tasker.Resource.Register(new Custom.ComputerOperationAction());
             tasker.Resource.Register(new Custom.WebhookAction());
-            // tasker.Resource.Register(new Custom.HeiLiuAction((content, color) => AddLog(content, color)));
+            tasker.Resource.Register(new Custom.HeiLiuAction((content, color) => AddLog(content, color)));
             LoggerHelper.Info("已注册内置特殊任务动作。");
 
             // 获取当前资源的自定义目录

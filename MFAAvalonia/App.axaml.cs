@@ -210,10 +210,13 @@ public partial class App : Application
                 Services = services.BuildServiceProvider();
 
                 MaaProcessorManager.Instance.LoadInstanceConfig();
-                TelemetryService.InitializeFromInterface();
+                if (!OperatingSystem.IsAndroid())
+                {
+                    TelemetryService.InitializeFromInterface();
 
-                // 启动懒加载：先加载 ActiveTab，再加载有定时任务的，最后加载其余
-                _ = MaaProcessorManager.Instance.StartLazyLoadingAsync();
+                    // 启动懒加载：先加载 ActiveTab，再加载有定时任务的，最后加载其余
+                    _ = MaaProcessorManager.Instance.StartLazyLoadingAsync();
+                }
 
                 DataTemplates.Add(new ViewLocator(views));
 
@@ -252,16 +255,25 @@ public partial class App : Application
                 Services = services.BuildServiceProvider();
 
                 MaaProcessorManager.Instance.LoadInstanceConfig();
-                TelemetryService.InitializeFromInterface();
+                if (!OperatingSystem.IsAndroid())
+                {
+                    TelemetryService.InitializeFromInterface();
 
-                // 启动懒加载
-                _ = MaaProcessorManager.Instance.StartLazyLoadingAsync();
+                    // 启动懒加载
+                    _ = MaaProcessorManager.Instance.StartLazyLoadingAsync();
+                }
 
                 DataTemplates.Add(new ViewLocator(views));
 
                 var mainView = views.CreateView<RootViewModel>(Services);
 
                 singleView.MainView = mainView;
+
+                if (OperatingSystem.IsAndroid())
+                {
+                    MaaProcessorManager.Instance.Current.InitializeData();
+                    TimerModel.Instance.RefreshInstanceList();
+                }
 
                 if (GlobalConfiguration.HasFileAccessError)
                 {

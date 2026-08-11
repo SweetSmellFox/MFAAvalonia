@@ -20,6 +20,11 @@ public partial class RootViewModel : ViewModelBase
 
     protected override void Initialize()
     {
+        if (OperatingSystem.IsAndroid())
+        {
+            return;
+        }
+
         DispatcherHelper.PostOnMainThread(() =>
         {
             HookActiveInstanceState();

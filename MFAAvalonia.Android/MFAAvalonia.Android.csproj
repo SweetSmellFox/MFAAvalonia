@@ -2,7 +2,7 @@
     <PropertyGroup>
         <OutputType>Exe</OutputType>
         <TargetFramework>net10.0-android</TargetFramework>
-        <SupportedOSPlatformVersion>21</SupportedOSPlatformVersion>
+        <SupportedOSPlatformVersion>26</SupportedOSPlatformVersion>
         <Nullable>enable</Nullable>
         <ApplicationId>com.fox.MFAAvalonia</ApplicationId>
         <ApplicationVersion>1</ApplicationVersion>
@@ -11,9 +11,10 @@
         <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
         <AcceptAndroidSDKLicenses>true</AcceptAndroidSDKLicenses>
         <JavaSdkDirectory>$(JAVA_HOME)</JavaSdkDirectory>
-        <RuntimeIdentifiers>android-arm64;android-x64</RuntimeIdentifiers>
-        <AndroidSupportedAbis>arm64-v8a;x86_64</AndroidSupportedAbis>
+        <RuntimeIdentifiers Condition="'$(RuntimeIdentifier)' == ''">android-arm64;android-x64</RuntimeIdentifiers>
         <RunAOTCompilation>false</RunAOTCompilation>
+        <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
+        <AndroidUseSharedRuntime>false</AndroidUseSharedRuntime>
         <AndroidSdkDirectory>$(UserProfile)\AppData\Local\Android\sdk</AndroidSdkDirectory>
     </PropertyGroup>
 
@@ -21,14 +22,41 @@
         <AndroidResource Include="Icon.png">
             <Link>Resources\drawable\Icon.png</Link>
         </AndroidResource>
+        <AndroidJavaSource Include="Java\com\fox\MFAAvalonia\MfaShizukuUserService.java" />
+        <AndroidJavaSource Include="Java\com\fox\MFAAvalonia\MfaNativeBridge.java" />
     </ItemGroup>
 
     <ItemGroup>
+        <PackageReference Update="Packaging.Targets" Version="0.1.232" />
         <PackageReference Include="Avalonia.Android" Version="11.3.12" />
-        <PackageReference Include="Xamarin.AndroidX.Core.SplashScreen" Version="1.0.1.1"/>
+        <PackageReference Include="Maa.Framework.Runtime.android-arm64" Version="5.12.3" GeneratePathProperty="true" />
+        <PackageReference Include="Maa.Framework.Runtime.android-x64" Version="5.12.3" GeneratePathProperty="true" />
+        <PackageReference Include="Xamarin.AndroidX.Core.SplashScreen" Version="1.0.1.1" />
+        <PackageReference Include="Xamarin.AndroidX.Annotation" Version="1.10.0" />
+        <AndroidMavenLibrary Include="dev.rikka.shizuku:aidl" Version="13.1.5" Bind="true" />
+        <AndroidMavenLibrary Include="dev.rikka.shizuku:shared" Version="13.1.5" Bind="true" />
+        <AndroidMavenLibrary Include="dev.rikka.shizuku:api" Version="13.1.5" Bind="true" />
+        <AndroidMavenLibrary Include="dev.rikka.shizuku:provider" Version="13.1.5" Bind="true" />
+    </ItemGroup>
+
+    <ItemGroup Condition="Exists('..\bin\AnyCPU\Debug\interface.json')">
+        <AndroidAsset Include="..\bin\AnyCPU\Debug\interface.json" Link="MfaPackage\interface.json" />
+        <AndroidAsset Include="..\.android-package\debug-resource.zip" Link="MfaPackage\resource.zip" />
+    </ItemGroup>
+
+    <Target Name="PrepareAndroidDebugResourceArchive" BeforeTargets="PrepareForBuild" Condition="'$(Configuration)' == 'Debug' And Exists('..\bin\AnyCPU\Debug\Resource')">
+        <MakeDir Directories="..\.android-package" />
+        <ZipDirectory SourceDirectory="..\bin\AnyCPU\Debug\Resource" DestinationFile="..\.android-package\debug-resource.zip" Overwrite="true" />
+    </Target>
+
+    <ItemGroup>
+        <AndroidNativeLibrary Remove="Native\build-arm64\**\*.so" />
+        <AndroidNativeLibrary Remove="Native\build-x64\**\*.so" />
+        <AndroidNativeLibrary Include="$(NuGetPackageRoot)maa.framework.runtime.android-arm64\5.12.3\bin\*.so" Abi="arm64-v8a" Condition="'$(RuntimeIdentifier)' == '' Or '$(RuntimeIdentifier)' == 'android-arm64'" />
+        <AndroidNativeLibrary Include="$(NuGetPackageRoot)maa.framework.runtime.android-x64\5.12.3\bin\*.so" Abi="x86_64" Condition="'$(RuntimeIdentifier)' == '' Or '$(RuntimeIdentifier)' == 'android-x64'" />
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\MFAAvalonia\MFAAvalonia.csproj"/>
+        <ProjectReference Include="..\MFAAvalonia\MFAAvalonia.csproj" GlobalPropertiesToRemove="RuntimeIdentifier;RuntimeIdentifiers" />
     </ItemGroup>
 </Project>

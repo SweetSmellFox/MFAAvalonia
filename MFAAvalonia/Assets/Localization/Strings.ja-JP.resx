@@ -79,6 +79,9 @@
   <data name="BackgroundTransitionsTitle" xml:space="preserve">
     <value>背景トランジション</value>
   </data>
+  <data name="Back" xml:space="preserve">
+    <value>戻る</value>
+  </data>
   <data name="BaseTheme" xml:space="preserve">
     <value>基本テーマ</value>
   </data>
@@ -2173,4 +2176,54 @@
   <data name="DroppedResourceRidMismatch" xml:space="preserve">
     <value>リソース ID が一致しません。パッケージ:「{0}」、現在のリソース:「{1}」。</value>
   </data>
+  <!-- Android mobile interface -->
+  <data name="AccentColor" xml:space="preserve"><value>アクセントカラー</value></data>
+  <data name="Appearance" xml:space="preserve"><value>外観</value></data>
+  <data name="ConfigurationActive" xml:space="preserve"><value>この設定に切り替えました</value></data>
+  <data name="ConfigurationAdded" xml:space="preserve"><value>設定を追加しました</value></data>
+  <data name="ConfigurationDeleted" xml:space="preserve"><value>設定を削除しました</value></data>
+  <data name="ConfigurationRenamed" xml:space="preserve"><value>設定名を変更しました</value></data>
+  <data name="Configurations" xml:space="preserve"><value>設定</value></data>
+  <data name="CurrentConfiguration" xml:space="preserve"><value>現在の設定</value></data>
+  <data name="Dark" xml:space="preserve"><value>ダーク</value></data>
+  <data name="DisplayLanguage" xml:space="preserve"><value>表示言語</value></data>
+  <data name="ForceScheduledStartDescription" xml:space="preserve"><value>現在のタスクを停止し、停止完了後にスケジュールタスクを開始します</value></data>
+  <data name="Idle" xml:space="preserve"><value>待機中</value></data>
+  <data name="Language" xml:space="preserve"><value>言語</value></data>
+  <data name="Light" xml:space="preserve"><value>ライト</value></data>
+  <data name="RuntimeReady" xml:space="preserve"><value>コントローラーを初期化しています</value></data>
+  <data name="Schedule" xml:space="preserve"><value>スケジュール</value></data>
+  <data name="ScheduleDescription" xml:space="preserve"><value>タスクを自動開始する時刻を設定します</value></data>
+  <data name="SingleActiveConfiguration" xml:space="preserve"><value>同時に実行できる設定は1つだけです</value></data>
+  <data name="StartStop" xml:space="preserve"><value>タスク操作</value></data>
+  <data name="StartTasks" xml:space="preserve"><value>タスクを開始</value></data>
+  <data name="StopBeforeDelete" xml:space="preserve"><value>削除する前に、この設定のタスクを停止してください</value></data>
+  <data name="StopBeforeSwitch" xml:space="preserve"><value>設定を切り替える前に、現在のタスクを停止してください</value></data>
+  <data name="StopTasks" xml:space="preserve"><value>タスクを停止</value></data>
+  <data name="TargetPackage" xml:space="preserve"><value>対象アプリのパッケージ名</value></data>
+  <data name="TaskQueue" xml:space="preserve"><value>タスク一覧</value></data>
+  <data name="TaskQueueDescription" xml:space="preserve"><value>タスクを選択して実行順序を調整します</value></data>
+  <data name="Tasks" xml:space="preserve"><value>タスク</value></data>
+  <data name="ThemeMode" xml:space="preserve"><value>テーマモード</value></data>
+  <data name="UserLogs" xml:space="preserve"><value>ユーザーログ</value></data>
+  <data name="VirtualAlreadyRunning" xml:space="preserve"><value>仮想ディスプレイはすでに実行中です</value></data>
+  <data name="VirtualAppLaunched" xml:space="preserve"><value>仮想ディスプレイでアプリを起動しました</value></data>
+  <data name="VirtualCreateFailed" xml:space="preserve"><value>仮想ディスプレイの作成に失敗しました</value></data>
+  <data name="VirtualDisplay" xml:space="preserve"><value>仮想ディスプレイ</value></data>
+  <data name="VirtualLaunchFailed" xml:space="preserve"><value>アプリの起動に失敗しました</value></data>
+  <data name="VirtualNoActivityOptions" xml:space="preserve"><value>アプリの起動オプションを作成できません</value></data>
+  <data name="VirtualNoDisplayManager" xml:space="preserve"><value>Android のディスプレイ管理サービスを取得できません</value></data>
+  <data name="VirtualOperationFailed" xml:space="preserve"><value>仮想ディスプレイの操作に失敗しました</value></data>
+  <data name="VirtualPackageNotFound" xml:space="preserve"><value>対象アプリが見つかりません</value></data>
+  <data name="VirtualPackageRequired" xml:space="preserve"><value>対象アプリのパッケージ名を入力してください</value></data>
+  <data name="VirtualRequiresAndroid8" xml:space="preserve"><value>仮想ディスプレイには Android 8.0 以降が必要です</value></data>
+  <data name="VirtualStarted" xml:space="preserve"><value>仮想ディスプレイを開始しました</value></data>
+  <data name="VirtualStopped" xml:space="preserve"><value>仮想ディスプレイは停止中です</value></data>
+  <data name="VirtualStoppedDone" xml:space="preserve"><value>仮想ディスプレイを停止しました</value></data>
+  <data name="VirtualUnsupported" xml:space="preserve"><value>コントローラーが未接続のため、画面を取得できません</value></data>
+  <data name="Blue" xml:space="preserve"><value>青</value></data>
+  <data name="Green" xml:space="preserve"><value>緑</value></data>
+  <data name="Red" xml:space="preserve"><value>赤</value></data>
+  <data name="Orange" xml:space="preserve"><value>オレンジ</value></data>
+  <data name="Purple" xml:space="preserve"><value>紫</value></data>
 </root>

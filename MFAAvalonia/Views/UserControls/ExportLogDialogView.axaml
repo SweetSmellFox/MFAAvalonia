@@ -155,6 +155,11 @@
             HorizontalAlignment="Right"
             Orientation="Horizontal"
             Spacing="10">
+            <ProgressBar
+                Width="88"
+                VerticalAlignment="Center"
+                IsIndeterminate="True"
+                IsVisible="{Binding IsExporting}" />
             <Button
                 Classes="Outlined export-action"
                 Command="{Binding CloseCommand}"
@@ -164,7 +169,7 @@
                 Classes="Flat export-action"
                 BorderThickness="0"
                 Command="{Binding StartExportCommand}"
-                Content="{markup:I18n {x:Static helper:LangKeys.ExportLogDialogStart}}"
+                Content="{Binding StartExportLabel}"
                 IsEnabled="{Binding CanStartExport}" />
         </StackPanel>
     </Grid>

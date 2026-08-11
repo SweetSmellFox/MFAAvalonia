@@ -38,6 +38,9 @@ public class ToastNotification
 
     private ToastNotification()
     {
+        if (OperatingSystem.IsAndroid())
+            return;
+
         try
         {
             // 订阅原生事件：任何屏幕变化（任务栏隐藏/显示、分辨率/缩放变化）都会触发
@@ -59,6 +62,15 @@ public class ToastNotification
         // 检查是否启用了 Toast 通知
         if (!ConfigurationManager.Current.GetValue(ConfigurationKeys.EnableToastNotification, true))
         {
+            return;
+        }
+
+        if (OperatingSystem.IsAndroid())
+        {
+            ToastHelper.Info(
+                title?.ToString() ?? string.Empty,
+                content,
+                Math.Max(1, (int)Math.Ceiling(duration / 1000d)));
             return;
         }
         

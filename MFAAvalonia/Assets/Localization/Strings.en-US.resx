@@ -123,6 +123,9 @@
     <data name="BackgroundTransitionsTitle" xml:space="preserve">
         <value>Background Transitions</value>
     </data>
+    <data name="Back" xml:space="preserve">
+        <value>Back</value>
+    </data>
     <data name="BaseTheme" xml:space="preserve">
         <value>Basic Theme</value>
     </data>
@@ -2178,6 +2181,56 @@ Update using this archive?</value>
   <data name="DroppedResourceRidMismatch" xml:space="preserve">
     <value>Resource ID mismatch: the package contains "{0}", but the current resource is "{1}".</value>
   </data>
+  <!-- Android mobile interface -->
+  <data name="AccentColor" xml:space="preserve"><value>Accent color</value></data>
+  <data name="Appearance" xml:space="preserve"><value>Appearance</value></data>
+  <data name="ConfigurationActive" xml:space="preserve"><value>Switched to this configuration</value></data>
+  <data name="ConfigurationAdded" xml:space="preserve"><value>Configuration added</value></data>
+  <data name="ConfigurationDeleted" xml:space="preserve"><value>Configuration deleted</value></data>
+  <data name="ConfigurationRenamed" xml:space="preserve"><value>Configuration renamed</value></data>
+  <data name="Configurations" xml:space="preserve"><value>Configurations</value></data>
+  <data name="CurrentConfiguration" xml:space="preserve"><value>Current configuration</value></data>
+  <data name="Dark" xml:space="preserve"><value>Dark</value></data>
+  <data name="DisplayLanguage" xml:space="preserve"><value>Display language</value></data>
+  <data name="ForceScheduledStartDescription" xml:space="preserve"><value>Stop the current task, then start the scheduled task</value></data>
+  <data name="Idle" xml:space="preserve"><value>Idle</value></data>
+  <data name="Language" xml:space="preserve"><value>Language</value></data>
+  <data name="Light" xml:space="preserve"><value>Light</value></data>
+  <data name="RuntimeReady" xml:space="preserve"><value>Initializing controller</value></data>
+  <data name="Schedule" xml:space="preserve"><value>Schedule</value></data>
+  <data name="ScheduleDescription" xml:space="preserve"><value>Configure when tasks start automatically</value></data>
+  <data name="SingleActiveConfiguration" xml:space="preserve"><value>Only one configuration can run at a time</value></data>
+  <data name="StartStop" xml:space="preserve"><value>Task controls</value></data>
+  <data name="StartTasks" xml:space="preserve"><value>Start tasks</value></data>
+  <data name="StopBeforeDelete" xml:space="preserve"><value>Stop this configuration before deleting it</value></data>
+  <data name="StopBeforeSwitch" xml:space="preserve"><value>Stop the current task before switching configurations</value></data>
+  <data name="StopTasks" xml:space="preserve"><value>Stop tasks</value></data>
+  <data name="TargetPackage" xml:space="preserve"><value>Target app package</value></data>
+  <data name="TaskQueue" xml:space="preserve"><value>Task queue</value></data>
+  <data name="TaskQueueDescription" xml:space="preserve"><value>Select tasks and adjust their execution order</value></data>
+  <data name="Tasks" xml:space="preserve"><value>Tasks</value></data>
+  <data name="ThemeMode" xml:space="preserve"><value>Theme mode</value></data>
+  <data name="UserLogs" xml:space="preserve"><value>User logs</value></data>
+  <data name="VirtualAlreadyRunning" xml:space="preserve"><value>Virtual display is already running</value></data>
+  <data name="VirtualAppLaunched" xml:space="preserve"><value>App launched on the virtual display</value></data>
+  <data name="VirtualCreateFailed" xml:space="preserve"><value>Failed to create virtual display</value></data>
+  <data name="VirtualDisplay" xml:space="preserve"><value>Virtual display</value></data>
+  <data name="VirtualLaunchFailed" xml:space="preserve"><value>Failed to launch app</value></data>
+  <data name="VirtualNoActivityOptions" xml:space="preserve"><value>Unable to create app launch options</value></data>
+  <data name="VirtualNoDisplayManager" xml:space="preserve"><value>Android display manager is unavailable</value></data>
+  <data name="VirtualOperationFailed" xml:space="preserve"><value>Virtual display operation failed</value></data>
+  <data name="VirtualPackageNotFound" xml:space="preserve"><value>Target app was not found</value></data>
+  <data name="VirtualPackageRequired" xml:space="preserve"><value>Enter the target app package name</value></data>
+  <data name="VirtualRequiresAndroid8" xml:space="preserve"><value>Virtual display requires Android 8.0 or later</value></data>
+  <data name="VirtualStarted" xml:space="preserve"><value>Virtual display started</value></data>
+  <data name="VirtualStopped" xml:space="preserve"><value>Virtual display is not running</value></data>
+  <data name="VirtualStoppedDone" xml:space="preserve"><value>Virtual display stopped</value></data>
+  <data name="VirtualUnsupported" xml:space="preserve"><value>Controller is not connected; preview is unavailable</value></data>
+  <data name="Blue" xml:space="preserve"><value>Blue</value></data>
+  <data name="Green" xml:space="preserve"><value>Green</value></data>
+  <data name="Red" xml:space="preserve"><value>Red</value></data>
+  <data name="Orange" xml:space="preserve"><value>Orange</value></data>
+  <data name="Purple" xml:space="preserve"><value>Purple</value></data>
 </root>
 
 

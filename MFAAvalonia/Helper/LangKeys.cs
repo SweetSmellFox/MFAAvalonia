@@ -46,6 +46,7 @@ public static class LangKeys
 	public static readonly string BackgroundStyleTitle = "BackgroundStyleTitle";
 	public static readonly string BackgroundTransitionsDescription = "BackgroundTransitionsDescription";
 	public static readonly string BackgroundTransitionsTitle = "BackgroundTransitionsTitle";
+	public static readonly string Back = "Back";
 	public static readonly string BaseTheme = "BaseTheme";
 	public static readonly string BlueStacks = "BlueStacks";
 	public static readonly string ButtonAdd = "ButtonAdd";

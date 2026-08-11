@@ -1843,7 +1843,7 @@ public partial class TaskQueueView : UserControl
     }
 
     /// </summary>
-    private static string? GetTooltipText(string? description, List<string>? document)
+    internal static string? GetTooltipText(string? description, List<string>? document)
     {
         // 优先使用 Description
         if (!string.IsNullOrWhiteSpace(description))

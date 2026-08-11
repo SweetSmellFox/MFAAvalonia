@@ -7,7 +7,10 @@ riderModule.iml
 .dotnet/
 .idea/
 artifacts/
-
+.android-package/
+.tmp-upstream/
+.tmp-sdk/
+/MFAAvalonia.Android/Native/build-*/
 # Local IDE and user settings
 *.sln.DotSettings.user
 

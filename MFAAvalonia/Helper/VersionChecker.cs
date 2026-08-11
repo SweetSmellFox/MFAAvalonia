@@ -365,7 +365,6 @@ public static class VersionChecker
             var config = new
             {
                 AutoUpdateResource = ConfigurationManager.Current.GetValue(ConfigurationKeys.EnableAutoUpdateResource, false),
-                AutoUpdateMFA = ConfigurationManager.Current.GetValue(ConfigurationKeys.EnableAutoUpdateMFA, false),
                 CheckVersion = ConfigurationManager.Current.GetValue(ConfigurationKeys.EnableCheckVersion, true),
             };
             var resourceVersion = GetResourceVersion();
@@ -381,7 +380,7 @@ public static class VersionChecker
 
             if (config.AutoUpdateResource)
             {
-                AddResourceUpdateTask(config.AutoUpdateMFA);
+                AddResourceUpdateTask();
             }
             else if (config.CheckVersion)
             {
@@ -410,12 +409,12 @@ public static class VersionChecker
     public static void CheckMFAVersionAsync() => TaskManager.RunTaskAsync(async () => await CheckForMFAUpdatesAsync(Instances.VersionUpdateSettingsUserControlModel.DownloadSourceIndex == 0), name: "检测MFA版本");
     public static void CheckResourceVersionAsync() => TaskManager.RunTaskAsync(async () => await CheckForResourceUpdatesAsync(Instances.VersionUpdateSettingsUserControlModel.DownloadSourceIndex == 0), name: "检测资源版本");
     public static void UpdateResourceAsync(string
-        currentVersion = "") => TaskManager.RunTaskAsync(() => UpdateResource(Instances.VersionUpdateSettingsUserControlModel.DownloadSourceIndex == 0, currentVersion: currentVersion), name: "更新MFA");
+        currentVersion = "") => TaskManager.RunTaskAsync(() => UpdateResource(Instances.VersionUpdateSettingsUserControlModel.DownloadSourceIndex == 0, currentVersion: currentVersion), name: "更新资源");
     public static void UpdateResourceFromLocalPackageAsync(string packagePath, string currentVersion = "") =>
         TaskManager.RunTaskAsync(
             () => Task.Run(() => UpdateResourceFromLocalPackageCoreAsync(packagePath, currentVersion)),
             name: "本地更新包更新");
-    public static void UpdateMFAAsync() => TaskManager.RunTaskAsync(() => UpdateMFA(Instances.VersionUpdateSettingsUserControlModel.DownloadSourceIndex == 0), name: "更新资源");
+    public static void UpdateMFAAsync() => TaskManager.RunTaskAsync(() => UpdateMFA(Instances.VersionUpdateSettingsUserControlModel.DownloadSourceIndex == 0), name: "更新软件");
 
     public static void UpdateMaaFwAsync() => TaskManager.RunTaskAsync(() => UpdateMaaFw(), name: "更新MaaFw");
 
@@ -447,11 +446,14 @@ public static class VersionChecker
             Name = "查询CDK"
         });
     }
-    private static void AddResourceUpdateTask(bool autoUpdateMFA)
+    private static void AddResourceUpdateTask()
     {
         Queue.Enqueue(new ValueType.MFATask
         {
-            Action = async () => await UpdateResource(Instances.VersionUpdateSettingsUserControlModel.DownloadSourceIndex == 0, autoUpdateMFA, autoUpdateMFA),
+            Action = async () => await UpdateResource(
+                Instances.VersionUpdateSettingsUserControlModel.DownloadSourceIndex == 0,
+                closeDialog: true,
+                noDialog: true),
             Name = "更新资源"
         });
     }
@@ -1153,7 +1155,7 @@ public static class VersionChecker
 
         // 重启前执行清理（保存配置、释放资源等）
         Interlocked.Exchange(ref _restartPending, 1);
-        DispatcherHelper.PostOnMainThread(() => Instances.RootView.BeforeClosed(true, true));
+        DispatcherHelper.PostOnMainThread(() => Instances.TryBeforeClosed(true, true));
         await RestartApplicationAsync(restartExecutablePath);
     }
 
@@ -1260,6 +1262,19 @@ public static class VersionChecker
         LoggerHelper.Info($"准备重新启动应用：可执行文件={exeName}");
         LoggerHelper.Info("当前 MFA 进程即将退出。");
         LoggerHelper.DisposeLogger();
+        if (OperatingSystem.IsAndroid())
+        {
+            if (PlatformApplicationRestart.RestartAsync != null)
+            {
+                await PlatformApplicationRestart.RestartAsync();
+            }
+            else
+            {
+                Instances.ShutdownApplication(forceStop: true);
+            }
+            return;
+        }
+
         if (OperatingSystem.IsMacOS())
         {
             // ==== 仅 macOS 执行专属逻辑 ====
@@ -1926,6 +1941,15 @@ public static class VersionChecker
 
     public async static Task UpdateMFA(bool isGithub, bool noDialog = false)
     {
+        if (OperatingSystem.IsAndroid())
+        {
+            LoggerHelper.Warning("Android 不支持桌面版自替换更新流程，已中止软件更新。资源更新仍可正常使用。");
+            ToastHelper.Warn(
+                LangKeys.Warning.ToLocalization(),
+                LangKeys.PlatformNotSupportedOperation.ToLocalization());
+            return;
+        }
+
         Instances.RootViewModel.SetUpdating(true);
         ProgressBar? progress = null;
         TextBlock? textBlock = null;

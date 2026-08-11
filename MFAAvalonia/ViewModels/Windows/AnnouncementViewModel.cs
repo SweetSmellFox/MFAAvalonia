@@ -6,6 +6,7 @@ using MFAAvalonia.Extensions;
 using MFAAvalonia.Helper;
 using MFAAvalonia.Views.Pages;
 using MFAAvalonia.Views.Windows;
+using MFAAvalonia.Views.Mobile;
 using SukiUI.Dialogs;
 using System;
 using System.Collections.Generic;
@@ -95,12 +96,11 @@ public partial class AnnouncementViewModel : ViewModelBase
             return;
         }
 
-        SplitFirstLine(resolvedContent, out var firstLine, out var remainingContent);
-        var parsedTitle = firstLine.TrimStart('#', ' ').Trim();
+        ParseAnnouncement(resolvedContent, out var parsedTitle, out var remainingContent);
         var item = new AnnouncementItem
         {
             Title = string.IsNullOrWhiteSpace(parsedTitle) ? (title ?? "Welcome") : parsedTitle,
-            Content = TaskQueueView.ConvertCustomMarkup(string.IsNullOrWhiteSpace(remainingContent) ? resolvedContent : remainingContent)
+            Content = TaskQueueView.ConvertCustomMarkup(remainingContent)
         };
 
         var normalizedContent = NormalizeAnnouncementContent(item.Content);
@@ -150,8 +150,7 @@ public partial class AnnouncementViewModel : ViewModelBase
                     {
                         // 读取第一行作为标题（Markdown 标题可能以 # 开头）
                         var fileContent = File.ReadAllText(mdFile);
-                        SplitFirstLine(fileContent, out string firstLine, out var content);
-                        var title = firstLine.TrimStart('#', ' ').Trim();
+                        ParseAnnouncement(fileContent, out var title, out var content);
                         items.Add(new AnnouncementItem
                         {
                             Title = title,
@@ -238,6 +237,31 @@ public partial class AnnouncementViewModel : ViewModelBase
         }
     }
 
+    private static void ParseAnnouncement(string content, out string title, out string body)
+    {
+        SplitFirstLine(content, out var firstLine, out var remainingContent);
+        title = firstLine.TrimStart('#', ' ').Trim();
+        body = string.IsNullOrWhiteSpace(remainingContent) ? content : remainingContent;
+
+        // Strip YAML front matter before handing the document to Markdown.Avalonia.
+        // Announcement files commonly start with `---` and end the metadata with a
+        // second `---`; the title field remains the list item title.
+        if (!string.Equals(firstLine.Trim(), "---", StringComparison.Ordinal))
+            return;
+
+        var lines = remainingContent.Replace("\r\n", "\n").Split('\n');
+        var closingIndex = Array.FindIndex(lines, line => line.Trim() == "---");
+        if (closingIndex < 0)
+            return;
+
+        var titleLine = lines.FirstOrDefault(line =>
+            line.TrimStart().StartsWith("title:", StringComparison.OrdinalIgnoreCase));
+        if (titleLine != null)
+            title = titleLine[(titleLine.IndexOf(':') + 1)..].Trim().Trim('"', '\'');
+
+        body = string.Join("\n", lines.Skip(closingIndex + 1)).TrimStart('\n');
+    }
+
     private static string NormalizeAnnouncementContent(string? content)
     {
         return string.IsNullOrWhiteSpace(content)
@@ -302,18 +326,20 @@ public partial class AnnouncementViewModel : ViewModelBase
                     return;
                 }
 
-                var content = viewModel.AnnouncementItems[0].Content;
-
                 DispatcherHelper.PostOnMainThread(() =>
+                {
+                    var announcementContent = new MobileAnnouncementView(viewModel);
+                    viewModel.SelectedAnnouncement = viewModel.AnnouncementItems[0];
                     Instances.DialogManager.CreateDialog()
                         .WithTitle(LangKeys.Announcement.ToLocalization())
-                        .WithContent(content)
+                        .WithContent(announcementContent)
                         .WithActionButton(LangKeys.ShowDisclaimerNoMore.ToLocalization(), _ =>
                         {
                             GlobalConfiguration.SetValue(ConfigurationKeys.DoNotShowAnnouncementAgain, bool.TrueString);
                         })
                         .WithActionButton(LangKeys.Ok.ToLocalization(), _ => { }, true)
-                        .TryShow());
+                        .TryShow();
+                });
 
                 return;
             }

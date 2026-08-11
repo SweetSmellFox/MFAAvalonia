@@ -234,15 +234,9 @@ public class FocusHandler
                             .Queue());
                     break;
                 case "notification":
-                    DispatcherHelper.PostOnMainThread(() =>
-                    {
-                        ToastNotification.Instance.AddToast(new NotificationView(4000)
-                        {
-                            TitleText = LangKeys.Tip.ToLocalization(),
-                            MessageText = CreateFocusMarkdownContent(displayText, NotificationMarkdownMaxHeight)
-                        });
-                        ToastNotification.PlayNotificationSound();
-                    });
+                    ToastNotification.Show(
+                        LangKeys.Tip.ToLocalization(),
+                        CreateFocusMarkdownContent(displayText, NotificationMarkdownMaxHeight));
                     break;
                 case "dialog":
                     // 非阻塞式弹窗：fire-and-forget，任务继续执行

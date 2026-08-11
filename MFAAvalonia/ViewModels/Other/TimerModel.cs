@@ -282,6 +282,7 @@ public partial class TimerModel : ViewModelBase
     public partial class TimerProperties : ViewModelBase
     {
         private readonly TimerModel _parent;
+        public ObservableCollection<InstanceEntry> InstanceList => _parent.InstanceList;
 
         public TimerProperties(int timeId, TimerModel parent)
         {

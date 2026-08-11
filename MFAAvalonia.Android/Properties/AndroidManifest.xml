@@ -1,5 +1,12 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" android:installLocation="auto">
-	<uses-permission android:name="android.permission.INTERNET" />
-	<application android:label="MFAAvalonia" android:icon="@drawable/Icon" />
+  <uses-permission android:name="android.permission.INTERNET" />
+  <application android:label="MFAAvalonia" android:icon="@drawable/Icon">
+    <provider
+      android:name="rikka.shizuku.ShizukuProvider"
+      android:authorities="com.fox.MFAAvalonia.shizuku"
+      android:enabled="true"
+      android:exported="true"
+      android:multiprocess="false" />
+  </application>
 </manifest>

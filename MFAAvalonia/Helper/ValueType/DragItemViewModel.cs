@@ -190,6 +190,13 @@ public partial class DragItemViewModel : ObservableObject
 
     [ObservableProperty] private bool _isVisible = true;
 
+    [JsonIgnore]
+    public bool HasMobileOptions => IsResourceOptionItem
+        ? ResourceItem?.SelectOptions is { Count: > 0 }
+        : InterfaceItem?.Option is { Count: > 0 }
+          || InterfaceItem?.Advanced is { Count: > 0 }
+          || InterfaceItem?.Repeatable == true;
+
     /// <summary>
     /// 指示这是否是一个全局资源设置项。
     /// 全局资源设置项的 checkbox 默认选中且不可更改，不参与任务执行，

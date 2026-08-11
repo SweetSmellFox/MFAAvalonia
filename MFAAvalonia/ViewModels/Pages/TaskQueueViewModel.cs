@@ -636,7 +636,8 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
         var beforeTask = Processor.InstanceConfiguration.GetValue(ConfigurationKeys.BeforeTask, "None");
         var skipDeviceCheck = beforeTask.Contains("StartupSoftware", StringComparison.OrdinalIgnoreCase)
             || Instances.ConnectSettingsUserControlModel.AutoDetectOnConnectionFailed
-            || HasApplicablePreTask();
+            || HasApplicablePreTask()
+            || PlatformControllerFactory.CanInitializeWithoutDevice;
 
         if (!skipDeviceCheck)
         {
@@ -691,6 +692,9 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
             ToastHelper.Warn(LangKeys.CannotStart.ToLocalization(), string.Join("\n", failedTasks));
             return;
         }
+
+        if (PlatformControllerFactory.CanInitializeWithoutDevice && Processor.MaaTasker?.Controller == null)
+            LoggerHelper.Info("平台控制器尚未初始化，将在任务启动时自动创建。");
 
         Processor.Start();
     }
