@@ -132,6 +132,13 @@ public partial class MFATask : ObservableObject
             OwnerViewModel?.MarkTaskStopped(SourceItem, RunId);
             return Complete(MFATaskStatus.STOPPED);
         }
+        catch (InvalidOperationException ex) when (
+            string.Equals(ex.Message, MaaProcessor.ConnectionFailedAfterAllRetriesMessage, StringComparison.Ordinal))
+        {
+            MarkFailed(ex.Message);
+            LoggerHelper.Warning($"连接任务已在重试耗尽后结束：任务={LanguageHelper.GetLocalizedString(Name)}");
+            return Complete(MFATaskStatus.FAILED, ContinueOnError);
+        }
         catch (Exception ex)
         {
             MarkFailed(ex.Message);

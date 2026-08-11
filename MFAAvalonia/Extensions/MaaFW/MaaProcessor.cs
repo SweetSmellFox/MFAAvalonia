@@ -1158,9 +1158,26 @@ public class MaaProcessor
     private MaaController? GetScreenshotController(bool test)
     {
         if (test && !_isClosed)
-            TryConnectAsync(CancellationToken.None);
+            _ = TryConnectForLiveViewAsync();
 
         return GetScreenshotTasker(CancellationToken.None)?.Controller;
+    }
+
+    private async Task TryConnectForLiveViewAsync()
+    {
+        try
+        {
+            await TryConnectAsync(CancellationToken.None);
+        }
+        catch (OperationCanceledException)
+        {
+            // Live view connection probes are best-effort and may be cancelled on shutdown.
+        }
+        catch (Exception ex)
+        {
+            // A live-view refresh must never create an unobserved background exception.
+            LoggerHelper.Debug($"实时画面后台连接探测失败：{ex.Message}");
+        }
     }
 
     private bool ShouldScreencapForLiveView()
@@ -3886,7 +3903,9 @@ public class MaaProcessor
                     HandleConnectionFailureAsync(controllerType, token);
                 var connectionException = new InvalidOperationException(ConnectionFailedAfterAllRetriesMessage);
                 connectionException.Data["controller.type"] = controllerType.ToString();
-                TelemetryService.RecordTaskFailure(InstanceId, "connection_failed", "connection", connectionException);
+                // Exhausted connection retries are a user/device state, not an application
+                // exception. Keep the task failure detail without creating a Sentry issue.
+                TelemetryService.RecordTaskFailure(InstanceId, "connection_failed", "connection", "retries_exhausted");
                 throw connectionException;
             }
 
