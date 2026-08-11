@@ -1814,8 +1814,12 @@ public class MaaProcessor
         }
 
         var callbackName = jObject["name"]?.ToString() ?? string.Empty;
-        if (CancellationTokenSource?.IsCancellationRequested != true && ShouldTraceNodeEvent(jObject, args.Message))
-            TelemetryService.RecordNodeEvent(InstanceId, args.Message, args.Details);
+        var shouldTraceNodeEvent = ShouldTraceNodeEvent(jObject, args.Message);
+        if (CancellationTokenSource?.IsCancellationRequested != true
+            && (shouldTraceNodeEvent || args.Message.Equals("Node.PipelineNode.Starting", StringComparison.Ordinal)))
+        {
+            TelemetryService.RecordNodeEvent(InstanceId, args.Message, args.Details, shouldTraceNodeEvent);
+        }
 
         MaaTasker? tasker = null;
         if (sender is MaaTasker t)

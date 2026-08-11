@@ -606,7 +606,7 @@ public static class TelemetryService
         }
     }
 
-    public static void RecordNodeEvent(string instanceId, string message, string details)
+    public static void RecordNodeEvent(string instanceId, string message, string details, bool shouldTrace = true)
     {
         if (!message.StartsWith("Node.", StringComparison.Ordinal))
             return;
@@ -621,37 +621,46 @@ public static class TelemetryService
         lock (SyncRoot)
         {
             if (!Runs.TryGetValue(instanceId, out var run)) return;
-            if (message.EndsWith(".Starting", StringComparison.Ordinal))
+            if (message.Equals("Node.PipelineNode.Starting", StringComparison.Ordinal))
             {
                 if (nodeId.HasValue) run.LastPipelineSteps[taskId.Value] = (nodeId.Value, DateTimeOffset.UtcNow);
-                return;
+                if (!shouldTrace) return;
             }
 
-            var hitNode = detail["node_details"]?["name"]?.Value<string>();
-            var fallbackNode = detail["name"]?.Value<string>();
-            var failedNode = string.IsNullOrWhiteSpace(hitNode) ? fallbackNode : hitNode;
-            if (string.IsNullOrWhiteSpace(failedNode) || run.ActiveTask == null
+            var searchNode = detail["name"]?.Value<string>();
+            var hitNode = message.StartsWith("Node.PipelineNode.", StringComparison.Ordinal)
+                ? detail["node_details"]?["name"]?.Value<string>()
+                : null;
+            var nodeName = string.IsNullOrWhiteSpace(hitNode) ? searchNode : hitNode;
+            if (string.IsNullOrWhiteSpace(nodeName) || run.ActiveTask == null
                 || !run.Tasks.TryGetValue(run.ActiveTask, out var taskSpan)) return;
-            var stage = message.Equals("Node.PipelineNode.Failed", StringComparison.Ordinal)
+            string? stage = message.Equals("Node.PipelineNode.Failed", StringComparison.Ordinal)
                 ? string.IsNullOrWhiteSpace(hitNode) ? "recognition" : "action"
-                : message.Contains(".Recognition.", StringComparison.Ordinal) ? "recognition"
-                : message.Contains(".Action.", StringComparison.Ordinal) ? "action"
-                : "pipeline";
-            var duration = run.LastPipelineSteps.Remove(taskId.Value, out var step)
-                && nodeId.HasValue && step.NodeId == nodeId.Value
-                ? (long?)(DateTimeOffset.UtcNow - step.StartedAt).TotalMilliseconds : null;
+                : null;
+            long? duration = null;
+            if ((message.Equals("Node.PipelineNode.Succeeded", StringComparison.Ordinal)
+                    || message.Equals("Node.PipelineNode.Failed", StringComparison.Ordinal))
+                && run.LastPipelineSteps.Remove(taskId.Value, out var step)
+                && nodeId.HasValue
+                && step.NodeId == nodeId.Value)
+            {
+                duration = (long)(DateTimeOffset.UtcNow - step.StartedAt).TotalMilliseconds;
+            }
             var isFailure = message.EndsWith(".Failed", StringComparison.Ordinal);
             if (isFailure)
             {
-                var failure = new FailureInfo(failedNode!, stage, nodeId, taskId, duration);
+                var failure = new FailureInfo(nodeName!, stage, nodeId, taskId, duration, Message: message);
                 run.RootFailure ??= failure;
                 run.TerminalFailure = failure;
                 if (++run.FailedNodeCount > MaxFailedNodesPerRun) return;
             }
             var taskName = run.ActiveTask.SourceItem?.InterfaceItem?.Name ?? run.ActiveTask.Name ?? "unknown";
-            var span = taskSpan.StartChild("mfa.node", failedNode);
+            var span = taskSpan.StartChild("mfa.node", nodeName);
             span.SetData("message", message);
-            span.SetData("stage", stage);
+            if (!string.IsNullOrWhiteSpace(hitNode) && !string.IsNullOrWhiteSpace(searchNode))
+                span.SetData("search_node", searchNode);
+            if (!string.IsNullOrWhiteSpace(stage))
+                span.SetData("stage", stage);
             span.SetData("task", taskName);
             span.SetData("task_id", taskId.Value);
             if (nodeId.HasValue) span.SetData("node_id", nodeId.Value);
@@ -784,24 +793,38 @@ public static class TelemetryService
 
     private sealed record FailureInfo(
         string Node,
-        string Stage,
+        string? Stage,
         long? NodeId,
         long? TaskId,
         long? DurationMs,
         string? Detail = null,
-        Exception? Exception = null);
+        Exception? Exception = null,
+        string? Message = null);
 
     private static void CaptureFailureEvent(string instanceId, MFATask task, ISpan taskSpan, RunState run)
     {
         var taskName = task.SourceItem?.InterfaceItem?.Name ?? task.Name ?? "unknown-task";
         var failureName = run.RootFailure == null
             ? taskName
-            : $"{taskName} ({run.RootFailure.Node}/{run.RootFailure.Stage})";
+            : string.IsNullOrWhiteSpace(run.RootFailure.Stage)
+                ? $"{taskName} ({run.RootFailure.Node})"
+                : $"{taskName} ({run.RootFailure.Node}/{run.RootFailure.Stage})";
         var rootException = run.RootFailure?.Exception ?? run.TerminalFailure?.Exception;
         var @event = rootException == null ? new SentryEvent() : new SentryEvent(rootException);
         @event.Message = $"Maa task failed: {failureName}";
         @event.TransactionName = "mfa.task.failure";
-        @event.Fingerprint = new[] { "mfa-task-failure", MaaProcessor.Interface?.Name ?? "unknown", taskName, run.RootFailure?.Node ?? "terminal_failure", run.RootFailure?.Stage ?? "unknown" };
+        var fingerprint = new List<string>
+        {
+            "mfa-task-failure",
+            MaaProcessor.Interface?.Name ?? "unknown",
+            taskName,
+            run.RootFailure?.Node ?? "terminal_failure"
+        };
+        if (!string.IsNullOrWhiteSpace(run.RootFailure?.Stage))
+            fingerprint.Add(run.RootFailure.Stage);
+        else if (!string.IsNullOrWhiteSpace(run.RootFailure?.Message))
+            fingerprint.Add(run.RootFailure.Message);
+        @event.Fingerprint = fingerprint.ToArray();
         @event.SetTag("task.name", taskName);
         @event.SetTag("result", "failure");
         if (rootException != null)
@@ -888,13 +911,16 @@ public static class TelemetryService
         if (asTags)
         {
             @event.SetTag($"{prefix}.node", failure.Node);
-            @event.SetTag($"{prefix}.stage", failure.Stage);
+            if (!string.IsNullOrWhiteSpace(failure.Stage))
+                @event.SetTag($"{prefix}.stage", failure.Stage);
         }
         else
         {
             @event.SetExtra($"{prefix}.node", failure.Node);
-            @event.SetExtra($"{prefix}.stage", failure.Stage);
+            if (!string.IsNullOrWhiteSpace(failure.Stage))
+                @event.SetExtra($"{prefix}.stage", failure.Stage);
         }
+        if (!string.IsNullOrWhiteSpace(failure.Message)) @event.SetExtra($"{prefix}.message", failure.Message);
         if (failure.NodeId.HasValue) @event.SetExtra($"{prefix}.node_id", failure.NodeId.Value);
         if (failure.TaskId.HasValue) @event.SetExtra($"{prefix}.task_id", failure.TaskId.Value);
         if (failure.DurationMs.HasValue) @event.SetExtra($"{prefix}.duration_ms", failure.DurationMs.Value);
