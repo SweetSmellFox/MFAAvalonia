@@ -12,4 +12,7 @@ internal static partial class NativeBridgeInterop
 
     [LibraryImport("mfabridge", EntryPoint = "MfaBridgeUpdateFrame")]
     internal static partial int UpdateFrame(nint data, uint width, uint height, uint stride);
+
+    [LibraryImport("mfabridge", EntryPoint = "MfaBridgeSafeAgentClientConnect")]
+    internal static partial int SafeAgentClientConnect(nint client);
 }

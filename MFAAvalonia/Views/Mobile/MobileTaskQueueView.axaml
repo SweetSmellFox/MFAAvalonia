@@ -9,9 +9,26 @@
              xmlns:mdxaml="https://github.com/whistyun/Markdown.Avalonia"
              xmlns:pages="clr-namespace:MFAAvalonia.ViewModels.Pages"
              xmlns:other="clr-namespace:MFAAvalonia.ViewModels.Other"
+             xmlns:suki="https://github.com/kikipoulet/SukiUI"
              xmlns:valueType="clr-namespace:MFAAvalonia.Helper.ValueType"
              mc:Ignorable="d" d:DesignWidth="390" d:DesignHeight="760">
     <UserControl.Styles>
+        <Style Selector="Path.TaskRunSpinner">
+            <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+            <Setter Property="RenderTransform">
+                <RotateTransform Angle="0" />
+            </Setter>
+            <Style.Animations>
+                <Animation Duration="0:0:0.9" IterationCount="INFINITE">
+                    <KeyFrame Cue="0%">
+                        <Setter Property="RotateTransform.Angle" Value="0" />
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                        <Setter Property="RotateTransform.Angle" Value="360" />
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
         <Style Selector="Ellipse#MobileLiveStatusDot">
             <Style.Animations>
                 <Animation Duration="0:0:1.5" IterationCount="INFINITE" Easing="CubicEaseInOut">
@@ -146,14 +163,14 @@
                     <fluent:FluentIcon Icon="SelectAllOn" IconSize="Size20" />
                 </Button>
             </Grid>
-            <ListBox x:Name="TaskList" Grid.Row="1" ItemsSource="{Binding TaskItemViewModels}"
+            <ListBox x:Name="TaskList" Grid.Row="1" Classes="Fluent" ItemsSource="{Binding TaskItemViewModels}"
                      ScrollViewer.VerticalScrollBarVisibility="Auto">
                 <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="valueType:DragItemViewModel">
                         <Border MinHeight="52" Padding="10,6" Margin="0,0,0,6" CornerRadius="6"
                                 Background="{DynamicResource SukiCardBackground}"
                                 BorderBrush="{DynamicResource SukiControlBorderBrush}" BorderThickness="1">
-                            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+                            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,22">
                                 <CheckBox IsThreeState="True" MinWidth="40"
                                           IsEnabled="{Binding !IsResourceOptionItem}"
                                           IsChecked="{Binding IsCheckedWithNull}" />
@@ -164,6 +181,48 @@
                                                Foreground="{DynamicResource SukiLowText}"
                                                IsVisible="{Binding IsRunElapsedVisible}" />
                                 </StackPanel>
+                                <Grid Grid.Column="5" Width="22" Height="36"
+                                      IsHitTestVisible="False"
+                                      IsVisible="{Binding IsRunStatusVisible}"
+                                      VerticalAlignment="Center">
+                                    <Path Width="16" Height="16" Stretch="Uniform"
+                                          Classes="TaskRunSpinner"
+                                          Data="{x:Static suki:Icons.Refresh}"
+                                          Fill="{DynamicResource SukiPrimaryColor}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          IsVisible="{Binding IsRunRunning}" />
+                                    <Path Width="16" Height="16" Stretch="Uniform"
+                                          Data="{x:Static suki:Icons.CircleCheck}"
+                                          Fill="{DynamicResource SukiSuccessColor}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          IsVisible="{Binding IsRunSucceeded}" />
+                                    <Path Width="16" Height="16" Stretch="Uniform"
+                                          Data="{x:Static suki:Icons.CircleClose}"
+                                          Fill="{DynamicResource SukiDangerColor}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          IsVisible="{Binding IsRunFailed}" />
+                                    <Path Width="16" Height="16" Stretch="Uniform"
+                                          Data="{x:Static suki:Icons.CircleOutline}"
+                                          Fill="{DynamicResource SukiLowText}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          IsVisible="{Binding IsRunQueued}" />
+                                    <Path Width="16" Height="16" Stretch="Uniform"
+                                          Data="{x:Static suki:Icons.Cancel}"
+                                          Fill="{DynamicResource SukiLowText}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          IsVisible="{Binding IsRunStopped}" />
+                                    <Path Width="16" Height="16" Stretch="Uniform"
+                                          Data="{x:Static suki:Icons.CircleOutlineMinus}"
+                                          Fill="{DynamicResource SukiLowText}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          IsVisible="{Binding IsRunSkipped}" />
+                                </Grid>
                                 <Button Grid.Column="2" Width="36" Height="36" Padding="0"
                                         IsVisible="{Binding !IsResourceOptionItem}"
                                         Click="MoveTaskUp" CommandParameter="{Binding}">

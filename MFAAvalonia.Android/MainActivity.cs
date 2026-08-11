@@ -7,14 +7,15 @@ using Avalonia.Android;
 using MaaFramework.Binding;
 using MFAAvalonia.Extensions.MaaFW;
 using MFAAvalonia.Helper;
+using MFAAvalonia.ViewModels.Windows;
 using System;
+using System.ComponentModel;
 using System.IO;
 using System.Threading.Tasks;
 
 namespace MFAAvalonia.Android;
 
 [Activity(
-    Label = "MFAAvalonia.Android",
     Theme = "@style/MyTheme.NoActionBar",
     Icon = "@drawable/icon",
     MainLauncher = true,
@@ -23,7 +24,9 @@ public class MainActivity : AvaloniaMainActivity<App>
 {
     private AndroidVirtualDisplayBackend? _virtualDisplayBackend;
     private AndroidNativeControllerProvider? _controllerProvider;
+    private AndroidPythonAgentProvider? _pythonAgentProvider;
     private ShizukuConnectionManager? _shizuku;
+    private RootViewModel? _rootViewModel;
 
     protected override void OnCreate(Bundle? savedInstanceState)
     {
@@ -34,11 +37,50 @@ public class MainActivity : AvaloniaMainActivity<App>
         _virtualDisplayBackend = new AndroidVirtualDisplayBackend(this);
         _controllerProvider = new AndroidNativeControllerProvider(this, _shizuku, _virtualDisplayBackend);
         PlatformControllerFactory.Create = _controllerProvider.Create;
+        _pythonAgentProvider = new AndroidPythonAgentProvider(this);
+        if (_pythonAgentProvider.IsAvailable)
+        {
+            PlatformAgentFactory.Start = _pythonAgentProvider.Start;
+            PlatformAgentFactory.LinkStart = _pythonAgentProvider.LinkStart;
+        }
         MobileVirtualDisplay.Backend = _virtualDisplayBackend;
         MobileVirtualDisplay.PreviewControlFactory = () =>
             new AndroidVirtualDisplayPreviewHost(this, _virtualDisplayBackend);
         PlatformApplicationRestart.RestartAsync = RestartAfterResourceUpdateAsync;
         base.OnCreate(savedInstanceState);
+        BindApplicationTitle();
+    }
+
+    private void BindApplicationTitle()
+    {
+        try
+        {
+            _rootViewModel = Instances.RootViewModel;
+            _rootViewModel.PropertyChanged += OnRootViewModelPropertyChanged;
+            ApplyApplicationTitle(_rootViewModel.ApplicationDisplayName);
+        }
+        catch (Exception ex)
+        {
+            global::Android.Util.Log.Warn("MFAAvalonia", $"Application title initialization failed: {ex}");
+        }
+    }
+
+    private void OnRootViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(RootViewModel.ApplicationDisplayName) && sender is RootViewModel viewModel)
+            ApplyApplicationTitle(viewModel.ApplicationDisplayName);
+    }
+
+    private void ApplyApplicationTitle(string title)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+            return;
+
+        RunOnUiThread(() =>
+        {
+            Title = title;
+            SetTaskDescription(new ActivityManager.TaskDescription(title));
+        });
     }
 
     private Task RestartAfterResourceUpdateAsync()
@@ -95,10 +137,19 @@ public class MainActivity : AvaloniaMainActivity<App>
 
     protected override void OnDestroy()
     {
+        if (_rootViewModel != null)
+            _rootViewModel.PropertyChanged -= OnRootViewModelPropertyChanged;
+        _rootViewModel = null;
         PlatformApplicationRestart.RestartAsync = null;
         if (_controllerProvider != null)
             PlatformControllerFactory.Create = null;
         _controllerProvider = null;
+        if (_pythonAgentProvider != null)
+        {
+            PlatformAgentFactory.Start = null;
+            PlatformAgentFactory.LinkStart = null;
+        }
+        _pythonAgentProvider = null;
         _shizuku?.Dispose();
         _shizuku = null;
         if (ReferenceEquals(MobileVirtualDisplay.Backend, _virtualDisplayBackend))

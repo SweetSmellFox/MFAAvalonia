@@ -54,7 +54,10 @@ public class MaaProcessor
     public static string Resource => AppPaths.ResourceDirectory;
     public static string ResourceBase => Path.Combine(Resource, "base");
     public static ObservableCollection<MaaProcessor> Processors { get; } = new();
-    public static MaaToolkit Toolkit { get; } = new(true);
+    // Android processes start with "/" as Environment.CurrentDirectory. Passing the
+    // application data root explicitly prevents MaaToolkit from probing /config/maa_option.json,
+    // which throws an uncaught native std::filesystem exception and aborts the process.
+    public static MaaToolkit Toolkit { get; } = new(true, AppPaths.DataRoot);
     public static MaaGlobal Global { get; } = new();
     public string InstanceId { get; }
     public InstanceConfiguration InstanceConfiguration { get; }

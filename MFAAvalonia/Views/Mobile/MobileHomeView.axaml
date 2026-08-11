@@ -5,13 +5,15 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:fluent="clr-namespace:FluentIcons.Avalonia.Fluent;assembly=FluentIcons.Avalonia.Fluent"
+             xmlns:helper="clr-namespace:MFAAvalonia.Helper"
              xmlns:pages="clr-namespace:MFAAvalonia.ViewModels.Pages"
              xmlns:other="clr-namespace:MFAAvalonia.ViewModels.Other"
              mc:Ignorable="d" d:DesignWidth="390" d:DesignHeight="760">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="18,18,18,12" Spacing="14">
             <StackPanel Spacing="3">
-                <TextBlock Text="MFA" FontSize="28" FontWeight="Bold" />
+                <TextBlock Text="{Binding ApplicationDisplayName, Source={x:Static helper:Instances.RootViewModel}}"
+                           FontSize="28" FontWeight="Bold" TextWrapping="Wrap" />
             </StackPanel>
 
             <Border CornerRadius="8" Padding="16"

@@ -105,11 +105,17 @@ int ConfigureFrameStore(std::uint32_t width, std::uint32_t height) {
             return -2;
         }
         buffer.pixels.resize(required);
+        std::fill(buffer.pixels.begin(), buffer.pixels.end(), 0);
         buffer.width = width;
         buffer.height = height;
     }
-    g_current.store(-1, std::memory_order_release);
-    g_version.store(0, std::memory_order_release);
+    // MaaTasker requests a screenshot before every recognition, including DirectHit.
+    // A newly-created virtual display does not submit a buffer until an activity draws
+    // on it, so exposing no current frame deadlocks tasks which are meant to launch that
+    // first activity. Publish a valid black bootstrap frame; the first real display
+    // buffer atomically replaces it as soon as Android renders one.
+    g_current.store(0, std::memory_order_release);
+    g_version.store(1, std::memory_order_release);
     return 0;
 }
 

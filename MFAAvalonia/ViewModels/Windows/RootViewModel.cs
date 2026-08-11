@@ -113,15 +113,39 @@ public partial class RootViewModel : ViewModelBase
    
     [ObservableProperty] private string? _windowUpdateInfo = "";
 
-    [ObservableProperty] private string? _resourceName;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ApplicationDisplayName))]
+    private string? _resourceName;
 
-    [ObservableProperty] private bool _isResourceNameVisible;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ApplicationDisplayName))]
+    private bool _isResourceNameVisible;
 
     [ObservableProperty] private string? _resourceVersion;
 
-    [ObservableProperty] private string? _customTitle;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ApplicationDisplayName))]
+    private string? _customTitle;
 
-    [ObservableProperty] private bool _isCustomTitleVisible;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ApplicationDisplayName))]
+    private bool _isCustomTitleVisible;
+
+    public string ApplicationDisplayName
+    {
+        get
+        {
+            if (IsCustomTitleVisible && !string.IsNullOrWhiteSpace(CustomTitle))
+                return CustomTitle.Trim();
+
+            if (IsResourceNameVisible && !string.IsNullOrWhiteSpace(ResourceName))
+                return ResourceName.Trim();
+
+            return LangKeys.AppTitle.ToLocalization();
+        }
+    }
+
+    public void RefreshApplicationDisplayName() => OnPropertyChanged(nameof(ApplicationDisplayName));
 
     [ObservableProperty] private bool _lockController;
 

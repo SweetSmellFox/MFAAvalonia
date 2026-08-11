@@ -52,6 +52,7 @@ public partial class MobileHomeView : UserControl
 
     private void UpdateLanguage()
     {
+        Instances.RootViewModel.RefreshApplicationDisplayName();
         CurrentConfigurationText.Text = MobileLocalization.Get("CurrentConfiguration");
         SingleInstanceText.Text = MobileLocalization.Get("SingleActiveConfiguration");
         CurrentTaskLabel.Text = MobileLocalization.Get("CurrentTask");

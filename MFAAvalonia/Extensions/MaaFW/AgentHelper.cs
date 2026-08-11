@@ -31,6 +31,7 @@ public class AgentContext
 {
     public MaaAgentClient? Client { get; set; }
     public Process? Process { get; set; }
+    public IPlatformAgentSession? PlatformSession { get; set; }
     public CancellationTokenSource? ReadCancellationTokenSource { get; set; }
     public readonly Lock ReadLock = new();
     public SafeJobHandle? JobHandle { get; set; }
@@ -90,9 +91,25 @@ public static class AgentHelper
             {
                 lock (AgentCreateLock)
                 {
-                    var client = instanceConfig.GetValue(ConfigurationKeys.AgentTcpMode, false)
-                        ? MaaAgentClient.CreateTcp(tasker)
-                        : MaaAgentClient.Create(identifier, tasker);
+                    // Android hosts python-for-android in a separate application process.
+                    // MaaAgent's IPC transport works on AOSP but can never finish its
+                    // cross-process handshake on vendor emulators such as MuMu. TCP uses
+                    // an automatically selected loopback port and is supported natively by
+                    // MaaAgentServer, so make it the Android default without changing Desktop.
+                    var useTcp = OperatingSystem.IsAndroid()
+                                 || instanceConfig.GetValue(ConfigurationKeys.AgentTcpMode, false);
+                    // Do not register Android's continuously active controller/tasker
+                    // event sinks before the startup handshake. The virtual-display
+                    // preview emits screencap events immediately; with TCP those events
+                    // can overtake StartUpResponse and keep MaaAgentClientConnect stuck
+                    // draining ControllerEventResponse messages forever. Resource is the
+                    // only binding required by MaaAgentClient::connect(). The remaining
+                    // sinks are attached after the handshake succeeds below.
+                    var client = useTcp && OperatingSystem.IsAndroid()
+                        ? MaaAgentClient.CreateTcp(tasker.Resource)
+                        : useTcp
+                            ? MaaAgentClient.CreateTcp(tasker)
+                            : MaaAgentClient.Create(identifier, tasker);
                     _hasPreviousAgentClient = true;
                     return client;
                 }
@@ -200,7 +217,7 @@ public static class AgentHelper
             program = Path.GetFullPath(program, AppPaths.DataRoot);
 
         var rawArgs = agentConfig.ChildArgs ?? [];
-        var replacedArgs = MaaInterface.ReplacePlaceholder(rawArgs, AppPaths.DataRoot, true)
+        var platformArgs = MaaInterface.ReplacePlaceholder(rawArgs, AppPaths.DataRoot, true)
             .Select(arg =>
             {
                 if (IsPathLike(arg))
@@ -210,7 +227,27 @@ public static class AgentHelper
                 }
                 return arg;
             })
-            .Select(ConvertPath).ToList();
+            .ToList();
+
+        if (PlatformAgentFactory.Start != null)
+        {
+            return await StartPlatformAgentAsync(
+                ctx,
+                tasker,
+                program,
+                platformArgs,
+                processor,
+                token);
+        }
+
+        if (OperatingSystem.IsAndroid())
+        {
+            throw new PlatformNotSupportedException(
+                "This Android APK does not contain a platform Agent runtime. "
+                + "Build the resource APK with the python-for-android AAR enabled in workflows/install.yml.");
+        }
+
+        var replacedArgs = platformArgs.Select(ConvertPath).ToList();
 
         var executablePath = PathFinder.FindPath(program);
 
@@ -431,6 +468,83 @@ public static class AgentHelper
         return ctx;
     }
 
+    private static async Task<AgentContext?> StartPlatformAgentAsync(
+        AgentContext ctx,
+        MaaTasker tasker,
+        string program,
+        IReadOnlyList<string> arguments,
+        MaaProcessor processor,
+        CancellationToken token)
+    {
+        var client = ctx.Client
+            ?? throw new InvalidOperationException("Agent client was not created before platform startup.");
+        var launcher = PlatformAgentFactory.Start
+            ?? throw new PlatformNotSupportedException("The platform Agent launcher is unavailable.");
+
+        var request = new PlatformAgentStartRequest(
+            client.Id,
+            program,
+            arguments,
+            AppPaths.DataRoot,
+            processor.InstanceId,
+            MaaProcessorManager.Instance.GetInstanceName(processor.InstanceId) ?? string.Empty,
+            line => HandleOutputLine(line, processor, "Stdout"));
+
+        try
+        {
+            ctx.PlatformSession = launcher(request)
+                ?? throw new InvalidOperationException("The platform Agent launcher did not create a session.");
+
+            LoggerHelper.Info(
+                $"Platform Agent started: program={program}, socket_id={client.Id}, instance_id={processor.InstanceId}");
+
+            // A python-for-android service first unpacks its private Python bundle in another
+            // Android process. Keep attempting the native Agent connection while that happens.
+            const int maxAttempts = 30;
+            Exception? lastException = null;
+            for (var attempt = 1; attempt <= maxAttempts; attempt++)
+            {
+                token.ThrowIfCancellationRequested();
+                try
+                {
+                    var connected = PlatformAgentFactory.LinkStart?.Invoke(client)
+                                    ?? client.LinkStart();
+                    if (connected)
+                    {
+                        // Complete the bindings only after StartUpResponse has been
+                        // consumed. This preserves normal Agent event forwarding while
+                        // preventing Android preview events from racing the handshake.
+                        client.Tasker = tasker;
+                        client.Controller = tasker.Controller;
+                        processor.AddLog(
+                            "python-for-android Agent 已连接",
+                            (Avalonia.Media.IBrush?)null);
+                        LoggerHelper.Info("python-for-android Agent connected successfully.");
+                        return ctx;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    lastException = ex;
+                    LoggerHelper.Warning(
+                        $"Platform Agent connection attempt {attempt}/{maxAttempts} failed: {ex.Message}");
+                }
+
+                if (attempt < maxAttempts)
+                    await Task.Delay(TimeSpan.FromSeconds(1), token);
+            }
+
+            throw new InvalidOperationException(
+                lastException?.Message ?? "The platform Agent did not connect within 30 seconds.",
+                lastException);
+        }
+        catch
+        {
+            KillSingleAgent(ctx);
+            throw;
+        }
+    }
+
     private static void ApplyPiEnvironmentVariables(ProcessStartInfo startInfo, MaaProcessor processor)
     {
         SetEnvironmentVariable(startInfo, "PI_INTERFACE_VERSION", PiInterfaceVersion);
@@ -584,12 +698,14 @@ public static class AgentHelper
     {
         var agentClient = ctx.Client;
         var agentProcess = ctx.Process;
+        var platformSession = ctx.PlatformSession;
         var processExited = true;
 
         StopReadStreams(ctx);
 
         ctx.Client = null;
         ctx.Process = null;
+        ctx.PlatformSession = null;
 
         // 步骤 1: 停止 AgentClient
         if (agentClient != null)
@@ -688,6 +804,20 @@ public static class AgentHelper
             DisposeJob(ctx);
         }
 
+        if (platformSession != null)
+        {
+            try
+            {
+                platformSession.Dispose();
+                LoggerHelper.Info("Platform Agent service stopped.");
+            }
+            catch (Exception ex)
+            {
+                LoggerHelper.Warning($"Failed to stop the platform Agent service: {ex.Message}");
+                processExited = false;
+            }
+        }
+
         return processExited;
     }
 
@@ -740,6 +870,16 @@ public static class AgentHelper
         try { outData = Regex.Replace(outData, @"\x1B\[[0-9;]*[a-zA-Z]", ""); }
         catch (Exception) { }
         outData = DecodeUnicodeEscapes(outData);
+
+        // Some Agent implementations prefix MFA's severity protocol with '*'
+        // (for example "*info: message"). Accept that established form while
+        // preserving the existing desktop-compatible "info: message" syntax.
+        if (outData.StartsWith('*')
+            && outData.Length > 1
+            && MaaProcessor.CheckShouldLog(outData[1..]))
+        {
+            outData = outData[1..];
+        }
 
         DispatcherHelper.PostOnMainThread(() =>
         {

@@ -1,9 +1,6 @@
 using System;
 using System.IO;
 using System.IO.Compression;
-using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
 using Android.Content;
 
 namespace MFAAvalonia.Android;
@@ -11,33 +8,32 @@ namespace MFAAvalonia.Android;
 internal static class AndroidAssetBootstrap
 {
     private const string AssetRoot = "MfaPackage";
+    private const string PackageAssetName = "package.zip";
+    private const string PackageFingerprintAssetName = "package.sha256";
     private const string PackageMarker = ".mfa-package.sha256";
 
     public static void EnsureExtracted(Context context)
     {
         try
         {
+            // 中文：官方空壳 APK 默认没有 MfaPackage 载荷，此时直接跳过，不创建文件也不记录异常。
+            // English: The official shell APK has no MfaPackage payload by default; skip without creating files or logging an error.
+            if (!HasEmbeddedPackage(context))
+                return;
+
             var targetRoot = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             var marker = Path.Combine(targetRoot, PackageMarker);
             var packageFingerprint = ComputePackageFingerprint(context);
-            if (File.Exists(Path.Combine(targetRoot, "interface.json"))
+            if ((File.Exists(Path.Combine(targetRoot, "interface.json"))
+                 || File.Exists(Path.Combine(targetRoot, "interface.jsonc")))
                 && File.Exists(marker)
                 && string.Equals(File.ReadAllText(marker).Trim(), packageFingerprint, StringComparison.OrdinalIgnoreCase))
             {
                 return;
             }
 
-            CopyDirectory(context, AssetRoot, targetRoot);
-            var archivePath = Path.Combine(targetRoot, "resource.zip");
-            if (File.Exists(archivePath))
-            {
-                var resourceRoot = Path.Combine(targetRoot, "resource");
-                if (Directory.Exists(resourceRoot))
-                    Directory.Delete(resourceRoot, recursive: true);
-                Directory.CreateDirectory(resourceRoot);
-                ZipFile.ExtractToDirectory(archivePath, resourceRoot, overwriteFiles: true);
-                File.Delete(archivePath);
-            }
+            using var packageStream = OpenAsset(context, PackageAssetName);
+            ExtractPackage(packageStream, targetRoot);
             File.WriteAllText(marker, packageFingerprint);
         }
         catch (Exception ex)
@@ -46,39 +42,64 @@ internal static class AndroidAssetBootstrap
         }
     }
 
-    private static string ComputePackageFingerprint(Context context)
+    private static bool HasEmbeddedPackage(Context context)
     {
-        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         var assets = context.Assets ?? throw new InvalidOperationException("Android AssetManager is unavailable.");
         var assetNames = assets.List(AssetRoot) ?? [];
+        var hasArchive = Array.Exists(assetNames, name => string.Equals(name, PackageAssetName, StringComparison.Ordinal));
+        var hasFingerprint = Array.Exists(assetNames, name => string.Equals(name, PackageFingerprintAssetName, StringComparison.Ordinal));
 
-        foreach (var assetName in assetNames.OrderBy(name => name, StringComparer.Ordinal))
-        {
-            hash.AppendData(Encoding.UTF8.GetBytes(assetName));
-            using var stream = assets.Open($"{AssetRoot}/{assetName}");
-            var buffer = new byte[81920];
-            int bytesRead;
-            while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
-                hash.AppendData(buffer, 0, bytesRead);
-        }
+        if (!hasArchive && !hasFingerprint)
+            return false;
 
-        return Convert.ToHexString(hash.GetHashAndReset());
+        // 中文：只出现其中一个文件说明 APK 打包不完整，不能静默使用损坏的载荷。
+        // English: If only one file exists, APK packaging is incomplete and the corrupt payload must not be used silently.
+        if (!hasArchive || !hasFingerprint)
+            throw new InvalidDataException("The embedded Android resource package is incomplete.");
+
+        return true;
     }
 
-    private static void CopyDirectory(Context context, string assetPath, string targetPath)
+    private static string ComputePackageFingerprint(Context context)
     {
-        var children = context.Assets?.List(assetPath) ?? [];
-        if (children.Length == 0)
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
-            using var source = context.Assets!.Open(assetPath);
-            using var target = File.Create(targetPath);
-            source.CopyTo(target);
-            return;
-        }
+        using var stream = OpenAsset(context, PackageFingerprintAssetName);
+        using var reader = new StreamReader(stream);
+        var fingerprint = reader.ReadToEnd().Trim();
+        if (fingerprint.Length == 0)
+            throw new InvalidDataException("The Android package fingerprint is empty.");
 
-        Directory.CreateDirectory(targetPath);
-        foreach (var child in children)
-            CopyDirectory(context, $"{assetPath}/{child}", Path.Combine(targetPath, child));
+        return fingerprint;
+    }
+
+    private static void ExtractPackage(Stream packageStream, string targetRoot)
+    {
+        var normalizedRoot = Path.GetFullPath(targetRoot)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            + Path.DirectorySeparatorChar;
+
+        using var archive = new ZipArchive(packageStream, ZipArchiveMode.Read, leaveOpen: false);
+        foreach (var entry in archive.Entries)
+        {
+            var destinationPath = Path.GetFullPath(Path.Combine(targetRoot, entry.FullName));
+            if (!destinationPath.StartsWith(normalizedRoot, StringComparison.Ordinal))
+                throw new InvalidDataException($"Package entry escapes the application directory: {entry.FullName}");
+
+            if (string.IsNullOrEmpty(entry.Name))
+            {
+                Directory.CreateDirectory(destinationPath);
+                continue;
+            }
+
+            Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
+            using var source = entry.Open();
+            using var target = File.Create(destinationPath);
+            source.CopyTo(target);
+        }
+    }
+
+    private static Stream OpenAsset(Context context, string assetName)
+    {
+        var assets = context.Assets ?? throw new InvalidOperationException("Android AssetManager is unavailable.");
+        return assets.Open($"{AssetRoot}/{assetName}");
     }
 }

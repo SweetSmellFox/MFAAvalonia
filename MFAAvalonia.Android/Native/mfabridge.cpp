@@ -5,6 +5,10 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <cstring>
+#include <dlfcn.h>
+#include <exception>
+#include <signal.h>
+#include <thread>
 
 #include "frame_store.h"
 
@@ -29,6 +33,17 @@ union ArgUnion {
 struct MethodParam { int display_id; int method; ArgUnion args; };
 
 std::atomic<std::uint16_t> g_input_port { 0 };
+
+using MaaAgentClientConnectFunction = std::uint8_t (*)(void*);
+
+MaaAgentClientConnectFunction resolve_agent_client_connect() {
+    auto* symbol = dlsym(RTLD_DEFAULT, "MaaAgentClientConnect");
+    if (!symbol) {
+        auto* library = dlopen("libMaaAgentClient.so", RTLD_NOW | RTLD_LOCAL);
+        if (library) symbol = dlsym(library, "MaaAgentClientConnect");
+    }
+    return reinterpret_cast<MaaAgentClientConnectFunction>(symbol);
+}
 
 bool send_all(int socket_fd, const void* data, std::size_t size) {
     const auto* bytes = static_cast<const std::uint8_t*>(data);
@@ -94,6 +109,48 @@ MFA_EXPORT int MfaBridgeSetInputPort(std::uint32_t port) {
     g_input_port.store(static_cast<std::uint16_t>(port), std::memory_order_relaxed);
     __android_log_print(ANDROID_LOG_INFO, kTag, "input port configured: %u", port);
     return 0;
+}
+
+MFA_EXPORT int MfaBridgeSafeAgentClientConnect(void* client) {
+    if (!client) return -1;
+    const auto connect = resolve_agent_client_connect();
+    if (!connect) {
+        __android_log_print(ANDROID_LOG_ERROR, kTag,
+                            "MaaAgentClientConnect symbol is unavailable: %s", dlerror());
+        return -2;
+    }
+
+    // MaaAgentClient's public C entry point currently lets a zmq::error_t escape when
+    // vendor kernels return EINTR from poll(). MuMu regularly delivers runtime signals
+    // to .NET worker threads while this blocking call is active. Run the call on a native
+    // thread which is not managed by .NET and block asynchronous signals there. Fatal
+    // synchronous signals remain unblocked so genuine native faults are still reported.
+    int result = 0;
+    std::thread worker([&] {
+        sigset_t blocked{};
+        sigfillset(&blocked);
+        sigdelset(&blocked, SIGABRT);
+        sigdelset(&blocked, SIGBUS);
+        sigdelset(&blocked, SIGFPE);
+        sigdelset(&blocked, SIGILL);
+        sigdelset(&blocked, SIGSEGV);
+        sigdelset(&blocked, SIGTRAP);
+        pthread_sigmask(SIG_SETMASK, &blocked, nullptr);
+
+        try {
+            result = connect(client) ? 1 : 0;
+        } catch (const std::exception& error) {
+            __android_log_print(ANDROID_LOG_WARN, kTag,
+                                "MaaAgentClientConnect threw: %s", error.what());
+            result = -3;
+        } catch (...) {
+            __android_log_print(ANDROID_LOG_WARN, kTag,
+                                "MaaAgentClientConnect threw an unknown native exception");
+            result = -4;
+        }
+    });
+    worker.join();
+    return result;
 }
 
 MFA_EXPORT int MfaBridgeUpdateFrame(const std::uint8_t* data, std::uint32_t width,
