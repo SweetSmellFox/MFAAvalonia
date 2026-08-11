@@ -632,7 +632,9 @@ public static class TelemetryService
             var failedNode = string.IsNullOrWhiteSpace(hitNode) ? fallbackNode : hitNode;
             if (string.IsNullOrWhiteSpace(failedNode) || run.ActiveTask == null
                 || !run.Tasks.TryGetValue(run.ActiveTask, out var taskSpan)) return;
-            var stage = message.Contains(".Recognition.", StringComparison.Ordinal) ? "recognition"
+            var stage = message.Equals("Node.PipelineNode.Failed", StringComparison.Ordinal)
+                ? string.IsNullOrWhiteSpace(hitNode) ? "recognition" : "action"
+                : message.Contains(".Recognition.", StringComparison.Ordinal) ? "recognition"
                 : message.Contains(".Action.", StringComparison.Ordinal) ? "action"
                 : "pipeline";
             var duration = run.LastPipelineSteps.Remove(taskId.Value, out var step)
