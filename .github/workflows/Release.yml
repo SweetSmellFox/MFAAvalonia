@@ -242,15 +242,21 @@ jobs:
             echo "[ERR] Signed Android APK was not generated in $publish_dir"
             exit 1
           fi
-          if unzip -l "$apk_path" | grep -q 'assets/MfaPackage/'; then
+
+          # Do not pipe unzip directly into grep -q while the runner enables pipefail.
+          # grep exits after the first match, which can give unzip SIGPIPE and turn a
+          # successful presence check into a false failure.
+          apk_entries="$RUNNER_TEMP/mfa-android-shell-${{ matrix.arch }}-entries.txt"
+          unzip -Z1 "$apk_path" > "$apk_entries"
+          if grep -q '^assets/MfaPackage/' "$apk_entries"; then
             echo "[ERR] Official Android shell unexpectedly contains an interface/resource payload"
             exit 1
           fi
-          if unzip -l "$apk_path" | grep -Eq 'lib/[^/]+/libpython3\.[0-9]+\.so'; then
+          if grep -Eq '^lib/[^/]+/libpython3\.[0-9]+\.so$' "$apk_entries"; then
             echo "[ERR] Official Android shell unexpectedly contains a Python runtime"
             exit 1
           fi
-          if ! unzip -l "$apk_path" | grep -q "lib/${{ matrix.abi }}/libMaaFramework.so"; then
+          if ! grep -Fxq "lib/${{ matrix.abi }}/libMaaFramework.so" "$apk_entries"; then
             echo "[ERR] APK does not contain MaaFramework for ${{ matrix.abi }}"
             exit 1
           fi

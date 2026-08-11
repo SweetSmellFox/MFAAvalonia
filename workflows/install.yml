@@ -346,7 +346,9 @@ jobs:
             echo "[ERR] python-for-android did not generate an AAR"
             exit 1
           fi
-          if ! unzip -l "$aar_path" | grep -Eq "jni/${{ matrix.abi }}/libpython3\.[0-9]+\.so"; then
+          aar_entries="$RUNNER_TEMP/mfa-python-aar-${{ matrix.arch }}-entries.txt"
+          unzip -Z1 "$aar_path" > "$aar_entries"
+          if ! grep -Eq "^jni/${{ matrix.abi }}/libpython3\.[0-9]+\.so$" "$aar_entries"; then
             echo "[ERR] AAR does not contain CPython for ${{ matrix.abi }}"
             exit 1
           fi
@@ -405,15 +407,20 @@ jobs:
             echo "[ERR] Signed Android APK was not generated in $publish_dir"
             exit 1
           fi
-          if ! unzip -l "$apk_path" | grep -q 'assets/MfaPackage/package.zip'; then
+
+          # Avoid `unzip | grep -q` under GitHub's `bash -o pipefail`: grep may
+          # close the pipe after a match and make unzip report SIGPIPE (141).
+          apk_entries="$RUNNER_TEMP/mfa-resource-apk-${{ matrix.arch }}-entries.txt"
+          unzip -Z1 "$apk_path" > "$apk_entries"
+          if ! grep -Fxq 'assets/MfaPackage/package.zip' "$apk_entries"; then
             echo "[ERR] APK does not contain the resource payload"
             exit 1
           fi
-          if ! unzip -l "$apk_path" | grep -q "lib/${{ matrix.abi }}/libMaaFramework.so"; then
+          if ! grep -Fxq "lib/${{ matrix.abi }}/libMaaFramework.so" "$apk_entries"; then
             echo "[ERR] APK does not contain MaaFramework for ${{ matrix.abi }}"
             exit 1
           fi
-          if [[ -n "$PYTHON_AAR" ]] && ! unzip -l "$apk_path" | grep -Eq "lib/${{ matrix.abi }}/libpython3\.[0-9]+\.so"; then
+          if [[ -n "$PYTHON_AAR" ]] && ! grep -Eq "^lib/${{ matrix.abi }}/libpython3\.[0-9]+\.so$" "$apk_entries"; then
             echo "[ERR] APK does not contain the requested python-for-android runtime"
             exit 1
           fi
