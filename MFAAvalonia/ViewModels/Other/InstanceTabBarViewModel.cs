@@ -33,6 +33,7 @@ public partial class InstanceTabBarViewModel : ViewModelBase
     public bool ShowRecentClosedSection => HasRecentClosedItems && IsRecentClosedExpanded;
 
     private bool _isReloading;
+    private readonly HashSet<string> _closingInstanceIds = new(StringComparer.Ordinal);
 
     [ObservableProperty] private InstanceTabViewModel? _activeTab;
     [ObservableProperty] private bool _isDropdownOpen;
@@ -613,56 +614,75 @@ public partial class InstanceTabBarViewModel : ViewModelBase
         if (tab == null) return;
         using var _ = BeginInstanceLogScope("CloseInstance", tab.InstanceId, tab.Name);
 
-        if (Tabs.Count <= 1)
-        {
-            ToastHelper.Info(LangKeys.InstanceCannotCloseLast.ToLocalization());
-            LoggerHelper.Warning("关闭实例被拒绝，因为这是最后一个实例");
+        if (!_closingInstanceIds.Add(tab.InstanceId))
             return;
-        }
 
-        if (tab.IsRunning)
+        try
         {
-            var result = await SukiMessageBox.ShowDialog(new SukiMessageBoxHost
+            if (Tabs.Count <= 1 || !Tabs.Contains(tab))
             {
-                Content = LangKeys.InstanceRunningCloseConfirm.ToLocalization(),
-                ActionButtonsPreset = SukiMessageBoxButtons.YesNo,
-                IconPreset = SukiMessageBoxIcons.Warning
-            }, new SukiMessageBoxOptions
-            {
-                Title = LangKeys.InstanceCloseTitle.ToLocalization()
-            });
-
-            if (!result.Equals(SukiMessageBoxResult.Yes)) return;
-
-            tab.Processor.Stop(MFATask.MFATaskStatus.STOPPED);
-        }
-
-        // 检查定时任务是否使用了该实例，若有则重新分配
-        ReassignTimersFromInstance(tab.InstanceId, tab.Name);
-
-        var configPath = tab.Processor.InstanceConfiguration.GetConfigFilePath();
-        var configContent = File.Exists(configPath) ? File.ReadAllText(configPath) : string.Empty;
-        var recentClosedItem = RecentClosedInstanceItem.FromTab(tab, configContent);
-
-        if (MaaProcessorManager.Instance.RemoveInstance(tab.InstanceId))
-        {
-            LoggerHelper.UserAction(
-                "关闭实例",
-                $"closed={tab.Name} ({tab.InstanceId})",
-                operation: "CloseInstance",
-                instanceId: tab.InstanceId,
-                instanceName: tab.Name);
-            RecentClosedTabs.Remove(RecentClosedTabs.FirstOrDefault(item => item.InstanceId == tab.InstanceId));
-            RecentClosedTabs.Insert(0, recentClosedItem);
-            while (RecentClosedTabs.Count > 12)
-            {
-                RecentClosedTabs.RemoveAt(RecentClosedTabs.Count - 1);
+                if (Tabs.Count <= 1)
+                {
+                    ToastHelper.Info(LangKeys.InstanceCannotCloseLast.ToLocalization());
+                    LoggerHelper.Warning("关闭实例被拒绝，因为这是最后一个实例");
+                }
+                return;
             }
 
-            Tabs.Remove(tab);
-            RefreshFilteredTabs();
-            RefreshFilteredRecentClosedTabs();
-            EnsureValidActiveTab();
+            if (tab.IsRunning)
+            {
+                var result = await SukiMessageBox.ShowDialog(new SukiMessageBoxHost
+                {
+                    Content = LangKeys.InstanceRunningCloseConfirm.ToLocalization(),
+                    ActionButtonsPreset = SukiMessageBoxButtons.YesNo,
+                    IconPreset = SukiMessageBoxIcons.Warning
+                }, new SukiMessageBoxOptions
+                {
+                    Title = LangKeys.InstanceCloseTitle.ToLocalization()
+                });
+
+                if (!result.Equals(SukiMessageBoxResult.Yes)) return;
+
+                // Another close/reload can complete while the confirmation is open.
+                if (!Tabs.Contains(tab) || Tabs.Count <= 1)
+                    return;
+
+                tab.Processor.Stop(MFATask.MFATaskStatus.STOPPED);
+            }
+
+            // 检查定时任务是否使用了该实例，若有则重新分配
+            ReassignTimersFromInstance(tab.InstanceId, tab.Name);
+
+            var configPath = tab.Processor.InstanceConfiguration.GetConfigFilePath();
+            var configContent = File.Exists(configPath) ? File.ReadAllText(configPath) : string.Empty;
+            var recentClosedItem = RecentClosedInstanceItem.FromTab(tab, configContent);
+
+            if (MaaProcessorManager.Instance.RemoveInstance(tab.InstanceId))
+            {
+                LoggerHelper.UserAction(
+                    "关闭实例",
+                    $"closed={tab.Name} ({tab.InstanceId})",
+                    operation: "CloseInstance",
+                    instanceId: tab.InstanceId,
+                    instanceName: tab.Name);
+                var previousRecentItem = RecentClosedTabs.FirstOrDefault(item => item.InstanceId == tab.InstanceId);
+                if (previousRecentItem != null)
+                    RecentClosedTabs.Remove(previousRecentItem);
+                RecentClosedTabs.Insert(0, recentClosedItem);
+                while (RecentClosedTabs.Count > 12)
+                {
+                    RecentClosedTabs.RemoveAt(RecentClosedTabs.Count - 1);
+                }
+
+                Tabs.Remove(tab);
+                RefreshFilteredTabs();
+                RefreshFilteredRecentClosedTabs();
+                EnsureValidActiveTab();
+            }
+        }
+        finally
+        {
+            _closingInstanceIds.Remove(tab.InstanceId);
         }
     }
 

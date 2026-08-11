@@ -349,6 +349,17 @@ public partial class RootView : SukiWindow
         if (!Instances.RootViewModel.IsRunning)
             return true;
 
+        // SukiMessageBox uses the desktop main window as its owner. A tray exit can
+        // arrive while that window is hidden, which Avalonia rejects as a dialog owner.
+        if (!IsVisible)
+        {
+            Show();
+            Instances.RootViewModel.IsWindowVisible = true;
+        }
+        if (WindowState == WindowState.Minimized)
+            WindowState = WindowState.Normal;
+        Activate();
+
         var result = await SukiMessageBox.ShowDialog(new SukiMessageBoxHost
         {
             Content = LangKeys.ConfirmExitText.ToLocalization(),
@@ -925,7 +936,6 @@ public partial class RootView : SukiWindow
     private async Task PlayAlreadyActiveAttentionAnimationAsync()
     {
         _attentionAnimationCancellation?.Cancel();
-        _attentionAnimationCancellation?.Dispose();
         var cancellation = new CancellationTokenSource();
         _attentionAnimationCancellation = cancellation;
 

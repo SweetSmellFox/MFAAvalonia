@@ -675,11 +675,17 @@ public static class AgentHelper
     public static bool KillAllAgents(List<AgentContext> contexts, MaaTasker? taskerToDispose = null)
     {
         var allProcessesExited = true;
-        foreach (var ctx in contexts)
+        AgentContext[] contextsToStop;
+        lock (contexts)
+        {
+            contextsToStop = contexts.ToArray();
+            contexts.Clear();
+        }
+
+        foreach (var ctx in contextsToStop)
         {
             allProcessesExited &= KillSingleAgent(ctx, taskerToDispose);
         }
-        contexts.Clear();
         _hasPreviousAgentClient = false;
 
         // 只在最后处理一次 tasker
