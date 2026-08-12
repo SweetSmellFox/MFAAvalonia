@@ -689,6 +689,8 @@ P4A AAR 只有解释器和 requirements，没有找到 MaaFramework Python bindi
 
 确保 `agent/main.py` 在 import `maa` 前将 Android 提供的 `MAA_LIBRARY_DIR` 映射到 `MAAFW_BINARY_PATH`，并确认 APK 验证或文件列表中存在当前 ABI 的 `libMaaAgentServer.so`。
 
+如果日志是 `KeyError: 'android'`，说明使用的 MaaFramework Python binding 只登记了 Windows、macOS 和 Linux 平台名。MFA 的 `mfa_android_agent.py` 适配层会在导入 binding 时把 Android 映射到同名的 `lib*.so`，资源 Agent 无需修改或伪装 `platform.system()`。请将 `MFA_ANDROID_MFA_REF` 更新到包含该适配的 MFA 版本；仅更新资源仓库的 `agent/main.py` 不是推荐修复。
+
 ### 12.7 P4A 构建依赖失败
 
 先定位失败的具体 requirement。常见原因是只有桌面 wheel、没有源码包、缺少 recipe，或 recipe 不支持当前 NDK。不要反复无差别重跑完整 APK；先把 matrix 临时缩减到一个 ABI，解决该依赖的 P4A 构建，再恢复 ARM64 和 x64。

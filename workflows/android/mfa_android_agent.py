@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 import runpy
 import sys
 import threading
@@ -125,6 +126,32 @@ def _install_output_bridge(config: dict[str, Any]) -> None:
     os.environ["MFA_ANDROID_OUTPUT_BRIDGED"] = "1"
 
 
+def _preload_maa_agent_binding() -> None:
+    """Load Maa's Agent binding with Android mapped to its Linux-style .so names.
+
+    MaaFramework's Python package up to 5.12.3 indexes its native-library table with
+    ``platform.system().lower()`` but only defines windows/darwin/linux entries.  CPython
+    built by python-for-android reports ``Android``, so importing ``maa`` otherwise fails
+    with ``KeyError: 'android'`` before AgentServer can connect.
+
+    Android MaaFramework artifacts use the same ``lib*.so`` names as Linux.  Limit the
+    compatibility alias to the binding import so resource Agent code can still correctly
+    detect Android afterwards.
+    """
+
+    if platform.system().lower() != "android":
+        return
+
+    original_system = platform.system
+    platform.system = lambda: "Linux"
+    try:
+        # Importing the Agent module initializes Library in agent_server mode and caches
+        # Maa's ctypes declarations before the resource entrypoint imports them again.
+        from maa.agent.agent_server import AgentServer  # noqa: F401
+    finally:
+        platform.system = original_system
+
+
 def main() -> None:
     config = _service_argument()
     _install_output_bridge(config)
@@ -147,6 +174,8 @@ def main() -> None:
             if not old_library_path
             else native_library_dir + os.pathsep + old_library_path
         )
+
+    _preload_maa_agent_binding()
 
     os.environ["MFA_INSTANCE_ID"] = str(config.get("instance_id") or "")
     os.environ["MFA_INSTANCE_NAME"] = str(config.get("instance_name") or "")
