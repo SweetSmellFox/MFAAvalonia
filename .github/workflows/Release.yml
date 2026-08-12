@@ -256,6 +256,10 @@ jobs:
             echo "[ERR] Official Android shell unexpectedly contains a Python runtime"
             exit 1
           fi
+          if ! grep -Fxq 'assets/MfaDependencies/shizuku.apk' "$apk_entries"; then
+            echo "[ERR] Official Android shell does not contain the bundled Shizuku installer"
+            exit 1
+          fi
           if ! grep -Fxq "lib/${{ matrix.abi }}/libMaaFramework.so" "$apk_entries"; then
             echo "[ERR] APK does not contain MaaFramework for ${{ matrix.abi }}"
             echo "[DBG] Native APK entries:"

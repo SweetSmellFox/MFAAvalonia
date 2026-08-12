@@ -17,6 +17,7 @@
 #   MFA_ANDROID_PYTHON_ENTRYPOINT=agent/main.py
 #   MFA_ANDROID_P4A_LOCAL_RECIPES=p4a-recipes
 #   MFA_ANDROID_LAUNCHER_ICON=android/icon.png
+#   MFA_ANDROID_APPLICATION_ID=io.github.example.maaxxx
 #
 # 中文：不使用 Python Agent 时，可注释掉下方标记为“Python runtime block”的三个步骤；随后
 # python_runtime 的输出为空，dotnet publish 不会合入 AAR。requirements 必须能被 p4a 编译；仅提供
@@ -247,11 +248,35 @@ jobs:
         env:
           LAUNCHER_LABEL_INPUT: ${{ vars.MFA_ANDROID_LAUNCHER_LABEL || '' }}
           LAUNCHER_ICON_INPUT: ${{ vars.MFA_ANDROID_LAUNCHER_ICON || '' }}
+          APPLICATION_ID_INPUT: ${{ vars.MFA_ANDROID_APPLICATION_ID || '' }}
         run: |
           repository_name="${GITHUB_REPOSITORY##*/}"
+          repository_owner="${GITHUB_REPOSITORY%%/*}"
           launcher_label="$LAUNCHER_LABEL_INPUT"
           if [[ -z "$launcher_label" ]]; then
             launcher_label="$repository_name"
+          fi
+
+          normalize_application_id_segment() {
+            local segment
+            segment=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9_]+/_/g; s/^_+|_+$//g')
+            if [[ -z "$segment" ]]; then
+              segment="app"
+            elif [[ ! "$segment" =~ ^[a-z_] ]]; then
+              segment="app_$segment"
+            fi
+            printf '%s' "$segment"
+          }
+
+          application_id="$APPLICATION_ID_INPUT"
+          if [[ -z "$application_id" ]]; then
+            owner_segment=$(normalize_application_id_segment "$repository_owner")
+            repository_segment=$(normalize_application_id_segment "$repository_name")
+            application_id="io.github.$owner_segment.$repository_segment"
+          fi
+          if [[ ! "$application_id" =~ ^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)+$ ]]; then
+            echo "[ERR] MFA_ANDROID_APPLICATION_ID is not a valid Android application ID: $application_id"
+            exit 1
           fi
 
           launcher_icon=""
@@ -281,6 +306,8 @@ jobs:
           safe_repository_name=$(printf '%s' "$repository_name" | tr -cs 'A-Za-z0-9._-' '-')
           echo "launcher_label=$launcher_label" >> "$GITHUB_OUTPUT"
           echo "launcher_icon=$launcher_icon" >> "$GITHUB_OUTPUT"
+          echo "application_id=$application_id" >> "$GITHUB_OUTPUT"
+          echo "[INF] Android application ID: $application_id"
           echo "output_name=${safe_repository_name}-${{ needs.meta.outputs.tag }}-android-${{ matrix.arch }}.apk" >> "$GITHUB_OUTPUT"
           echo "artifact_name=${safe_repository_name}-android-${{ matrix.arch }}" >> "$GITHUB_OUTPUT"
 
@@ -410,6 +437,7 @@ jobs:
           PAYLOAD_ROOT: ${{ steps.payload.outputs.root }}
           LAUNCHER_LABEL: ${{ steps.metadata.outputs.launcher_label }}
           LAUNCHER_ICON: ${{ steps.metadata.outputs.launcher_icon }}
+          APPLICATION_ID: ${{ steps.metadata.outputs.application_id }}
           PYTHON_AAR: ${{ steps.python_runtime.outputs.aar }}
         working-directory: mfa-source
         run: |
@@ -425,6 +453,7 @@ jobs:
             --no-restore \
             -p:AndroidSdkDirectory="$ANDROID_HOME" \
             -p:AndroidEmbedResourcePackage=true \
+            "-p:ApplicationId=$APPLICATION_ID" \
             "-p:AndroidResourcePackageSource=$PAYLOAD_ROOT" \
             "-p:AndroidLauncherLabel=$LAUNCHER_LABEL" \
             "-p:AndroidPythonRuntimeAar=$PYTHON_AAR" \
@@ -436,6 +465,7 @@ jobs:
         shell: bash
         env:
           OUTPUT_NAME: ${{ steps.metadata.outputs.output_name }}
+          EXPECTED_APPLICATION_ID: ${{ steps.metadata.outputs.application_id }}
           PYTHON_AAR: ${{ steps.python_runtime.outputs.aar }}
         run: |
           publish_dir="mfa-source/MFAAvalonia.Android/bin/Release/net10.0-android/${{ matrix.rid }}/publish"
@@ -449,6 +479,13 @@ jobs:
           # close the pipe after a match and make unzip report SIGPIPE (141).
           apk_entries="$RUNNER_TEMP/mfa-resource-apk-${{ matrix.arch }}-entries.txt"
           unzip -Z1 "$apk_path" > "$apk_entries"
+          apk_badging="$RUNNER_TEMP/mfa-resource-apk-${{ matrix.arch }}-badging.txt"
+          "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "$apk_path" > "$apk_badging"
+          actual_application_id=$(sed -n "s/^package: name='\([^']*\)'.*/\1/p" "$apk_badging")
+          if [[ "$actual_application_id" != "$EXPECTED_APPLICATION_ID" ]]; then
+            echo "[ERR] APK application ID mismatch: expected=$EXPECTED_APPLICATION_ID actual=$actual_application_id"
+            exit 1
+          fi
           if ! grep -Fxq 'assets/MfaPackage/package.zip' "$apk_entries"; then
             echo "[ERR] APK does not contain the resource payload"
             exit 1
@@ -457,6 +494,10 @@ jobs:
             echo "[ERR] APK does not contain MaaFramework for ${{ matrix.abi }}"
             echo "[DBG] Native APK entries:"
             grep -E '^lib/[^/]+/(libMaa|libmfabridge|libonnxruntime|libopencv)' "$apk_entries" || true
+            exit 1
+          fi
+          if ! grep -Fxq 'assets/MfaDependencies/shizuku.apk' "$apk_entries"; then
+            echo "[ERR] APK does not contain the verified Shizuku installer"
             exit 1
           fi
           if [[ -n "$PYTHON_AAR" ]] && ! grep -Eq "^lib/${{ matrix.abi }}/libpython3\.[0-9]+\.so$" "$apk_entries"; then

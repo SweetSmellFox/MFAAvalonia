@@ -26,6 +26,7 @@ public class MainActivity : AvaloniaMainActivity<App>
     private AndroidNativeControllerProvider? _controllerProvider;
     private AndroidPythonAgentProvider? _pythonAgentProvider;
     private ShizukuConnectionManager? _shizuku;
+    private ShizukuInstallationPrompt? _shizukuInstallationPrompt;
     private RootViewModel? _rootViewModel;
 
     protected override void OnCreate(Bundle? savedInstanceState)
@@ -34,6 +35,7 @@ public class MainActivity : AvaloniaMainActivity<App>
         ConfigureMaaLogging();
         _shizuku = new ShizukuConnectionManager(this);
         _shizuku.Start();
+        _shizukuInstallationPrompt = new ShizukuInstallationPrompt(this);
         _virtualDisplayBackend = new AndroidVirtualDisplayBackend(this);
         _controllerProvider = new AndroidNativeControllerProvider(this, _shizuku, _virtualDisplayBackend);
         PlatformControllerFactory.Create = _controllerProvider.Create;
@@ -49,6 +51,12 @@ public class MainActivity : AvaloniaMainActivity<App>
         PlatformApplicationRestart.RestartAsync = RestartAfterResourceUpdateAsync;
         base.OnCreate(savedInstanceState);
         BindApplicationTitle();
+    }
+
+    protected override void OnPostResume()
+    {
+        base.OnPostResume();
+        _shizukuInstallationPrompt?.ShowIfNotInstalled();
     }
 
     private void BindApplicationTitle()
@@ -152,6 +160,8 @@ public class MainActivity : AvaloniaMainActivity<App>
         _pythonAgentProvider = null;
         _shizuku?.Dispose();
         _shizuku = null;
+        _shizukuInstallationPrompt?.Dispose();
+        _shizukuInstallationPrompt = null;
         if (ReferenceEquals(MobileVirtualDisplay.Backend, _virtualDisplayBackend))
             MobileVirtualDisplay.Backend = null;
         MobileVirtualDisplay.PreviewControlFactory = null;

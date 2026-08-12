@@ -1,12 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" android:installLocation="auto">
   <uses-permission android:name="android.permission.INTERNET" />
+  <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+  <!-- Android 11+ package visibility: required to distinguish an installed Shizuku Manager from a missing one. -->
+  <queries>
+    <package android:name="moe.shizuku.privileged.api" />
+  </queries>
   <application android:label="${applicationLabel}" android:icon="@drawable/Icon">
     <provider
       android:name="rikka.shizuku.ShizukuProvider"
-      android:authorities="com.fox.MFAAvalonia.shizuku"
+      android:authorities="${shizukuAuthority}"
       android:enabled="true"
       android:exported="true"
       android:multiprocess="false" />
+    <provider
+      android:name="androidx.core.content.FileProvider"
+      android:authorities="${fileProviderAuthority}"
+      android:exported="false"
+      android:grantUriPermissions="true">
+      <meta-data
+        android:name="android.support.FILE_PROVIDER_PATHS"
+        android:resource="@xml/provider_paths" />
+    </provider>
   </application>
 </manifest>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="shizuku_not_installed_title">未检测到 Shizuku</string>
+  <string name="shizuku_not_installed_message">MFA Android 依赖 Shizuku 服务运行，但设备上未安装 Shizuku。请安装并按指引启动服务。</string>
+  <string name="shizuku_install_bundled">快捷安装 Shizuku</string>
+  <string name="shizuku_open_official_download">前往官方下载</string>
+  <string name="shizuku_later">跳过检查（不推荐）</string>
+  <string name="shizuku_warning_icon_description">警告</string>
+</resources>

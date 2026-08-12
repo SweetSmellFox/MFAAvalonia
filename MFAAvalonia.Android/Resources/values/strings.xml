@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="shizuku_not_installed_title">Shizuku not found</string>
+  <string name="shizuku_not_installed_message">MFA Android requires the Shizuku service, but Shizuku is not installed. Install it and follow its instructions to start the service.</string>
+  <string name="shizuku_install_bundled">Quick install Shizuku</string>
+  <string name="shizuku_open_official_download">Open official download</string>
+  <string name="shizuku_later">Skip check (not recommended)</string>
+  <string name="shizuku_warning_icon_description">Warning</string>
+</resources>

@@ -281,6 +281,7 @@ Settings → Secrets and variables → Actions → Variables → New repository 
 | `MFA_ANDROID_RESOURCE_ROOT` | `.` | 统一目录项目的资源包根，相对于资源仓库根目录 |
 | `MFA_ANDROID_LAUNCHER_LABEL` | GitHub 仓库名 | Android Launcher 图标下显示的名称 |
 | `MFA_ANDROID_LAUNCHER_ICON` | 空（使用 MFA 默认图标） | Android Launcher PNG 图标，相对于资源仓库根目录 |
+| `MFA_ANDROID_APPLICATION_ID` | 根据 `owner/repository` 生成 | 资源项目独立且稳定的 Android 包名，例如 `io.github.example.maaxxx` |
 | `MFA_ANDROID_PYTHON_REQUIREMENTS` | `python3` | 传给 P4A 的逗号分隔 requirements，不会自动读取 `requirements.txt` |
 | `MFA_ANDROID_PYTHON_ENTRYPOINT` | 空 | 强制指定 payload 内的 Python Agent 入口；为空时从 interface 推断 |
 | `MFA_ANDROID_P4A_LOCAL_RECIPES` | 空 | P4A local recipes 目录，相对于资源仓库根目录 |
@@ -293,6 +294,7 @@ Settings → Secrets and variables → Actions → Variables → New repository 
 ```text
 MFA_ANDROID_LAUNCHER_LABEL=MaaXXX
 MFA_ANDROID_LAUNCHER_ICON=android/icon.png
+MFA_ANDROID_APPLICATION_ID=io.github.example.maaxxx
 MFA_ANDROID_PYTHON_REQUIREMENTS=python3,numpy,strenum
 MFA_ANDROID_PYTHON_ENTRYPOINT=agent/main.py
 ```
@@ -307,6 +309,8 @@ MFA_ANDROID_MFA_REF=<包含修复的分支或 commit SHA>
 本地工作区里的未提交修改不会被 GitHub Runner 看见。`MFA_ANDROID_MFA_REF` 最好在验证后固定到 Tag 或 commit SHA；长期跟随 `main` 虽然方便，但会降低构建可复现性。
 
 Launcher 图标必须是资源仓库内的 PNG 文件。Android 资源编译器不能直接使用桌面项目常见的 `logo.ico`；这类项目可以保留原有 ICO，同时另行导出一份带透明背景的方形 PNG，例如 `android/icon.png`，再通过 `MFA_ANDROID_LAUNCHER_ICON` 指定。该文件只参与 APK 构建，不会复制进 `assets/MfaPackage/package.zip`。修改仓库变量后，可从 Actions 页面手动运行一次 `install`；推荐把图标放在 `android/` 下，这样修改图标文件也会触发模板的路径过滤器。
+
+`MFA_ANDROID_APPLICATION_ID` 决定 Android 眼中的应用身份。未设置时，工作流会把 GitHub 仓库 `Owner/Repo-Name` 规范化为类似 `io.github.owner.repo_name` 的独立包名，不再让所有资源项目共用 `com.fox.MFAAvalonia`。若中文、特殊字符或重名项目规范化后发生冲突，由资源开发者显式设置 `MFA_ANDROID_APPLICATION_ID` 解决。准备公开发布或接入覆盖更新时，强烈建议显式设置并永久保持不变；修改包名会被 Android 当作另一个应用，旧应用的数据和安装关系不会自动迁移。
 
 `MFA_ANDROID_P4A_LOCAL_RECIPES` 指向资源仓库内的目录，例如：
 
@@ -585,7 +589,7 @@ git push origin v1.0.0
 ## 11. Android 设备侧使用
 
 1. 安装匹配 ABI 的项目专用 APK。
-2. 从 Shizuku 官方渠道安装 Shizuku，并按设备支持的方式启动服务。
+2. 安装并启动 Shizuku。所有 MFA Android APK 都直接内置固定版本且预先校验过的官方 Shizuku 安装包；若设备上未安装，MFA 会在启动后通过 Android 系统安装器引导安装。用户仍需手动确认并按 Shizuku 指引启动服务。
 3. 打开 MFA，接受 Shizuku 授权请求。
 4. 检查首页任务列表、任务选项和资源配置。
 5. 启动任务。Android 会使用 Shizuku Native Controller，不回退到 ADB。
@@ -595,6 +599,36 @@ Boilerplate interface 中的 `Adb` controller 可以为桌面版保留。Android
 Python Agent 不是打开 UI 时立即启动，而是在任务器初始化、发现 interface 含 Agent 配置时启动。因此只打开应用看不到“Agent started”日志是正常现象；需要实际开始一次依赖 Agent 的任务。
 
 当前 Android 只允许一个 python-for-android Agent Service 会话同时运行。MFA 可以保存和切换多套配置，但不能并行多开真正的任务实例。
+
+APK 覆盖安装后，MFA 会根据内嵌资源指纹执行受控替换：先把新 payload 解压到临时目录并确认存在 interface，再备份并清理上一版由 bootstrap 管理的 `resource`、`agent`、`python`、`tasks` 等内容，最后换入新版本。这样上游已经删除的 Pipeline、图片或脚本不会残留；配置、用户日志、导出文件和其他非 payload 数据不会被清理。替换失败会尝试恢复旧 payload。
+
+### 11.1 Shizuku 安装检测的边界
+
+MFA 通过官方包名 `moe.shizuku.privileged.api` 判断 Shizuku Manager 是否安装，并在 Android Manifest 的 `<queries>` 中声明该包名以适配 Android 11 及以上的包可见性限制。安装检测、Binder 是否运行、MFA 是否获得授权是三个不同状态：
+
+- 未安装：启动后显示安装引导，使用 APK 内置的官方安装包；
+- 已安装但服务未运行：Controller 初始化会明确提示用户启动 Shizuku；
+- 服务已运行但未授权：由 Shizuku 官方授权流程请求用户确认。
+
+启动引导中的“稍后处理”只跳过本次进程的提示，不会永久关闭检测。MFA 源码仓库当前直接保存官方 Shizuku `v13.6.0`，文件 SHA-256 为 `6e273ab0e991c4e79bc8b1bbb9b9dd739cca1a8712a541a214078886b7b790f`，构建后位于 `assets/MfaDependencies/shizuku.apk`。MFA 先将只读 asset 复制到私有缓存，再用 FileProvider 交给 Android 系统安装器；不会静默安装。
+
+升级内置版本时必须从 [RikkaApps/Shizuku 官方 Release](https://github.com/RikkaApps/Shizuku/releases) 获取 APK，独立核对版本、文件名、SHA-256 和许可证，并同步更新 `MFAAvalonia.Android/ThirdParty/Shizuku/README.md`。不要从第三方镜像获取 APK。
+
+### 11.2 应用自更新研究结论
+
+MAA-Meow 的应用更新链路大致为：检查稳定版/测试版版本 → 从 GitHub 或 MirrorChyan 解析对应 APK → 下载到应用缓存并用临时扩展名保证完整性 → 通过 FileProvider 向系统安装器提供 APK → 用户授权“安装未知应用”后覆盖安装。它同时使用稳定的包名、递增的 Android `versionCode`、可比较的 `versionName` 和一致的签名证书。
+
+MFA 的资源工作流构建结果本身就是包含 UI、interface、resource 和可选 Python runtime 的完整 APK，因此自更新确实可以直接从该资源项目自己的 GitHub Release 下载匹配 ABI 的 APK，再交给 Android 系统安装器覆盖当前应用。不能下载 MaaXYZ/MFAAvalonia 发布的空壳 APK，否则会丢失项目资源。正式接入前仍必须先解决：
+
+1. 每个资源项目使用独立且稳定的 Android Application ID，避免不同项目互相覆盖；
+2. 每次构建使用同一份受 Secrets 保护的签名密钥，否则 Android 拒绝覆盖安装；
+3. Release Tag 映射为递增的整数 `versionCode` 和准确的 `versionName`，不能继续固定为 `1` / `1.0`；
+4. 更新元数据明确区分 ARM64、x64，并校验下载 APK 的 SHA-256、包名、版本和签名；
+5. 增加 FileProvider、缓存清理、断点/临时文件策略和系统“安装未知应用”授权引导；
+6. 更新源、仓库和资产命名由资源项目在构建期注入，官方空壳默认关闭应用自更新；
+7. UI 更新与资源更新必须作为同一个资源项目 APK 发布，避免 interface 与 UI 版本错配。
+
+因此当前阶段继续保留已有的资源更新功能，不直接启用 APK 自更新。下一阶段应先扩展 `install.yml` 的 Application ID、版本号和稳定签名输入，再实现只接受同包名、同签名资源 APK 的下载与系统安装链路。
 
 ## 12. 常见故障
 
@@ -669,7 +703,7 @@ P4A AAR 只有解释器和 requirements，没有找到 MaaFramework Python bindi
 - 授权或服务状态变化后重新进入 MFA；
 - 安装的是最新测试 APK，而不是旧的 ADB fallback 构建。
 
-MFA 不应自动安装、捆绑或替代 Shizuku。
+MFA 不应静默安装或替代 Shizuku。若资源 APK 选择内置安装引导，只能使用工作流中固定版本并经 SHA-256 校验的官方 Shizuku APK，最终安装操作仍必须交给 Android 系统安装器和用户确认。
 
 ### 12.9 Agent 有运行但首页没有输出
 

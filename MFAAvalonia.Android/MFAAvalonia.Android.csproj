@@ -13,7 +13,7 @@
         -->
         <AndroidLauncherLabel Condition="'$(AndroidLauncherLabel)' == ''">MFAAvalonia</AndroidLauncherLabel>
         <AndroidLauncherIcon Condition="'$(AndroidLauncherIcon)' == ''">$(MSBuildProjectDirectory)\Icon.png</AndroidLauncherIcon>
-        <AndroidManifestPlaceholders>applicationLabel=$(AndroidLauncherLabel);$(AndroidManifestPlaceholders)</AndroidManifestPlaceholders>
+        <AndroidManifestPlaceholders>applicationLabel=$(AndroidLauncherLabel);shizukuAuthority=$(ApplicationId).shizuku;fileProviderAuthority=$(ApplicationId).fileprovider;$(AndroidManifestPlaceholders)</AndroidManifestPlaceholders>
         <AndroidPackageFormat>apk</AndroidPackageFormat>
         <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
         <!--
@@ -50,6 +50,12 @@
         <AndroidPythonRuntimeAar Condition="'$(AndroidPythonRuntimeAar)' == ''"></AndroidPythonRuntimeAar>
         <AndroidPythonServiceClass Condition="'$(AndroidPythonServiceClass)' == ''">com.fox.mfa.python.ServiceMfaagent</AndroidPythonServiceClass>
         <AndroidPythonAgentEntryPoint Condition="'$(AndroidPythonAgentEntryPoint)' == ''"></AndroidPythonAgentEntryPoint>
+        <!--
+          中文：所有 Android 构建默认内置仓库中固定版本的官方 Shizuku APK；必要时仍可通过 /p:AndroidBundledShizukuApk=绝对路径覆盖。
+          English: Every Android build bundles the pinned official Shizuku APK stored in this repository by default; /p:AndroidBundledShizukuApk=AbsolutePath can still override it when necessary.
+        -->
+        <AndroidBundledShizukuApk Condition="'$(AndroidBundledShizukuApk)' == ''">$(MSBuildProjectDirectory)\ThirdParty\Shizuku\shizuku.apk</AndroidBundledShizukuApk>
+        <AndroidBundledShizukuSha256 Condition="'$(AndroidBundledShizukuSha256)' == ''">6E273AB0E991C4E79BC8B1BBB9B9DD739CCAC1A8712A541A214078886B7B790F</AndroidBundledShizukuSha256>
     </PropertyGroup>
 
     <ItemGroup>
@@ -76,6 +82,20 @@
             <_Parameter2>$(AndroidPythonAgentEntryPoint)</_Parameter2>
         </AssemblyAttribute>
     </ItemGroup>
+
+    <ItemGroup>
+        <AndroidAsset Include="$(AndroidBundledShizukuApk)" Link="MfaDependencies\shizuku.apk" />
+    </ItemGroup>
+
+    <Target Name="ValidateAndroidBundledShizukuApk" BeforeTargets="PrepareForBuild">
+        <Error Condition="!Exists('$(AndroidBundledShizukuApk)')" Text="Bundled Shizuku APK does not exist: $(AndroidBundledShizukuApk)" />
+        <Error Condition="'$([System.IO.Path]::GetExtension($(AndroidBundledShizukuApk)))' != '.apk'" Text="AndroidBundledShizukuApk must be an APK file: $(AndroidBundledShizukuApk)" />
+        <GetFileHash Files="$(AndroidBundledShizukuApk)" Algorithm="SHA256">
+            <Output TaskParameter="Items" ItemName="_AndroidBundledShizukuHash" />
+        </GetFileHash>
+        <Error Condition="'@(_AndroidBundledShizukuHash->'%(FileHash)')' != '$(AndroidBundledShizukuSha256)'"
+               Text="Bundled Shizuku APK SHA-256 mismatch. Expected $(AndroidBundledShizukuSha256), got @(_AndroidBundledShizukuHash->'%(FileHash)')." />
+    </Target>
 
     <Target Name="ValidateAndroidPythonRuntime" BeforeTargets="PrepareForBuild" Condition="'$(AndroidPythonRuntimeAar)' != ''">
         <Error Condition="!Exists('$(AndroidPythonRuntimeAar)')" Text="python-for-android AAR does not exist: $(AndroidPythonRuntimeAar)" />
