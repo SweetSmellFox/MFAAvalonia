@@ -99,7 +99,7 @@ GitHub 公共仓库默认不需要个人访问令牌。工作流可使用 GitHub
 模板会复制以下目录：
 
 ```text
-agent  data  python  resource  Resource  tasks
+agent  data  locales  python  resource  Resource  tasks
 ```
 
 模板会复制以下根文件或匹配项：
@@ -600,7 +600,7 @@ Python Agent 不是打开 UI 时立即启动，而是在任务器初始化、发
 
 当前 Android 只允许一个 python-for-android Agent Service 会话同时运行。MFA 可以保存和切换多套配置，但不能并行多开真正的任务实例。
 
-APK 覆盖安装后，MFA 会根据内嵌资源指纹执行受控替换：先把新 payload 解压到临时目录并确认存在 interface，再备份并清理上一版由 bootstrap 管理的 `resource`、`agent`、`python`、`tasks` 等内容，最后换入新版本。这样上游已经删除的 Pipeline、图片或脚本不会残留；配置、用户日志、导出文件和其他非 payload 数据不会被清理。替换失败会尝试恢复旧 payload。
+APK 覆盖安装后，MFA 会根据内嵌资源指纹执行受控替换：先把新 payload 解压到临时目录并确认存在 interface，再备份并清理上一版由 bootstrap 管理的 `resource`、`agent`、`locales`、`python`、`tasks` 等内容，最后换入新版本。这样上游已经删除的 Pipeline、图片、语言文件或脚本不会残留；配置、用户日志、导出文件和其他非 payload 数据不会被清理。替换失败会尝试恢复旧 payload。
 
 ### 11.1 Shizuku 安装检测的边界
 

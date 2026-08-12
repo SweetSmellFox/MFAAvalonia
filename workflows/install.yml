@@ -39,6 +39,7 @@ on:
       - "agent/**"
       - "android/**"
       - "data/**"
+      - "locales/**"
       - "python/**"
       - "resource/**"
       - "Resource/**"
@@ -55,6 +56,7 @@ on:
       - "agent/**"
       - "android/**"
       - "data/**"
+      - "locales/**"
       - "python/**"
       - "resource/**"
       - "Resource/**"
@@ -213,7 +215,7 @@ jobs:
 
           # 中文：默认复制 M9A 类型项目运行所需目录；缺失的可选目录自动跳过。
           # English: Copy runtime directories used by M9A-style projects; missing optional directories are skipped.
-          for directory in agent data python resource Resource tasks; do
+          for directory in agent data locales python resource Resource tasks; do
             if [[ -d "$resource_root/$directory" ]]; then
               cp -a "$resource_root/$directory" "$payload_root/$directory"
             fi

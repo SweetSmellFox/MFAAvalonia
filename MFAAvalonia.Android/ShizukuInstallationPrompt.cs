@@ -74,14 +74,14 @@ internal sealed class ShizukuInstallationPrompt(Activity activity) : IDisposable
         var horizontalMargin = Dp(32);
         var maximumWidth = Dp(520);
         var screenWidth = activity.Resources?.DisplayMetrics?.WidthPixels ?? maximumWidth;
-        attributes.Width = Math.Min(screenWidth - horizontalMargin, maximumWidth);
+        attributes.Width = System.Math.Min(screenWidth - horizontalMargin, maximumWidth);
         attributes.Height = ViewGroup.LayoutParams.WrapContent;
         attributes.DimAmount = 0.58f;
         window.Attributes = attributes;
     }
 
     private int Dp(int value) =>
-        (int)Math.Round(value * (activity.Resources?.DisplayMetrics?.Density ?? 1f));
+        (int)System.Math.Round(value * (activity.Resources?.DisplayMetrics?.Density ?? 1f));
 
     private void OnInstallClicked(object? sender, EventArgs e)
     {
@@ -177,7 +177,7 @@ internal sealed class ShizukuInstallationPrompt(Activity activity) : IDisposable
     {
         try
         {
-            var intent = new Intent(Intent.ActionView, Uri.Parse(OfficialDownloadUrl));
+            var intent = new Intent(Intent.ActionView, global::Android.Net.Uri.Parse(OfficialDownloadUrl));
             intent.AddFlags(ActivityFlags.NewTask);
             activity.StartActivity(intent);
         }

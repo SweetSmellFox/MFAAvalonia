@@ -31,32 +31,61 @@ public class MainActivity : AvaloniaMainActivity<App>
 
     protected override void OnCreate(Bundle? savedInstanceState)
     {
-        AndroidAssetBootstrap.EnsureExtracted(this);
-        ConfigureMaaLogging();
-        _shizuku = new ShizukuConnectionManager(this);
-        _shizuku.Start();
-        _shizukuInstallationPrompt = new ShizukuInstallationPrompt(this);
-        _virtualDisplayBackend = new AndroidVirtualDisplayBackend(this);
-        _controllerProvider = new AndroidNativeControllerProvider(this, _shizuku, _virtualDisplayBackend);
-        PlatformControllerFactory.Create = _controllerProvider.Create;
-        _pythonAgentProvider = new AndroidPythonAgentProvider(this);
-        if (_pythonAgentProvider.IsAvailable)
+        AndroidCrashDiagnostics.Install(this);
+        try
         {
-            PlatformAgentFactory.Start = _pythonAgentProvider.Start;
-            PlatformAgentFactory.LinkStart = _pythonAgentProvider.LinkStart;
+            AndroidCrashDiagnostics.SetPhase("asset-bootstrap");
+            AndroidAssetBootstrap.EnsureExtracted(this);
+            AndroidCrashDiagnostics.SetPhase("maa-logging");
+            ConfigureMaaLogging();
+            AndroidCrashDiagnostics.SetPhase("shizuku-manager");
+            _shizuku = new ShizukuConnectionManager(this);
+            _shizuku.Start();
+            _shizukuInstallationPrompt = new ShizukuInstallationPrompt(this);
+            AndroidCrashDiagnostics.SetPhase("virtual-display");
+            _virtualDisplayBackend = new AndroidVirtualDisplayBackend(this);
+            AndroidCrashDiagnostics.SetPhase("controller-provider");
+            _controllerProvider = new AndroidNativeControllerProvider(this, _shizuku, _virtualDisplayBackend);
+            PlatformControllerFactory.Create = _controllerProvider.Create;
+            AndroidCrashDiagnostics.SetPhase("python-agent-provider");
+            _pythonAgentProvider = new AndroidPythonAgentProvider(this);
+            if (_pythonAgentProvider.IsAvailable)
+            {
+                PlatformAgentFactory.Start = _pythonAgentProvider.Start;
+                PlatformAgentFactory.LinkStart = _pythonAgentProvider.LinkStart;
+            }
+            MobileVirtualDisplay.Backend = _virtualDisplayBackend;
+            MobileVirtualDisplay.PreviewControlFactory = () =>
+                new AndroidVirtualDisplayPreviewHost(this, _virtualDisplayBackend);
+            PlatformApplicationRestart.RestartAsync = RestartAfterResourceUpdateAsync;
+            AndroidCrashDiagnostics.SetPhase("avalonia-on-create");
+            base.OnCreate(savedInstanceState);
+            AndroidCrashDiagnostics.SetPhase("application-title");
+            BindApplicationTitle();
+            AndroidCrashDiagnostics.SetPhase("activity-ready");
         }
-        MobileVirtualDisplay.Backend = _virtualDisplayBackend;
-        MobileVirtualDisplay.PreviewControlFactory = () =>
-            new AndroidVirtualDisplayPreviewHost(this, _virtualDisplayBackend);
-        PlatformApplicationRestart.RestartAsync = RestartAfterResourceUpdateAsync;
-        base.OnCreate(savedInstanceState);
-        BindApplicationTitle();
+        catch (Exception ex)
+        {
+            AndroidCrashDiagnostics.Record("main-activity-on-create", ex);
+            throw;
+        }
     }
 
     protected override void OnPostResume()
     {
-        base.OnPostResume();
-        _shizukuInstallationPrompt?.ShowIfNotInstalled();
+        try
+        {
+            AndroidCrashDiagnostics.SetPhase("activity-post-resume");
+            base.OnPostResume();
+            AndroidCrashDiagnostics.SetPhase("shizuku-install-prompt");
+            _shizukuInstallationPrompt?.ShowIfNotInstalled();
+            AndroidCrashDiagnostics.SetPhase("activity-running");
+        }
+        catch (Exception ex)
+        {
+            AndroidCrashDiagnostics.Record("main-activity-on-post-resume", ex);
+            throw;
+        }
     }
 
     private void BindApplicationTitle()

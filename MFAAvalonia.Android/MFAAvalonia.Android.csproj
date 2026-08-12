@@ -104,7 +104,12 @@
 
     <ItemGroup>
         <PackageReference Update="Packaging.Targets" Version="0.1.232" />
-        <PackageReference Include="Avalonia.Android" Version="11.3.12" />
+        <!--
+          Avalonia.Android 11.3.12 writes AccessibilityNodeInfoCompat.Checked to the
+          ToggleNodeInfoProvider instance and crashes when Android queries accessibility nodes.
+          The upstream fix is AvaloniaUI/Avalonia#20686, released in 11.3.13.
+        -->
+        <PackageReference Include="Avalonia.Android" Version="11.3.13" />
         <PackageReference Include="Maa.Framework.Runtime.android-arm64" Version="5.12.3" GeneratePathProperty="true" />
         <PackageReference Include="Maa.Framework.Runtime.android-x64" Version="5.12.3" GeneratePathProperty="true" />
         <PackageReference Include="Xamarin.AndroidX.Core.SplashScreen" Version="1.0.1.1" />
@@ -139,6 +144,7 @@
         <ItemGroup>
             <_AndroidAgentFile Include="$(AndroidResourcePackageSource)\agent\**\*" Condition="Exists('$(AndroidResourcePackageSource)\agent')" />
             <_AndroidDataFile Include="$(AndroidResourcePackageSource)\data\**\*" Condition="Exists('$(AndroidResourcePackageSource)\data')" />
+            <_AndroidLocalesFile Include="$(AndroidResourcePackageSource)\locales\**\*" Condition="Exists('$(AndroidResourcePackageSource)\locales')" />
             <_AndroidPythonFile Include="$(AndroidResourcePackageSource)\python\**\*" Condition="Exists('$(AndroidResourcePackageSource)\python')" />
             <_AndroidResourceFile Include="$(_AndroidResourceSource)\**\*" Condition="'$(_AndroidResourceSource)' != ''" />
             <_AndroidTaskFile Include="$(AndroidResourcePackageSource)\tasks\**\*" Condition="Exists('$(AndroidResourcePackageSource)\tasks')" />
@@ -159,6 +165,7 @@
         <MakeDir Directories="$(AndroidResourcePackageStagingDirectory)" />
         <Copy SourceFiles="@(_AndroidAgentFile)" DestinationFiles="@(_AndroidAgentFile->'$(AndroidResourcePackageStagingDirectory)\agent\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
         <Copy SourceFiles="@(_AndroidDataFile)" DestinationFiles="@(_AndroidDataFile->'$(AndroidResourcePackageStagingDirectory)\data\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+        <Copy SourceFiles="@(_AndroidLocalesFile)" DestinationFiles="@(_AndroidLocalesFile->'$(AndroidResourcePackageStagingDirectory)\locales\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
         <Copy SourceFiles="@(_AndroidPythonFile)" DestinationFiles="@(_AndroidPythonFile->'$(AndroidResourcePackageStagingDirectory)\python\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
         <Copy SourceFiles="@(_AndroidResourceFile)" DestinationFiles="@(_AndroidResourceFile->'$(AndroidResourcePackageStagingDirectory)\resource\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
         <Copy SourceFiles="@(_AndroidTaskFile)" DestinationFiles="@(_AndroidTaskFile->'$(AndroidResourcePackageStagingDirectory)\tasks\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
