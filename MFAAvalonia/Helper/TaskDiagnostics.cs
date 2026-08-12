@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Text;
 
 namespace MFAAvalonia.Helper;
 
@@ -23,17 +24,34 @@ internal enum TaskEvidenceBuildStatus
     CompressedTooLarge
 }
 
-internal sealed record TaskEvidenceBuildResult(
+internal sealed record DiagnosticLogContent(
+    string Source,
+    string Kind,
+    string Content,
+    long RawBytes);
+
+internal sealed record DiagnosticLogBuildResult(
+    TaskEvidenceBuildStatus Status,
+    IReadOnlyList<DiagnosticLogContent> Logs,
+    long RawBytes,
+    bool Truncated);
+
+internal sealed record ImageEvidenceBuildResult(
     TaskEvidenceBuildStatus Status,
     byte[]? Data,
-    int LogCount,
     int ImageCount,
     long RawBytes);
 
+internal sealed record TaskEvidenceBuildResult(
+    DiagnosticLogBuildResult Logs,
+    ImageEvidenceBuildResult Images);
+
 internal static class TaskDiagnostics
 {
-    private const long MaxRawBytes = 64 * 1024 * 1024;
-    private const int MaxCompressedBytes = 10 * 1024 * 1024;
+    private const long MaxImageRawBytes = 64 * 1024 * 1024;
+    private const int MaxImageCompressedBytes = 10 * 1024 * 1024;
+    private const int MaxLogRawBytes = 1024 * 1024;
+    private const int MaxLogFileBytes = 512 * 1024;
     private const int LogPreludeBytes = 64 * 1024;
     private const int ExceptionLogTailBytes = 256 * 1024;
     private const int MaxExceptionLogFiles = 5;
@@ -61,12 +79,15 @@ internal static class TaskDiagnostics
 
     internal static TaskEvidenceBuildResult Build(TaskEvidenceSnapshot snapshot)
     {
-        var logCount = 0;
-        var imageCount = 0;
         if (!snapshot.Isolated)
-            return new TaskEvidenceBuildResult(TaskEvidenceBuildStatus.NotIsolated, null, 0, 0, 0);
+        {
+            return new TaskEvidenceBuildResult(
+                EmptyLogs(TaskEvidenceBuildStatus.NotIsolated),
+                EmptyImages(TaskEvidenceBuildStatus.NotIsolated));
+        }
 
-        var selected = new List<(string path, string name, long start, long length)>();
+        var logCandidates = new List<LogCandidate>();
+        var imageCandidates = new List<(string Path, string Name, long Length)>();
         foreach (var path in EnumerateEvidenceFiles())
         {
             var relative = Relative(path);
@@ -76,8 +97,13 @@ internal static class TaskDiagnostics
                 if (IsLog(relative) && snapshot.LogLengths.TryGetValue(relative, out var oldLength) && info.Length > oldLength)
                 {
                     var start = Math.Max(0, oldLength - LogPreludeBytes);
-                    selected.Add((path, relative, start, info.Length - start));
-                    logCount++;
+                    logCandidates.Add(new LogCandidate(path, relative, start, info.Length - start, info.LastWriteTimeUtc));
+                }
+                else if (IsLog(relative)
+                         && !snapshot.LogLengths.ContainsKey(relative)
+                         && info.LastWriteTimeUtc >= snapshot.StartedAt.UtcDateTime.AddSeconds(-2))
+                {
+                    logCandidates.Add(new LogCandidate(path, relative, 0, info.Length, info.LastWriteTimeUtc));
                 }
                 else if (IsErrorImage(relative)
                          && info.LastWriteTimeUtc >= snapshot.StartedAt.UtcDateTime.AddSeconds(-2)
@@ -85,102 +111,172 @@ internal static class TaskDiagnostics
                              || previous.Length != info.Length
                              || previous.LastWriteUtc != info.LastWriteTimeUtc))
                 {
-                    selected.Add((path, relative, 0, info.Length));
-                    imageCount++;
+                    imageCandidates.Add((path, relative, info.Length));
                 }
             }
             catch { }
         }
-        var rawBytes = selected.Sum(x => x.length);
-        if (selected.Count == 0)
-            return new TaskEvidenceBuildResult(TaskEvidenceBuildStatus.NoEvidence, null, 0, 0, 0);
-        if (rawBytes > MaxRawBytes)
-            return new TaskEvidenceBuildResult(TaskEvidenceBuildStatus.RawTooLarge, null, logCount, imageCount, rawBytes);
 
-        using var output = new MemoryStream();
-        using (var archive = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true))
-        {
-            foreach (var item in selected)
-            {
-                var entry = archive.CreateEntry(item.name, CompressionLevel.Fastest);
-                using var target = entry.Open();
-                using var source = new FileStream(item.path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-                source.Position = item.start;
-                var remaining = item.length;
-                var buffer = new byte[81920];
-                while (remaining > 0)
-                {
-                    var read = source.Read(buffer, 0, (int)Math.Min(buffer.Length, remaining));
-                    if (read <= 0) break;
-                    target.Write(buffer, 0, read);
-                    remaining -= read;
-                }
-            }
-        }
-        if (output.Length > MaxCompressedBytes)
-            return new TaskEvidenceBuildResult(TaskEvidenceBuildStatus.CompressedTooLarge, null, logCount, imageCount, rawBytes);
-
-        return new TaskEvidenceBuildResult(TaskEvidenceBuildStatus.Success, output.ToArray(), logCount, imageCount, rawBytes);
+        return new TaskEvidenceBuildResult(BuildLogs(logCandidates), BuildImages(imageCandidates));
     }
 
-    internal static TaskEvidenceBuildResult BuildRecentLogs()
+    internal static DiagnosticLogBuildResult BuildRecentLogs()
     {
         var selected = EnumerateEvidenceFiles()
             .Where(path => IsLog(Relative(path)))
             .Select(path =>
             {
-                try { return (path, info: new FileInfo(path)); }
-                catch { return default; }
+                try
+                {
+                    var info = new FileInfo(path);
+                    var length = Math.Min(info.Length, ExceptionLogTailBytes);
+                    return new LogCandidate(path, Relative(path), info.Length - length, length, info.LastWriteTimeUtc);
+                }
+                catch { return null; }
             })
-            .Where(item => item.path != null && item.info != null)
-            .OrderByDescending(item => item.info!.LastWriteTimeUtc)
+            .Where(item => item != null)
+            .Cast<LogCandidate>()
+            .OrderBy(item => GetLogPriority(item.Name))
+            .ThenByDescending(item => item.LastWriteUtc)
             .Take(MaxExceptionLogFiles)
-            .Select(item =>
-            {
-                var length = Math.Min(item.info!.Length, ExceptionLogTailBytes);
-                return (path: item.path!, name: Relative(item.path!), start: item.info.Length - length, length);
-            })
             .ToList();
 
-        if (selected.Count == 0)
-            return new TaskEvidenceBuildResult(TaskEvidenceBuildStatus.NoEvidence, null, 0, 0, 0);
+        return BuildLogs(selected);
+    }
 
-        var rawBytes = selected.Sum(item => item.length);
+    private static DiagnosticLogBuildResult BuildLogs(IEnumerable<LogCandidate> candidates)
+    {
+        var logs = new List<DiagnosticLogContent>();
+        var rawBytes = 0L;
+        var truncated = false;
+        foreach (var item in candidates
+                     .OrderBy(candidate => GetLogPriority(candidate.Name))
+                     .ThenByDescending(candidate => candidate.LastWriteUtc))
+        {
+            var remainingBudget = MaxLogRawBytes - rawBytes;
+            if (remainingBudget <= 0)
+            {
+                truncated = true;
+                break;
+            }
+
+            var readLength = Math.Min(item.Length, Math.Min(MaxLogFileBytes, remainingBudget));
+            if (readLength <= 0)
+                continue;
+
+            // Keep the end of each selected range: failure details are normally emitted last.
+            var readStart = item.Start + item.Length - readLength;
+            try
+            {
+                var data = ReadBytes(item.Path, readStart, readLength);
+                if (data.Length == 0)
+                    continue;
+
+                var content = Encoding.UTF8.GetString(data).Trim('\0');
+                if (string.IsNullOrWhiteSpace(content))
+                    continue;
+
+                logs.Add(new DiagnosticLogContent(item.Name, GetLogKind(item.Name), content, data.Length));
+                rawBytes += data.Length;
+                truncated |= readLength < item.Length;
+            }
+            catch { }
+        }
+
+        return logs.Count == 0
+            ? EmptyLogs(TaskEvidenceBuildStatus.NoEvidence)
+            : new DiagnosticLogBuildResult(TaskEvidenceBuildStatus.Success, logs, rawBytes, truncated);
+    }
+
+    private static ImageEvidenceBuildResult BuildImages(IReadOnlyCollection<(string Path, string Name, long Length)> selected)
+    {
+        if (selected.Count == 0)
+            return EmptyImages(TaskEvidenceBuildStatus.NoEvidence);
+
+        var rawBytes = selected.Sum(item => item.Length);
+        if (rawBytes > MaxImageRawBytes)
+            return new ImageEvidenceBuildResult(TaskEvidenceBuildStatus.RawTooLarge, null, selected.Count, rawBytes);
+
         using var output = new MemoryStream();
         using (var archive = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true))
         {
             foreach (var item in selected)
             {
-                var entry = archive.CreateEntry(item.name, CompressionLevel.Fastest);
+                var entry = archive.CreateEntry(item.Name, CompressionLevel.Fastest);
                 using var target = entry.Open();
-                using var source = new FileStream(item.path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-                source.Position = item.start;
+                using var source = new FileStream(item.Path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
                 source.CopyTo(target);
             }
         }
 
-        return output.Length > MaxCompressedBytes
-            ? new TaskEvidenceBuildResult(TaskEvidenceBuildStatus.CompressedTooLarge, null, selected.Count, 0, rawBytes)
-            : new TaskEvidenceBuildResult(TaskEvidenceBuildStatus.Success, output.ToArray(), selected.Count, 0, rawBytes);
+        return output.Length > MaxImageCompressedBytes
+            ? new ImageEvidenceBuildResult(TaskEvidenceBuildStatus.CompressedTooLarge, null, selected.Count, rawBytes)
+            : new ImageEvidenceBuildResult(TaskEvidenceBuildStatus.Success, output.ToArray(), selected.Count, rawBytes);
+    }
+
+    private static byte[] ReadBytes(string path, long start, long length)
+    {
+        using var source = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        source.Position = start;
+        using var output = new MemoryStream((int)Math.Min(length, int.MaxValue));
+        var remaining = length;
+        var buffer = new byte[81920];
+        while (remaining > 0)
+        {
+            var read = source.Read(buffer, 0, (int)Math.Min(buffer.Length, remaining));
+            if (read <= 0) break;
+            output.Write(buffer, 0, read);
+            remaining -= read;
+        }
+        return output.ToArray();
     }
 
     private static IEnumerable<string> EnumerateEvidenceFiles()
     {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var root in new[] { AppPaths.LogsDirectory, Path.Combine(AppPaths.DataRoot, "debug") })
         {
             if (!Directory.Exists(root)) continue;
             foreach (var path in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
             {
-                var relative = Relative(path);
+                var fullPath = Path.GetFullPath(path);
+                if (!seen.Add(fullPath)) continue;
+                var relative = Relative(fullPath);
                 if (!relative.Contains("vision", StringComparison.OrdinalIgnoreCase)
                     && (IsLog(relative) || IsErrorImage(relative)))
-                    yield return path;
+                    yield return fullPath;
             }
         }
     }
+
+    private static int GetLogPriority(string path)
+    {
+        var fileName = Path.GetFileName(path);
+        if (fileName.StartsWith("maafw.log", StringComparison.OrdinalIgnoreCase)) return 0;
+        if (fileName.StartsWith("maa.log", StringComparison.OrdinalIgnoreCase)) return 1;
+        if (fileName.StartsWith("log-", StringComparison.OrdinalIgnoreCase)) return 2;
+        return 3;
+    }
+
+    private static string GetLogKind(string path)
+    {
+        var fileName = Path.GetFileName(path);
+        if (fileName.StartsWith("maafw.log", StringComparison.OrdinalIgnoreCase)) return "maafw";
+        if (fileName.StartsWith("maa.log", StringComparison.OrdinalIgnoreCase)) return "maa";
+        if (fileName.StartsWith("log-", StringComparison.OrdinalIgnoreCase)) return "mfa";
+        return "other";
+    }
+
+    private static DiagnosticLogBuildResult EmptyLogs(TaskEvidenceBuildStatus status) =>
+        new(status, Array.Empty<DiagnosticLogContent>(), 0, false);
+
+    private static ImageEvidenceBuildResult EmptyImages(TaskEvidenceBuildStatus status) =>
+        new(status, null, 0, 0);
 
     private static string Relative(string path) => Path.GetRelativePath(AppPaths.DataRoot, path).Replace('\\', '/');
     private static bool IsLog(string path) => path.EndsWith(".log", StringComparison.OrdinalIgnoreCase) || path.Contains(".log.", StringComparison.OrdinalIgnoreCase);
     private static bool IsErrorImage(string path) => path.Contains("/on_error/", StringComparison.OrdinalIgnoreCase)
         && new[] { ".png", ".jpg", ".jpeg" }.Any(extension => path.EndsWith(extension, StringComparison.OrdinalIgnoreCase));
+
+    private sealed record LogCandidate(string Path, string Name, long Start, long Length, DateTime LastWriteUtc);
 }

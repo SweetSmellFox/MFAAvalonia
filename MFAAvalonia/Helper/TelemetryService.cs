@@ -107,6 +107,7 @@ public static class TelemetryService
                     options.AttachStacktrace = false;
                     options.AutoSessionTracking = true;
                     options.IsGlobalModeEnabled = true;
+                    options.EnableLogs = true;
                     options.ShutdownTimeout = TimeSpan.FromSeconds(1);
                     options.Release = $"MFA@{RootViewModel.Version}+{bootstrapConfig.ResourceName}@{bootstrapConfig.ResourceVersion}";
                     options.Environment = string.IsNullOrWhiteSpace(bootstrapConfig.Environment)
@@ -170,6 +171,7 @@ public static class TelemetryService
                     options.AttachStacktrace = false;
                     options.AutoSessionTracking = true;
                     options.IsGlobalModeEnabled = true;
+                    options.EnableLogs = true;
                     options.ShutdownTimeout = TimeSpan.FromSeconds(1);
                     options.Release = $"MFA@{RootViewModel.Version}+{resourceName}@{resourceVersion}";
                     options.Environment = string.IsNullOrWhiteSpace(config.Environment)
@@ -259,24 +261,12 @@ public static class TelemetryService
                     @event.TransactionName = "mfa.startup.failure";
                 }
 
-                var hint = new SentryHint();
-                if (ShouldSampleAttachment(source, capturedException.GetType().FullName ?? capturedException.GetType().Name,
-                        FailureAttachmentSampleRate))
-                {
-                    var logs = TaskDiagnostics.BuildRecentLogs();
-                    @event.SetExtra("attachment.status", ToAttachmentStatus(logs.Status));
-                    @event.SetExtra("attachment.log_count", logs.LogCount);
-                    @event.SetExtra("attachment.selected_raw_bytes", logs.RawBytes);
-                    if (logs.Status == TaskEvidenceBuildStatus.Success && logs.Data != null)
-                    {
-                        hint.AddAttachment(logs.Data, "mfa-exception-logs.zip", AttachmentType.Default, "application/zip");
-                        @event.SetExtra("attachment.status", "attached");
-                        @event.SetExtra("attachment.compressed_bytes", logs.Data.Length);
-                    }
-                }
-                else @event.SetExtra("attachment.status", "not_selected");
+                var logs = TaskDiagnostics.BuildRecentLogs();
+                CaptureDiagnosticLogs(logs, @event, "exception", diagnosticSource: source);
+                SetLogEvidenceData(@event, logs);
+                @event.SetExtra("attachment.status", "not_applicable");
 
-                var eventId = SentrySdk.CaptureEvent(@event, hint, _ => { });
+                var eventId = SentrySdk.CaptureEvent(@event, new SentryHint(), _ => { });
                 LoggerHelper.Info($"[Telemetry] 异常事件已加入发送队列：source={source}, event_id={eventId}, attachment={@event.Extra?.GetValueOrDefault("attachment.status")}");
             }
         }
@@ -499,7 +489,8 @@ public static class TelemetryService
             run.RootFailure = null;
             run.TerminalFailure = null;
             run.LastPipelineSteps.Clear();
-            run.Evidence = run.Tasks.Count == 1 && FailureAttachmentSampleRate > 0
+            // Log collection is independent from screenshot attachment sampling.
+            run.Evidence = run.Tasks.Count == 1
                 ? TaskDiagnostics.CaptureStart(Runs.Count == 1)
                 : null;
         }
@@ -849,10 +840,11 @@ public static class TelemetryService
             @event.SetExtra($"option.{option.Key}", option.Value);
         @event.SetExtra("instance.task_count", run.TaskCount);
         @event.SetExtra("task.duration_ms", Math.Max(0, (DateTimeOffset.UtcNow - run.ActiveTaskStartedAt).TotalMilliseconds));
-        if (run.Evidence != null && ShouldSampleAttachment(instanceId, taskName, FailureAttachmentSampleRate))
+        if (run.Evidence != null)
         {
             @event.SetExtra("attachment.status", "pending");
             var evidence = run.Evidence;
+            var includeImages = ShouldSampleAttachment(instanceId, taskName, FailureAttachmentSampleRate);
             var pendingWorker = new PendingFailureWorker { Event = @event };
             var workerTask = Task.Run(async () =>
             {
@@ -861,26 +853,26 @@ public static class TelemetryService
                     // MaaFramework may still be flushing its on_error image when the failure callback arrives.
                     await Task.Delay(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
                     var result = TaskDiagnostics.Build(evidence);
-                    if (result.Status != TaskEvidenceBuildStatus.Success || result.Data == null)
-                    {
-                        pendingWorker.TryCapture(new SentryHint(), item =>
-                        {
-                            item.SetExtra("attachment.status", ToAttachmentStatus(result.Status));
-                            item.SetExtra("attachment.log_count", result.LogCount);
-                            item.SetExtra("attachment.image_count", result.ImageCount);
-                            item.SetExtra("attachment.selected_raw_bytes", result.RawBytes);
-                        });
-                        return;
-                    }
+                    CaptureDiagnosticLogs(result.Logs, @event, "task_failure", instanceId, taskName,
+                        run.RootFailure?.Node, run.RootFailure?.Stage, traceHeader.TraceId, traceHeader.SpanId);
                     var hint = new SentryHint();
-                    hint.AddAttachment(result.Data, $"mfa-task-failure-{SanitizeFileName(taskName)}.zip", AttachmentType.Default, "application/zip");
+                    if (includeImages && result.Images.Status == TaskEvidenceBuildStatus.Success && result.Images.Data != null)
+                    {
+                        hint.AddAttachment(result.Images.Data, $"mfa-task-failure-{SanitizeFileName(taskName)}-screenshots.zip",
+                            AttachmentType.Default, "application/zip");
+                    }
                     pendingWorker.TryCapture(hint, item =>
                     {
-                        item.SetExtra("attachment.status", "attached");
-                        item.SetExtra("attachment.log_count", result.LogCount);
-                        item.SetExtra("attachment.image_count", result.ImageCount);
-                        item.SetExtra("attachment.selected_raw_bytes", result.RawBytes);
-                        item.SetExtra("attachment.compressed_bytes", result.Data.Length);
+                        SetLogEvidenceData(item, result.Logs);
+                        item.SetExtra("attachment.status", !includeImages
+                            ? "not_selected"
+                            : result.Images.Status == TaskEvidenceBuildStatus.Success && result.Images.Data != null
+                                ? "attached"
+                                : ToAttachmentStatus(result.Images.Status));
+                        item.SetExtra("attachment.image_count", result.Images.ImageCount);
+                        item.SetExtra("attachment.selected_raw_bytes", result.Images.RawBytes);
+                        if (includeImages && result.Images.Data != null)
+                            item.SetExtra("attachment.compressed_bytes", result.Images.Data.Length);
                     });
                 }
                 catch (Exception ex)
@@ -946,6 +938,96 @@ public static class TelemetryService
         TaskEvidenceBuildStatus.CompressedTooLarge => "compressed_too_large",
         _ => "build_failed"
     };
+
+    private static void SetLogEvidenceData(SentryEvent @event, DiagnosticLogBuildResult logs)
+    {
+        @event.SetExtra("logs.status", logs.Status == TaskEvidenceBuildStatus.Success
+            ? "captured"
+            : ToAttachmentStatus(logs.Status));
+        @event.SetExtra("logs.count", logs.Logs.Count);
+        @event.SetExtra("logs.selected_raw_bytes", logs.RawBytes);
+        @event.SetExtra("logs.truncated", logs.Truncated);
+    }
+
+    private static void CaptureDiagnosticLogs(
+        DiagnosticLogBuildResult result,
+        SentryEvent @event,
+        string reason,
+        string? instanceId = null,
+        string? taskName = null,
+        string? failureNode = null,
+        string? failureStage = null,
+        SentryId? traceId = null,
+        SpanId? spanId = null,
+        string? diagnosticSource = null)
+    {
+        if (result.Status != TaskEvidenceBuildStatus.Success)
+            return;
+
+        const int maxChunkCharacters = 16 * 1024;
+        foreach (var source in result.Logs)
+        {
+            for (var offset = 0; offset < source.Content.Length; offset += maxChunkCharacters)
+            {
+                var length = Math.Min(maxChunkCharacters, source.Content.Length - offset);
+                var chunk = source.Content.Substring(offset, length);
+                void ConfigureLog(SentryLog log)
+                {
+                    log.SetAttribute("diagnostic.reason", reason);
+                    log.SetAttribute("diagnostic.source", source.Source);
+                    log.SetAttribute("diagnostic.kind", source.Kind);
+                    if (!string.IsNullOrWhiteSpace(diagnosticSource)) log.SetAttribute("exception.source", diagnosticSource);
+                    log.SetAttribute("sentry.event_id", @event.EventId.ToString());
+                    if (!string.IsNullOrWhiteSpace(instanceId)) log.SetAttribute("instance.id", instanceId);
+                    if (!string.IsNullOrWhiteSpace(taskName)) log.SetAttribute("task.name", taskName);
+                    if (!string.IsNullOrWhiteSpace(failureNode)) log.SetAttribute("failure.node", failureNode);
+                    if (!string.IsNullOrWhiteSpace(failureStage)) log.SetAttribute("failure.stage", failureStage);
+                    if (traceId.HasValue) log.SetAttribute("trace.id", traceId.Value.ToString());
+                    if (spanId.HasValue) log.SetAttribute("span.id", spanId.Value.ToString());
+                }
+                CaptureStructuredLog(GetLogLevel(chunk), ConfigureLog, chunk);
+            }
+        }
+    }
+
+    private static void CaptureStructuredLog(SentryLogLevel level, Action<SentryLog> configure, string content)
+    {
+        switch (level)
+        {
+            case SentryLogLevel.Fatal:
+                SentrySdk.Logger.LogFatal(configure, "{0}", content);
+                break;
+            case SentryLogLevel.Error:
+                SentrySdk.Logger.LogError(configure, "{0}", content);
+                break;
+            case SentryLogLevel.Warning:
+                SentrySdk.Logger.LogWarning(configure, "{0}", content);
+                break;
+            case SentryLogLevel.Debug:
+                SentrySdk.Logger.LogDebug(configure, "{0}", content);
+                break;
+            default:
+                SentrySdk.Logger.LogInfo(configure, "{0}", content);
+                break;
+        }
+    }
+
+    private static SentryLogLevel GetLogLevel(string content)
+    {
+        if (content.Contains("[FTL]", StringComparison.OrdinalIgnoreCase)
+            || content.Contains("[FATAL]", StringComparison.OrdinalIgnoreCase))
+            return SentryLogLevel.Fatal;
+        if (content.Contains("[ERR]", StringComparison.OrdinalIgnoreCase)
+            || content.Contains("[ERROR]", StringComparison.OrdinalIgnoreCase))
+            return SentryLogLevel.Error;
+        if (content.Contains("[WRN]", StringComparison.OrdinalIgnoreCase)
+            || content.Contains("[WARN]", StringComparison.OrdinalIgnoreCase))
+            return SentryLogLevel.Warning;
+        if (content.Contains("[DBG]", StringComparison.OrdinalIgnoreCase)
+            || content.Contains("[DEBUG]", StringComparison.OrdinalIgnoreCase))
+            return SentryLogLevel.Debug;
+        return SentryLogLevel.Info;
+    }
 
     private static string SanitizeFileName(string value)
     {
