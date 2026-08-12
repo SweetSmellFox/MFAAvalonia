@@ -2,6 +2,7 @@ using Android.App;
 using Android.Graphics;
 using Android.Views;
 using Avalonia.Android;
+using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Platform;
 
@@ -31,6 +32,14 @@ internal sealed class AndroidVirtualDisplayPreviewHost : NativeControlHost
         return new AndroidViewControlHandle(_surfaceView);
     }
 
+    // Avalonia.Android 11.3.x does not special-case NativeControlHost's
+    // InteropAutomationPeer. Android accessibility therefore walks into that peer and
+    // calls methods which intentionally throw NotImplementedException. This can happen
+    // when the preview is first shown or when navigating away from the task page.
+    // Keep the SurfaceView out of Avalonia's virtual accessibility tree; Android owns
+    // the native view and the preview itself has no interactive accessibility content.
+    protected override AutomationPeer OnCreateAutomationPeer() => new PreviewHostAutomationPeer(this);
+
     protected override void DestroyNativeControlCore(IPlatformHandle control)
     {
         NativeCaptureInterop.SetPreviewSurface(null);
@@ -57,5 +66,15 @@ internal sealed class AndroidVirtualDisplayPreviewHost : NativeControlHost
 
         public void SurfaceDestroyed(ISurfaceHolder holder) =>
             NativeCaptureInterop.SetPreviewSurface(null);
+    }
+
+    private sealed class PreviewHostAutomationPeer(AndroidVirtualDisplayPreviewHost owner)
+        : ControlAutomationPeer(owner)
+    {
+        protected override System.Collections.Generic.IReadOnlyList<AutomationPeer>? GetChildrenCore() => null;
+
+        protected override bool IsContentElementCore() => false;
+
+        protected override bool IsControlElementCore() => false;
     }
 }
