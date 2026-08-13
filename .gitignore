@@ -27,3 +27,4 @@ build_output.txt
 # Local-only verification project
 /MFAAvalonia.Tests/
 /MFAAvalonia/AssemblyInfo.cs
+workflows/android/__pycache__/mfa_android_agent.cpython-312.pyc
