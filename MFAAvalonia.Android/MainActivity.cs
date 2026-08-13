@@ -10,6 +10,7 @@ using MaaFramework.Binding;
 using MFAAvalonia.Extensions.MaaFW;
 using MFAAvalonia.Helper;
 using MFAAvalonia.ViewModels.Windows;
+using MFAAvalonia.Utilities;
 using System;
 using System.ComponentModel;
 using System.IO;
@@ -68,6 +69,7 @@ public class MainActivity : AvaloniaMainActivity<App>
                 new AndroidVirtualDisplayPreviewHost(this, _virtualDisplayBackend);
             PlatformApplicationRestart.RestartAsync = RestartAfterResourceUpdateAsync;
             PlatformApplicationRestart.InstallApkAsync = InstallResourceUpdateApkAsync;
+            UrlUtilities.PlatformOpenUrl = OpenUrl;
             AndroidCrashDiagnostics.SetPhase("avalonia-on-create");
             base.OnCreate(savedInstanceState);
             AndroidCrashDiagnostics.SetPhase("application-title");
@@ -221,6 +223,19 @@ public class MainActivity : AvaloniaMainActivity<App>
         return _pendingUpdateInstall.Task;
     }
 
+    private void OpenUrl(string url)
+    {
+        var uri = global::Android.Net.Uri.Parse(url);
+        if (uri == null || string.IsNullOrWhiteSpace(uri.Scheme))
+            throw new UriFormatException($"Invalid URL: {url}");
+
+        RunOnUiThread(() =>
+        {
+            var intent = new Intent(Intent.ActionView, uri);
+            StartActivity(intent);
+        });
+    }
+
     private void ContinuePendingUpdateInstall()
     {
         if (_pendingUpdateInstall == null || string.IsNullOrWhiteSpace(_pendingUpdateApkPath))
@@ -309,6 +324,7 @@ public class MainActivity : AvaloniaMainActivity<App>
         _rootViewModel = null;
         PlatformApplicationRestart.RestartAsync = null;
         PlatformApplicationRestart.InstallApkAsync = null;
+        UrlUtilities.PlatformOpenUrl = null;
         if (_controllerProvider != null)
         {
             PlatformControllerFactory.Create = null;
