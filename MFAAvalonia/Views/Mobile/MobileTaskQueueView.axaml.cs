@@ -4,16 +4,22 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using MaaFramework.Binding;
 using MFAAvalonia.Configuration;
+using MFAAvalonia.Extensions;
 using MFAAvalonia.Extensions.MaaFW;
 using MFAAvalonia.Helper;
 using MFAAvalonia.Helper.ValueType;
 using MFAAvalonia.ViewModels.Pages;
+using MFAAvalonia.ViewModels.UsersControls;
+using MFAAvalonia.Views.UserControls.Settings;
 using MFAAvalonia.Views.Pages;
+using SukiUI.Dialogs;
 
 namespace MFAAvalonia.Views.Mobile;
 
@@ -30,6 +36,7 @@ public partial class MobileTaskQueueView : UserControl
     private long _lastPreviewFrameCount;
     private DateTime _lastPreviewFrameSample;
     private DragItemViewModel? _activeOptionItem;
+    private DragItemViewModel? _lastTaskMenuItem;
 
     public MobileTaskQueueView()
     {
@@ -220,6 +227,130 @@ public partial class MobileTaskQueueView : UserControl
             return;
 
         items.Move(currentIndex, targetIndex);
+        SaveConfiguration();
+    }
+
+    private void TaskItem_OnContextRequested(object? sender, ContextRequestedEventArgs e)
+    {
+        if (sender is not Control { DataContext: DragItemViewModel item } control
+            || control.ContextMenu is not ContextMenu menu)
+            return;
+
+        _lastTaskMenuItem = item;
+        menu.DataContext = item;
+        ApplyTaskMenuEnabledStates(menu, item);
+    }
+
+    private void TaskMenu_OnOpening(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        if (sender is not ContextMenu menu)
+            return;
+
+        var item = _lastTaskMenuItem ?? menu.DataContext as DragItemViewModel;
+        menu.DataContext = item;
+        ApplyTaskMenuEnabledStates(menu, item);
+    }
+
+    private static void ApplyTaskMenuEnabledStates(ContextMenu menu, DragItemViewModel? item)
+    {
+        var menuItems = menu.Items?.OfType<MenuItem>().ToList();
+        if (menuItems is not { Count: >= 6 })
+            return;
+
+        var editable = item is { IsResourceOptionItem: false };
+        var runnable = editable && Instances.RootViewModel.Idle;
+        menuItems[0].IsEnabled = runnable;
+        menuItems[1].IsEnabled = runnable;
+        for (var index = 2; index < 6; index++)
+            menuItems[index].IsEnabled = editable;
+    }
+
+    private DragItemViewModel? GetMenuItem(object? sender) =>
+        (sender as MenuItem)?.DataContext as DragItemViewModel;
+
+    private void RunSingleTask(object? sender, RoutedEventArgs e)
+    {
+        if (GetMenuItem(sender) is { IsResourceOptionItem: false } item && ViewModel is { } viewModel)
+            viewModel.Processor.Start([item], ignoreCheckedState: true);
+    }
+
+    private void RunCheckedFromCurrent(object? sender, RoutedEventArgs e)
+    {
+        if (GetMenuItem(sender) is not { IsResourceOptionItem: false } item || ViewModel is not { } viewModel)
+            return;
+
+        var index = viewModel.TaskItemViewModels.IndexOf(item);
+        if (index < 0)
+            return;
+
+        var tasks = viewModel.TaskItemViewModels.Skip(index)
+            .Where(task => (ReferenceEquals(task, item) || task.IsChecked) && task.IsTaskSupported)
+            .ToList();
+        if (tasks.Count > 0)
+            viewModel.Processor.Start(tasks, ignoreCheckedState: true);
+    }
+
+    private void CopyTask(object? sender, RoutedEventArgs e)
+    {
+        var item = GetMenuItem(sender);
+        if (item?.InterfaceItem == null || item.IsResourceOptionItem)
+            return;
+
+        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        if (clipboard != null)
+            _ = clipboard.SetTextAsync($"{item.InterfaceItem.Name}{TaskLoader.NEW_SEPARATOR}{item.InterfaceItem.Entry}");
+    }
+
+    private async void PasteTask(object? sender, RoutedEventArgs e)
+    {
+        if (GetMenuItem(sender) is not { IsResourceOptionItem: false } selected || ViewModel is not { } viewModel)
+            return;
+
+        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        var text = clipboard == null ? null : await clipboard.TryGetTextAsync();
+        var parts = text?.Split(TaskLoader.NEW_SEPARATOR, StringSplitOptions.None);
+        if (parts is not { Length: 2 })
+            return;
+
+        var source = viewModel.Processor.TasksSource.FirstOrDefault(task =>
+            task.InterfaceItem?.Name == parts[0] && task.InterfaceItem?.Entry == parts[1]);
+        if (source?.InterfaceItem == null)
+            return;
+
+        var output = source.Clone();
+        output.InterfaceItem.Option?.ForEach(option => TaskLoader.SetDefaultOptionValue(MaaProcessor.Interface, option));
+        output.OwnerViewModel = viewModel;
+        viewModel.RefreshTaskSupportForCurrentContext(output);
+        var index = viewModel.TaskItemViewModels.IndexOf(selected);
+        viewModel.TaskItemViewModels.Insert(index >= 0 ? index + 1 : viewModel.TaskItemViewModels.Count, output);
+        SaveConfiguration();
+    }
+
+    private void EditTaskRemark(object? sender, RoutedEventArgs e)
+    {
+        if (GetMenuItem(sender) is not { IsResourceOptionItem: false, InterfaceItem: { } interfaceItem } item
+            || ViewModel is not { } viewModel)
+            return;
+
+        Instances.DialogManager.CreateDialog()
+            .WithTitle(LangKeys.TaskRemarkTitle.ToLocalization())
+            .WithViewModel(dialog => new TaskRemarkDialogViewModel(dialog,
+                interfaceItem.DisplayNameOverride, interfaceItem.Remark, (displayName, remark) =>
+                {
+                    interfaceItem.DisplayNameOverride = string.IsNullOrWhiteSpace(displayName) ? null : displayName;
+                    interfaceItem.Remark = string.IsNullOrWhiteSpace(remark) ? null : remark;
+                    item.RefreshDisplayName();
+                    SaveConfiguration();
+                }))
+            .TryShow();
+    }
+
+    private void DeleteTask(object? sender, RoutedEventArgs e)
+    {
+        if (GetMenuItem(sender) is not { IsResourceOptionItem: false } item || ViewModel is not { } viewModel)
+            return;
+
+        viewModel.TaskItemViewModels.Remove(item);
         SaveConfiguration();
     }
 

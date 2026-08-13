@@ -6,12 +6,28 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:fluent="clr-namespace:FluentIcons.Avalonia.Fluent;assembly=FluentIcons.Avalonia.Fluent"
              xmlns:extensions="clr-namespace:MFAAvalonia.Extensions"
+             xmlns:helper="clr-namespace:MFAAvalonia.Helper"
+             xmlns:markup="https://codewf.com"
              xmlns:mdxaml="https://github.com/whistyun/Markdown.Avalonia"
              xmlns:pages="clr-namespace:MFAAvalonia.ViewModels.Pages"
              xmlns:other="clr-namespace:MFAAvalonia.ViewModels.Other"
              xmlns:suki="https://github.com/kikipoulet/SukiUI"
              xmlns:valueType="clr-namespace:MFAAvalonia.Helper.ValueType"
              mc:Ignorable="d" d:DesignWidth="390" d:DesignHeight="760">
+    <UserControl.Resources>
+        <ContextMenu x:Key="MobileTaskMenu" Opening="TaskMenu_OnOpening">
+            <MenuItem Click="RunSingleTask" Header="{markup:I18n {x:Static helper:LangKeys.RunSingle}}" />
+            <MenuItem Click="RunCheckedFromCurrent" Header="{markup:I18n {x:Static helper:LangKeys.RunCheckedFromCurrent}}" />
+            <Separator />
+            <MenuItem Click="CopyTask" Header="{markup:I18n {x:Static helper:LangKeys.Copy}}" />
+            <MenuItem Click="PasteTask" Header="{markup:I18n {x:Static helper:LangKeys.Paste}}" />
+            <Separator />
+            <MenuItem Click="EditTaskRemark" Header="{markup:I18n {x:Static helper:LangKeys.TaskRemarkMenu}}" />
+            <Separator />
+            <MenuItem Click="DeleteTask" Classes="DangerContextDelete"
+                      Header="{markup:I18n {x:Static helper:LangKeys.Delete}}" />
+        </ContextMenu>
+    </UserControl.Resources>
     <UserControl.Styles>
         <Style Selector="Button.MobilePageTab">
             <Setter Property="Background" Value="Transparent" />
@@ -195,7 +211,7 @@
         </Grid>
 
         <Grid x:Name="TaskQueueHost" Grid.Row="2" RowDefinitions="Auto,*,Auto" Margin="2,14,2,0">
-            <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,8">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,0,0,8">
                 <StackPanel>
                     <TextBlock x:Name="TaskQueueTitle" Text="Task queue" FontSize="18" FontWeight="SemiBold" />
                     <TextBlock x:Name="TaskQueueDescription" Text="Select tasks to run in the default instance" FontSize="11"
@@ -205,6 +221,11 @@
                         Command="{Binding SelectAllCommand}" ToolTip.Tip="Select all">
                     <fluent:FluentIcon Icon="SelectAllOn" IconSize="Size20" />
                 </Button>
+                <Button x:Name="AddTaskButton" Grid.Column="2" Width="42" Height="42" Padding="0"
+                        Command="{Binding AddTaskCommand}"
+                        ToolTip.Tip="{markup:I18n {x:Static helper:LangKeys.AddTask}}">
+                    <fluent:FluentIcon Icon="Add" IconSize="Size20" />
+                </Button>
             </Grid>
             <ListBox x:Name="TaskList" Grid.Row="1" Classes="Fluent" ItemsSource="{Binding TaskItemViewModels}"
                      ScrollViewer.VerticalScrollBarVisibility="Auto">
@@ -212,7 +233,9 @@
                     <DataTemplate x:DataType="valueType:DragItemViewModel">
                         <Border MinHeight="52" Padding="10,6" Margin="0,0,0,6" CornerRadius="6"
                                 Background="{DynamicResource SukiCardBackground}"
-                                BorderBrush="{DynamicResource SukiControlBorderBrush}" BorderThickness="1">
+                                BorderBrush="{DynamicResource SukiControlBorderBrush}" BorderThickness="1"
+                                ContextMenu="{StaticResource MobileTaskMenu}"
+                                ContextRequested="TaskItem_OnContextRequested">
                             <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,22">
                                 <CheckBox IsThreeState="True" MinWidth="40"
                                           IsEnabled="{Binding !IsResourceOptionItem}"
