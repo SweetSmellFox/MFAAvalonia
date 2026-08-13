@@ -2,6 +2,7 @@ using Android.App;
 using Android.Content;
 using Android.Content.PM;
 using Android.OS;
+using Android.Provider;
 using AndroidX.Core.Content;
 using Avalonia;
 using Avalonia.Android;
@@ -30,6 +31,10 @@ public class MainActivity : AvaloniaMainActivity<App>
     private ShizukuInstallationPrompt? _shizukuInstallationPrompt;
     private ShizukuAuthorizationPrompt? _shizukuAuthorizationPrompt;
     private RootViewModel? _rootViewModel;
+    private string? _pendingUpdateApkPath;
+    private TaskCompletionSource? _pendingUpdateInstall;
+    private bool _awaitingUnknownSourcesPermission;
+    private bool _unknownSourcesActivityPaused;
 
     protected override void OnCreate(Bundle? savedInstanceState)
     {
@@ -83,6 +88,27 @@ public class MainActivity : AvaloniaMainActivity<App>
             AndroidCrashDiagnostics.SetPhase("activity-post-resume");
             base.OnPostResume();
             _shizuku?.RefreshState();
+            if (_awaitingUnknownSourcesPermission && _unknownSourcesActivityPaused)
+            {
+                _awaitingUnknownSourcesPermission = false;
+                _unknownSourcesActivityPaused = false;
+                try
+                {
+                    if (Build.VERSION.SdkInt >= BuildVersionCodes.O
+                        && PackageManager?.CanRequestPackageInstalls() != true)
+                    {
+                        CompletePendingUpdateInstall(new UnauthorizedAccessException(
+                            "Please allow this app to install unknown apps, then retry the update."));
+                        return;
+                    }
+                    ContinuePendingUpdateInstall();
+                }
+                catch (Exception ex)
+                {
+                    CompletePendingUpdateInstall(ex);
+                }
+                return;
+            }
             AndroidCrashDiagnostics.SetPhase("shizuku-install-prompt");
             _shizukuInstallationPrompt?.ShowIfNotInstalled();
             _shizukuAuthorizationPrompt?.ShowIfNeeded();
@@ -93,6 +119,13 @@ public class MainActivity : AvaloniaMainActivity<App>
             AndroidCrashDiagnostics.Record("main-activity-on-post-resume", ex);
             throw;
         }
+    }
+
+    protected override void OnPause()
+    {
+        if (_awaitingUnknownSourcesPermission)
+            _unknownSourcesActivityPaused = true;
+        base.OnPause();
     }
 
     private void BindApplicationTitle()
@@ -168,18 +201,89 @@ public class MainActivity : AvaloniaMainActivity<App>
         if (!File.Exists(apkPath))
             throw new FileNotFoundException("Downloaded Android update APK was not found.", apkPath);
 
+        if (_pendingUpdateInstall != null)
+            throw new InvalidOperationException("An Android APK installation is already pending.");
+
+        _pendingUpdateApkPath = apkPath;
+        _pendingUpdateInstall = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         RunOnUiThread(() =>
         {
-            var apkFile = new Java.IO.File(apkPath);
-            var authority = $"{PackageName}.fileprovider";
-            var contentUri = FileProvider.GetUriForFile(this, authority, apkFile);
-            var intent = new Intent(Intent.ActionView);
-            intent.SetDataAndType(contentUri, "application/vnd.android.package-archive");
-            intent.AddFlags(ActivityFlags.GrantReadUriPermission | ActivityFlags.NewTask);
-            StartActivity(intent);
+            try
+            {
+                ContinuePendingUpdateInstall();
+            }
+            catch (Exception ex)
+            {
+                CompletePendingUpdateInstall(ex);
+            }
         });
 
-        return Task.CompletedTask;
+        return _pendingUpdateInstall.Task;
+    }
+
+    private void ContinuePendingUpdateInstall()
+    {
+        if (_pendingUpdateInstall == null || string.IsNullOrWhiteSpace(_pendingUpdateApkPath))
+            return;
+
+        if (Build.VERSION.SdkInt >= BuildVersionCodes.O
+            && PackageManager?.CanRequestPackageInstalls() != true)
+        {
+            if (_awaitingUnknownSourcesPermission)
+            {
+                CompletePendingUpdateInstall(new UnauthorizedAccessException(
+                    "Please allow this app to install unknown apps, then retry the update."));
+                return;
+            }
+
+            _awaitingUnknownSourcesPermission = true;
+            _unknownSourcesActivityPaused = false;
+            var settingsIntent = new Intent(
+                Settings.ActionManageUnknownAppSources,
+                global::Android.Net.Uri.Parse($"package:{PackageName}"));
+            StartActivity(settingsIntent);
+            return;
+        }
+
+        var apkFile = new Java.IO.File(_pendingUpdateApkPath);
+        var authority = $"{PackageName}.fileprovider";
+        var contentUri = FileProvider.GetUriForFile(this, authority, apkFile);
+        var installIntent = new Intent(Intent.ActionView);
+        installIntent.SetDataAndType(contentUri, "application/vnd.android.package-archive");
+        installIntent.ClipData = ClipData.NewRawUri("MFA resource update", contentUri);
+        installIntent.AddFlags(ActivityFlags.NewTask | ActivityFlags.GrantReadUriPermission);
+
+        var installers = PackageManager?.QueryIntentActivities(
+            installIntent,
+            PackageInfoFlags.MatchDefaultOnly);
+        if (installers == null || installers.Count == 0)
+            throw new ActivityNotFoundException("No Android package installer can handle the downloaded APK.");
+
+        foreach (var installer in installers)
+        {
+            var packageName = installer.ActivityInfo?.PackageName;
+            if (!string.IsNullOrWhiteSpace(packageName))
+                GrantUriPermission(packageName, contentUri, ActivityFlags.GrantReadUriPermission);
+        }
+
+        global::Android.Util.Log.Info(
+            "MFAAvalonia",
+            $"Launching package installer for resource update: uri={contentUri}, handlers={installers.Count}");
+        StartActivity(installIntent);
+        CompletePendingUpdateInstall();
+    }
+
+    private void CompletePendingUpdateInstall(Exception? error = null)
+    {
+        var completion = _pendingUpdateInstall;
+        _pendingUpdateInstall = null;
+        _pendingUpdateApkPath = null;
+        _awaitingUnknownSourcesPermission = false;
+        _unknownSourcesActivityPaused = false;
+        if (error == null)
+            completion?.TrySetResult();
+        else
+            completion?.TrySetException(error);
     }
 
     private static void ConfigureMaaLogging()
