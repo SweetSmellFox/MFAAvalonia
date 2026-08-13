@@ -91,7 +91,7 @@ GitHub 公共仓库默认不需要个人访问令牌。工作流可使用 GitHub
 ├─ tasks/                         # 项目自己的任务配置，可选
 ├─ android/
 │  └─ icon.png                    # Android Launcher 图标，可选，不进入运行时 payload
-├─ requirements-android.txt       # 仅作为项目说明；工作流不会自动读取
+├─ requirements-android.txt       # Android Python 依赖；存在时优先于 requirements.txt 自动读取
 ├─ README.md
 └─ LICENSE
 ```
@@ -729,7 +729,32 @@ print("*info: Agent server started", flush=True)
 
 不要只根据 UI 的“连接失败”判断 Python、Shizuku 或资源是哪一层出错，应以异常堆栈中的类名和阶段日志为准。
 
-### 12.11 `AndroidEnvironmentInternal.UnhandledException is inaccessible`
+### 12.11 `MissingForegroundServiceTypeException`
+
+如果 x64 模拟器能连接 Python Agent，但 ARM64 新版 Android 真机在点击任务后等待 30 秒并报告 Agent 启动失败，应先检查 `logcat`，不要先判断为 ABI、NumPy 或 MaaFramework 动态库问题。典型错误是：
+
+```text
+android.app.MissingForegroundServiceTypeException:
+Starting FGS without a type ... targetSDK=36
+at org.kivy.android.PythonService.doStartForeground(...)
+```
+
+这表示 p4a Python Service 进程已经创建，但在执行 Python 入口前，被 Android 14+ 的前台服务类型校验终止。MFA 模板会在生成 AAR 后给 `ServiceMfaagent` 注入：
+
+```xml
+android:foregroundServiceType="dataSync"
+```
+
+MFA Android Manifest 同时声明：
+
+```xml
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+```
+
+构建后的 merged Manifest 还会验证该类型确实被合入。资源仓库若维护了独立 `android.yml`，必须同步 `workflows/install.yml` 中“patch generated AAR manifest”和“verify merged manifest”两段逻辑；只传入 p4a AAR 或只声明权限仍然不够。
+
+### 12.12 `AndroidEnvironmentInternal.UnhandledException is inaccessible`
 
 若 Release APK 在 AndroidX 回调中崩溃，且日志同时包含 `System.MethodAccessException` 和 `_mm_wrapper`，这是 [.NET for Android 的 marshal methods 已知问题](https://github.com/dotnet/android/issues/10602)，不是 interface、资源、Shizuku、Python Agent 或 `libmfabridge.so` 首先引起的。MFA Android 壳已显式设置：
 
@@ -751,7 +776,7 @@ print("*info: Agent server started", flush=True)
 6. 使用 Python Agent 时必须同时验证入口、P4A requirements、Maa Python binding 和 Native 库版本。
 7. `MFA_ANDROID_MFA_REF` 指向的代码必须已推送；不得假设 GitHub Runner 能读取本地未提交修改。
 8. 先运行 YAML/JSONC/路径静态检查，再触发 CI；依赖不确定时先测试单 ABI。
-9. 只有 GitHub `build-android` 两个 matrix、设备启动、Shizuku 画面、Agent 连接和至少一个真实任务都通过后，才能报告“Android 发布链路验证完成”。
+9. 只有 GitHub `build-android` 两个 matrix、x64 模拟器和 ARM64 真机启动、Shizuku 画面、Agent 连接和至少一个真实任务都通过后，才能报告“Android 发布链路验证完成”。
 10. 如果只完成本地等价构建，必须明确写“未完成真实 GitHub Actions 端到端验证”。
 
 建议 AI 最终输出以下验收信息：
