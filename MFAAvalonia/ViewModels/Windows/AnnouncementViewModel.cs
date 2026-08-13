@@ -28,6 +28,7 @@ public class AnnouncementItem
 public partial class AnnouncementViewModel : ViewModelBase
 {
     public static readonly string AnnouncementFolder = "announcement";
+    private static readonly string LegacyAnnouncementFolder = "Announcement";
     private static List<AnnouncementItem> _publicAnnouncementItems = new();
 
     [ObservableProperty] private AvaloniaList<AnnouncementItem> _announcementItems = new();
@@ -36,6 +37,19 @@ public partial class AnnouncementViewModel : ViewModelBase
     [ObservableProperty] private bool _doNotRemindThisAnnouncementAgain = Convert.ToBoolean(
         GlobalConfiguration.GetValue(ConfigurationKeys.DoNotShowAnnouncementAgain, bool.FalseString));
     [ObservableProperty] private bool _isLoading = true;
+
+    private static string GetAnnouncementDirectory()
+    {
+        var resourcePath = AppPaths.ResourceDirectory;
+        var standardPath = Path.Combine(resourcePath, AnnouncementFolder);
+        if (Directory.Exists(standardPath))
+        {
+            return standardPath;
+        }
+
+        var legacyPath = Path.Combine(resourcePath, LegacyAnnouncementFolder);
+        return Directory.Exists(legacyPath) ? legacyPath : standardPath;
+    }
 
     private CancellationTokenSource? _loadCts; // 加载取消令牌
 
@@ -127,8 +141,7 @@ public partial class AnnouncementViewModel : ViewModelBase
         {
             IsLoading = true;
 
-            var resourcePath = AppPaths.ResourceDirectory;
-            var announcementDir = Path.Combine(resourcePath, AnnouncementFolder);
+            var announcementDir = GetAnnouncementDirectory();
 
             if (!Directory.Exists(announcementDir))
             {
@@ -288,8 +301,7 @@ public partial class AnnouncementViewModel : ViewModelBase
                 return;
             }
 
-            var resourcePath = AppPaths.ResourceDirectory;
-            var announcementDir = Path.Combine(resourcePath, AnnouncementFolder);
+            var announcementDir = GetAnnouncementDirectory();
 
             var scanResult = await Task.Run(() =>
             {
