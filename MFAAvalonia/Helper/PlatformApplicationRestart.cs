@@ -9,4 +9,5 @@ namespace MFAAvalonia.Helper;
 public static class PlatformApplicationRestart
 {
     public static Func<Task>? RestartAsync { get; set; }
+    public static Func<string, Task>? InstallApkAsync { get; set; }
 }

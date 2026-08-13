@@ -819,6 +819,13 @@ public static class VersionChecker
             Instances.InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel.ClearDownloadProgress();
             return;
         }
+        if (OperatingSystem.IsAndroid() && !isLocalPackage && string.IsNullOrWhiteSpace(sha256))
+        {
+            Dismiss(sukiToast);
+            ToastHelper.Warn(LangKeys.Warning.ToLocalization(), "Android APK Release 未提供 SHA256 digest，已拒绝下载。", -1);
+            Instances.RootViewModel.SetUpdating(false);
+            return;
+        }
         MaaProcessorManager.Instance.Current.SetTasker();
         // 仅停止正在运行的任务，不 Dispose 处理器（避免界面变白/配置列表清空）
         // BeforeClosed 将在重启前调用
@@ -835,7 +842,7 @@ public static class VersionChecker
         var tempPath = AppPaths.TempResourceDirectory;
         Directory.CreateDirectory(tempPath);
         var debugSessionId = DateTime.Now.ToString("yyyyMMddHHmmss");
-        string fileExtension = GetFileExtensionFromUrl(downloadUrl);
+        string fileExtension = OperatingSystem.IsAndroid() ? ".apk" : GetFileExtensionFromUrl(downloadUrl);
         if (string.IsNullOrEmpty(fileExtension))
         {
             fileExtension = ".zip";
@@ -903,6 +910,37 @@ public static class VersionChecker
             Dismiss(sukiToast);
             ToastHelper.Warn(LangKeys.Warning.ToLocalization(), LangKeys.HashVerificationFailed.ToLocalization());
             Instances.RootViewModel.SetUpdating(false);
+            return;
+        }
+        if (OperatingSystem.IsAndroid())
+        {
+            if (!tempZipFilePath.EndsWith(".apk", StringComparison.OrdinalIgnoreCase))
+            {
+                Dismiss(sukiToast);
+                ToastHelper.Warn(LangKeys.Warning.ToLocalization(), "Android 更新资产不是 APK，已拒绝安装。", -1);
+                Instances.RootViewModel.SetUpdating(false);
+                return;
+            }
+            if (string.IsNullOrWhiteSpace(sha256) || !sha256Verified)
+            {
+                Dismiss(sukiToast);
+                ToastHelper.Warn(LangKeys.Warning.ToLocalization(), "Android APK 缺少有效的 SHA256 校验值，已拒绝安装。", -1);
+                Instances.RootViewModel.SetUpdating(false);
+                return;
+            }
+            if (PlatformApplicationRestart.InstallApkAsync == null)
+            {
+                Dismiss(sukiToast);
+                ToastHelper.Warn(LangKeys.Warning.ToLocalization(), LangKeys.PlatformNotSupportedOperation.ToLocalization());
+                Instances.RootViewModel.SetUpdating(false);
+                return;
+            }
+
+            SetStatusText(textBlock, downloadSpeedTextBlock, LangKeys.ApplyingUpdate.ToLocalization());
+            SetProgress(progress, 100);
+            Instances.RootViewModel.SetUpdating(false);
+            Dismiss(sukiToast);
+            await PlatformApplicationRestart.InstallApkAsync(tempZipFilePath);
             return;
         }
         SetStatusText(textBlock, downloadSpeedTextBlock, LangKeys.Extracting.ToLocalization());
@@ -2633,6 +2671,9 @@ public static class VersionChecker
     // 标准化操作系统标识
     private static (string os, string family) GetNormalizedOSInfo()
     {
+        if (OperatingSystem.IsAndroid())
+            return ("android", "android");
+
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             return ("win", "windows");
 
@@ -2854,7 +2895,12 @@ public static class VersionChecker
                         LoggerHelper.Info($"候选资产优先级：名称={asset.Name}，优先级={priority}");
                     }
 
-                    var bestAsset = orderedAssets.FirstOrDefault(a => a.Url != null);
+                    var bestAsset = OperatingSystem.IsAndroid()
+                        ? orderedAssets.FirstOrDefault(a =>
+                            a.Url != null
+                            && a.Name?.EndsWith(".apk", StringComparison.OrdinalIgnoreCase) == true
+                            && GetAssetPriority(a.Name, osPlatform, osFamily, cpuArch) > 0)
+                        : orderedAssets.FirstOrDefault(a => a.Url != null);
                     downloadUrl = bestAsset?.Url ?? string.Empty;
                     sha256 = bestAsset?.Sha256 ?? string.Empty;
                 }

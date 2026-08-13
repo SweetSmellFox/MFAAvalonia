@@ -2,6 +2,7 @@ using Android.App;
 using Android.Content;
 using Android.Content.PM;
 using Android.OS;
+using AndroidX.Core.Content;
 using Avalonia;
 using Avalonia.Android;
 using MaaFramework.Binding;
@@ -61,6 +62,7 @@ public class MainActivity : AvaloniaMainActivity<App>
             MobileVirtualDisplay.PreviewControlFactory = () =>
                 new AndroidVirtualDisplayPreviewHost(this, _virtualDisplayBackend);
             PlatformApplicationRestart.RestartAsync = RestartAfterResourceUpdateAsync;
+            PlatformApplicationRestart.InstallApkAsync = InstallResourceUpdateApkAsync;
             AndroidCrashDiagnostics.SetPhase("avalonia-on-create");
             base.OnCreate(savedInstanceState);
             AndroidCrashDiagnostics.SetPhase("application-title");
@@ -161,6 +163,25 @@ public class MainActivity : AvaloniaMainActivity<App>
         return Task.CompletedTask;
     }
 
+    private Task InstallResourceUpdateApkAsync(string apkPath)
+    {
+        if (!File.Exists(apkPath))
+            throw new FileNotFoundException("Downloaded Android update APK was not found.", apkPath);
+
+        RunOnUiThread(() =>
+        {
+            var apkFile = new Java.IO.File(apkPath);
+            var authority = $"{PackageName}.fileprovider";
+            var contentUri = FileProvider.GetUriForFile(this, authority, apkFile);
+            var intent = new Intent(Intent.ActionView);
+            intent.SetDataAndType(contentUri, "application/vnd.android.package-archive");
+            intent.AddFlags(ActivityFlags.GrantReadUriPermission | ActivityFlags.NewTask);
+            StartActivity(intent);
+        });
+
+        return Task.CompletedTask;
+    }
+
     private static void ConfigureMaaLogging()
     {
         try
@@ -183,6 +204,7 @@ public class MainActivity : AvaloniaMainActivity<App>
             _rootViewModel.PropertyChanged -= OnRootViewModelPropertyChanged;
         _rootViewModel = null;
         PlatformApplicationRestart.RestartAsync = null;
+        PlatformApplicationRestart.InstallApkAsync = null;
         if (_controllerProvider != null)
         {
             PlatformControllerFactory.Create = null;
