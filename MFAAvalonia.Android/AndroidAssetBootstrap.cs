@@ -20,12 +20,13 @@ internal static class AndroidAssetBootstrap
     private const string TransactionPreviousEntriesMarker = ".mfa-transaction.previous.entries";
     private const string StagingDirectoryPrefix = ".mfa-package-staging-";
     private const string BackupDirectoryPrefix = ".mfa-package-backup-";
+    private const string UserConfigEntry = "config";
 
     // Old Android builds did not record payload ownership. These are the only legacy paths that
     // may be removed during the first managed upgrade; user config, logs and cache are excluded.
     private static readonly string[] LegacyManagedEntries =
     [
-        "agent", "config", "data", "locales", "python", "resource", "Resource", "tasks",
+        "agent", "data", "locales", "python", "resource", "Resource", "tasks",
         "interface.json", "interface.jsonc", "changes.json", "maa-project.json",
         ".python-version", "pyproject.toml", "uv.lock"
     ];
@@ -102,10 +103,21 @@ internal static class AndroidAssetBootstrap
             var newEntries = ExtractPackage(packageStream, stagingRoot);
             ValidateStagedPackage(stagingRoot);
 
+            // Config is seeded by the payload on first install, but becomes user-owned as soon as
+            // it exists. An APK upgrade must not replace notification settings or other choices
+            // with the defaults bundled in the new payload. Older builds may still list config in
+            // their ownership manifest, so filter it from both the old and new managed entry sets.
+            var preserveUserConfig = EntryExists(targetRoot, UserConfigEntry);
+            var managedNewEntries = preserveUserConfig
+                ? newEntries.Where(entry => !string.Equals(entry, UserConfigEntry, StringComparison.Ordinal)).ToArray()
+                : newEntries;
+
             var previousEntries = ReadManagedEntries(targetRoot);
             var entriesToReplace = previousEntries
-                .Concat(newEntries)
+                .Concat(managedNewEntries)
                 .Concat(GetLegacyManagedEntries(targetRoot))
+                .Where(entry => !preserveUserConfig
+                                || !string.Equals(entry, UserConfigEntry, StringComparison.Ordinal))
                 .Distinct(StringComparer.Ordinal)
                 .ToArray();
             var originalEntries = entriesToReplace
@@ -125,12 +137,12 @@ internal static class AndroidAssetBootstrap
                 foreach (var entry in entriesToReplace)
                     MoveEntryIfExists(targetRoot, backupRoot, entry);
 
-                foreach (var entry in newEntries)
+                foreach (var entry in managedNewEntries)
                     MoveEntryIfExists(stagingRoot, targetRoot, entry);
 
                 WriteAllTextAtomically(
                     Path.Combine(targetRoot, PackageEntriesMarker),
-                    string.Join(Environment.NewLine, newEntries.Order(StringComparer.Ordinal)) + Environment.NewLine);
+                    string.Join(Environment.NewLine, managedNewEntries.Order(StringComparer.Ordinal)) + Environment.NewLine);
                 WriteAllTextAtomically(Path.Combine(targetRoot, PackageMarker), packageFingerprint);
                 backupCanBeDeleted = true;
             }
