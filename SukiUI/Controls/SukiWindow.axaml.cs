@@ -539,6 +539,7 @@ public class SukiWindow : Window, IDisposable
 
     public SukiWindow()
     {
+        PseudoClasses.Set(":macos", OperatingSystem.IsMacOS());
         Hosts = [];
         RightWindowTitleBarControls = [];
         MenuItems = [];
