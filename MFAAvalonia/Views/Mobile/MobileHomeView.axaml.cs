@@ -55,7 +55,12 @@ public partial class MobileHomeView : UserControl
         Instances.RootViewModel.RefreshApplicationDisplayName();
         CurrentConfigurationText.Text = MobileLocalization.Get("CurrentConfiguration");
         SingleInstanceText.Text = MobileLocalization.Get("SingleActiveConfiguration");
-        CurrentTaskLabel.Text = MobileLocalization.Get("CurrentTask");
+        // CurrentTask is a formatted Desktop string (for example "任务: {0}"). The mobile
+        // card renders the label and task value in separate controls, so consume the placeholder
+        // here instead of exposing it literally in the label.
+        CurrentTaskLabel.Text = MobileLocalization.Get("CurrentTask")
+            .Replace("{0}", string.Empty, System.StringComparison.Ordinal)
+            .TrimEnd(' ', ':', '：');
         if (string.IsNullOrWhiteSpace(CurrentTaskValue.Text))
             CurrentTaskValue.Text = MobileLocalization.Get("Idle");
         StartStopText.Text = MobileLocalization.Get("StartStop");
