@@ -27,6 +27,7 @@ public class MainActivity : AvaloniaMainActivity<App>
     private AndroidPythonAgentProvider? _pythonAgentProvider;
     private ShizukuConnectionManager? _shizuku;
     private ShizukuInstallationPrompt? _shizukuInstallationPrompt;
+    private ShizukuAuthorizationPrompt? _shizukuAuthorizationPrompt;
     private RootViewModel? _rootViewModel;
 
     protected override void OnCreate(Bundle? savedInstanceState)
@@ -40,12 +41,13 @@ public class MainActivity : AvaloniaMainActivity<App>
             ConfigureMaaLogging();
             AndroidCrashDiagnostics.SetPhase("shizuku-manager");
             _shizuku = new ShizukuConnectionManager(this);
-            _shizuku.Start();
             _shizukuInstallationPrompt = new ShizukuInstallationPrompt(this);
+            _shizukuAuthorizationPrompt = new ShizukuAuthorizationPrompt(this, _shizuku);
+            _shizuku.Start();
             AndroidCrashDiagnostics.SetPhase("virtual-display");
-            _virtualDisplayBackend = new AndroidVirtualDisplayBackend(this);
+            _virtualDisplayBackend = new AndroidVirtualDisplayBackend(this, _shizuku);
             AndroidCrashDiagnostics.SetPhase("controller-provider");
-            _controllerProvider = new AndroidNativeControllerProvider(this, _shizuku, _virtualDisplayBackend);
+            _controllerProvider = new AndroidNativeControllerProvider(this, _shizuku, _shizukuAuthorizationPrompt, _virtualDisplayBackend);
             PlatformControllerFactory.Create = _controllerProvider.Create;
             AndroidCrashDiagnostics.SetPhase("python-agent-provider");
             _pythonAgentProvider = new AndroidPythonAgentProvider(this);
@@ -53,6 +55,7 @@ public class MainActivity : AvaloniaMainActivity<App>
             {
                 PlatformAgentFactory.Start = _pythonAgentProvider.Start;
                 PlatformAgentFactory.LinkStart = _pythonAgentProvider.LinkStart;
+                PlatformAgentFactory.LinkStop = _pythonAgentProvider.LinkStop;
             }
             MobileVirtualDisplay.Backend = _virtualDisplayBackend;
             MobileVirtualDisplay.PreviewControlFactory = () =>
@@ -77,8 +80,10 @@ public class MainActivity : AvaloniaMainActivity<App>
         {
             AndroidCrashDiagnostics.SetPhase("activity-post-resume");
             base.OnPostResume();
+            _shizuku?.RefreshState();
             AndroidCrashDiagnostics.SetPhase("shizuku-install-prompt");
             _shizukuInstallationPrompt?.ShowIfNotInstalled();
+            _shizukuAuthorizationPrompt?.ShowIfNeeded();
             AndroidCrashDiagnostics.SetPhase("activity-running");
         }
         catch (Exception ex)
@@ -179,14 +184,19 @@ public class MainActivity : AvaloniaMainActivity<App>
         _rootViewModel = null;
         PlatformApplicationRestart.RestartAsync = null;
         if (_controllerProvider != null)
+        {
             PlatformControllerFactory.Create = null;
+        }
         _controllerProvider = null;
         if (_pythonAgentProvider != null)
         {
             PlatformAgentFactory.Start = null;
             PlatformAgentFactory.LinkStart = null;
+            PlatformAgentFactory.LinkStop = null;
         }
         _pythonAgentProvider = null;
+        _shizukuAuthorizationPrompt?.Dispose();
+        _shizukuAuthorizationPrompt = null;
         _shizuku?.Dispose();
         _shizuku = null;
         _shizukuInstallationPrompt?.Dispose();

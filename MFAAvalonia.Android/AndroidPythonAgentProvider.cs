@@ -15,6 +15,8 @@ internal sealed class AndroidPythonAgentProvider
     private const string ServiceClassMetadataKey = "MFA.Android.PythonServiceClass";
     private const string EntryPointMetadataKey = "MFA.Android.PythonAgentEntryPoint";
     private const string OutputLineExtra = "line";
+    private const string FatalOutputPrefix = "__MFA_ANDROID_AGENT_FATAL__:";
+    private const string ExitOutputPrefix = "__MFA_ANDROID_AGENT_EXIT__:";
 
     private readonly Activity _activity;
     private readonly Lock _sessionLock = new();
@@ -49,6 +51,18 @@ internal sealed class AndroidPythonAgentProvider
         return result > 0;
     }
 
+    public bool LinkStop(MaaAgentClient client)
+    {
+        var result = NativeBridgeInterop.SafeAgentClientDisconnect(client.Handle);
+        if (result < 0)
+        {
+            global::Android.Util.Log.Warn(
+                "MFAAgent",
+                $"MaaAgentClientDisconnect was interrupted or threw across its native ABI; result={result}.");
+        }
+        return result > 0;
+    }
+
     public IPlatformAgentSession? Start(PlatformAgentStartRequest request)
     {
         if (!IsAvailable)
@@ -65,7 +79,8 @@ internal sealed class AndroidPythonAgentProvider
         try
         {
             var outputAction = $"{_activity.PackageName}.PYTHON_AGENT_OUTPUT";
-            var outputReceiver = new AgentOutputReceiver(request.Output);
+            var startupState = new AgentStartupState();
+            var outputReceiver = new AgentOutputReceiver(request.Output, startupState);
             var outputFilter = new IntentFilter(outputAction);
             if (Build.VERSION.SdkInt >= BuildVersionCodes.Tiramisu)
                 _activity.RegisterReceiver(outputReceiver, outputFilter, ReceiverFlags.NotExported);
@@ -91,7 +106,7 @@ internal sealed class AndroidPythonAgentProvider
             {
                 AndroidPythonServiceInterop.Prepare(_activity, serviceClass);
                 AndroidPythonServiceInterop.Start(_activity, serviceClass, serviceArgument);
-                return new Session(this, serviceClass, outputReceiver);
+                return new Session(this, serviceClass, outputReceiver, startupState);
             }
             catch
             {
@@ -113,22 +128,29 @@ internal sealed class AndroidPythonAgentProvider
             _sessionActive = false;
     }
 
-    private sealed class Session : IPlatformAgentSession
+    private sealed class Session : IPlatformAgentSession, IPlatformAgentStartupStatus
     {
         private readonly AndroidPythonAgentProvider _owner;
         private readonly string _serviceClass;
         private readonly AgentOutputReceiver _outputReceiver;
+        private readonly AgentStartupState _startupState;
         private bool _disposed;
 
         public Session(
             AndroidPythonAgentProvider owner,
             string serviceClass,
-            AgentOutputReceiver outputReceiver)
+            AgentOutputReceiver outputReceiver,
+            AgentStartupState startupState)
         {
             _owner = owner;
             _serviceClass = serviceClass;
             _outputReceiver = outputReceiver;
+            _startupState = startupState;
         }
+
+        public string? StartupFailure => _startupState.Failure;
+
+        public void CompleteStartup() => _startupState.Complete();
 
         public void Dispose()
         {
@@ -155,13 +177,47 @@ internal sealed class AndroidPythonAgentProvider
         }
     }
 
-    private sealed class AgentOutputReceiver(Action<string> output) : BroadcastReceiver
+    private sealed class AgentStartupState
+    {
+        private string? _failure;
+        private int _completed;
+
+        public string? Failure => Volatile.Read(ref _failure);
+
+        public void Complete() => Interlocked.Exchange(ref _completed, 1);
+
+        public void Fail(string message)
+        {
+            if (Volatile.Read(ref _completed) == 0)
+                Interlocked.CompareExchange(ref _failure, message, null);
+        }
+    }
+
+    private sealed class AgentOutputReceiver(
+        Action<string> output,
+        AgentStartupState startupState) : BroadcastReceiver
     {
         public override void OnReceive(Context? context, Intent? intent)
         {
             var line = intent?.GetStringExtra(OutputLineExtra);
-            if (!string.IsNullOrEmpty(line))
-                output(line);
+            if (string.IsNullOrEmpty(line))
+                return;
+
+            if (line.StartsWith(FatalOutputPrefix, StringComparison.Ordinal)
+                || line.StartsWith(ExitOutputPrefix, StringComparison.Ordinal))
+            {
+                var prefixLength = line.StartsWith(FatalOutputPrefix, StringComparison.Ordinal)
+                    ? FatalOutputPrefix.Length
+                    : ExitOutputPrefix.Length;
+                var detail = line[prefixLength..].Trim();
+                startupState.Fail(string.IsNullOrEmpty(detail)
+                    ? "The Android Python Agent process exited during startup."
+                    : detail);
+                output($"error: Android Python Agent startup failed: {detail}");
+                return;
+            }
+
+            output(line);
         }
     }
 }

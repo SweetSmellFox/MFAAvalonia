@@ -15,4 +15,8 @@ internal static partial class NativeBridgeInterop
 
     [LibraryImport("mfabridge", EntryPoint = "MfaBridgeSafeAgentClientConnect")]
     internal static partial int SafeAgentClientConnect(nint client);
+
+    [LibraryImport("mfabridge", EntryPoint = "MfaBridgeSafeAgentClientDisconnect")]
+    internal static partial int SafeAgentClientDisconnect(nint client);
+
 }

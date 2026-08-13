@@ -20,6 +20,7 @@
 #include <mutex>
 #include <queue>
 #include <thread>
+#include <unistd.h>
 
 namespace {
 constexpr const char* kTag = "MfaNativeCapture";
@@ -42,6 +43,8 @@ Capturer* g_capturer = nullptr;
 std::mutex g_capturer_mutex;
 std::atomic<long long> g_frame_count{0};
 std::atomic<long long> g_render_count{0};
+std::atomic<long long> g_last_copy_dispatch_ns{0};
+std::atomic<long long> g_last_preview_dispatch_ns{0};
 std::chrono::steady_clock::time_point g_capture_report_time;
 std::chrono::steady_clock::time_point g_render_report_time;
 
@@ -52,6 +55,13 @@ std::queue<AHardwareBuffer*> g_queue;
 std::thread g_render_thread;
 std::atomic<bool> g_rendering{false};
 ANativeWindow* g_pending_window = nullptr;
+
+std::mutex g_copy_mutex;
+std::condition_variable g_copy_changed;
+AHardwareBuffer* g_pending_copy = nullptr;
+int g_pending_copy_fence = -1;
+std::thread g_copy_thread;
+std::atomic<bool> g_copying{false};
 
 PFNEGLGETNATIVECLIENTBUFFERANDROIDPROC g_get_native_client_buffer = nullptr;
 PFNEGLCREATEIMAGEKHRPROC g_create_image = nullptr;
@@ -256,6 +266,16 @@ void RenderLoop() {
 
 void DispatchPreview(AHardwareBuffer* buffer) {
     if (!buffer || !g_rendering.load(std::memory_order_acquire)) return;
+    constexpr auto kPreviewInterval = std::chrono::milliseconds(33);
+    const auto now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count();
+    auto previous_ns = g_last_preview_dispatch_ns.load(std::memory_order_relaxed);
+    if (now_ns - previous_ns <
+        std::chrono::duration_cast<std::chrono::nanoseconds>(kPreviewInterval).count() ||
+        !g_last_preview_dispatch_ns.compare_exchange_strong(
+            previous_ns, now_ns, std::memory_order_relaxed)) {
+        return;
+    }
     AHardwareBuffer_acquire(buffer);
     {
         std::scoped_lock lock(g_queue_mutex);
@@ -265,13 +285,36 @@ void DispatchPreview(AHardwareBuffer* buffer) {
     g_queue_changed.notify_one();
 }
 
-void OnImageAvailable(void*, AImageReader* reader) {
-    AImage* image = nullptr;
-    if (AImageReader_acquireLatestImage(reader, &image) != AMEDIA_OK || !image) return;
-    AHardwareBuffer* buffer = nullptr;
-    if (AImage_getHardwareBuffer(image, &buffer) == AMEDIA_OK && buffer) {
-        DispatchPreview(buffer);
-        if (UpdateFrameStore(buffer)) {
+void ReleasePendingCopyLocked() {
+    if (g_pending_copy) {
+        AHardwareBuffer_release(g_pending_copy);
+        g_pending_copy = nullptr;
+    }
+    if (g_pending_copy_fence >= 0) {
+        close(g_pending_copy_fence);
+        g_pending_copy_fence = -1;
+    }
+}
+
+void CopyLoop() {
+    while (g_copying.load(std::memory_order_acquire)) {
+        AHardwareBuffer* buffer = nullptr;
+        int acquire_fence_fd = -1;
+        {
+            std::unique_lock lock(g_copy_mutex);
+            g_copy_changed.wait(lock, [] {
+                return !g_copying.load(std::memory_order_acquire) || g_pending_copy != nullptr;
+            });
+            if (!g_copying.load(std::memory_order_acquire)) break;
+            buffer = g_pending_copy;
+            acquire_fence_fd = g_pending_copy_fence;
+            g_pending_copy = nullptr;
+            g_pending_copy_fence = -1;
+        }
+
+        const bool updated = UpdateFrameStore(buffer, acquire_fence_fd);
+        AHardwareBuffer_release(buffer);
+        if (updated) {
             const auto count = g_frame_count.fetch_add(1, std::memory_order_relaxed) + 1;
             if (count == 1) {
                 g_capture_report_time = std::chrono::steady_clock::now();
@@ -285,6 +328,65 @@ void OnImageAvailable(void*, AImageReader* reader) {
             }
         }
     }
+
+    std::scoped_lock lock(g_copy_mutex);
+    ReleasePendingCopyLocked();
+}
+
+void StartCopyThread() {
+    if (g_copying.exchange(true, std::memory_order_acq_rel)) return;
+    g_copy_thread = std::thread(CopyLoop);
+}
+
+void StopCopyThread() {
+    if (!g_copying.exchange(false, std::memory_order_acq_rel)) return;
+    g_copy_changed.notify_all();
+    if (g_copy_thread.joinable()) g_copy_thread.join();
+    std::scoped_lock lock(g_copy_mutex);
+    ReleasePendingCopyLocked();
+}
+
+void DispatchFrameCopy(AHardwareBuffer* buffer, int acquire_fence_fd) {
+    if (!buffer || !g_copying.load(std::memory_order_acquire)) {
+        if (acquire_fence_fd >= 0) close(acquire_fence_fd);
+        return;
+    }
+    constexpr auto kCopyInterval = std::chrono::milliseconds(33);
+    const auto now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count();
+    auto previous_ns = g_last_copy_dispatch_ns.load(std::memory_order_relaxed);
+    if (now_ns - previous_ns <
+        std::chrono::duration_cast<std::chrono::nanoseconds>(kCopyInterval).count() ||
+        !g_last_copy_dispatch_ns.compare_exchange_strong(
+            previous_ns, now_ns, std::memory_order_relaxed)) {
+        if (acquire_fence_fd >= 0) close(acquire_fence_fd);
+        return;
+    }
+    AHardwareBuffer_acquire(buffer);
+    {
+        std::scoped_lock lock(g_copy_mutex);
+        ReleasePendingCopyLocked();
+        g_pending_copy = buffer;
+        g_pending_copy_fence = acquire_fence_fd;
+    }
+    g_copy_changed.notify_one();
+}
+
+void OnImageAvailable(void*, AImageReader* reader) {
+    AImage* image = nullptr;
+    int acquire_fence_fd = -1;
+    if (AImageReader_acquireLatestImageAsync(reader, &image, &acquire_fence_fd) != AMEDIA_OK ||
+        !image) {
+        if (acquire_fence_fd >= 0) close(acquire_fence_fd);
+        return;
+    }
+    AHardwareBuffer* buffer = nullptr;
+    if (AImage_getHardwareBuffer(image, &buffer) == AMEDIA_OK && buffer) {
+        DispatchPreview(buffer);
+        DispatchFrameCopy(buffer, acquire_fence_fd);
+        acquire_fence_fd = -1;
+    }
+    if (acquire_fence_fd >= 0) close(acquire_fence_fd);
     AImage_delete(image);
 }
 }
@@ -314,6 +416,9 @@ jobject SetupNativeCapturer(JNIEnv* env, int width, int height) {
     g_capturer = capturer;
     g_frame_count.store(0, std::memory_order_release);
     g_render_count.store(0, std::memory_order_release);
+    g_last_copy_dispatch_ns.store(0, std::memory_order_release);
+    g_last_preview_dispatch_ns.store(0, std::memory_order_release);
+    StartCopyThread();
     __android_log_print(ANDROID_LOG_INFO, kTag, "native capturer ready: %dx%d", width, height);
     return ANativeWindow_toSurface(env, capturer->window);
 }
@@ -326,6 +431,7 @@ void ReleaseNativeCapturer() {
     }
     delete g_capturer;
     g_capturer = nullptr;
+    StopCopyThread();
 }
 
 int SetNativePreviewSurface(JNIEnv* env, jobject surface) {

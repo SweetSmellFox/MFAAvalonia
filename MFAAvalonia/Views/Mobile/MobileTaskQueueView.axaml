@@ -13,6 +13,28 @@
              xmlns:valueType="clr-namespace:MFAAvalonia.Helper.ValueType"
              mc:Ignorable="d" d:DesignWidth="390" d:DesignHeight="760">
     <UserControl.Styles>
+        <Style Selector="Button.MobilePageTab">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="Padding" Value="8,0" />
+            <Setter Property="Foreground" Value="{DynamicResource SukiLowText}" />
+        </Style>
+        <Style Selector="Button.MobilePageTab.selected">
+            <Setter Property="Foreground" Value="{DynamicResource SukiPrimaryColor}" />
+        </Style>
+        <Style Selector="Button.MobilePageTab Border.TabIndicator">
+            <Setter Property="IsVisible" Value="False" />
+        </Style>
+        <Style Selector="Button.MobilePageTab.selected Border.TabIndicator">
+            <Setter Property="IsVisible" Value="True" />
+        </Style>
+        <Style Selector="Button.MobilePageTab:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Button.MobilePageTab:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
         <Style Selector="Path.TaskRunSpinner">
             <Setter Property="RenderTransformOrigin" Value="50%,50%" />
             <Setter Property="RenderTransform">
@@ -87,7 +109,7 @@
             </Style.Animations>
         </Style>
     </UserControl.Styles>
-    <Grid RowDefinitions="Auto,*,Auto" Margin="12,12,12,10">
+    <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="12,12,12,10">
         <Border x:Name="PreviewHost" Height="230" CornerRadius="8" ClipToBounds="True"
                 SizeChanged="OnPreviewHostSizeChanged"
                 Background="#12000000" BorderBrush="{DynamicResource SukiControlBorderBrush}" BorderThickness="1">
@@ -151,7 +173,28 @@
             </Grid>
         </Border>
 
-            <Grid Grid.Row="1" RowDefinitions="Auto,*,Auto" Margin="2,14,2,0">
+        <Grid Grid.Row="1" ColumnDefinitions="*,*" Height="44" Margin="2,4,2,0">
+            <Button x:Name="TaskQueueTabButton" Classes="MobilePageTab selected" Click="ShowTaskQueueTab">
+                <Grid RowDefinitions="*,3">
+                    <TextBlock x:Name="TaskQueueTabText" Text="Task queue"
+                               Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <Border Grid.Row="1" Classes="TabIndicator" Height="3"
+                            Background="{DynamicResource SukiPrimaryColor}" />
+                </Grid>
+            </Button>
+            <Button x:Name="LogTabButton" Grid.Column="1" Classes="MobilePageTab" Click="ShowLogTab">
+                <Grid RowDefinitions="*,3">
+                    <TextBlock x:Name="LogTabText" Text="Logs"
+                               Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <Border Grid.Row="1" Classes="TabIndicator" Height="3"
+                            Background="{DynamicResource SukiPrimaryColor}" />
+                </Grid>
+            </Button>
+        </Grid>
+
+        <Grid x:Name="TaskQueueHost" Grid.Row="2" RowDefinitions="Auto,*,Auto" Margin="2,14,2,0">
             <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,8">
                 <StackPanel>
                     <TextBlock x:Name="TaskQueueTitle" Text="Task queue" FontSize="18" FontWeight="SemiBold" />
@@ -290,7 +333,40 @@
 
         </Grid>
 
-        <Button Grid.Row="2" Height="52" Margin="0,10,0,0" Command="{Binding ToggleCommand}"
+        <Grid x:Name="LogHost" Grid.Row="2" RowDefinitions="Auto,*"
+              Margin="2,14,2,0" IsVisible="False">
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Margin="0,0,0,10">
+                <TextBlock x:Name="UserLogsTitle" Text="User logs" FontSize="18" FontWeight="SemiBold"
+                           VerticalAlignment="Center" />
+                <Button Grid.Column="1" Width="42" Height="42" Padding="0" Command="{Binding ExportCommand}">
+                    <fluent:FluentIcon Icon="Save" IconSize="Size20" />
+                </Button>
+                <Button Grid.Column="2" Width="42" Height="42" Padding="0" Command="{Binding ClearCommand}">
+                    <fluent:FluentIcon Icon="Delete" IconSize="Size20" />
+                </Button>
+            </Grid>
+            <Border Grid.Row="1" CornerRadius="8" Padding="12"
+                    Background="{DynamicResource SukiCardBackground}"
+                    BorderBrush="{DynamicResource SukiControlBorderBrush}" BorderThickness="1">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding LogItemViewModels}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="other:LogItemViewModel">
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,0,0,8">
+                                    <TextBlock Text="{Binding Time}" FontSize="10"
+                                               Foreground="{DynamicResource SukiLowText}"
+                                               IsVisible="{Binding ShowTime}" />
+                                    <TextBlock Grid.Column="1" Text="{Binding Content}" TextWrapping="Wrap"
+                                               Foreground="{Binding Color}" FontWeight="{Binding Weight}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+
+        <Button x:Name="TaskToggleButton" Grid.Row="3" Height="52" Margin="0,10,0,0" Command="{Binding ToggleCommand}"
                 IsEnabled="{Binding ToggleEnable}" Background="{DynamicResource SukiPrimaryColor}"
                 Foreground="White">
             <Grid>

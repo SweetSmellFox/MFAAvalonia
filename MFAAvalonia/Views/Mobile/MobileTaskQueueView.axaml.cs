@@ -40,18 +40,17 @@ public partial class MobileTaskQueueView : UserControl
         };
         _previewStatsTimer.Tick += OnPreviewStatsTick;
         NativePreviewHost.Content = MobileVirtualDisplay.PreviewControlFactory?.Invoke();
+        SetLogTab(false);
         UpdateInstance();
         MobileInstanceCoordinator.CurrentChanged += OnCurrentInstanceChanged;
         UpdateLanguage();
         LanguageHelper.LanguageChanged += OnLanguageChanged;
         AttachedToVisualTree += (_, _) =>
         {
-            ViewModel?.ResumeLiveView();
             AttachVirtualDisplayPreview();
         };
         DetachedFromVisualTree += (_, _) =>
         {
-            ViewModel?.PauseLiveView();
             StopPreviewStats();
             StopControllerPreview();
             DetachVirtualDisplayPreview();
@@ -92,12 +91,28 @@ public partial class MobileTaskQueueView : UserControl
         if (_previewCancellation == null)
             VirtualDisplayStatus.Text = MobileLocalization.Get("VirtualStopped");
         TaskQueueTitle.Text = MobileLocalization.Get("TaskQueue");
+        TaskQueueTabText.Text = MobileLocalization.Get("TaskQueue");
+        LogTabText.Text = MobileLocalization.Get("UserLogs");
+        UserLogsTitle.Text = MobileLocalization.Get("UserLogs");
         TaskQueueDescription.Text = MobileLocalization.Get("TaskQueueDescription");
         OptionIntroductionTitle.Text = MobileLocalization.Get("TaskDescription");
         StartTasksText.Text = MobileLocalization.Get("StartTasks");
         StopTasksText.Text = MobileLocalization.Get("StopTasks");
         if (_activeOptionItem != null)
             UpdateOptionIntroduction(_activeOptionItem);
+    }
+
+    private void ShowTaskQueueTab(object? sender, RoutedEventArgs e) => SetLogTab(false);
+
+    private void ShowLogTab(object? sender, RoutedEventArgs e) => SetLogTab(true);
+
+    private void SetLogTab(bool showLogs)
+    {
+        TaskQueueHost.IsVisible = !showLogs;
+        TaskToggleButton.IsVisible = !showLogs;
+        LogHost.IsVisible = showLogs;
+        TaskQueueTabButton.Classes.Set("selected", !showLogs);
+        LogTabButton.Classes.Set("selected", showLogs);
     }
 
     private void OpenTaskOptions(object? sender, RoutedEventArgs e)

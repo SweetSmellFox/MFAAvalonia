@@ -27,6 +27,8 @@ struct FrameBuffer {
 std::array<FrameBuffer, kBufferCount> g_buffers;
 std::atomic<int> g_current{-1};
 std::atomic<std::uint64_t> g_version{0};
+std::atomic<std::uint32_t> g_configured_width{0};
+std::atomic<std::uint32_t> g_configured_height{0};
 std::mutex g_config_mutex;
 std::mutex g_frame_wait_mutex;
 std::condition_variable g_frame_changed;
@@ -99,6 +101,22 @@ int ConfigureFrameStore(std::uint32_t width, std::uint32_t height) {
     }
     std::scoped_lock lock(g_config_mutex);
     const auto required = static_cast<std::size_t>(width) * height * 3;
+
+    // A controller can be recreated immediately after a cancelled task while the
+    // previous Maa controller is still releasing its last locked frame. Reconfiguring
+    // an already-compatible store would only clear/resize the same vectors and used to
+    // fail with -2 in that short window. Keep the existing buffers and published frame
+    // intact instead. Readers and the capture copy thread can safely continue using the
+    // same allocation while ownership moves to the new controller.
+    const bool already_configured =
+        g_configured_width.load(std::memory_order_acquire) == width &&
+        g_configured_height.load(std::memory_order_acquire) == height;
+    if (already_configured) {
+        return 0;
+    }
+
+    // A real size change must never invalidate storage referenced by an old reader or
+    // written by the capture thread. The caller may retry after those users drain.
     for (auto& buffer : g_buffers) {
         if (buffer.readers.load(std::memory_order_acquire) != 0 ||
             buffer.writing.load(std::memory_order_acquire)) {
@@ -116,6 +134,8 @@ int ConfigureFrameStore(std::uint32_t width, std::uint32_t height) {
     // buffer atomically replaces it as soon as Android renders one.
     g_current.store(0, std::memory_order_release);
     g_version.store(1, std::memory_order_release);
+    g_configured_width.store(width, std::memory_order_release);
+    g_configured_height.store(height, std::memory_order_release);
     return 0;
 }
 
@@ -137,7 +157,7 @@ int UpdateFrameStore(const std::uint8_t* data, std::uint32_t width,
     return 0;
 }
 
-bool UpdateFrameStore(AHardwareBuffer* buffer) {
+bool UpdateFrameStore(AHardwareBuffer* buffer, int acquire_fence_fd) {
     if (!buffer) {
         return false;
     }
@@ -149,7 +169,7 @@ bool UpdateFrameStore(AHardwareBuffer* buffer) {
     }
     void* source = nullptr;
     if (AHardwareBuffer_lock(buffer, AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN,
-                             -1, nullptr, &source) != 0 || !source) {
+                             acquire_fence_fd, nullptr, &source) != 0 || !source) {
         target->writing.store(false, std::memory_order_release);
         return false;
     }

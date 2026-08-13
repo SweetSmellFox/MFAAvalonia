@@ -1,6 +1,4 @@
 using Android.App;
-using Android.Content;
-using Android.Hardware.Display;
 using Android.OS;
 using Android.Views;
 using MFAAvalonia.Helper;
@@ -12,17 +10,20 @@ namespace MFAAvalonia.Android;
 public sealed class AndroidVirtualDisplayBackend : Java.Lang.Object, IMobileVirtualDisplayBackend
 {
     private readonly Activity _activity;
+    private readonly ShizukuConnectionManager _shizuku;
     private readonly object _sync = new();
-    private VirtualDisplay? _virtualDisplay;
     private Surface? _captureSurface;
+    private int _displayId = -1;
 
-    public AndroidVirtualDisplayBackend(Activity activity)
+    internal AndroidVirtualDisplayBackend(Activity activity, ShizukuConnectionManager shizuku)
     {
         _activity = activity;
+        _shizuku = shizuku;
+        _shizuku.StateChanged += OnShizukuStateChanged;
     }
 
-    public bool IsRunning => _virtualDisplay != null;
-    public int DisplayId => _virtualDisplay?.Display?.DisplayId ?? -1;
+    public bool IsRunning => _displayId >= 0;
+    public int DisplayId => _displayId;
     public long CapturedFrameCount
     {
         get
@@ -51,7 +52,7 @@ public sealed class AndroidVirtualDisplayBackend : Java.Lang.Object, IMobileVirt
     {
         lock (_sync)
         {
-            if (_virtualDisplay != null)
+            if (IsRunning)
                 return Task.FromResult(MobileVirtualDisplayResult.Succeeded(
                     MobileLocalization.Get("VirtualAlreadyRunning"), DisplayId));
 
@@ -61,22 +62,15 @@ public sealed class AndroidVirtualDisplayBackend : Java.Lang.Object, IMobileVirt
                     return Task.FromResult(MobileVirtualDisplayResult.Failed(
                         MobileLocalization.Get("VirtualRequiresAndroid8")));
 
-                var displayManager = (DisplayManager?)_activity.GetSystemService(Context.DisplayService);
-                if (displayManager == null)
-                    return Task.FromResult(MobileVirtualDisplayResult.Failed(
-                        MobileLocalization.Get("VirtualNoDisplayManager")));
+                if (!_shizuku.IsUserServiceReady
+                    && !_shizuku.WaitForUserServiceReady(TimeSpan.FromSeconds(12)))
+                    return Task.FromResult(MobileVirtualDisplayResult.Failed(_shizuku.StatusMessage));
 
                 Width = width;
                 Height = height;
                 _captureSurface = NativeCaptureInterop.SetupCapturer(width, height);
-                var flags = VirtualDisplayFlags.Public
-                            | VirtualDisplayFlags.Presentation
-                            | VirtualDisplayFlags.OwnContentOnly
-                            | (VirtualDisplayFlags)(1 << 6); // SUPPORTS_TOUCH
-                _virtualDisplay = displayManager.CreateVirtualDisplay(
-                    "MFA_VIRTUAL_DISPLAY", width, height, dpi, _captureSurface, flags);
-
-                if (_virtualDisplay?.Display == null)
+                _displayId = _shizuku.CreateVirtualDisplay(width, height, dpi, _captureSurface);
+                if (_displayId < 0)
                 {
                     ReleaseDisplay();
                     return Task.FromResult(MobileVirtualDisplayResult.Failed(
@@ -119,20 +113,12 @@ public sealed class AndroidVirtualDisplayBackend : Java.Lang.Object, IMobileVirt
 
     private MobileVirtualDisplayResult LaunchPackageOnDisplay(string packageName, int displayId)
     {
-        var intent = _activity.PackageManager?.GetLaunchIntentForPackage(packageName);
-        if (intent == null)
-            return MobileVirtualDisplayResult.Failed(
-                $"{MobileLocalization.Get("VirtualPackageNotFound")}: {packageName}");
-
-        intent.AddFlags(ActivityFlags.NewTask | ActivityFlags.ExcludeFromRecents);
-        var options = ActivityOptions.MakeBasic();
-        if (options == null)
-            return MobileVirtualDisplayResult.Failed(MobileLocalization.Get("VirtualNoActivityOptions"));
-        options.SetLaunchDisplayId(displayId);
-
         try
         {
-            _activity.StartActivity(intent, options.ToBundle());
+            var result = _shizuku.StartApp(displayId, packageName);
+            if (result != 0)
+                return MobileVirtualDisplayResult.Failed(
+                    $"{MobileLocalization.Get("VirtualLaunchFailed")}: result={result}");
             return MobileVirtualDisplayResult.Succeeded(
                 MobileLocalization.Get("VirtualAppLaunched"), displayId);
         }
@@ -145,9 +131,34 @@ public sealed class AndroidVirtualDisplayBackend : Java.Lang.Object, IMobileVirt
 
     private void ReleaseDisplay()
     {
-        _virtualDisplay?.Release();
-        _virtualDisplay?.Dispose();
-        _virtualDisplay = null;
+        try
+        {
+            _shizuku.ReleaseVirtualDisplay();
+        }
+        catch (Exception ex)
+        {
+            global::Android.Util.Log.Warn(
+                "MfaVirtualDisplay",
+                $"Remote virtual display release failed; clearing local state: {ex.Message}");
+        }
+        finally
+        {
+            ReleaseLocalCaptureState();
+        }
+    }
+
+    private void OnShizukuStateChanged()
+    {
+        if (_shizuku.IsUserServiceReady)
+            return;
+
+        lock (_sync)
+            ReleaseLocalCaptureState();
+    }
+
+    private void ReleaseLocalCaptureState()
+    {
+        _displayId = -1;
         _captureSurface?.Release();
         _captureSurface?.Dispose();
         _captureSurface = null;
@@ -159,7 +170,10 @@ public sealed class AndroidVirtualDisplayBackend : Java.Lang.Object, IMobileVirt
     protected override void Dispose(bool disposing)
     {
         if (disposing)
+        {
+            _shizuku.StateChanged -= OnShizukuStateChanged;
             ReleaseDisplay();
+        }
         base.Dispose(disposing);
     }
 }

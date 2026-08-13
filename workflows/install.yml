@@ -14,9 +14,12 @@
 # and the Agent entrypoint. The following repository variables are optional:
 #
 #   MFA_ANDROID_PYTHON_REQUIREMENTS=python3
+#   If this override is empty, requirements-android.txt or requirements.txt is
+#   read automatically and its dependencies are built into the APK.
 #   MFA_ANDROID_PYTHON_ENTRYPOINT=agent/main.py
 #   MFA_ANDROID_P4A_LOCAL_RECIPES=p4a-recipes
 #   MFA_ANDROID_LAUNCHER_ICON=android/icon.png
+#   The same PNG is used for both the Launcher icon and Android 12+ splash icon.
 #   MFA_ANDROID_APPLICATION_ID=io.github.example.maaxxx
 #
 # 中文：不使用 Python Agent 时，可注释掉下方标记为“Python runtime block”的三个步骤；随后
@@ -169,7 +172,7 @@ jobs:
             arch: x64
 
     env:
-      P4A_REQUIREMENTS: ${{ vars.MFA_ANDROID_PYTHON_REQUIREMENTS || 'python3' }}
+      P4A_REQUIREMENTS_OVERRIDE: ${{ vars.MFA_ANDROID_PYTHON_REQUIREMENTS || '' }}
       P4A_ENTRYPOINT: ${{ vars.MFA_ANDROID_PYTHON_ENTRYPOINT || '' }}
       P4A_LOCAL_RECIPES: ${{ vars.MFA_ANDROID_P4A_LOCAL_RECIPES || '' }}
       P4A_REF: ${{ vars.MFA_ANDROID_PYTHON_FOR_ANDROID_REF || 'v2026.05.09' }}
@@ -210,16 +213,69 @@ jobs:
             exit 1
           fi
 
+          interface_path="$resource_root/interface.json"
+          [[ -f "$interface_path" ]] || interface_path="$resource_root/interface.jsonc"
+          agent_enabled=$(python - "$interface_path" <<'PY'
+          import json
+          import re
+          import sys
+
+          path = sys.argv[1]
+          text = open(path, encoding="utf-8-sig").read()
+          # interface.jsonc is intentionally supported for the common comment forms.
+          text = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
+          text = re.sub(r"(^|\s)//.*?$", r"\1", text, flags=re.M)
+          try:
+              value = json.loads(text)
+          except json.JSONDecodeError as exc:
+              raise SystemExit(f"[ERR] Cannot parse {path}: {exc}")
+          print("true" if isinstance(value.get("agent"), dict) else "false")
+          PY
+          )
+          echo "agent_enabled=$agent_enabled" >> "$GITHUB_OUTPUT"
+
           payload_root="$RUNNER_TEMP/mfa-android-resource-payload-${{ matrix.arch }}"
           mkdir -p "$payload_root"
 
           # 中文：默认复制 M9A 类型项目运行所需目录；缺失的可选目录自动跳过。
           # English: Copy runtime directories used by M9A-style projects; missing optional directories are skipped.
-          for directory in agent data locales python resource Resource tasks; do
+          for directory in agent config data locales python resource Resource tasks; do
             if [[ -d "$resource_root/$directory" ]]; then
               cp -a "$resource_root/$directory" "$payload_root/$directory"
             fi
           done
+
+          # A portable Desktop release may already contain MaaFramework's pure-Python
+          # binding. Reuse only Python sources; Windows DLLs, bytecode caches and the
+          # bundled desktop native runtime are deliberately excluded.
+          maa_site_package=""
+          for candidate in \
+            "$resource_root/python/Lib/site-packages/maa" \
+            "$resource_root/python/lib/site-packages/maa" \
+            "$source_checkout/python/Lib/site-packages/maa" \
+            "$source_checkout/python/lib/site-packages/maa"; do
+            if [[ -f "$candidate/__init__.py" ]]; then
+              maa_site_package="$candidate"
+              break
+            fi
+          done
+          if [[ -n "$maa_site_package" ]]; then
+            mkdir -p "$payload_root/python/maa"
+            rsync -a --prune-empty-dirs \
+              --include='*/' --include='*.py' --include='*.pyi' --exclude='*' \
+              "$maa_site_package/" "$payload_root/python/maa/"
+            if [[ ! -f "$payload_root/python/maa/agent/agent_server.py" ]]; then
+              echo "[ERR] Desktop maa binding does not contain maa/agent/agent_server.py: $maa_site_package"
+              exit 1
+            fi
+            echo "Included pure-Python MaaFramework binding from $maa_site_package"
+          fi
+
+          # Portable Desktop releases contain bytecode compiled by their bundled
+          # CPython (for example 3.12). The Android runtime may use another version,
+          # so shipping those caches causes "Bad magic number in .pyc file".
+          find "$payload_root" -type f \( -name '*.pyc' -o -name '*.pyo' \) -delete
+          find "$payload_root" -type d -name '__pycache__' -prune -exec rm -rf -- {} +
 
           # 中文：复制 interface、说明/许可、依赖清单以及 Python/uv 项目元数据。
           # English: Copy the interface, documentation/license files, dependency lists, and Python/uv metadata.
@@ -360,6 +416,7 @@ jobs:
           ANDROIDNDK: ${{ env.ANDROID_HOME }}/ndk/${{ env.P4A_NDK_VERSION }}
           ANDROIDAPI: '36'
           NDKAPI: '26'
+          PAYLOAD_ROOT: ${{ steps.payload.outputs.root }}
         run: |
           private_root="$RUNNER_TEMP/mfa-p4a-private-${{ matrix.arch }}"
           mkdir -p "$private_root"
@@ -386,13 +443,54 @@ jobs:
           fi
 
           cd "$build_root"
+          effective_requirements=$(python - "$PAYLOAD_ROOT" "$P4A_REQUIREMENTS_OVERRIDE" <<'PY'
+          from pathlib import Path
+          import re
+          import sys
+
+          root = Path(sys.argv[1])
+          override = sys.argv[2].strip()
+          source = "MFA_ANDROID_PYTHON_REQUIREMENTS"
+          if override:
+              items = [item.strip() for item in override.split(",") if item.strip()]
+          else:
+              path = next(
+                  (candidate for candidate in
+                   (root / "requirements-android.txt", root / "requirements.txt")
+                   if candidate.is_file()),
+                  None,
+              )
+              source = str(path) if path else "default"
+              items = []
+              if path:
+                  for line_number, raw in enumerate(path.read_text(encoding="utf-8-sig").splitlines(), 1):
+                      line = raw.strip()
+                      if not line or line.startswith("#"):
+                          continue
+                      if line.startswith(("-r", "--requirement", "-c", "--constraint")):
+                          raise SystemExit(
+                              f"[ERR] Nested requirement/constraint files are not supported: {path}:{line_number}"
+                          )
+                      if line.startswith("-"):
+                          raise SystemExit(f"[ERR] Unsupported requirements option: {path}:{line_number}: {line}")
+                      # P4A receives a comma-separated list. Environment markers are
+                      # evaluated by the Linux/Android build and remain intact.
+                      items.append(re.sub(r"\s+#.*$", "", line).strip())
+
+          if not any(re.match(r"^python\d*(?:[<>=!~].*)?$", item, re.I) for item in items):
+              items.insert(0, "python3")
+          print(",".join(items))
+          print(f"[INF] requirements source: {source}", file=sys.stderr)
+          PY
+          )
+          echo "[INF] python-for-android requirements: $effective_requirements"
           p4a aar \
             --private "$private_root" \
             --package com.fox.mfa.python \
             --name MFAAndroidPythonAgent \
             --version 1.0 \
             --bootstrap service_library \
-            --requirements "$P4A_REQUIREMENTS" \
+            --requirements "$effective_requirements" \
             --service mfaagent:mfa_android_agent.py \
             --arch "${{ matrix.abi }}" \
             --android-api 36 \
@@ -405,6 +503,30 @@ jobs:
             echo "[ERR] python-for-android did not generate an AAR"
             exit 1
           fi
+
+          # Android 14+ requires every foreground service to declare a type. MFA
+          # starts the Agent as a foreground service so it stays alive while the
+          # target game owns the foreground Activity. Patch the generated AAR
+          # manifest here because p4a's service_library template omits this field.
+          aar_manifest_dir="$RUNNER_TEMP/mfa-python-aar-manifest-${{ matrix.arch }}"
+          mkdir -p "$aar_manifest_dir"
+          unzip -q "$aar_path" AndroidManifest.xml -d "$aar_manifest_dir"
+          python - "$aar_manifest_dir/AndroidManifest.xml" <<'PY'
+          from pathlib import Path
+          import sys
+
+          path = Path(sys.argv[1])
+          text = path.read_text(encoding="utf-8")
+          marker = 'android:process=":service_mfaagent"'
+          replacement = marker + '\n            android:foregroundServiceType="dataSync"'
+          if 'android:foregroundServiceType=' not in text:
+              if marker not in text:
+                  raise SystemExit("[ERR] p4a Agent service was not found in the AAR manifest")
+              text = text.replace(marker, replacement, 1)
+              path.write_text(text, encoding="utf-8")
+          PY
+          (cd "$aar_manifest_dir" && zip -q -u "$aar_path" AndroidManifest.xml)
+
           aar_entries="$RUNNER_TEMP/mfa-python-aar-${{ matrix.arch }}-entries.txt"
           unzip -Z1 "$aar_path" > "$aar_entries"
           if ! grep -Eq "^jni/${{ matrix.abi }}/libpython3\.[0-9]+\.so$" "$aar_entries"; then
@@ -441,8 +563,14 @@ jobs:
           LAUNCHER_ICON: ${{ steps.metadata.outputs.launcher_icon }}
           APPLICATION_ID: ${{ steps.metadata.outputs.application_id }}
           PYTHON_AAR: ${{ steps.python_runtime.outputs.aar }}
+          AGENT_ENABLED: ${{ steps.payload.outputs.agent_enabled }}
         working-directory: mfa-source
         run: |
+          if [[ "$AGENT_ENABLED" == "true" && -z "$PYTHON_AAR" ]]; then
+            echo "[ERR] interface declares an Agent, but python-for-android AAR is missing"
+            exit 1
+          fi
+
           launcher_icon_args=()
           if [[ -n "$LAUNCHER_ICON" ]]; then
             launcher_icon_args+=("-p:AndroidLauncherIcon=$LAUNCHER_ICON")
@@ -469,6 +597,7 @@ jobs:
           OUTPUT_NAME: ${{ steps.metadata.outputs.output_name }}
           EXPECTED_APPLICATION_ID: ${{ steps.metadata.outputs.application_id }}
           PYTHON_AAR: ${{ steps.python_runtime.outputs.aar }}
+          AGENT_ENABLED: ${{ steps.payload.outputs.agent_enabled }}
         run: |
           publish_dir="mfa-source/MFAAvalonia.Android/bin/Release/net10.0-android/${{ matrix.rid }}/publish"
           apk_path=$(find "$publish_dir" -maxdepth 1 -type f -name '*-Signed.apk' -print -quit)
@@ -504,6 +633,18 @@ jobs:
           fi
           if [[ -n "$PYTHON_AAR" ]] && ! grep -Eq "^lib/${{ matrix.abi }}/libpython3\.[0-9]+\.so$" "$apk_entries"; then
             echo "[ERR] APK does not contain the requested python-for-android runtime"
+            exit 1
+          fi
+          if [[ -n "$PYTHON_AAR" ]]; then
+            merged_manifest="$RUNNER_TEMP/mfa-resource-apk-${{ matrix.arch }}-manifest.txt"
+            "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump xmltree --file AndroidManifest.xml "$apk_path" > "$merged_manifest"
+            if ! grep -Eq 'foregroundServiceType.*(dataSync|0x0*1([^0-9a-fA-F]|$))' "$merged_manifest"; then
+              echo "[ERR] Python Agent foreground service type was not merged into the APK manifest"
+              exit 1
+            fi
+          fi
+          if [[ "$AGENT_ENABLED" == "true" && -z "$PYTHON_AAR" ]]; then
+            echo "[ERR] Agent interface was packaged without a Python runtime"
             exit 1
           fi
 

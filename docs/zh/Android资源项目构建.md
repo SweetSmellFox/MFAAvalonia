@@ -280,9 +280,9 @@ Settings → Secrets and variables → Actions → Variables → New repository 
 | --- | --- | --- |
 | `MFA_ANDROID_RESOURCE_ROOT` | `.` | 统一目录项目的资源包根，相对于资源仓库根目录 |
 | `MFA_ANDROID_LAUNCHER_LABEL` | GitHub 仓库名 | Android Launcher 图标下显示的名称 |
-| `MFA_ANDROID_LAUNCHER_ICON` | 空（使用 MFA 默认图标） | Android Launcher PNG 图标，相对于资源仓库根目录 |
+| `MFA_ANDROID_LAUNCHER_ICON` | 空（使用 MFA 默认图标） | Android Launcher / Android 12+ splash PNG 图标，相对于资源仓库根目录 |
 | `MFA_ANDROID_APPLICATION_ID` | 根据 `owner/repository` 生成 | 资源项目独立且稳定的 Android 包名，例如 `io.github.example.maaxxx` |
-| `MFA_ANDROID_PYTHON_REQUIREMENTS` | `python3` | 传给 P4A 的逗号分隔 requirements，不会自动读取 `requirements.txt` |
+| `MFA_ANDROID_PYTHON_REQUIREMENTS` | 空 | 非空时作为传给 P4A 的逗号分隔 requirements 覆盖值；为空时依次读取 `requirements-android.txt`、`requirements.txt`，均不存在时使用 `python3` |
 | `MFA_ANDROID_PYTHON_ENTRYPOINT` | 空 | 强制指定 payload 内的 Python Agent 入口；为空时从 interface 推断 |
 | `MFA_ANDROID_P4A_LOCAL_RECIPES` | 空 | P4A local recipes 目录，相对于资源仓库根目录 |
 | `MFA_ANDROID_PYTHON_FOR_ANDROID_REF` | `v2026.05.09` | python-for-android Git Tag 或分支 |
@@ -308,7 +308,7 @@ MFA_ANDROID_MFA_REF=<包含修复的分支或 commit SHA>
 
 本地工作区里的未提交修改不会被 GitHub Runner 看见。`MFA_ANDROID_MFA_REF` 最好在验证后固定到 Tag 或 commit SHA；长期跟随 `main` 虽然方便，但会降低构建可复现性。
 
-Launcher 图标必须是资源仓库内的 PNG 文件。Android 资源编译器不能直接使用桌面项目常见的 `logo.ico`；这类项目可以保留原有 ICO，同时另行导出一份带透明背景的方形 PNG，例如 `android/icon.png`，再通过 `MFA_ANDROID_LAUNCHER_ICON` 指定。该文件只参与 APK 构建，不会复制进 `assets/MfaPackage/package.zip`。修改仓库变量后，可从 Actions 页面手动运行一次 `install`；推荐把图标放在 `android/` 下，这样修改图标文件也会触发模板的路径过滤器。
+`MFA_ANDROID_LAUNCHER_ICON` 必须指向资源仓库内的 PNG。该 PNG 会同时用于 Android Launcher 和 Android 12 及以上的 splash 图标；图标文件本身不会复制进 `assets/MfaPackage/package.zip`。修改仓库变量后，可从 Actions 页面手动运行一次 `install`；推荐把图标放在 `android/` 下，这样修改图标文件也会触发模板的路径过滤器。
 
 `MFA_ANDROID_APPLICATION_ID` 决定 Android 眼中的应用身份。未设置时，工作流会把 GitHub 仓库 `Owner/Repo-Name` 规范化为类似 `io.github.owner.repo_name` 的独立包名，不再让所有资源项目共用 `com.fox.MFAAvalonia`。若中文、特殊字符或重名项目规范化后发生冲突，由资源开发者显式设置 `MFA_ANDROID_APPLICATION_ID` 解决。准备公开发布或接入覆盖更新时，强烈建议显式设置并永久保持不变；修改包名会被 Android 当作另一个应用，旧应用的数据和安装关系不会自动迁移。
 

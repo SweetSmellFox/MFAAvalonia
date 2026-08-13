@@ -1,6 +1,7 @@
 using Android.Content.PM;
 using Android.Content;
 using Rikka.Shizuku;
+using Android.Views;
 using System;
 using System.Threading;
 
@@ -13,6 +14,7 @@ internal sealed class ShizukuConnectionManager : Java.Lang.Object,
 {
     private const int PermissionRequestCode = 0x4d46;
     private bool _started;
+    private bool _permissionRequestPending;
     private readonly Context _context;
     private readonly ShizukuUserServiceConnection _userService;
     private readonly ManualResetEventSlim _userServiceReady = new(false);
@@ -26,6 +28,7 @@ internal sealed class ShizukuConnectionManager : Java.Lang.Object,
     public bool IsServiceAvailable { get; private set; }
     public bool HasPermission { get; private set; }
     public bool IsUserServiceReady { get; private set; }
+    public bool IsPermissionRequestPending => _permissionRequestPending;
     public int UserServiceUid { get; private set; } = -1;
     public int UserServicePort { get; private set; } = -1;
     public string? UserServiceError { get; private set; }
@@ -39,6 +42,22 @@ internal sealed class ShizukuConnectionManager : Java.Lang.Object,
                 : $"Shizuku UserService is ready (uid {UserServiceUid}, port {UserServicePort}).";
 
     public event Action? StateChanged;
+
+    public int CreateVirtualDisplay(int width, int height, int dpi, Surface surface)
+    {
+        if (!IsUserServiceReady)
+            throw new InvalidOperationException(StatusMessage);
+        return _userService.CreateVirtualDisplay(width, height, dpi, surface);
+    }
+
+    public void ReleaseVirtualDisplay() => _userService.ReleaseVirtualDisplay();
+
+    public int StartApp(int displayId, string target, bool forceStop = false)
+    {
+        if (!IsUserServiceReady)
+            throw new InvalidOperationException(StatusMessage);
+        return _userService.StartApp(displayId, target, forceStop);
+    }
 
     public bool WaitForUserServiceReady(TimeSpan timeout)
     {
@@ -60,16 +79,17 @@ internal sealed class ShizukuConnectionManager : Java.Lang.Object,
         Shizuku.AddBinderReceivedListenerSticky(this);
         Shizuku.AddBinderDeadListener(this);
         Shizuku.AddRequestPermissionResultListener(this);
-        RefreshState(requestPermission: true);
+        RefreshState();
     }
 
-    public void OnBinderReceived() => RefreshState(requestPermission: true);
+    public void OnBinderReceived() => RefreshState();
 
     public void OnBinderDead()
     {
         IsServiceAvailable = false;
         HasPermission = false;
         IsUserServiceReady = false;
+        _permissionRequestPending = false;
         UserServiceUid = -1;
         UserServicePort = -1;
         _userServiceReady.Reset();
@@ -81,12 +101,13 @@ internal sealed class ShizukuConnectionManager : Java.Lang.Object,
         if (requestCode != PermissionRequestCode)
             return;
 
+        _permissionRequestPending = false;
         HasPermission = grantResult == (int)Permission.Granted;
         if (HasPermission) BindUserService();
         StateChanged?.Invoke();
     }
 
-    private void RefreshState(bool requestPermission)
+    public void RefreshState()
     {
         try
         {
@@ -96,10 +117,6 @@ internal sealed class ShizukuConnectionManager : Java.Lang.Object,
             StateChanged?.Invoke();
 
             if (HasPermission) BindUserService();
-
-            if (requestPermission && IsServiceAvailable && !HasPermission
-                && !Shizuku.ShouldShowRequestPermissionRationale())
-                Shizuku.RequestPermission(PermissionRequestCode);
         }
         catch
         {
@@ -107,6 +124,43 @@ internal sealed class ShizukuConnectionManager : Java.Lang.Object,
             HasPermission = false;
             StateChanged?.Invoke();
         }
+    }
+
+    public bool RequestPermission()
+    {
+        RefreshState();
+        if (!IsServiceAvailable)
+            return false;
+
+        if (HasPermission)
+        {
+            BindUserService();
+            return true;
+        }
+
+        if (_permissionRequestPending)
+            return true;
+
+        try
+        {
+            _permissionRequestPending = true;
+            Shizuku.RequestPermission(PermissionRequestCode);
+            StateChanged?.Invoke();
+            return true;
+        }
+        catch
+        {
+            _permissionRequestPending = false;
+            StateChanged?.Invoke();
+            return false;
+        }
+    }
+
+    public void RetryUserService()
+    {
+        RefreshState();
+        if (IsServiceAvailable && HasPermission && !IsUserServiceReady)
+            BindUserService();
     }
 
     private void BindUserService()

@@ -45,6 +45,27 @@ MaaAgentClientConnectFunction resolve_agent_client_connect() {
     return reinterpret_cast<MaaAgentClientConnectFunction>(symbol);
 }
 
+MaaAgentClientConnectFunction resolve_agent_client_disconnect() {
+    auto* symbol = dlsym(RTLD_DEFAULT, "MaaAgentClientDisconnect");
+    if (!symbol) {
+        auto* library = dlopen("libMaaAgentClient.so", RTLD_NOW | RTLD_LOCAL);
+        if (library) symbol = dlsym(library, "MaaAgentClientDisconnect");
+    }
+    return reinterpret_cast<MaaAgentClientConnectFunction>(symbol);
+}
+
+void fill_safe_async_signal_mask(sigset_t& blocked) {
+    sigfillset(&blocked);
+    // Never hide synchronous process faults. They must still reach Android's
+    // crash reporter instead of leaving MaaFramework in a corrupted state.
+    sigdelset(&blocked, SIGABRT);
+    sigdelset(&blocked, SIGBUS);
+    sigdelset(&blocked, SIGFPE);
+    sigdelset(&blocked, SIGILL);
+    sigdelset(&blocked, SIGSEGV);
+    sigdelset(&blocked, SIGTRAP);
+}
+
 bool send_all(int socket_fd, const void* data, std::size_t size) {
     const auto* bytes = static_cast<const std::uint8_t*>(data);
     while (size > 0) {
@@ -100,6 +121,10 @@ MFA_EXPORT int MfaBridgeConfigure(std::uint32_t width, std::uint32_t height) {
     const int result = ConfigureFrameStore(width, height);
     if (result == 0) {
         __android_log_print(ANDROID_LOG_INFO, kTag, "configured %ux%u", width, height);
+    } else {
+        __android_log_print(ANDROID_LOG_ERROR, kTag,
+                            "configuration failed: %ux%u, result=%d",
+                            width, height, result);
     }
     return result;
 }
@@ -128,13 +153,7 @@ MFA_EXPORT int MfaBridgeSafeAgentClientConnect(void* client) {
     int result = 0;
     std::thread worker([&] {
         sigset_t blocked{};
-        sigfillset(&blocked);
-        sigdelset(&blocked, SIGABRT);
-        sigdelset(&blocked, SIGBUS);
-        sigdelset(&blocked, SIGFPE);
-        sigdelset(&blocked, SIGILL);
-        sigdelset(&blocked, SIGSEGV);
-        sigdelset(&blocked, SIGTRAP);
+        fill_safe_async_signal_mask(blocked);
         pthread_sigmask(SIG_SETMASK, &blocked, nullptr);
 
         try {
@@ -146,6 +165,36 @@ MFA_EXPORT int MfaBridgeSafeAgentClientConnect(void* client) {
         } catch (...) {
             __android_log_print(ANDROID_LOG_WARN, kTag,
                                 "MaaAgentClientConnect threw an unknown native exception");
+            result = -4;
+        }
+    });
+    worker.join();
+    return result;
+}
+
+MFA_EXPORT int MfaBridgeSafeAgentClientDisconnect(void* client) {
+    if (!client) return -1;
+    const auto disconnect = resolve_agent_client_disconnect();
+    if (!disconnect) {
+        __android_log_print(ANDROID_LOG_ERROR, kTag,
+                            "MaaAgentClientDisconnect symbol is unavailable: %s", dlerror());
+        return -2;
+    }
+
+    int result = 0;
+    std::thread worker([&] {
+        sigset_t blocked{};
+        fill_safe_async_signal_mask(blocked);
+        pthread_sigmask(SIG_SETMASK, &blocked, nullptr);
+        try {
+            result = disconnect(client) ? 1 : 0;
+        } catch (const std::exception& error) {
+            __android_log_print(ANDROID_LOG_WARN, kTag,
+                                "MaaAgentClientDisconnect threw: %s", error.what());
+            result = -3;
+        } catch (...) {
+            __android_log_print(ANDROID_LOG_WARN, kTag,
+                                "MaaAgentClientDisconnect threw an unknown native exception");
             result = -4;
         }
     });

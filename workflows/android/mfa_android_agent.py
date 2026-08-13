@@ -13,8 +13,13 @@ import platform
 import runpy
 import sys
 import threading
+import traceback
 from pathlib import Path
 from typing import Any
+
+
+_FATAL_PREFIX = "__MFA_ANDROID_AGENT_FATAL__:"
+_EXIT_PREFIX = "__MFA_ANDROID_AGENT_EXIT__:"
 
 
 def _service_argument() -> dict[str, Any]:
@@ -25,6 +30,34 @@ def _service_argument() -> dict[str, Any]:
     if not isinstance(value, dict):
         raise TypeError("PYTHON_SERVICE_ARGUMENT must contain a JSON object")
     return value
+
+
+def _send_terminal_event_direct(config: dict[str, Any], line: str) -> None:
+    """Send startup failure even if constructing the normal output bridge failed."""
+    if os.environ.get("MFA_ANDROID_OUTPUT_BRIDGED") == "1":
+        return
+    action = str(config.get("output_action") or "")
+    if not action:
+        return
+    try:
+        from jnius import autoclass
+
+        intent_type = autoclass("android.content.Intent")
+        string_type = autoclass("java.lang.String")
+        service_type = autoclass("org.kivy.android.PythonService")
+        context = service_type.mService
+        if context is None:
+            return
+        intent = intent_type(action)
+        package = str(config.get("output_package") or "")
+        if package:
+            intent.setPackage(package)
+        intent.putExtra("line", string_type(line))
+        context.sendBroadcast(intent)
+    except BaseException:
+        # Preserve the original resource-Agent exception. Android logcat remains the
+        # final fallback when even JNI/bootstrap initialization is unavailable.
+        pass
 
 
 def _unquote(value: str) -> str:
@@ -108,6 +141,26 @@ class _AndroidOutputBridge:
     def encoding(self) -> str:
         return getattr(self._target, "encoding", "utf-8")
 
+    @property
+    def errors(self) -> str:
+        return getattr(self._target, "errors", "strict")
+
+    def reconfigure(self, **kwargs: Any) -> None:
+        """Match TextIOWrapper sufficiently for resource Agent bootstrap scripts.
+
+        python-for-android initially exposes a LogFile object as stdout/stderr.  A
+        number of desktop-oriented Agent entrypoints inspect ``encoding`` and call
+        ``reconfigure`` before starting Maa's AgentServer, so the Android adapter must
+        provide those members even when the underlying LogFile does not.
+        """
+        reconfigure = getattr(self._target, "reconfigure", None)
+        if callable(reconfigure):
+            reconfigure(**kwargs)
+
+    def fileno(self) -> int:
+        fileno = getattr(self._target, "fileno", None)
+        return fileno() if callable(fileno) else -1
+
     def _send(self, line: str) -> None:
         if not line or not self._action or self._context is None:
             return
@@ -119,8 +172,10 @@ class _AndroidOutputBridge:
 
 
 def _install_output_bridge(config: dict[str, Any]) -> None:
-    if not config.get("output_action"):
-        return
+    # Install this unconditionally.  Besides forwarding lines to MFA, it is the
+    # compatibility TextIO layer presented to resource-provided Agent scripts.
+    # Keeping it active when output broadcasting is unavailable prevents p4a's
+    # minimal LogFile stream from crashing otherwise valid desktop entrypoints.
     sys.stdout = _AndroidOutputBridge(sys.stdout, config)
     sys.stderr = _AndroidOutputBridge(sys.stderr, config)
     os.environ["MFA_ANDROID_OUTPUT_BRIDGED"] = "1"
@@ -152,8 +207,7 @@ def _preload_maa_agent_binding() -> None:
         platform.system = original_system
 
 
-def main() -> None:
-    config = _service_argument()
+def _run_resource_agent(config: dict[str, Any]) -> None:
     _install_output_bridge(config)
     root = Path(str(config["data_root"])).resolve()
     if not root.is_dir():
@@ -185,6 +239,33 @@ def main() -> None:
     os.chdir(root)
     sys.argv = [str(script), *trailing_arguments, client_id]
     runpy.run_path(str(script), run_name="__main__")
+
+
+def main() -> None:
+    config = _service_argument()
+    try:
+        _run_resource_agent(config)
+    except BaseException as error:
+        # A p4a service is a separate Android process, so its exit code cannot be
+        # observed like a desktop child Process.  Report a machine-readable terminal
+        # event after the normal traceback; MFA uses it to fail Agent startup at once.
+        traceback.print_exc()
+        fatal_line = f"{_FATAL_PREFIX}{type(error).__name__}: {error}"
+        _send_terminal_event_direct(config, fatal_line)
+        print(
+            fatal_line,
+            file=sys.stderr,
+            flush=True,
+        )
+        raise
+    else:
+        # Returning before the Maa Agent handshake is equivalent to a desktop child
+        # process exiting with no usable Agent server.
+        print(
+            f"{_EXIT_PREFIX}resource Agent entrypoint returned",
+            file=sys.stderr,
+            flush=True,
+        )
 
 
 if __name__ == "__main__":

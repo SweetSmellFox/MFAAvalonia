@@ -1769,8 +1769,14 @@ public class MaaProcessor
             tasker.Global.SetOption(GlobalOption.SaveOnError, ConfigurationManager.Maa.GetValue(ConfigurationKeys.SaveOnError, true));
             tasker.Global.SetOption_DebugMode(ConfigurationManager.Maa.GetValue(ConfigurationKeys.ShowHitDraw, false));
             LoggerHelper.Info("MaaFW 调试模式：" + ConfigurationManager.Maa.GetValue(ConfigurationKeys.ShowHitDraw, false));
-            // 注意：只订阅一次回调，避免嵌套订阅导致内存泄漏
-            tasker.Callback += HandleCallBack;
+            // The Android native task runner invokes node callbacks while its action
+            // lock is held. Crossing that callback into Mono can suspend the Avalonia
+            // process before StartApp/touch reaches the controller, even when the
+            // managed handler immediately queues its work. Android gets task state
+            // from the queued MaaJob and video from the Shizuku display backend, so it
+            // must not subscribe to this synchronous native callback stream.
+            if (!OperatingSystem.IsAndroid())
+                tasker.Callback += HandleCallBack;
             ResetScreencapFailureLogFlags();
             return (tasker, InvalidResource, ShouldRetry);
         }
@@ -1803,6 +1809,34 @@ public class MaaProcessor
 
     public void HandleCallBack(object? sender, MaaCallbackEventArgs args)
     {
+        if (OperatingSystem.IsAndroid())
+        {
+            // MaaFramework invokes callbacks synchronously while some native action
+            // locks are still held. Keep the Android native callback boundary free of
+            // UI, telemetry, and reverse Tasker calls; otherwise Action.Starting can
+            // deadlock the task thread and eventually ANR the Avalonia main thread.
+            // MaaCallbackEventArgs owns managed strings, so copying it is sufficient.
+            var copiedArgs = new MaaCallbackEventArgs(args.Message, args.Details, args.HandleType);
+            var copiedSender = sender is MaaTasker ? sender : MaaTasker;
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    HandleCallBackCore(copiedSender, copiedArgs);
+                }
+                catch (Exception ex)
+                {
+                    LoggerHelper.Warning($"处理 Android MaaFramework 回调时发生错误：{ex.Message}");
+                }
+            });
+            return;
+        }
+
+        HandleCallBackCore(sender, args);
+    }
+
+    private void HandleCallBackCore(object? sender, MaaCallbackEventArgs args)
+    {
         JObject jObject;
         try
         {
@@ -1821,12 +1855,21 @@ public class MaaProcessor
             TelemetryService.RecordNodeEvent(InstanceId, args.Message, args.Details, shouldTraceNodeEvent);
         }
 
-        MaaTasker? tasker = null;
-        if (sender is MaaTasker t)
-            tasker = t;
-        if (sender is MaaContext context)
-            tasker = context.Tasker;
-        if (tasker != null && Instances.GameSettingsUserControlModel.ShowHitDraw)
+        var showHitDraw = Instances.GameSettingsUserControlModel.ShowHitDraw;
+        var hasFocus = jObject["focus"] is
+            { Type: not JTokenType.Null and not JTokenType.Undefined };
+        MaaTasker? tasker = sender as MaaTasker;
+        if ((showHitDraw || hasFocus) && tasker == null)
+        {
+            // MaaContext.Tasker is a native reverse lookup. During Action.Starting,
+            // MaaFramework still owns the action lock, so performing that lookup from
+            // its callback re-enters the tasker and deadlocks before the controller
+            // receives StartApp/touch calls. The processor already owns the exact
+            // tasker for this run; use that managed reference instead.
+            tasker = MaaTasker;
+        }
+
+        if (tasker != null && showHitDraw)
         {
             var name = jObject["name"]?.ToString() ?? string.Empty;
             if (args.Message.StartsWith(MaaMsg.Node.Recognition.Succeeded) || args.Message.StartsWith(MaaMsg.Node.Action.Succeeded))
@@ -1972,7 +2015,11 @@ public class MaaProcessor
             }
         }
 
-        if (jObject.ContainsKey("focus"))
+        // MaaFramework includes `focus: null` in ordinary node callbacks. Treating
+        // the mere presence of that field as an active focus makes Action.Starting
+        // call back into GetCachedImage while the native action lock is held. The
+        // Android tasker then deadlocks before StartApp reaches the controller.
+        if (hasFocus)
         {
             _focusHandler ??= new FocusHandler(AutoInitDictionary, ViewModel!);
             _focusHandler.UpdateDictionary(AutoInitDictionary);
@@ -3332,6 +3379,20 @@ public class MaaProcessor
         _startTime = DateTime.Now;
 
         var token = CancellationTokenSource.Token;
+
+        // A python-for-android Agent runs in a separate process. Android may reclaim
+        // that service after the previous run moved MFA behind the target game while
+        // the controller itself remains connected. Recreate the complete tasker/Agent
+        // session for each user-started queue so a stale ZeroMQ client is never reused.
+        if (!onlyStart
+            && OperatingSystem.IsAndroid()
+            && PlatformAgentFactory.Start != null
+            && AgentHelper.HasAgentConfigs(Interface?.Agent)
+            && MaaTasker != null)
+        {
+            LoggerHelper.Info("Android Agent session will be recreated before this task queue.");
+            SetTasker();
+        }
 
         var runId = 0L;
         if (!onlyStart)

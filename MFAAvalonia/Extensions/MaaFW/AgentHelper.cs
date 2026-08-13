@@ -201,6 +201,10 @@ public static class AgentHelper
         var timeOut = agentConfig.Timeout ?? -1;
         if (timeOut > 0)
             ctx.Client.SetTimeout(TimeSpan.FromSeconds(timeOut));
+        else if (OperatingSystem.IsAndroid())
+            // This is only the observation interval for the p4a service's terminal
+            // startup event, not the criterion for declaring startup failed.
+            ctx.Client.SetTimeout(TimeSpan.FromSeconds(1));
         ctx.Client.Releasing += (_, _) =>
         {
             LoggerHelper.Info("Agent 进程已退出。");
@@ -505,17 +509,35 @@ public static class AgentHelper
             for (var attempt = 1; attempt <= maxAttempts; attempt++)
             {
                 token.ThrowIfCancellationRequested();
+                ThrowIfPlatformAgentStartupFailed(ctx.PlatformSession);
                 try
                 {
                     var connected = PlatformAgentFactory.LinkStart?.Invoke(client)
                                     ?? client.LinkStart();
                     if (connected)
                     {
+                        if (ctx.PlatformSession is IPlatformAgentStartupStatus startupStatus)
+                            startupStatus.CompleteStartup();
                         // Complete the bindings only after StartUpResponse has been
                         // consumed. This preserves normal Agent event forwarding while
                         // preventing Android preview events from racing the handshake.
-                        client.Tasker = tasker;
-                        client.Controller = tasker.Controller;
+                        // On Android the Agent client is created from Resource and its
+                        // custom action/recognition callbacks already receive the native
+                        // MaaContext for reverse calls. Registering Tasker additionally
+                        // installs synchronous Tasker/Context event sinks. Those sinks
+                        // can block MaaFramework inside Node.Action.Starting and prevent
+                        // the controller action from ever running. Desktop keeps its
+                        // established event-forwarding behavior.
+                        if (!OperatingSystem.IsAndroid())
+                            client.Tasker = tasker;
+                        // Android's virtual-display preview continuously captures frames.
+                        // Registering the controller sink forwards two Agent messages for
+                        // every preview frame and can starve the request/response channel.
+                        // Tasker reverse requests can still expose the bound controller, so
+                        // the Android Agent keeps full context/controller functionality
+                        // without forwarding this high-frequency event stream.
+                        if (!OperatingSystem.IsAndroid())
+                            client.Controller = tasker.Controller;
                         processor.AddLog(
                             "python-for-android Agent 已连接",
                             (Avalonia.Media.IBrush?)null);
@@ -525,6 +547,7 @@ public static class AgentHelper
                 }
                 catch (Exception ex)
                 {
+                    ThrowIfPlatformAgentStartupFailed(ctx.PlatformSession);
                     lastException = ex;
                     LoggerHelper.Warning(
                         $"Platform Agent connection attempt {attempt}/{maxAttempts} failed: {ex.Message}");
@@ -543,6 +566,12 @@ public static class AgentHelper
             KillSingleAgent(ctx);
             throw;
         }
+    }
+
+    private static void ThrowIfPlatformAgentStartupFailed(IPlatformAgentSession? session)
+    {
+        if (session is IPlatformAgentStartupStatus { StartupFailure: { } failure })
+            throw new InvalidOperationException($"Android Python Agent startup failed: {failure}");
     }
 
     private static void ApplyPiEnvironmentVariables(ProcessStartInfo startInfo, MaaProcessor processor)
@@ -727,7 +756,8 @@ public static class AgentHelper
                 {
                     try
                     {
-                        agentClient.LinkStop();
+                        _ = PlatformAgentFactory.LinkStop?.Invoke(agentClient)
+                            ?? agentClient.LinkStop();
                         LoggerHelper.Info("AgentClient LinkStop 成功。");
                     }
                     catch (Exception e)

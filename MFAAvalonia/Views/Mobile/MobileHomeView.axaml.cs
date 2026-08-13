@@ -59,6 +59,5 @@ public partial class MobileHomeView : UserControl
         if (string.IsNullOrWhiteSpace(CurrentTaskValue.Text))
             CurrentTaskValue.Text = MobileLocalization.Get("Idle");
         StartStopText.Text = MobileLocalization.Get("StartStop");
-        UserLogsTitle.Text = MobileLocalization.Get("UserLogs");
     }
 }

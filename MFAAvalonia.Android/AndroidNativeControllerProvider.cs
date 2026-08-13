@@ -13,13 +13,15 @@ internal sealed class AndroidNativeControllerProvider
 {
     private readonly Activity _activity;
     private readonly ShizukuConnectionManager _shizuku;
+    private readonly ShizukuAuthorizationPrompt _authorizationPrompt;
     private readonly AndroidVirtualDisplayBackend _displayBackend;
 
     public AndroidNativeControllerProvider(Activity activity, ShizukuConnectionManager shizuku,
-        AndroidVirtualDisplayBackend displayBackend)
+        ShizukuAuthorizationPrompt authorizationPrompt, AndroidVirtualDisplayBackend displayBackend)
     {
         _activity = activity;
         _shizuku = shizuku;
+        _authorizationPrompt = authorizationPrompt;
         _displayBackend = displayBackend;
     }
 
@@ -31,10 +33,16 @@ internal sealed class AndroidNativeControllerProvider
             return null;
 
         if (!_shizuku.IsServiceAvailable || !_shizuku.HasPermission)
+        {
+            _authorizationPrompt.ShowIfNeeded();
             throw new InvalidOperationException(_shizuku.StatusMessage);
+        }
         if (!_shizuku.IsUserServiceReady
             && !_shizuku.WaitForUserServiceReady(TimeSpan.FromSeconds(12)))
+        {
+            _authorizationPrompt.ShowIfNeeded();
             throw new InvalidOperationException(_shizuku.StatusMessage);
+        }
 
         var nativeLibraryDir = _activity.ApplicationInfo?.NativeLibraryDir
             ?? throw new InvalidOperationException("Android native library directory is unavailable.");
@@ -45,14 +53,21 @@ internal sealed class AndroidNativeControllerProvider
 
         var metrics = _activity.Resources?.DisplayMetrics
             ?? throw new InvalidOperationException("Android display metrics are unavailable.");
-        if (NativeBridgeInterop.Configure((uint)metrics.WidthPixels, (uint)metrics.HeightPixels) != 0)
-            throw new InvalidOperationException("MFA Android native bridge initialization failed.");
+        // The controller targets landscape games. Some Android hosts keep MFA's activity in
+        // portrait and do not auto-rotate virtual displays, so activity metrics cannot be used
+        // verbatim here without Android letterboxing the game into a thin horizontal strip.
+        var virtualWidth = Math.Max(metrics.WidthPixels, metrics.HeightPixels);
+        var virtualHeight = Math.Min(metrics.WidthPixels, metrics.HeightPixels);
+        var bridgeResult = NativeBridgeInterop.Configure((uint)virtualWidth, (uint)virtualHeight);
+        if (bridgeResult != 0)
+            throw new InvalidOperationException(
+                $"MFA Android native bridge initialization failed (result={bridgeResult}).");
         if (NativeBridgeInterop.SetInputPort((uint)_shizuku.UserServicePort) != 0)
             throw new InvalidOperationException("MFA Android native input bridge initialization failed.");
         if (!_displayBackend.IsRunning)
         {
             var dpi = (int)metrics.DensityDpi;
-            var displayResult = _displayBackend.StartAsync(string.Empty, metrics.WidthPixels, metrics.HeightPixels, dpi)
+            var displayResult = _displayBackend.StartAsync(string.Empty, virtualWidth, virtualHeight, dpi)
                 .GetAwaiter().GetResult();
             if (!displayResult.Success)
                 throw new InvalidOperationException(displayResult.Message);
@@ -66,8 +81,8 @@ internal sealed class AndroidNativeControllerProvider
             library_path = bridgePath,
             screen_resolution = new
             {
-                width = metrics.WidthPixels,
-                height = metrics.HeightPixels,
+                width = virtualWidth,
+                height = virtualHeight,
             },
             display_id = _displayBackend.DisplayId >= 0 ? _displayBackend.DisplayId : display?.DisplayId ?? 0,
             force_stop = true,

@@ -107,7 +107,9 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
 
     private string DescribeCurrentSelection()
     {
-        var controller = CurrentController.ToString();
+        var controller = OperatingSystem.IsAndroid()
+            ? $"ShizukuNative (interface={CurrentController})"
+            : CurrentController.ToString();
         var resource = string.IsNullOrWhiteSpace(CurrentResource) ? "<none>" : CurrentResource;
         var device = CurrentDevice switch
         {
@@ -136,7 +138,8 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
     {
         DispatcherHelper.RunOnMainThread(() =>
         {
-            IsRunning = Processor.IsTaskRunActive || e.NewValue > 0;
+            var stopRequested = Processor.CancellationTokenSource?.IsCancellationRequested == true;
+            IsRunning = e.NewValue > 0 || (Processor.IsTaskRunActive && !stopRequested);
         });
     }
 
@@ -712,6 +715,10 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
 
     public void StopTask(Action? action = null)
     {
+        // Reflect the user's stop request immediately.  The processor still owns the
+        // actual cancellation/cleanup and prevents another run from starting until its
+        // task chain has unwound.
+        IsRunning = false;
         Processor.Stop(MFATask.MFATaskStatus.STOPPED, action: action);
     }
 
@@ -3189,6 +3196,15 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
 
     private void OnLiveViewTimerElapsed(object? sender, System.Timers.ElapsedEventArgs e)
     {
+        // Android renders the Shizuku virtual display through
+        // IMobileVirtualDisplayBackend.FrameReady.  Running the desktop live-view
+        // poller as well submits synchronous Screencap jobs to the same native
+        // controller while MaaFramework is executing actions.  Besides producing
+        // a false "screenshot timed out" message during connection, that can block
+        // both the action and UI paths on the controller's native lock.
+        if (OperatingSystem.IsAndroid())
+            return;
+
         if (Volatile.Read(ref _isDisposed) != 0)
             return;
 
@@ -3366,7 +3382,7 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
 
     public void ResumeLiveView()
     {
-        if (Processor.IsClosed)
+        if (Processor.IsClosed || OperatingSystem.IsAndroid())
             return;
 
         UpdateLiveViewTimerInterval();

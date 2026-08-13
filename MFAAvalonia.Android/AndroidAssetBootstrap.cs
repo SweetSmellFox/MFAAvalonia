@@ -25,7 +25,7 @@ internal static class AndroidAssetBootstrap
     // may be removed during the first managed upgrade; user config, logs and cache are excluded.
     private static readonly string[] LegacyManagedEntries =
     [
-        "agent", "data", "locales", "python", "resource", "Resource", "tasks",
+        "agent", "config", "data", "locales", "python", "resource", "Resource", "tasks",
         "interface.json", "interface.jsonc", "changes.json", "maa-project.json",
         ".python-version", "pyproject.toml", "uv.lock"
     ];

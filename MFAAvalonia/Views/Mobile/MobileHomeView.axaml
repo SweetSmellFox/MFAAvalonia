@@ -61,34 +61,6 @@
                 </Grid>
             </Border>
 
-            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Margin="2,4,0,0">
-                <TextBlock x:Name="UserLogsTitle" Text="User logs" FontSize="15" FontWeight="SemiBold"
-                           VerticalAlignment="Center" />
-                <Button Grid.Column="1" Width="40" Height="40" Padding="0" Command="{Binding ExportCommand}">
-                    <fluent:FluentIcon Icon="Save" IconSize="Size20" />
-                </Button>
-                <Button Grid.Column="2" Width="40" Height="40" Padding="0" Command="{Binding ClearCommand}">
-                    <fluent:FluentIcon Icon="Delete" IconSize="Size20" />
-                </Button>
-            </Grid>
-            <Border CornerRadius="8" Padding="12" MinHeight="110" MaxHeight="240"
-                    Background="{DynamicResource SukiCardBackground}"
-                    BorderBrush="{DynamicResource SukiControlBorderBrush}" BorderThickness="1">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <ItemsControl ItemsSource="{Binding LogItemViewModels}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="other:LogItemViewModel">
-                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,0,0,8">
-                                    <TextBlock Text="{Binding Time}" FontSize="10" Foreground="{DynamicResource SukiLowText}"
-                                               IsVisible="{Binding ShowTime}" />
-                                    <TextBlock Grid.Column="1" Text="{Binding Content}" TextWrapping="Wrap"
-                                               Foreground="{Binding Color}" FontWeight="{Binding Weight}" />
-                                </Grid>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
-            </Border>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

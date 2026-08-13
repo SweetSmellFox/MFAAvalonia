@@ -110,6 +110,7 @@
           The upstream fix is AvaloniaUI/Avalonia#20686, released in 11.3.13.
         -->
         <PackageReference Include="Avalonia.Android" Version="11.3.13" />
+        <!-- Keep the Android native runtime ABI aligned with the Maa.Framework binding. -->
         <PackageReference Include="Maa.Framework.Runtime.android-arm64" Version="5.12.3" GeneratePathProperty="true" />
         <PackageReference Include="Maa.Framework.Runtime.android-x64" Version="5.12.3" GeneratePathProperty="true" />
         <PackageReference Include="Xamarin.AndroidX.Core.SplashScreen" Version="1.0.1.1" />
@@ -143,6 +144,7 @@
 
         <ItemGroup>
             <_AndroidAgentFile Include="$(AndroidResourcePackageSource)\agent\**\*" Condition="Exists('$(AndroidResourcePackageSource)\agent')" />
+            <_AndroidConfigFile Include="$(AndroidResourcePackageSource)\config\**\*" Condition="Exists('$(AndroidResourcePackageSource)\config')" />
             <_AndroidDataFile Include="$(AndroidResourcePackageSource)\data\**\*" Condition="Exists('$(AndroidResourcePackageSource)\data')" />
             <_AndroidLocalesFile Include="$(AndroidResourcePackageSource)\locales\**\*" Condition="Exists('$(AndroidResourcePackageSource)\locales')" />
             <_AndroidPythonFile Include="$(AndroidResourcePackageSource)\python\**\*" Condition="Exists('$(AndroidResourcePackageSource)\python')" />
@@ -155,6 +157,11 @@
             <_AndroidRootFile Include="$(AndroidResourcePackageSource)\LICENSE*" />
             <_AndroidRootFile Include="$(AndroidResourcePackageSource)\README*" />
             <_AndroidRootFile Include="$(AndroidResourcePackageSource)\requirements*.txt" />
+            <_AndroidRootFile Include="$(AndroidResourcePackageSource)\*.ico" />
+            <_AndroidRootFile Include="$(AndroidResourcePackageSource)\*.jpg" />
+            <_AndroidRootFile Include="$(AndroidResourcePackageSource)\*.jpeg" />
+            <_AndroidRootFile Include="$(AndroidResourcePackageSource)\*.png" />
+            <_AndroidRootFile Include="$(AndroidResourcePackageSource)\*.webp" />
             <_AndroidRootFile Include="$(AndroidResourcePackageSource)\*.md" />
             <_AndroidRootFile Include="$(AndroidResourcePackageSource)\.python-version" Condition="Exists('$(AndroidResourcePackageSource)\.python-version')" />
             <_AndroidRootFile Include="$(AndroidResourcePackageSource)\pyproject.toml" Condition="Exists('$(AndroidResourcePackageSource)\pyproject.toml')" />
@@ -164,6 +171,7 @@
 
         <MakeDir Directories="$(AndroidResourcePackageStagingDirectory)" />
         <Copy SourceFiles="@(_AndroidAgentFile)" DestinationFiles="@(_AndroidAgentFile->'$(AndroidResourcePackageStagingDirectory)\agent\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+        <Copy SourceFiles="@(_AndroidConfigFile)" DestinationFiles="@(_AndroidConfigFile->'$(AndroidResourcePackageStagingDirectory)\config\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
         <Copy SourceFiles="@(_AndroidDataFile)" DestinationFiles="@(_AndroidDataFile->'$(AndroidResourcePackageStagingDirectory)\data\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
         <Copy SourceFiles="@(_AndroidLocalesFile)" DestinationFiles="@(_AndroidLocalesFile->'$(AndroidResourcePackageStagingDirectory)\locales\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
         <Copy SourceFiles="@(_AndroidPythonFile)" DestinationFiles="@(_AndroidPythonFile->'$(AndroidResourcePackageStagingDirectory)\python\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />

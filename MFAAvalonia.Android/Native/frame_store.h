@@ -15,7 +15,7 @@ struct FrameInfo {
 int ConfigureFrameStore(std::uint32_t width, std::uint32_t height);
 int UpdateFrameStore(const std::uint8_t* data, std::uint32_t width,
                      std::uint32_t height, std::uint32_t stride);
-bool UpdateFrameStore(AHardwareBuffer* buffer);
+bool UpdateFrameStore(AHardwareBuffer* buffer, int acquire_fence_fd = -1);
 FrameInfo LockCurrentFrame();
 int UnlockCurrentFrame(FrameInfo info);
 std::uint64_t CurrentFrameVersion();
