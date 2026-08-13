@@ -11,6 +11,7 @@ using MFAAvalonia.Extensions.MaaFW;
 using MFAAvalonia.Helper;
 using MFAAvalonia.ViewModels.Windows;
 using MFAAvalonia.Utilities;
+using Markdown.Avalonia.Utils;
 using System;
 using System.ComponentModel;
 using System.IO;
@@ -70,6 +71,7 @@ public class MainActivity : AvaloniaMainActivity<App>
             PlatformApplicationRestart.RestartAsync = RestartAfterResourceUpdateAsync;
             PlatformApplicationRestart.InstallApkAsync = InstallResourceUpdateApkAsync;
             UrlUtilities.PlatformOpenUrl = OpenUrl;
+            DefaultHyperlinkCommand.PlatformOpenUrl = OpenUrl;
             AndroidCrashDiagnostics.SetPhase("avalonia-on-create");
             base.OnCreate(savedInstanceState);
             AndroidCrashDiagnostics.SetPhase("application-title");
@@ -325,6 +327,7 @@ public class MainActivity : AvaloniaMainActivity<App>
         PlatformApplicationRestart.RestartAsync = null;
         PlatformApplicationRestart.InstallApkAsync = null;
         UrlUtilities.PlatformOpenUrl = null;
+        DefaultHyperlinkCommand.PlatformOpenUrl = null;
         if (_controllerProvider != null)
         {
             PlatformControllerFactory.Create = null;
