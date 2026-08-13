@@ -8,10 +8,12 @@ public interface IMobileVirtualDisplayBackend : IDisposable
 {
     bool IsRunning { get; }
     int DisplayId { get; }
+    bool CanRestore { get; }
     long CapturedFrameCount { get; }
     event Action<byte[]>? FrameReady;
     Task<MobileVirtualDisplayResult> StartAsync(string packageName, int width, int height, int dpi);
     Task<MobileVirtualDisplayResult> StopAsync();
+    Task<MobileVirtualDisplayResult> RestoreAsync();
 }
 
 public readonly record struct MobileVirtualDisplayResult(bool Success, string Message, int DisplayId = -1)

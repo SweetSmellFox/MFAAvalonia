@@ -410,6 +410,41 @@ public partial class MobileTaskQueueView : UserControl
         }
     }
 
+    private async void ToggleVirtualDisplayRelease(object? sender, RoutedEventArgs e)
+    {
+        if (_displayBackend == null || ViewModel?.IsRunning == true)
+            return;
+
+        ReleaseVirtualDisplayButton.IsEnabled = false;
+        try
+        {
+            MobileVirtualDisplayResult result;
+            if (_displayBackend.IsRunning)
+            {
+                // The native controller captures the display id at construction time. Drop the
+                // idle tasker before releasing the display so the next run creates a controller
+                // for the restored display instead of retaining the now-invalid old id.
+                ViewModel?.Processor.SetTasker();
+                StopControllerPreview();
+                result = await _displayBackend.StopAsync();
+            }
+            else
+            {
+                result = await _displayBackend.RestoreAsync();
+                if (result.Success)
+                {
+                    EnableNativePreviewIfRunning();
+                }
+            }
+
+            VirtualDisplayStatus.Text = result.Message;
+        }
+        finally
+        {
+            ReleaseVirtualDisplayButton.IsEnabled = ViewModel?.IsRunning != true;
+        }
+    }
+
     private async Task RefreshControllerPreviewAsync(MaaProcessor processor, CancellationToken token)
     {
         while (!token.IsCancellationRequested)

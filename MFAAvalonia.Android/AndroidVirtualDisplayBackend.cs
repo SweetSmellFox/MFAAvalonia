@@ -14,6 +14,9 @@ public sealed class AndroidVirtualDisplayBackend : Java.Lang.Object, IMobileVirt
     private readonly object _sync = new();
     private Surface? _captureSurface;
     private int _displayId = -1;
+    private int _lastWidth;
+    private int _lastHeight;
+    private int _lastDpi;
 
     internal AndroidVirtualDisplayBackend(Activity activity, ShizukuConnectionManager shizuku)
     {
@@ -24,6 +27,7 @@ public sealed class AndroidVirtualDisplayBackend : Java.Lang.Object, IMobileVirt
 
     public bool IsRunning => _displayId >= 0;
     public int DisplayId => _displayId;
+    public bool CanRestore => _lastWidth > 0 && _lastHeight > 0 && _lastDpi > 0;
     public long CapturedFrameCount
     {
         get
@@ -68,6 +72,9 @@ public sealed class AndroidVirtualDisplayBackend : Java.Lang.Object, IMobileVirt
 
                 Width = width;
                 Height = height;
+                _lastWidth = width;
+                _lastHeight = height;
+                _lastDpi = dpi;
                 _captureSurface = NativeCaptureInterop.SetupCapturer(width, height);
                 _displayId = _shizuku.CreateVirtualDisplay(width, height, dpi, _captureSurface);
                 if (_displayId < 0)
@@ -109,6 +116,21 @@ public sealed class AndroidVirtualDisplayBackend : Java.Lang.Object, IMobileVirt
             return Task.FromResult(MobileVirtualDisplayResult.Succeeded(
                 MobileLocalization.Get("VirtualStoppedDone"), -1));
         }
+    }
+
+    public Task<MobileVirtualDisplayResult> RestoreAsync()
+    {
+        lock (_sync)
+        {
+            if (IsRunning)
+                return Task.FromResult(MobileVirtualDisplayResult.Succeeded(
+                    MobileLocalization.Get("VirtualAlreadyRunning"), DisplayId));
+            if (!CanRestore)
+                return Task.FromResult(MobileVirtualDisplayResult.Failed(
+                    MobileLocalization.Get("VirtualCreateFailed")));
+        }
+
+        return StartAsync(string.Empty, _lastWidth, _lastHeight, _lastDpi);
     }
 
     private MobileVirtualDisplayResult LaunchPackageOnDisplay(string packageName, int displayId)

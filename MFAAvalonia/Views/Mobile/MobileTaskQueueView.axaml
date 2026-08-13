@@ -173,7 +173,7 @@
                 </Border>
                 <Border HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="8"
                         Padding="7" CornerRadius="5" Background="#C0202020">
-                    <Grid ColumnDefinitions="150,Auto">
+                    <Grid ColumnDefinitions="150,Auto,Auto">
                         <TextBox x:Name="VirtualPackageName" IsVisible="False" Height="36"
                                  Watermark="Target package name" FontSize="12" />
                         <TextBlock x:Name="VirtualDisplayStatus" VerticalAlignment="Center"
@@ -183,6 +183,12 @@
                                 Margin="6,0,0,0" Padding="0" Click="ToggleVirtualDisplay"
                                 ToolTip.Tip="Start or stop virtual display">
                             <fluent:FluentIcon Icon="DesktopSync" IconSize="Size20" />
+                        </Button>
+                        <Button x:Name="ReleaseVirtualDisplayButton" Grid.Column="2" Width="40" Height="36"
+                                Margin="6,0,0,0" Padding="0" Click="ToggleVirtualDisplayRelease"
+                                IsEnabled="{Binding !IsRunning}"
+                                ToolTip.Tip="Release or restore the virtual display for manual intervention">
+                            <fluent:FluentIcon Icon="Desktop" IconSize="Size20" />
                         </Button>
                     </Grid>
                 </Border>
