@@ -11,9 +11,26 @@ public partial class RootViewMobile : UserControl
     public RootViewMobile()
     {
         InitializeComponent();
+        Loaded += OnLoaded;
         UpdateLanguage();
         LanguageHelper.LanguageChanged += OnLanguageChanged;
         DetachedFromVisualTree += (_, _) => LanguageHelper.LanguageChanged -= OnLanguageChanged;
+    }
+
+    private async void OnLoaded(object? sender, RoutedEventArgs e)
+    {
+        Loaded -= OnLoaded;
+        if (!AppRuntime.IsNewInstance)
+            return;
+
+        try
+        {
+            await VersionChecker.CheckOnStartupAsync();
+        }
+        catch (System.Exception ex)
+        {
+            LoggerHelper.Error($"启动更新检测失败：{ex.Message}", ex);
+        }
     }
 
     private void OnLanguageChanged(object? sender, LanguageHelper.LanguageEventArgs e) => UpdateLanguage();
