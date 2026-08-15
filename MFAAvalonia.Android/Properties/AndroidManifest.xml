@@ -3,12 +3,17 @@
   <uses-permission android:name="android.permission.INTERNET" />
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
   <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
   <!-- Android 11+ package visibility: required to distinguish an installed Shizuku Manager from a missing one. -->
   <queries>
     <package android:name="moe.shizuku.privileged.api" />
   </queries>
   <application android:label="${applicationLabel}" android:icon="@drawable/Icon">
+    <service android:name="com.fox.mfa.AndroidRunForegroundService" android:exported="false" android:foregroundServiceType="specialUse">
+      <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="MaaFramework task execution" />
+    </service>
     <provider
       android:name="rikka.shizuku.ShizukuProvider"
       android:authorities="${shizukuAuthority}"

@@ -175,6 +175,7 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
                     : 1;
             }
 
+            PublishPlatformRunProgress(runId, LangKeys.Running.ToLocalization());
             return runId;
         });
     }
@@ -189,12 +190,17 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
             task.RunState = TaskRunState.Running;
             task.RunStartedAt = DateTimeOffset.UtcNow - task.RunElapsed;
             _taskRunElapsedTimer.Start();
+            PublishPlatformRunProgress(runId, LangKeys.Running.ToLocalization());
         });
     }
 
     public void MarkTaskIterationCompleted(DragItemViewModel? item, long runId)
     {
-        UpdateTaskRunState(item, runId, task => task.CompletedRunCount++);
+        UpdateTaskRunState(item, runId, task =>
+        {
+            task.CompletedRunCount++;
+            PublishPlatformRunProgress(runId, LangKeys.Running.ToLocalization());
+        });
     }
 
     public void MarkTaskSucceeded(DragItemViewModel? item, long runId)
@@ -225,7 +231,29 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
             }
 
             StopTaskRunElapsedTimerIfIdle();
+            PlatformRunProgress.Stop?.Invoke(Processor.InstanceId);
         });
+    }
+
+    private void PublishPlatformRunProgress(long runId, string state)
+    {
+        if (!OperatingSystem.IsAndroid() || runId <= 0)
+            return;
+        var runTasks = TaskItemViewModels
+            .Where(item => item.RunId == runId && !item.IsResourceOptionItem)
+            .ToList();
+        var completed = runTasks.Count(item => item.RunState is
+            TaskRunState.Succeeded or TaskRunState.Failed or TaskRunState.Stopped or TaskRunState.Skipped);
+        var current = runTasks.FirstOrDefault(item => item.RunState == TaskRunState.Running);
+        var currentName = current?.InterfaceItem?.Name ?? current?.Name ?? CurrentTaskName ?? string.Empty;
+        PlatformRunProgress.Update?.Invoke(new RunProgressSnapshot(
+            Processor.InstanceId,
+            MaaProcessor.Interface?.Name ?? "MFA",
+            state,
+            LanguageHelper.GetLocalizedString(currentName),
+            completed,
+            runTasks.Count,
+            runTasks.Count == 0));
     }
 
     private void CompleteTaskRun(DragItemViewModel? item, long runId, TaskRunState state, string? errorMessage)
@@ -234,6 +262,7 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
         {
             CompleteTaskRunCore(task, state, errorMessage);
             StopTaskRunElapsedTimerIfIdle();
+            PublishPlatformRunProgress(runId, LangKeys.Running.ToLocalization());
         });
     }
 

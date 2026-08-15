@@ -77,8 +77,15 @@ public class MainActivity : AvaloniaMainActivity<App>
             UrlUtilities.PlatformOpenUrl = OpenUrl;
             DefaultHyperlinkCommand.PlatformOpenUrl = OpenUrl;
             ToastNotification.PlatformShowNotification = ShowBackgroundNotification;
+            PlatformRunProgress.Update = snapshot => AndroidRunForegroundService.Publish(
+                global::Android.App.Application.Context, snapshot);
+            PlatformRunProgress.Stop = instanceId => AndroidRunForegroundService.Finish(
+                global::Android.App.Application.Context, instanceId);
             AndroidCrashDiagnostics.SetPhase("avalonia-on-create");
             base.OnCreate(savedInstanceState);
+            if (Build.VERSION.SdkInt >= BuildVersionCodes.Tiramisu &&
+                CheckSelfPermission(global::Android.Manifest.Permission.PostNotifications) != Permission.Granted)
+                RequestPermissions([global::Android.Manifest.Permission.PostNotifications], 1001);
             AndroidCrashDiagnostics.SetPhase("application-title");
             BindApplicationTitle();
             AndroidCrashDiagnostics.SetPhase("activity-ready");
@@ -129,6 +136,15 @@ public class MainActivity : AvaloniaMainActivity<App>
             throw;
         }
     }
+
+#pragma warning disable CS0672
+    public override void OnBackPressed()
+    {
+        // Finishing the Activity tears down the privileged display connection and
+        // consequently the game task. Keep MFA alive in the background instead.
+        MoveTaskToBack(true);
+    }
+#pragma warning restore CS0672
 
     protected override void OnPause()
     {
@@ -362,6 +378,13 @@ public class MainActivity : AvaloniaMainActivity<App>
         if (_rootViewModel != null)
             _rootViewModel.PropertyChanged -= OnRootViewModelPropertyChanged;
         _rootViewModel = null;
+        if (Instances.RootViewModel.IsRunning)
+        {
+            // The task foreground service owns the running session. Releasing the
+            // UserService here would destroy its virtual display and the game task.
+            base.OnDestroy();
+            return;
+        }
         PlatformApplicationRestart.RestartAsync = null;
         PlatformApplicationRestart.InstallApkAsync = null;
         UrlUtilities.PlatformOpenUrl = null;
