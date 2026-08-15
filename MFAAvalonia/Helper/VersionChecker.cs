@@ -1979,15 +1979,6 @@ public static class VersionChecker
 
     public async static Task UpdateMFA(bool isGithub, bool noDialog = false)
     {
-        if (OperatingSystem.IsAndroid())
-        {
-            LoggerHelper.Warning("Android 不支持桌面版自替换更新流程，已中止软件更新。资源更新仍可正常使用。");
-            ToastHelper.Warn(
-                LangKeys.Warning.ToLocalization(),
-                LangKeys.PlatformNotSupportedOperation.ToLocalization());
-            return;
-        }
-
         Instances.RootViewModel.SetUpdating(true);
         ProgressBar? progress = null;
         TextBlock? textBlock = null;
@@ -2085,7 +2076,7 @@ public static class VersionChecker
             // 下载更新包
             SetText(textBlock, LangKeys.Downloading.ToLocalization());
             SetProgress(progress, 0);
-            var tempZip = Path.Combine(tempPath, $"mfa_{latestVersion}.zip");
+            var tempZip = Path.Combine(tempPath, $"mfa_{latestVersion}{(OperatingSystem.IsAndroid() ? ".apk" : ".zip")}");
             (var downloadStatus, tempZip) = await DownloadWithRetry(downloadUrl, tempZip, progress, 3);
             if (!downloadStatus)
             {
@@ -2116,6 +2107,24 @@ public static class VersionChecker
                 Dismiss(sukiToast);
                 ToastHelper.Warn(LangKeys.Warning.ToLocalization(), LangKeys.HashVerificationFailed.ToLocalization());
                 Instances.RootViewModel.SetUpdating(false);
+                return;
+            }
+            if (OperatingSystem.IsAndroid())
+            {
+                if (!downloadUrl.EndsWith(".apk", StringComparison.OrdinalIgnoreCase) ||
+                    string.IsNullOrWhiteSpace(sha256) || !sha256Verified ||
+                    PlatformApplicationRestart.InstallApkAsync == null)
+                {
+                    Dismiss(sukiToast);
+                    ToastHelper.Warn(LangKeys.Warning.ToLocalization(), "Android Mirror 更新必须提供 APK 和有效 SHA256 校验值。", -1);
+                    Instances.RootViewModel.SetUpdating(false);
+                    return;
+                }
+                SetText(textBlock, LangKeys.ApplyingUpdate.ToLocalization());
+                SetProgress(progress, 100);
+                Instances.RootViewModel.SetUpdating(false);
+                Dismiss(sukiToast);
+                await PlatformApplicationRestart.InstallApkAsync(tempZip);
                 return;
             }
             SetText(textBlock, LangKeys.Extracting.ToLocalization());
@@ -2946,13 +2955,16 @@ public static class VersionChecker
         }
         var cdkD = onlyCheck ? string.Empty : $"cdk={cdk}&";
         var multiplatform = MaaProcessor.Interface?.Multiplatform == true;
-        var os = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "win" :
+        var os = OperatingSystem.IsAndroid() ? "android" :
+            RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "windows" :
             RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ? "linux" :
-            RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? "macos" : "unknown";
+            RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? "darwin" : "unknown";
 
-        var arch = RuntimeInformation.OSArchitecture switch
+        var arch = RuntimeInformation.ProcessArchitecture switch
         {
-            Architecture.X64 => "x86_64",
+            Architecture.X86 => "386",
+            Architecture.X64 => "amd64",
+            Architecture.Arm => "arm",
             Architecture.Arm64 => "arm64",
             _ => "unknown"
         };
@@ -2997,6 +3009,10 @@ public static class VersionChecker
             sha256 = data["sha256"]?.ToString() ?? string.Empty;
             var updateType = data["update_type"]?.ToString() ?? string.Empty;
             isFull = updateType.Equals("full", StringComparison.OrdinalIgnoreCase);
+            LoggerHelper.Info($"Mirror 更新响应：rid={resId}，平台={os}，架构={arch}，版本={latestVersion}，类型={updateType}，返回平台={data["os"]}，返回架构={data["arch"]}，APK={url.EndsWith(".apk", StringComparison.OrdinalIgnoreCase)}，SHA256={(string.IsNullOrWhiteSpace(sha256) ? "缺失" : "存在")}");
+
+            if (OperatingSystem.IsAndroid() && isUI && !url.EndsWith(".apk", StringComparison.OrdinalIgnoreCase))
+                throw new Exception("Android Mirror 更新资产不是 APK，已拒绝下载。");
 
             // 解析并存储 CDK 过期时间戳
             if (data["cdk_expired_time"] != null && long.TryParse(data["cdk_expired_time"]?.ToString(), out var cdkExpiredTime))
