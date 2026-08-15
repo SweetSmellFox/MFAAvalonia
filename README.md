@@ -132,6 +132,7 @@ MFAAvalonia.exe [参数]
 
 - [Project Interface V2 协议](https://github.com/MaaXYZ/MaaFramework/blob/main/docs/zh_cn/3.3-ProjectInterfaceV2%E5%8D%8F%E8%AE%AE.md)
 - [MaaPracticeBoilerplate](https://github.com/MaaXYZ/MaaPracticeBoilerplate)
+- [Android 资源项目接入](./docs/zh/Android资源项目构建.md)
 - [自定义布局](./docs/zh/自定义布局.md)
 - [外部通知配置](./docs/zh/外部通知.md)
 

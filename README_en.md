@@ -132,6 +132,7 @@ MFAAvalonia.exe [options]
 
 - [Project Interface V2 specification](https://github.com/MaaXYZ/MaaFramework/blob/main/docs/en_us/3.3-ProjectInterfaceV2.md)
 - [MaaPracticeBoilerplate](https://github.com/MaaXYZ/MaaPracticeBoilerplate)
+- [Android Resource Project Integration](./docs/en/android-resource-integration.md)
 - [Custom Layout](./docs/en/custom-layout.md)
 - [External Notifications](./docs/en/external-notification.md)
 

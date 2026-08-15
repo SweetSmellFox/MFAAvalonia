@@ -4,7 +4,7 @@ MFAAvalonia 本身只提供 Android UI、Native Controller 和资源加载能力
 
 资源与 APK 绑定。更新资源需要重新构建 APK，不能只替换设备上的 `interface.json`。
 
-工作流参考 [workflows/install.yml](../../workflows/install.yml)。已有桌面发布流程的项目只需合入其中的 `build-android` job，不必替换整个工作流。
+独立工作流参考 [workflows/android.yml](../../workflows/android.yml)。将它复制到资源仓库的 `.github/workflows/android.yml`；已有桌面发布流程的项目可以保留原工作流，两者互不覆盖。
 
 ## 环境
 
@@ -26,6 +26,7 @@ env:
   APPLICATION_ID: io.github.example.maaexample
   LAUNCHER_LABEL: Maa Example
   LAUNCHER_ICON: android/icon.png
+  RESOURCE_ROOT: .
   MFA_REPOSITORY: MaaXYZ/MFAAvalonia
   MFA_REF: main
   P4A_ENTRYPOINT: agent/main.py
@@ -39,13 +40,14 @@ env:
 | `APPLICATION_ID` | Android 包名；正式发布后必须保持不变，否则无法覆盖安装或自更新 |
 | `LAUNCHER_LABEL` | 桌面图标下显示的应用名称 |
 | `LAUNCHER_ICON` | 相对于资源仓库根目录的 PNG 图标，同时用于 Android 12+ 开屏图标 |
+| `RESOURCE_ROOT` | 成品资源根目录，目录内必须直接包含 `interface.json` 或 `interface.jsonc` |
 | `MFA_REPOSITORY` | 要构建的 MFAAvalonia 仓库；可指向自己的 Fork |
 | `MFA_REF` | MFA 分支、Tag 或 commit；正式发布建议固定 Tag 或 commit |
 | `P4A_ENTRYPOINT` | Python Agent 入口；没有 Python Agent 时留空并移除 P4A 构建步骤 |
 
 不要把 `GITHUB_RUN_NUMBER` 拼进 `APPLICATION_ID`。运行编号可以用于版本号和文件名，但 ApplicationId 必须稳定。
 
-若使用 MFA 的通用 [install.yml](../../workflows/install.yml)，也可以通过 GitHub Repository Variables 设置：
+旧的通用 [install.yml](../../workflows/install.yml) 仍支持通过 GitHub Repository Variables 设置：
 
 ```text
 MFA_ANDROID_APPLICATION_ID
