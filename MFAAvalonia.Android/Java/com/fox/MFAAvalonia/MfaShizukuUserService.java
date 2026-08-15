@@ -493,8 +493,12 @@ public final class MfaShizukuUserService extends Binder {
                 try (Socket socket = server.accept();
                      DataInputStream input = new DataInputStream(socket.getInputStream());
                      DataOutputStream output = new DataOutputStream(socket.getOutputStream())) {
+                    // Keep one bridge connection alive for an entire gesture. The native
+                    // side reuses this socket, avoiding a TCP handshake for every MOVE.
+                    socket.setTcpNoDelay(true);
+                    while (!server.isClosed()) {
                     if (input.readInt() != MAGIC) {
-                        continue;
+                        break;
                     }
 
                     int displayId = input.readInt();
@@ -512,6 +516,7 @@ public final class MfaShizukuUserService extends Binder {
                     int result = execute(displayId, method, x, y, key, text);
                     output.writeInt(result);
                     output.flush();
+                    }
                 } catch (IOException exception) {
                     if (!server.isClosed()) {
                         Log.w(TAG, "Input server error", exception);

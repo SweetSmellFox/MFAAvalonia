@@ -9,6 +9,7 @@
 #include <exception>
 #include <signal.h>
 #include <thread>
+#include <mutex>
 
 #include "frame_store.h"
 
@@ -33,6 +34,8 @@ union ArgUnion {
 struct MethodParam { int display_id; int method; ArgUnion args; };
 
 std::atomic<std::uint16_t> g_input_port { 0 };
+std::mutex g_input_mutex;
+int g_input_socket = -1;
 
 using MaaAgentClientConnectFunction = std::uint8_t (*)(void*);
 
@@ -88,7 +91,8 @@ bool receive_all(int socket_fd, void* data, std::size_t size) {
     return true;
 }
 
-int send_input(const MethodParam& param, int x, int y, int key, const char* text) {
+int connect_input_socket() {
+    if (g_input_socket >= 0) return g_input_socket;
     const auto input_port = g_input_port.load(std::memory_order_relaxed);
     if (input_port == 0) return -9;
     const int socket_fd = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
@@ -101,6 +105,14 @@ int send_input(const MethodParam& param, int x, int y, int key, const char* text
         close(socket_fd);
         return -11;
     }
+    g_input_socket = socket_fd;
+    return socket_fd;
+}
+
+int send_input(const MethodParam& param, int x, int y, int key, const char* text) {
+    std::lock_guard<std::mutex> lock(g_input_mutex);
+    const int socket_fd = connect_input_socket();
+    if (socket_fd < 0) return socket_fd;
     const int text_length = text ? static_cast<int>(std::strlen(text)) : 0;
     const std::uint32_t header[] = {
         htonl(0x4d464142), htonl(param.display_id), htonl(param.method),
@@ -110,7 +122,10 @@ int send_input(const MethodParam& param, int x, int y, int key, const char* text
         && (text_length == 0 || send_all(socket_fd, text, text_length));
     std::uint32_t network_result = 0;
     const bool received = sent && receive_all(socket_fd, &network_result, sizeof(network_result));
-    close(socket_fd);
+    if (!sent || !received) {
+        close(g_input_socket);
+        g_input_socket = -1;
+    }
     if (!sent) return -12;
     if (!received) return -13;
     return static_cast<std::int32_t>(ntohl(network_result));
@@ -131,6 +146,13 @@ MFA_EXPORT int MfaBridgeConfigure(std::uint32_t width, std::uint32_t height) {
 
 MFA_EXPORT int MfaBridgeSetInputPort(std::uint32_t port) {
     if (port == 0 || port > 65535) return -1;
+    {
+        std::lock_guard<std::mutex> lock(g_input_mutex);
+        if (g_input_socket >= 0) {
+            close(g_input_socket);
+            g_input_socket = -1;
+        }
+    }
     g_input_port.store(static_cast<std::uint16_t>(port), std::memory_order_relaxed);
     __android_log_print(ANDROID_LOG_INFO, kTag, "input port configured: %u", port);
     return 0;
