@@ -16,6 +16,7 @@ using System;
 using System.ComponentModel;
 using System.IO;
 using System.Threading.Tasks;
+using System.Threading;
 
 namespace MFAAvalonia.Android;
 
@@ -26,6 +27,9 @@ namespace MFAAvalonia.Android;
     ConfigurationChanges = ConfigChanges.Orientation | ConfigChanges.ScreenSize | ConfigChanges.UiMode)]
 public class MainActivity : AvaloniaMainActivity<App>
 {
+    private const string FocusNotificationChannelId = "mfa_focus";
+    private const int FocusNotificationIdBase = 1200;
+    private int _focusNotificationSequence;
     private AndroidVirtualDisplayBackend? _virtualDisplayBackend;
     private AndroidNativeControllerProvider? _controllerProvider;
     private AndroidPythonAgentProvider? _pythonAgentProvider;
@@ -72,6 +76,7 @@ public class MainActivity : AvaloniaMainActivity<App>
             PlatformApplicationRestart.InstallApkAsync = InstallResourceUpdateApkAsync;
             UrlUtilities.PlatformOpenUrl = OpenUrl;
             DefaultHyperlinkCommand.PlatformOpenUrl = OpenUrl;
+            ToastNotification.PlatformShowNotification = ShowBackgroundNotification;
             AndroidCrashDiagnostics.SetPhase("avalonia-on-create");
             base.OnCreate(savedInstanceState);
             AndroidCrashDiagnostics.SetPhase("application-title");
@@ -319,6 +324,39 @@ public class MainActivity : AvaloniaMainActivity<App>
         }
     }
 
+    private void ShowBackgroundNotification(string title, string content)
+    {
+        try
+        {
+            var manager = GetSystemService(NotificationService) as NotificationManager;
+            if (manager == null)
+                return;
+            if (Build.VERSION.SdkInt >= BuildVersionCodes.O)
+                manager.CreateNotificationChannel(new NotificationChannel(
+                    FocusNotificationChannelId, "MFA Focus", NotificationImportance.Default));
+
+            var notification = new Notification.Builder(this, FocusNotificationChannelId)
+                .SetSmallIcon(global::Android.Resource.Drawable.IcDialogInfo)
+                .SetContentTitle(string.IsNullOrWhiteSpace(title) ? "MFA" : title)
+                .SetContentText(content)
+                .SetStyle(new Notification.BigTextStyle().BigText(content))
+                .SetAutoCancel(true);
+            var launchIntent = PackageManager?.GetLaunchIntentForPackage(PackageName ?? string.Empty);
+            if (launchIntent != null)
+            {
+                var pendingIntent = PendingIntent.GetActivity(this, 0, launchIntent,
+                    PendingIntentFlags.UpdateCurrent | PendingIntentFlags.Immutable);
+                notification.SetContentIntent(pendingIntent);
+            }
+            var id = FocusNotificationIdBase + Interlocked.Increment(ref _focusNotificationSequence) % 50;
+            manager.Notify(id, notification.Build());
+        }
+        catch (Exception ex)
+        {
+            global::Android.Util.Log.Warn("MFAAvalonia", $"Focus notification failed: {ex.Message}");
+        }
+    }
+
     protected override void OnDestroy()
     {
         if (_rootViewModel != null)
@@ -328,6 +366,7 @@ public class MainActivity : AvaloniaMainActivity<App>
         PlatformApplicationRestart.InstallApkAsync = null;
         UrlUtilities.PlatformOpenUrl = null;
         DefaultHyperlinkCommand.PlatformOpenUrl = null;
+        ToastNotification.PlatformShowNotification = null;
         if (_controllerProvider != null)
         {
             PlatformControllerFactory.Create = null;
