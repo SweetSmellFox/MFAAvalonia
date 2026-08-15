@@ -51,6 +51,7 @@ public sealed class AndroidVirtualDisplayBackend : Java.Lang.Object, IMobileVirt
     // The Android preview now renders its HardwareBuffer directly to a SurfaceView.
     // This event remains for the cross-platform backend contract and fallback implementations.
     public event Action<byte[]>? FrameReady;
+    public event Action? StateChanged;
 
     public Task<MobileVirtualDisplayResult> StartAsync(string packageName, int width, int height, int dpi)
     {
@@ -96,6 +97,7 @@ public sealed class AndroidVirtualDisplayBackend : Java.Lang.Object, IMobileVirt
 
                 global::Android.Util.Log.Info("MfaVirtualDisplay",
                     $"Native virtual display ready: {width}x{height}, display={DisplayId}");
+                StateChanged?.Invoke();
                 return Task.FromResult(MobileVirtualDisplayResult.Succeeded(
                     $"{MobileLocalization.Get("VirtualStarted")} Display {DisplayId}", DisplayId));
             }
@@ -187,6 +189,7 @@ public sealed class AndroidVirtualDisplayBackend : Java.Lang.Object, IMobileVirt
         NativeCaptureInterop.ReleaseCapturer();
         Width = 0;
         Height = 0;
+        StateChanged?.Invoke();
     }
 
     protected override void Dispose(bool disposing)

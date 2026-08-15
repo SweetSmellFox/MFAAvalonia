@@ -90,6 +90,8 @@ public static class ConfigurationKeys
     public const string WlRootsSocketPath = "WlRootsSocketPath";
     public const string CurrentController = "CurrentController";
     public const string CurrentControllerName = "CurrentControllerName";
+    public const string AndroidRunMode = "AndroidRunMode";
+    public const string AndroidResolution = "AndroidResolution";
 
     #endregion
 

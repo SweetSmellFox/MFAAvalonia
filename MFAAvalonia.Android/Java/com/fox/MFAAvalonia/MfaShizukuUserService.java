@@ -189,23 +189,14 @@ public final class MfaShizukuUserService extends Binder {
                         | (1 << 15) // DEVICE_DISPLAY_GROUP
                         | (1 << 16); // STEAL_TOP_FOCUS_DISABLED
             }
-            int focusFlags = destroyFlags;
-            if (Build.VERSION.SDK_INT >= 34) {
-                focusFlags |= (1 << 14) // OWN_FOCUS
-                        | (1 << 15) // DEVICE_DISPLAY_GROUP
-                        | (1 << 16); // STEAL_TOP_FOCUS_DISABLED
-            }
-
-            // OEM DisplayManager implementations differ in which privileged flags
-            // they accept for a Shizuku shell UserService. Start with the complete
-            // MAA-Meow set, then progressively remove only the sensitive flags.
-            int[] flagCandidates = new int[] {
-                    fullFlags,
-                    focusFlags,
-                    android13Flags,
-                    destroyFlags,
-                    basicFlags
-            };
+            // Keep the same isolation contract as MaaFwApp. In particular Android 14+
+            // must retain OWN_FOCUS and STEAL_TOP_FOCUS_DISABLED. Falling back to a
+            // display without these flags may make creation appear successful while
+            // stealing focus/content from the physical display.
+            int requiredFlags = Build.VERSION.SDK_INT >= 34
+                    ? fullFlags
+                    : Build.VERSION.SDK_INT >= 33 ? android13Flags : destroyFlags;
+            int[] flagCandidates = new int[] { requiredFlags };
             Context[] contextCandidates = shellContext == context
                     ? new Context[] { context }
                     : new Context[] { shellContext, context };
@@ -615,6 +606,8 @@ public final class MfaShizukuUserService extends Binder {
                 return -1;
 
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
+            if (displayId != 0)
+                intent.addFlags(Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
             boolean started = startActivityAsShell(intent, displayId, false);
             if (!started) {
                 ShellResult fallback = runShell("am start -W --display " + displayId
@@ -625,14 +618,14 @@ public final class MfaShizukuUserService extends Binder {
 
             TaskPlacement placement = null;
             for (int attempt = 0; attempt < 20; attempt++) {
-                placement = findPackageTask(packageName);
+                placement = findPackageTask(packageName, displayId);
                 if (placement != null) {
                     if (placement.displayId == displayId)
                         return 0;
                     Log.w(TAG, "StartApp placed " + packageName + " on display "
                             + placement.displayId + " instead of " + displayId
                             + "; attempting to move task " + placement.taskId + " back.");
-                    if (repinTask(intent, placement.taskId, displayId))
+                    if (forceStop && repinTask(intent, placement.taskId, displayId))
                         return 0;
                     break;
                 }
@@ -648,7 +641,8 @@ public final class MfaShizukuUserService extends Binder {
                     + displayId + "; placement=" + (placement == null
                     ? "not-found"
                     : "display-" + placement.displayId) + ". Stopping the misplaced app.");
-            forceStopPackage(packageName);
+            if (forceStop)
+                forceStopPackage(packageName);
             return placement == null ? 4 : 3;
         }
 
@@ -714,19 +708,31 @@ public final class MfaShizukuUserService extends Binder {
 
         @SuppressWarnings("deprecation")
         private TaskPlacement findPackageTask(String packageName) {
+            return findPackageTask(packageName, -1);
+        }
+
+        @SuppressWarnings("deprecation")
+        private TaskPlacement findPackageTask(String packageName, int preferredDisplayId) {
             try {
                 ActivityManager activityManager = context.getSystemService(ActivityManager.class);
                 if (activityManager == null)
                     return findPackageTaskFromDump(packageName);
                 List<ActivityManager.RunningTaskInfo> tasks = activityManager.getRunningTasks(100);
+                TaskPlacement fallback = null;
                 for (ActivityManager.RunningTaskInfo task : tasks) {
                     ComponentName top = task.topActivity;
                     ComponentName base = task.baseActivity;
                     if ((top != null && packageName.equals(top.getPackageName()))
                             || (base != null && packageName.equals(base.getPackageName()))) {
-                        return new TaskPlacement(task.id, readTaskDisplayId(task));
+                        TaskPlacement placement = new TaskPlacement(task.id, readTaskDisplayId(task));
+                        if (preferredDisplayId < 0 || placement.displayId == preferredDisplayId)
+                            return placement;
+                        if (fallback == null)
+                            fallback = placement;
                     }
                 }
+                if (fallback != null)
+                    return fallback;
             } catch (Throwable exception) {
                 Log.w(TAG, "getRunningTasks failed; using dumpsys fallback", exception);
             }

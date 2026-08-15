@@ -2226,4 +2226,7 @@
   <data name="Red" xml:space="preserve"><value>赤</value></data>
   <data name="Orange" xml:space="preserve"><value>オレンジ</value></data>
   <data name="Purple" xml:space="preserve"><value>紫</value></data>
+  <data name="AndroidVirtualDisplayMode" xml:space="preserve"><value>バックグラウンド · 仮想ディスプレイ</value></data>
+  <data name="AndroidCurrentScreenMode" xml:space="preserve"><value>フォアグラウンド · 現在の画面</value></data>
+  <data name="CurrentScreen" xml:space="preserve"><value>現在の画面</value></data>
 </root>

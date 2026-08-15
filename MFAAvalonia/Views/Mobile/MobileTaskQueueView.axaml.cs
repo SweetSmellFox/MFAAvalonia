@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -37,6 +38,8 @@ public partial class MobileTaskQueueView : UserControl
     private DateTime _lastPreviewFrameSample;
     private DragItemViewModel? _activeOptionItem;
     private DragItemViewModel? _lastTaskMenuItem;
+    private bool _loadingRunSettings;
+    private TaskQueueViewModel? _observedViewModel;
 
     public MobileTaskQueueView()
     {
@@ -49,6 +52,7 @@ public partial class MobileTaskQueueView : UserControl
         NativePreviewHost.Content = MobileVirtualDisplay.PreviewControlFactory?.Invoke();
         SetLogTab(false);
         UpdateInstance();
+        LoadAndroidRunSettings();
         MobileInstanceCoordinator.CurrentChanged += OnCurrentInstanceChanged;
         UpdateLanguage();
         LanguageHelper.LanguageChanged += OnLanguageChanged;
@@ -63,6 +67,8 @@ public partial class MobileTaskQueueView : UserControl
             DetachVirtualDisplayPreview();
             LanguageHelper.LanguageChanged -= OnLanguageChanged;
             MobileInstanceCoordinator.CurrentChanged -= OnCurrentInstanceChanged;
+            if (_observedViewModel != null)
+                _observedViewModel.PropertyChanged -= OnTaskViewModelPropertyChanged;
         };
     }
 
@@ -70,11 +76,103 @@ public partial class MobileTaskQueueView : UserControl
     {
         StopControllerPreview();
         UpdateInstance();
+        LoadAndroidRunSettings();
         ShowTaskList();
     }
 
-    private void UpdateInstance() =>
-        DataContext = MaaProcessorManager.Instance.GetViewModel(MaaProcessorManager.Instance.Current.InstanceId);
+    private void UpdateInstance()
+    {
+        if (_observedViewModel != null)
+            _observedViewModel.PropertyChanged -= OnTaskViewModelPropertyChanged;
+        _observedViewModel = MaaProcessorManager.Instance.GetViewModel(MaaProcessorManager.Instance.Current.InstanceId);
+        DataContext = _observedViewModel;
+        _observedViewModel.PropertyChanged += OnTaskViewModelPropertyChanged;
+    }
+
+    private void OnTaskViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(TaskQueueViewModel.IsRunning))
+            return;
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (MobileRunConfiguration.Mode == MobileRunMode.CurrentScreen && ViewModel?.IsRunning == true)
+            {
+                _previewCancellation ??= new CancellationTokenSource();
+                _ = RefreshControllerPreviewAsync(ViewModel.Processor, _previewCancellation.Token);
+                StartPreviewStats();
+            }
+            else if (MobileRunConfiguration.Mode == MobileRunMode.CurrentScreen)
+            {
+                StopControllerPreview();
+            }
+            UpdatePreviewState();
+        });
+    }
+
+    private void LoadAndroidRunSettings()
+    {
+        var config = ViewModel?.Processor.InstanceConfiguration;
+        var modeName = config?.GetValue(ConfigurationKeys.AndroidRunMode,
+            MobileRunMode.VirtualDisplay.ToString()) ?? MobileRunMode.VirtualDisplay.ToString();
+        var resolutionName = config?.GetValue(ConfigurationKeys.AndroidResolution,
+            MobileRunResolution.P720.ToString()) ?? MobileRunResolution.P720.ToString();
+        if (!Enum.TryParse(modeName, out MobileRunMode mode))
+            mode = MobileRunMode.VirtualDisplay;
+        if (!Enum.TryParse(resolutionName, out MobileRunResolution resolution))
+            resolution = MobileRunResolution.P720;
+        MobileRunConfiguration.Mode = mode;
+        MobileRunConfiguration.Resolution = resolution;
+        _loadingRunSettings = true;
+        AndroidRunModeSelector.SelectedIndex = mode == MobileRunMode.VirtualDisplay ? 0 : 1;
+        AndroidResolutionSelector.SelectedIndex = resolution == MobileRunResolution.P720 ? 0 : 1;
+        AndroidResolutionSelector.IsEnabled = mode == MobileRunMode.VirtualDisplay;
+        _loadingRunSettings = false;
+        UpdatePreviewState();
+    }
+
+    private void OnAndroidRunModeChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_loadingRunSettings)
+            return;
+        if (AndroidRunModeSelector.SelectedItem is not ComboBoxItem { Tag: string tag }
+            || !Enum.TryParse(tag, out MobileRunMode mode))
+            return;
+        MobileRunConfiguration.Mode = mode;
+        AndroidResolutionSelector.IsEnabled = mode == MobileRunMode.VirtualDisplay;
+        ViewModel?.Processor.InstanceConfiguration.SetValue(ConfigurationKeys.AndroidRunMode, mode.ToString());
+        ViewModel?.Processor.SetTasker();
+        UpdatePreviewState();
+    }
+
+    private void OnAndroidResolutionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_loadingRunSettings)
+            return;
+        if (AndroidResolutionSelector.SelectedItem is not ComboBoxItem { Tag: string tag }
+            || !Enum.TryParse(tag, out MobileRunResolution resolution))
+            return;
+        MobileRunConfiguration.Resolution = resolution;
+        ViewModel?.Processor.InstanceConfiguration.SetValue(ConfigurationKeys.AndroidResolution, resolution.ToString());
+        ViewModel?.Processor.SetTasker();
+    }
+
+    private void UpdatePreviewState()
+    {
+        var running = MobileRunConfiguration.Mode == MobileRunMode.VirtualDisplay
+            ? _displayBackend?.IsRunning == true
+            : ViewModel?.IsRunning == true;
+        VirtualDisplayStatus.Text = running
+            ? MobileLocalization.Get("Running")
+            : MobileRunConfiguration.Mode == MobileRunMode.VirtualDisplay
+                ? MobileLocalization.Get("VirtualStopped")
+                : MobileLocalization.Get("CurrentScreen");
+        VirtualDisplayFpsBadge.IsVisible = true;
+        VirtualDisplayRunningBadge.IsVisible = true;
+        if (running)
+            StartPreviewStats();
+        else
+            StopPreviewStats();
+    }
 
     private void OnLanguageChanged(object? sender, LanguageHelper.LanguageEventArgs e) => UpdateLanguage();
 
@@ -93,8 +191,8 @@ public partial class MobileTaskQueueView : UserControl
     private void UpdateLanguage()
     {
         VirtualDisplayTitle.Text = MobileLocalization.Get("VirtualDisplay");
-        VirtualDisplayRunningText.Text = MobileLocalization.Get("Running");
-        VirtualPackageName.Watermark = MobileLocalization.Get("TargetPackage");
+        VirtualDisplayModeItem.Content = MobileLocalization.Get("AndroidVirtualDisplayMode");
+        CurrentScreenModeItem.Content = MobileLocalization.Get("AndroidCurrentScreenMode");
         if (_previewCancellation == null)
             VirtualDisplayStatus.Text = MobileLocalization.Get("VirtualStopped");
         TaskQueueTitle.Text = MobileLocalization.Get("TaskQueue");
@@ -354,97 +452,6 @@ public partial class MobileTaskQueueView : UserControl
         SaveConfiguration();
     }
 
-    private async void ToggleVirtualDisplay(object? sender, RoutedEventArgs e)
-    {
-        if (_previewCancellation != null)
-        {
-            StopControllerPreview();
-            VirtualDisplayStatus.Text = MobileLocalization.Get("VirtualStoppedDone");
-            return;
-        }
-
-        var packageName = VirtualPackageName.Text?.Trim() ?? string.Empty;
-        var processor = ViewModel?.Processor;
-        if (processor == null)
-            return;
-
-        VirtualDisplayButton.IsEnabled = false;
-        try
-        {
-            var tasker = processor.MaaTasker;
-            if (tasker?.Controller?.IsConnected != true)
-            {
-                VirtualDisplayStatus.Text = MobileLocalization.Get("RuntimeReady");
-                await processor.TestConnecting();
-                tasker = processor.MaaTasker;
-            }
-
-            if (tasker?.Controller?.IsConnected != true)
-            {
-                VirtualDisplayStatus.Text = MobileLocalization.Get("VirtualUnsupported");
-                return;
-            }
-
-            var startStatus = MaaJobStatus.Succeeded;
-            if (!string.IsNullOrWhiteSpace(packageName))
-                startStatus = tasker.Controller.StartApp(packageName).Wait();
-            if (startStatus != MaaJobStatus.Succeeded)
-            {
-                VirtualDisplayStatus.Text = MobileLocalization.Format("VirtualLaunchFailed", startStatus);
-                return;
-            }
-
-            _previewCancellation = new CancellationTokenSource();
-            VirtualDisplayStatus.Text = MobileLocalization.Get("VirtualStarted");
-            StartPreviewStats();
-            if (_displayBackend?.IsRunning != true)
-                _ = RefreshControllerPreviewAsync(processor, _previewCancellation.Token);
-        }
-        catch (Exception ex)
-        {
-            VirtualDisplayStatus.Text = MobileLocalization.Format("VirtualOperationFailed", ex.Message);
-        }
-        finally
-        {
-            VirtualDisplayButton.IsEnabled = true;
-        }
-    }
-
-    private async void ToggleVirtualDisplayRelease(object? sender, RoutedEventArgs e)
-    {
-        if (_displayBackend == null || ViewModel?.IsRunning == true)
-            return;
-
-        ReleaseVirtualDisplayButton.IsEnabled = false;
-        try
-        {
-            MobileVirtualDisplayResult result;
-            if (_displayBackend.IsRunning)
-            {
-                // The native controller captures the display id at construction time. Drop the
-                // idle tasker before releasing the display so the next run creates a controller
-                // for the restored display instead of retaining the now-invalid old id.
-                ViewModel?.Processor.SetTasker();
-                StopControllerPreview();
-                result = await _displayBackend.StopAsync();
-            }
-            else
-            {
-                result = await _displayBackend.RestoreAsync();
-                if (result.Success)
-                {
-                    EnableNativePreviewIfRunning();
-                }
-            }
-
-            VirtualDisplayStatus.Text = result.Message;
-        }
-        finally
-        {
-            ReleaseVirtualDisplayButton.IsEnabled = ViewModel?.IsRunning != true;
-        }
-    }
-
     private async Task RefreshControllerPreviewAsync(MaaProcessor processor, CancellationToken token)
     {
         while (!token.IsCancellationRequested)
@@ -496,6 +503,7 @@ public partial class MobileTaskQueueView : UserControl
         if (_displayBackend != null)
         {
             _displayBackend.FrameReady += OnVirtualDisplayFrameReady;
+            _displayBackend.StateChanged += OnVirtualDisplayStateChanged;
             EnableNativePreviewIfRunning();
         }
     }
@@ -513,10 +521,16 @@ public partial class MobileTaskQueueView : UserControl
     private void DetachVirtualDisplayPreview()
     {
         if (_displayBackend != null)
+        {
             _displayBackend.FrameReady -= OnVirtualDisplayFrameReady;
+            _displayBackend.StateChanged -= OnVirtualDisplayStateChanged;
+        }
         _displayBackend = null;
         Interlocked.Exchange(ref _displayFramePending, 0);
     }
+
+    private void OnVirtualDisplayStateChanged() =>
+        Dispatcher.UIThread.Post(UpdatePreviewState, DispatcherPriority.Background);
 
     private void OnVirtualDisplayFrameReady(byte[] jpeg)
     {
@@ -575,8 +589,8 @@ public partial class MobileTaskQueueView : UserControl
     private void StopPreviewStats()
     {
         _previewStatsTimer.Stop();
-        VirtualDisplayRunningBadge.IsVisible = false;
-        VirtualDisplayFpsBadge.IsVisible = false;
+        VirtualDisplayRunningBadge.IsVisible = true;
+        VirtualDisplayFpsBadge.IsVisible = true;
         VirtualDisplayFpsText.Text = "FPS: 0.0";
     }
 
@@ -585,6 +599,7 @@ public partial class MobileTaskQueueView : UserControl
         if (_displayBackend?.IsRunning != true && _previewCancellation == null)
         {
             StopPreviewStats();
+            UpdatePreviewState();
             return;
         }
 

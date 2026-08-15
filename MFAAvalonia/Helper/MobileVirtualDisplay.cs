@@ -10,6 +10,7 @@ public interface IMobileVirtualDisplayBackend : IDisposable
     int DisplayId { get; }
     bool CanRestore { get; }
     long CapturedFrameCount { get; }
+    event Action? StateChanged;
     event Action<byte[]>? FrameReady;
     Task<MobileVirtualDisplayResult> StartAsync(string packageName, int width, int height, int dpi);
     Task<MobileVirtualDisplayResult> StopAsync();

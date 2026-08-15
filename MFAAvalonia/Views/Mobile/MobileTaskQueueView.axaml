@@ -125,7 +125,7 @@
             </Style.Animations>
         </Style>
     </UserControl.Styles>
-    <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="12,12,12,10">
+    <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" Margin="12,12,12,10">
         <Border x:Name="PreviewHost" Height="230" CornerRadius="8" ClipToBounds="True"
                 SizeChanged="OnPreviewHostSizeChanged"
                 Background="#12000000" BorderBrush="{DynamicResource SukiControlBorderBrush}" BorderThickness="1">
@@ -137,7 +137,7 @@
                 <ContentControl x:Name="NativePreviewHost"
                                 HorizontalAlignment="Center" VerticalAlignment="Center" />
                 <Image x:Name="VirtualDisplayImage" Stretch="Uniform" IsVisible="False" />
-                <Border x:Name="VirtualDisplayRunningBadge" IsVisible="False"
+                <Border x:Name="VirtualDisplayRunningBadge" IsVisible="True"
                         HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8"
                         Padding="8,5" CornerRadius="5" Background="#C0202020">
                     <StackPanel Orientation="Horizontal" Spacing="6">
@@ -160,42 +160,32 @@
                                 <Ellipse.RenderTransform><ScaleTransform ScaleX="1" ScaleY="1" /></Ellipse.RenderTransform>
                             </Ellipse>
                         </Grid>
-                        <TextBlock x:Name="VirtualDisplayRunningText" Text="Running"
+                        <TextBlock x:Name="VirtualDisplayStatus" Text="Virtual display is stopped"
                                    FontSize="11" FontWeight="SemiBold"
                                    Foreground="{DynamicResource SukiSuccessColor}" />
                     </StackPanel>
                 </Border>
-                <Border x:Name="VirtualDisplayFpsBadge" IsVisible="False"
+                <Border x:Name="VirtualDisplayFpsBadge" IsVisible="True"
                         HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8"
                         Padding="8,5" CornerRadius="5" Background="#C0202020">
                     <TextBlock x:Name="VirtualDisplayFpsText" Text="FPS: 0.0"
                                FontSize="11" Foreground="#F0FFFFFF" />
                 </Border>
-                <Border HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="8"
-                        Padding="7" CornerRadius="5" Background="#C0202020">
-                    <Grid ColumnDefinitions="150,Auto,Auto">
-                        <TextBox x:Name="VirtualPackageName" IsVisible="False" Height="36"
-                                 Watermark="Target package name" FontSize="12" />
-                        <TextBlock x:Name="VirtualDisplayStatus" VerticalAlignment="Center"
-                                   Text="Virtual display is stopped" Foreground="#D0FFFFFF" FontSize="10"
-                                   Margin="2,0,4,0" TextTrimming="CharacterEllipsis" />
-                        <Button x:Name="VirtualDisplayButton" Grid.Column="1" Width="40" Height="36"
-                                Margin="6,0,0,0" Padding="0" Click="ToggleVirtualDisplay"
-                                ToolTip.Tip="Start or stop virtual display">
-                            <fluent:FluentIcon Icon="DesktopSync" IconSize="Size20" />
-                        </Button>
-                        <Button x:Name="ReleaseVirtualDisplayButton" Grid.Column="2" Width="40" Height="36"
-                                Margin="6,0,0,0" Padding="0" Click="ToggleVirtualDisplayRelease"
-                                IsEnabled="{Binding !IsRunning}"
-                                ToolTip.Tip="Release or restore the virtual display for manual intervention">
-                            <fluent:FluentIcon Icon="Desktop" IconSize="Size20" />
-                        </Button>
-                    </Grid>
-                </Border>
             </Grid>
         </Border>
 
-        <Grid Grid.Row="1" ColumnDefinitions="*,*" Height="44" Margin="2,4,2,0">
+        <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="8" Margin="2,8,2,2">
+            <ComboBox x:Name="AndroidRunModeSelector" SelectionChanged="OnAndroidRunModeChanged">
+                <ComboBoxItem x:Name="VirtualDisplayModeItem" Tag="VirtualDisplay" />
+                <ComboBoxItem x:Name="CurrentScreenModeItem" Tag="CurrentScreen" />
+            </ComboBox>
+            <ComboBox x:Name="AndroidResolutionSelector" Grid.Column="1" SelectionChanged="OnAndroidResolutionChanged">
+                <ComboBoxItem Content="720P" Tag="P720" />
+                <ComboBoxItem Content="1080P" Tag="P1080" />
+            </ComboBox>
+        </Grid>
+
+        <Grid Grid.Row="2" ColumnDefinitions="*,*" Height="44" Margin="2,4,2,0">
             <Button x:Name="TaskQueueTabButton" Classes="MobilePageTab selected" Click="ShowTaskQueueTab">
                 <Grid RowDefinitions="*,3">
                     <TextBlock x:Name="TaskQueueTabText" Text="Task queue"
@@ -216,7 +206,7 @@
             </Button>
         </Grid>
 
-        <Grid x:Name="TaskQueueHost" Grid.Row="2" RowDefinitions="Auto,*,Auto" Margin="2,14,2,0">
+        <Grid x:Name="TaskQueueHost" Grid.Row="3" RowDefinitions="Auto,*,Auto" Margin="2,14,2,0">
             <Grid ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,0,0,8">
                 <StackPanel>
                     <TextBlock x:Name="TaskQueueTitle" Text="Task queue" FontSize="18" FontWeight="SemiBold" />
@@ -362,7 +352,7 @@
 
         </Grid>
 
-        <Grid x:Name="LogHost" Grid.Row="2" RowDefinitions="Auto,*"
+        <Grid x:Name="LogHost" Grid.Row="3" RowDefinitions="Auto,*"
               Margin="2,14,2,0" IsVisible="False">
             <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Margin="0,0,0,10">
                 <TextBlock x:Name="UserLogsTitle" Text="User logs" FontSize="18" FontWeight="SemiBold"
@@ -381,11 +371,17 @@
                     <ItemsControl ItemsSource="{Binding LogItemViewModels}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="other:LogItemViewModel">
-                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,0,0,8">
-                                    <TextBlock Text="{Binding Time}" FontSize="10"
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" Margin="0,0,0,8">
+                                    <TextBlock Text="{Binding Time}" FontSize="11" Width="58"
                                                Foreground="{DynamicResource SukiLowText}"
+                                               HorizontalAlignment="Stretch"
+                                               TextAlignment="Right"
+                                               VerticalAlignment="Top"
+                                               Margin="0,3,0,0"
+                                               TextWrapping="NoWrap"
                                                IsVisible="{Binding ShowTime}" />
                                     <TextBlock Grid.Column="1" Text="{Binding Content}" TextWrapping="Wrap"
+                                               VerticalAlignment="Top"
                                                Foreground="{Binding Color}" FontWeight="{Binding Weight}" />
                                 </Grid>
                             </DataTemplate>
@@ -395,7 +391,7 @@
             </Border>
         </Grid>
 
-        <Button x:Name="TaskToggleButton" Grid.Row="3" Height="52" Margin="0,10,0,0" Command="{Binding ToggleCommand}"
+        <Button x:Name="TaskToggleButton" Grid.Row="4" Height="52" Margin="0,10,0,0" Command="{Binding ToggleCommand}"
                 IsEnabled="{Binding ToggleEnable}" Background="{DynamicResource SukiPrimaryColor}"
                 Foreground="White">
             <Grid>

@@ -3,6 +3,7 @@ using Android.Content;
 using Android.OS;
 using MaaFramework.Binding;
 using MFAAvalonia.Extensions.MaaFW;
+using MFAAvalonia.Helper;
 using System;
 using System.IO;
 using System.Text.Json;
@@ -56,15 +57,20 @@ internal sealed class AndroidNativeControllerProvider
         // The controller targets landscape games. Some Android hosts keep MFA's activity in
         // portrait and do not auto-rotate virtual displays, so activity metrics cannot be used
         // verbatim here without Android letterboxing the game into a thin horizontal strip.
-        var virtualWidth = Math.Max(metrics.WidthPixels, metrics.HeightPixels);
-        var virtualHeight = Math.Min(metrics.WidthPixels, metrics.HeightPixels);
+        var useVirtualDisplay = MobileRunConfiguration.Mode == MobileRunMode.VirtualDisplay;
+        var virtualWidth = useVirtualDisplay
+            ? MobileRunConfiguration.Resolution == MobileRunResolution.P1080 ? 1920 : 1280
+            : Math.Max(metrics.WidthPixels, metrics.HeightPixels);
+        var virtualHeight = useVirtualDisplay
+            ? MobileRunConfiguration.Resolution == MobileRunResolution.P1080 ? 1080 : 720
+            : Math.Min(metrics.WidthPixels, metrics.HeightPixels);
         var bridgeResult = NativeBridgeInterop.Configure((uint)virtualWidth, (uint)virtualHeight);
         if (bridgeResult != 0)
             throw new InvalidOperationException(
                 $"MFA Android native bridge initialization failed (result={bridgeResult}).");
         if (NativeBridgeInterop.SetInputPort((uint)_shizuku.UserServicePort) != 0)
             throw new InvalidOperationException("MFA Android native input bridge initialization failed.");
-        if (!_displayBackend.IsRunning)
+        if (useVirtualDisplay && !_displayBackend.IsRunning)
         {
             var dpi = (int)metrics.DensityDpi;
             var displayResult = _displayBackend.StartAsync(string.Empty, virtualWidth, virtualHeight, dpi)
@@ -84,8 +90,10 @@ internal sealed class AndroidNativeControllerProvider
                 width = virtualWidth,
                 height = virtualHeight,
             },
-            display_id = _displayBackend.DisplayId >= 0 ? _displayBackend.DisplayId : display?.DisplayId ?? 0,
-            force_stop = true,
+            display_id = useVirtualDisplay && _displayBackend.DisplayId >= 0
+                ? _displayBackend.DisplayId
+                : display?.DisplayId ?? 0,
+            force_stop = false,
         });
 
         return new MaaAndroidNativeController(config);

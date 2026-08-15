@@ -2219,6 +2219,9 @@
   <data name="Red" xml:space="preserve"><value>紅色</value></data>
   <data name="Orange" xml:space="preserve"><value>橙色</value></data>
   <data name="Purple" xml:space="preserve"><value>紫色</value></data>
+  <data name="AndroidVirtualDisplayMode" xml:space="preserve"><value>背景模式 · 虛擬螢幕</value></data>
+  <data name="AndroidCurrentScreenMode" xml:space="preserve"><value>前景模式 · 目前螢幕</value></data>
+  <data name="CurrentScreen" xml:space="preserve"><value>目前螢幕</value></data>
 </root>
 
 

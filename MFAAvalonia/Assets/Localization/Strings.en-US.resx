@@ -2231,6 +2231,9 @@ Update using this archive?</value>
   <data name="Red" xml:space="preserve"><value>Red</value></data>
   <data name="Orange" xml:space="preserve"><value>Orange</value></data>
   <data name="Purple" xml:space="preserve"><value>Purple</value></data>
+  <data name="AndroidVirtualDisplayMode" xml:space="preserve"><value>Background · Virtual display</value></data>
+  <data name="AndroidCurrentScreenMode" xml:space="preserve"><value>Foreground · Current screen</value></data>
+  <data name="CurrentScreen" xml:space="preserve"><value>Current screen</value></data>
 </root>
 
 
