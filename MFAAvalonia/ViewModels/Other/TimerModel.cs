@@ -63,6 +63,7 @@ public partial class TimerModel : ViewModelBase
         };
         _dispatcherTimer.Tick += CheckTimerElapsed;
         _dispatcherTimer.Start();
+        PlatformTimerScheduler.RequestReschedule();
     }
 
     [RelayCommand]
@@ -76,6 +77,7 @@ public partial class TimerModel : ViewModelBase
         }
         Timers.Add(timer);
         GlobalConfiguration.SetTimerCount(Timers.Count);
+        PlatformTimerScheduler.RequestReschedule();
     }
 
     public void RemoveTimer(TimerProperties timer)
@@ -96,6 +98,7 @@ public partial class TimerModel : ViewModelBase
         }
 
         GlobalConfiguration.SetTimerCount(Timers.Count);
+        PlatformTimerScheduler.RequestReschedule();
     }
 
     /// <summary>
@@ -176,10 +179,45 @@ public partial class TimerModel : ViewModelBase
                     && timer.LastTriggered.Value.Minute == currentTime.Minute)
                     continue;
 
-                timer.LastTriggered = currentTime;
-                ExecuteTimerTask(timer);
+                TriggerTimer(timer, currentTime);
             }
         }
+    }
+
+    /// <summary>
+    /// Delivers an AlarmManager trigger. The planned time is used for validation and
+    /// de-duplication so a delayed alarm still runs once without racing the minute timer.
+    /// </summary>
+    public void TriggerFromPlatform(int timerId, long scheduledAtUnixMilliseconds)
+    {
+        DispatcherHelper.RunOnMainThread(() =>
+        {
+            var timer = Timers.FirstOrDefault(candidate => candidate.TimerId == timerId);
+            if (timer == null || !timer.IsOn)
+                return;
+
+            var scheduledTime = DateTimeOffset.FromUnixTimeMilliseconds(scheduledAtUnixMilliseconds)
+                .LocalDateTime;
+            if (scheduledTime.Hour != timer.Time.Hours
+                || scheduledTime.Minute != timer.Time.Minutes
+                || !timer.ScheduleConfig.ShouldTrigger(scheduledTime))
+                return;
+
+            TriggerTimer(timer, scheduledTime);
+        });
+    }
+
+    private void TriggerTimer(TimerProperties timer, DateTime scheduledTime)
+    {
+        if (timer.LastTriggered.HasValue
+            && timer.LastTriggered.Value.Year == scheduledTime.Year
+            && timer.LastTriggered.Value.DayOfYear == scheduledTime.DayOfYear
+            && timer.LastTriggered.Value.Hour == scheduledTime.Hour
+            && timer.LastTriggered.Value.Minute == scheduledTime.Minute)
+            return;
+
+        timer.LastTriggered = scheduledTime;
+        ExecuteTimerTask(timer);
     }
 
     /// <summary>
@@ -298,7 +336,7 @@ public partial class TimerModel : ViewModelBase
             _stopConnectedProcess = GlobalConfiguration.GetTimerStopConnectedProcess(timeId, bool.FalseString) == bool.TrueString;
             _stopMFA = GlobalConfiguration.GetTimerStopMFA(timeId, bool.FalseString) == bool.TrueString;
 
-            ScheduleConfig = new TimerScheduleConfig(GlobalConfiguration.GetTimerSchedule(timeId, string.Empty));
+            _scheduleConfig = new TimerScheduleConfig(GlobalConfiguration.GetTimerSchedule(timeId, string.Empty));
 
             TimerName = $"{LangKeys.Timer.ToLocalization()} {TimerId + 1}";
             LanguageHelper.LanguageChanged += OnLanguageChanged;
@@ -324,8 +362,9 @@ public partial class TimerModel : ViewModelBase
             get => _isOn;
             set
             {
-                SetProperty(ref _isOn, value);
+                if (!SetProperty(ref _isOn, value)) return;
                 GlobalConfiguration.SetTimer(TimerId, value.ToString());
+                PlatformTimerScheduler.RequestReschedule();
             }
         }
 
@@ -335,8 +374,9 @@ public partial class TimerModel : ViewModelBase
             get => _time;
             set
             {
-                SetProperty(ref _time, value);
+                if (!SetProperty(ref _time, value)) return;
                 GlobalConfiguration.SetTimerTime(TimerId, value.ToString(@"h\:mm"));
+                PlatformTimerScheduler.RequestReschedule();
             }
         }
 
@@ -363,6 +403,7 @@ public partial class TimerModel : ViewModelBase
                 SetNewProperty(ref _scheduleConfig, value);
                 GlobalConfiguration.SetTimerSchedule(TimerId, _scheduleConfig?.Serialize() ?? string.Empty);
                 OnPropertyChanged(nameof(ScheduleDisplayText));
+                PlatformTimerScheduler.RequestReschedule();
             }
         }
 
@@ -414,6 +455,7 @@ public partial class TimerModel : ViewModelBase
         {
             GlobalConfiguration.SetTimerSchedule(TimerId, _scheduleConfig.Serialize());
             OnPropertyChanged(nameof(ScheduleDisplayText));
+            PlatformTimerScheduler.RequestReschedule();
         }
 
         /// <summary>

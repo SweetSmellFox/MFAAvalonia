@@ -11,6 +11,7 @@ using MaaFramework.Binding;
 using MFAAvalonia.Extensions.MaaFW;
 using MFAAvalonia.Helper;
 using MFAAvalonia.ViewModels.Windows;
+using MFAAvalonia.ViewModels.Other;
 using MFAAvalonia.Utilities;
 using Markdown.Avalonia.Utils;
 using System;
@@ -88,8 +89,17 @@ public class MainActivity : AvaloniaMainActivity<App>
             MobileRunConfiguration.ResolveFocusedDisplay = ResolveFocusedDisplay;
             MobileRunConfiguration.StopBackgroundGameKeepAlive = () =>
                 _shizuku?.SetGameProcessKeepAlive(-1, false);
+            PlatformTimerScheduler.RescheduleAll = () => AndroidScheduleManager.RescheduleAll(
+                global::Android.App.Application.Context);
+            PlatformTimerScheduler.Trigger = (timerId, scheduledAt) =>
+            {
+                var context = global::Android.App.Application.Context;
+                if (AndroidScheduleManager.TryMarkDelivered(context, timerId, scheduledAt))
+                    TimerModel.Instance.TriggerFromPlatform(timerId, scheduledAt);
+            };
             AndroidCrashDiagnostics.SetPhase("avalonia-on-create");
             base.OnCreate(savedInstanceState);
+            DispatchPendingScheduleTriggers();
             if (Build.VERSION.SdkInt >= BuildVersionCodes.Tiramisu &&
                 CheckSelfPermission(global::Android.Manifest.Permission.PostNotifications) != Permission.Granted)
                 RequestPermissions([global::Android.Manifest.Permission.PostNotifications], 1001);
@@ -142,6 +152,24 @@ public class MainActivity : AvaloniaMainActivity<App>
             AndroidCrashDiagnostics.Record("main-activity-on-post-resume", ex);
             throw;
         }
+    }
+
+    protected override void OnNewIntent(Intent? intent)
+    {
+        base.OnNewIntent(intent);
+        if (intent != null)
+            SetIntent(intent);
+        DispatchPendingScheduleTriggers();
+    }
+
+    private static void DispatchPendingScheduleTriggers()
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            var context = global::Android.App.Application.Context;
+            foreach (var (timerId, scheduledAt) in AndroidScheduleManager.ConsumePendingTriggers(context))
+                PlatformTimerScheduler.TryTrigger(timerId, scheduledAt);
+        });
     }
 
     private void RequestOverlayPermission()
@@ -427,6 +455,8 @@ public class MainActivity : AvaloniaMainActivity<App>
         DefaultHyperlinkCommand.PlatformOpenUrl = null;
         ToastNotification.PlatformShowNotification = null;
         PlatformRunProgress.RequestStop = null;
+        PlatformTimerScheduler.RescheduleAll = null;
+        PlatformTimerScheduler.Trigger = null;
         MobileRunConfiguration.RequestCurrentScreenOverlayPermission = null;
         MobileRunConfiguration.ResolveFocusedDisplay = null;
         MobileRunConfiguration.StopBackgroundGameKeepAlive = null;
