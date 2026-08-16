@@ -39,6 +39,7 @@ public partial class MobileTaskQueueView : UserControl
     private DragItemViewModel? _activeOptionItem;
     private DragItemViewModel? _lastTaskMenuItem;
     private bool _loadingRunSettings;
+    private bool _changingAndroidRunMode;
     private TaskQueueViewModel? _observedViewModel;
 
     public MobileTaskQueueView()
@@ -105,6 +106,7 @@ public partial class MobileTaskQueueView : UserControl
             {
                 StopControllerPreview();
             }
+            UpdateAndroidRunSettingsEnabled();
             UpdatePreviewState();
         });
     }
@@ -125,23 +127,55 @@ public partial class MobileTaskQueueView : UserControl
         _loadingRunSettings = true;
         AndroidRunModeSelector.SelectedIndex = mode == MobileRunMode.VirtualDisplay ? 0 : 1;
         AndroidResolutionSelector.SelectedIndex = resolution == MobileRunResolution.P720 ? 0 : 1;
-        AndroidResolutionSelector.IsEnabled = mode == MobileRunMode.VirtualDisplay;
         _loadingRunSettings = false;
+        UpdateAndroidRunSettingsEnabled();
         UpdatePreviewState();
     }
 
-    private void OnAndroidRunModeChanged(object? sender, SelectionChangedEventArgs e)
+    private async void OnAndroidRunModeChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (_loadingRunSettings)
+        if (_loadingRunSettings || _changingAndroidRunMode)
             return;
         if (AndroidRunModeSelector.SelectedItem is not ComboBoxItem { Tag: string tag }
             || !Enum.TryParse(tag, out MobileRunMode mode))
             return;
-        MobileRunConfiguration.Mode = mode;
-        AndroidResolutionSelector.IsEnabled = mode == MobileRunMode.VirtualDisplay;
-        ViewModel?.Processor.InstanceConfiguration.SetValue(ConfigurationKeys.AndroidRunMode, mode.ToString());
-        ViewModel?.Processor.SetTasker();
-        UpdatePreviewState();
+        if (mode == MobileRunConfiguration.Mode)
+            return;
+
+        var previousMode = MobileRunConfiguration.Mode;
+        _changingAndroidRunMode = true;
+        AndroidRunModeSelector.IsEnabled = false;
+        AndroidResolutionSelector.IsEnabled = false;
+        try
+        {
+            StopControllerPreview();
+            if (_displayBackend?.IsRunning == true)
+                await _displayBackend.StopAsync();
+
+            MobileRunConfiguration.Mode = mode;
+            ViewModel?.Processor.InstanceConfiguration.SetValue(
+                ConfigurationKeys.AndroidRunMode, mode.ToString());
+            if (ViewModel?.Processor is { } processor)
+                await Task.Run(() => processor.SetTasker());
+
+            if (mode == MobileRunMode.CurrentScreen)
+                MobileRunConfiguration.RequestCurrentScreenOverlayPermission?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            MobileRunConfiguration.Mode = previousMode;
+            _loadingRunSettings = true;
+            AndroidRunModeSelector.SelectedIndex = previousMode == MobileRunMode.VirtualDisplay ? 0 : 1;
+            _loadingRunSettings = false;
+            LoggerHelper.Error($"切换 Android 运行模式失败：{ex.Message}");
+            VirtualDisplayStatus.Text = MobileLocalization.Format("VirtualOperationFailed", ex.Message);
+        }
+        finally
+        {
+            _changingAndroidRunMode = false;
+            UpdateAndroidRunSettingsEnabled();
+            UpdatePreviewState();
+        }
     }
 
     private void OnAndroidResolutionChanged(object? sender, SelectionChangedEventArgs e)
@@ -156,11 +190,20 @@ public partial class MobileTaskQueueView : UserControl
         ViewModel?.Processor.SetTasker();
     }
 
+    private void UpdateAndroidRunSettingsEnabled()
+    {
+        var idle = ViewModel?.IsRunning != true && !_changingAndroidRunMode;
+        AndroidRunModeSelector.IsEnabled = idle;
+        AndroidResolutionSelector.IsEnabled = idle
+                                              && MobileRunConfiguration.Mode == MobileRunMode.VirtualDisplay;
+    }
+
     private void UpdatePreviewState()
     {
         var running = MobileRunConfiguration.Mode == MobileRunMode.VirtualDisplay
             ? _displayBackend?.IsRunning == true
             : ViewModel?.IsRunning == true;
+        NativePreviewHost.IsVisible = _displayBackend?.IsRunning == true;
         VirtualDisplayStatus.Text = running
             ? MobileLocalization.Get("Running")
             : MobileRunConfiguration.Mode == MobileRunMode.VirtualDisplay
@@ -513,6 +556,7 @@ public partial class MobileTaskQueueView : UserControl
         if (_displayBackend?.IsRunning != true)
             return;
 
+        NativePreviewHost.IsVisible = true;
         _previewCancellation ??= new CancellationTokenSource();
         VirtualDisplayStatus.Text = MobileLocalization.Get("VirtualStarted");
         StartPreviewStats();
@@ -572,6 +616,7 @@ public partial class MobileTaskQueueView : UserControl
         _previewCancellation?.Cancel();
         _previewCancellation?.Dispose();
         _previewCancellation = null;
+        NativePreviewHost.IsVisible = false;
         VirtualDisplayImage.IsVisible = false;
         StopPreviewStats();
     }

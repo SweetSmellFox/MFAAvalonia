@@ -15,4 +15,5 @@ public static class PlatformRunProgress
 {
     public static Action<RunProgressSnapshot>? Update { get; set; }
     public static Action<string>? Stop { get; set; }
+    public static Action? RequestStop { get; set; }
 }

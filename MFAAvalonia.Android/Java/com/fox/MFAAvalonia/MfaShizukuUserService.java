@@ -8,6 +8,7 @@ import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Rect;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
 import android.os.Binder;
@@ -42,10 +43,6 @@ import java.nio.charset.StandardCharsets;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.List;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -55,20 +52,30 @@ public final class MfaShizukuUserService extends Binder {
     private static final int CREATE_DISPLAY_TRANSACTION = 2;
     private static final int RELEASE_DISPLAY_TRANSACTION = 3;
     private static final int START_APP_TRANSACTION = 4;
+    private static final int CREATE_PRIMARY_CAPTURE_TRANSACTION = 5;
+    private static final int GET_DISPLAY_INFO_TRANSACTION = 6;
+    private static final int RESOLVE_CAPTURE_DISPLAY_TRANSACTION = 7;
+    private static final int GET_FOCUSED_DISPLAY_TRANSACTION = 8;
+    private static final int SET_GAME_KEEP_ALIVE_TRANSACTION = 9;
     private static final int DESTROY_TRANSACTION = 16777115;
 
     private final Context context;
     private final InputServer inputServer;
     private VirtualDisplay virtualDisplay;
+    private IBinder primaryCaptureToken;
     private Surface virtualDisplaySurface;
+    private int primaryCaptureDisplayId = -1;
+    private int primaryCaptureWidth;
+    private int primaryCaptureHeight;
     private volatile int clientPid = -1;
     private volatile boolean userActivityKeepAlive;
+    private volatile boolean focusedDisplayReflectionFailed;
     private Thread userActivityThread;
 
     public MfaShizukuUserService(Context context) throws IOException {
         ensureShellIdentity();
         this.context = context;
-        inputServer = new InputServer(context);
+        inputServer = new InputServer(context, this::routeCaptureToDisplay);
         inputServer.start();
         startClientWatchdog();
         Log.i(TAG, "Shizuku UserService started, uid=" + Process.myUid()
@@ -144,6 +151,58 @@ public final class MfaShizukuUserService extends Binder {
             if (reply != null) {
                 reply.writeInt(result);
             }
+            return true;
+        }
+        if (code == CREATE_PRIMARY_CAPTURE_TRANSACTION) {
+            int displayId = data.readInt();
+            int width = data.readInt();
+            int height = data.readInt();
+            Surface surface = Surface.CREATOR.createFromParcel(data);
+            String error = createPrimaryDisplayCapture(displayId, width, height, surface);
+            if (reply != null)
+                reply.writeString(error);
+            return true;
+        }
+        if (code == GET_DISPLAY_INFO_TRANSACTION) {
+            int displayId = data.readInt();
+            int[] info;
+            try {
+                info = getLogicalDisplayInfo(displayId);
+            } catch (Throwable exception) {
+                Log.e(TAG, "Unable to query DisplayInfo for display " + displayId, exception);
+                info = new int[] { 0, 0, 0, 0 };
+            }
+            if (reply != null) {
+                reply.writeInt(info[0]);
+                reply.writeInt(info[1]);
+                reply.writeInt(info[2]);
+                reply.writeInt(info[3]);
+            }
+            return true;
+        }
+        if (code == RESOLVE_CAPTURE_DISPLAY_TRANSACTION) {
+            int fallbackDisplayId = data.readInt();
+            int resolvedDisplayId = resolveCurrentScreenDisplayId(fallbackDisplayId);
+            if (reply != null)
+                reply.writeInt(resolvedDisplayId);
+            return true;
+        }
+        if (code == GET_FOCUSED_DISPLAY_TRANSACTION) {
+            int fallbackDisplayId = data.readInt();
+            FocusedDisplayTarget target = getFocusedDisplayTarget(fallbackDisplayId);
+            if (reply != null) {
+                reply.writeInt(target.displayId);
+                reply.writeString(target.packageName);
+            }
+            return true;
+        }
+        if (code == SET_GAME_KEEP_ALIVE_TRANSACTION) {
+            int displayId = data.readInt();
+            boolean enabled = data.readInt() != 0;
+            if (enabled)
+                inputServer.startAppWatchdog(displayId);
+            else
+                inputServer.stopAppWatchdog();
             return true;
         }
         if (code == DESTROY_TRANSACTION) {
@@ -234,6 +293,7 @@ public final class MfaShizukuUserService extends Binder {
                         virtualDisplay = display;
                         virtualDisplaySurface = surface;
                         int displayId = display.getDisplay().getDisplayId();
+                        inputServer.setCurrentScreenCapture(false);
                         startUserActivityKeepAlive(displayId);
                         Log.i(TAG, "Shizuku virtual display created: " + width + "x" + height
                                 + ", dpi=" + dpi + ", display=" + displayId
@@ -254,6 +314,273 @@ public final class MfaShizukuUserService extends Binder {
         }
         surface.release();
         return new DisplayCreationResult(-1, lastError, lastFlags);
+    }
+
+    private synchronized String createPrimaryDisplayCapture(
+            int displayId, int width, int height, Surface surface) {
+        releaseVirtualDisplay();
+        try {
+            // MaaFwApp's PrimaryDisplayManager uses this shell-only hidden API to
+            // mirror Display.DEFAULT_DISPLAY into the native capturer. This is a
+            // capture-only VirtualDisplay and does not create/move an app task.
+            Method method = DisplayManager.class.getMethod(
+                    "createVirtualDisplay", String.class, int.class, int.class,
+                    int.class, Surface.class);
+            VirtualDisplay display = (VirtualDisplay) method.invoke(
+                    null, "MFA_PRIMARY_CAPTURE", width, height, displayId, surface);
+            if (display == null)
+                throw new IllegalStateException("DisplayManager returned an empty primary capture");
+            virtualDisplay = display;
+            virtualDisplaySurface = surface;
+            primaryCaptureDisplayId = displayId;
+            primaryCaptureWidth = width;
+            primaryCaptureHeight = height;
+            inputServer.setCurrentScreenCapture(true);
+            Log.i(TAG, "Primary display capture started: source=" + displayId
+                    + ", size=" + width + "x" + height);
+            return null;
+        } catch (Throwable displayManagerException) {
+            Log.w(TAG, "DisplayManager primary mirror is unavailable; using SurfaceControl",
+                    displayManagerException);
+            try {
+                Class<?> surfaceControl = Class.forName("android.view.SurfaceControl");
+                IBinder token = (IBinder) surfaceControl
+                        .getDeclaredMethod("createDisplay", String.class, boolean.class)
+                        .invoke(null, "MFA_PRIMARY_CAPTURE", false);
+                if (token == null)
+                    throw new IllegalStateException("SurfaceControl.createDisplay returned null");
+                int layerStack = getDisplayLayerStack(displayId);
+                Rect sourceRect = new Rect(0, 0, width, height);
+                Method open = surfaceControl.getDeclaredMethod("openTransaction");
+                Method close = surfaceControl.getDeclaredMethod("closeTransaction");
+                open.invoke(null);
+                try {
+                    surfaceControl.getDeclaredMethod("setDisplaySurface", IBinder.class, Surface.class)
+                            .invoke(null, token, surface);
+                    surfaceControl.getDeclaredMethod("setDisplayProjection", IBinder.class, int.class,
+                                    Rect.class, Rect.class)
+                            .invoke(null, token, 0, sourceRect, sourceRect);
+                    surfaceControl.getDeclaredMethod("setDisplayLayerStack", IBinder.class, int.class)
+                            .invoke(null, token, layerStack);
+                } finally {
+                    close.invoke(null);
+                }
+                primaryCaptureToken = token;
+                virtualDisplaySurface = surface;
+                primaryCaptureDisplayId = displayId;
+                primaryCaptureWidth = width;
+                primaryCaptureHeight = height;
+                inputServer.setCurrentScreenCapture(true);
+                Log.i(TAG, "Primary display capture started with SurfaceControl: source="
+                        + displayId + ", layerStack=" + layerStack + ", size="
+                        + width + "x" + height);
+                return null;
+            } catch (Throwable surfaceControlException) {
+                surface.release();
+                String error = "DisplayManager=" + describeException(displayManagerException)
+                        + "; SurfaceControl=" + describeException(surfaceControlException);
+                Log.e(TAG, "Primary display capture failed: " + error, surfaceControlException);
+                return error;
+            }
+        }
+    }
+
+    private static int getDisplayLayerStack(int displayId) throws Exception {
+        return getLogicalDisplayInfo(displayId)[3];
+    }
+
+    private static int[] getLogicalDisplayInfo(int displayId) throws Exception {
+        Class<?> globalClass = Class.forName("android.hardware.display.DisplayManagerGlobal");
+        Object global = globalClass.getDeclaredMethod("getInstance").invoke(null);
+        Object info = globalClass.getDeclaredMethod("getDisplayInfo", int.class)
+                .invoke(global, displayId);
+        if (info == null)
+            throw new IllegalStateException("No DisplayInfo for display " + displayId);
+        return new int[] {
+                readIntField(info, "logicalWidth"),
+                readIntField(info, "logicalHeight"),
+                readIntField(info, "rotation"),
+                readIntField(info, "layerStack")
+        };
+    }
+
+    @SuppressWarnings("deprecation")
+    private int resolveCurrentScreenDisplayId(int fallbackDisplayId) {
+        try {
+            Class<?> globalClass = Class.forName("android.hardware.display.DisplayManagerGlobal");
+            Object global = globalClass.getDeclaredMethod("getInstance").invoke(null);
+            int[] displayIds = (int[]) globalClass.getDeclaredMethod("getDisplayIds").invoke(global);
+            // A normal phone has one logical display (occasionally one presentation
+            // display). MuMu exposes every application tab as a separate physical
+            // display, so the Activity display is not the game display.
+            if (displayIds == null || displayIds.length <= 2)
+                return fallbackDisplayId;
+
+            ActivityManager manager = context.getSystemService(ActivityManager.class);
+            if (manager == null)
+                return 0;
+            PackageManager packages = context.getPackageManager();
+            Intent homeIntent = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME);
+            ComponentName homeComponent = homeIntent.resolveActivity(packages);
+            String homePackage = homeComponent == null ? null : homeComponent.getPackageName();
+
+            String lastControlledPackage = inputServer.getLastControlledPackage();
+            if (lastControlledPackage != null) {
+                InputServer.TaskPlacement placement =
+                        inputServer.findPackageTask(lastControlledPackage);
+                if (placement != null && placement.displayId >= 0
+                        && placement.displayId != fallbackDisplayId) {
+                    Log.i(TAG, "Current-screen target restored from the last controlled app: package="
+                            + lastControlledPackage + ", display=" + placement.displayId
+                            + ", MFA display=" + fallbackDisplayId);
+                    return placement.displayId;
+                }
+            }
+
+            FocusedDisplayTarget focused = getFocusedDisplayTarget(fallbackDisplayId);
+            if (focused.displayId >= 0 && focused.displayId != fallbackDisplayId
+                    && isEligibleCurrentScreenPackage(
+                            focused.packageName, packages, homePackage)) {
+                Log.i(TAG, "Current-screen target resolved from global focus: package="
+                        + focused.packageName + ", display=" + focused.displayId
+                        + ", MFA display=" + fallbackDisplayId);
+                return focused.displayId;
+            }
+
+            String candidatePackage = null;
+            int candidateDisplayId = -1;
+            boolean ambiguous = false;
+            for (ActivityManager.RunningTaskInfo task : manager.getRunningTasks(100)) {
+                ComponentName component = task.topActivity != null
+                        ? task.topActivity : task.baseActivity;
+                if (component == null)
+                    continue;
+                String packageName = component.getPackageName();
+                if (!isEligibleCurrentScreenPackage(packageName, packages, homePackage))
+                    continue;
+                int displayId = readTaskDisplayId(task);
+                if (displayId >= 0 && displayId != fallbackDisplayId) {
+                    if (candidateDisplayId < 0) {
+                        candidatePackage = packageName;
+                        candidateDisplayId = displayId;
+                    } else if (candidateDisplayId != displayId
+                            || !packageName.equals(candidatePackage)) {
+                        ambiguous = true;
+                        break;
+                    }
+                }
+            }
+            if (!ambiguous && candidateDisplayId >= 0) {
+                Log.i(TAG, "Current-screen target resolved from the only eligible task: package="
+                        + candidatePackage + ", display=" + candidateDisplayId
+                        + ", MFA display=" + fallbackDisplayId);
+                return candidateDisplayId;
+            }
+
+            // MuMu gives every application tab its own physical display. Capturing the
+            // activity display here would bind the controller to MFA itself and StartApp
+            // would subsequently replace MFA's tab with the game. Display 0 is a neutral
+            // launcher target until StartApp can discover the actual game package and
+            // rebind capture/input to the display MuMu creates for it.
+            Log.w(TAG, "No unambiguous non-MFA current-screen target is available"
+                    + (ambiguous ? " (multiple eligible tasks)" : "")
+                    + "; using neutral display 0 until StartApp resolves the game."
+                    + " MFA display=" + fallbackDisplayId);
+            return 0;
+        } catch (Throwable exception) {
+            Log.w(TAG, "Unable to resolve a multi-display current-screen target", exception);
+        }
+        return 0;
+    }
+
+    private boolean isEligibleCurrentScreenPackage(
+            String packageName, PackageManager packages, String homePackage) {
+        if (packageName == null || packageName.isEmpty()
+                || context.getPackageName().equals(packageName)
+                || packageName.equals(homePackage))
+            return false;
+        try {
+            return packages.getApplicationInfo(packageName, 0).uid >= 10000;
+        } catch (PackageManager.NameNotFoundException ignored) {
+            return false;
+        }
+    }
+
+    private static int readTaskDisplayId(ActivityManager.RunningTaskInfo task) {
+        try {
+            return readIntField(task, "displayId");
+        } catch (Throwable ignored) {
+            return -1;
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    private FocusedDisplayTarget getFocusedDisplayTarget(int fallbackDisplayId) {
+        if (!focusedDisplayReflectionFailed) {
+            try {
+                Class<?> activityTaskManager = Class.forName("android.app.ActivityTaskManager");
+                Object service = activityTaskManager.getDeclaredMethod("getService").invoke(null);
+                Class<?> serviceInterface = Class.forName("android.app.IActivityTaskManager");
+                Method focusedTask = serviceInterface.getDeclaredMethod("getFocusedRootTaskInfo");
+                focusedTask.setAccessible(true);
+                Object value = focusedTask.invoke(service);
+                if (value instanceof ActivityManager.RunningTaskInfo) {
+                    ActivityManager.RunningTaskInfo task = (ActivityManager.RunningTaskInfo) value;
+                    ComponentName component = task.topActivity != null
+                            ? task.topActivity : task.baseActivity;
+                    int displayId = readTaskDisplayId(task);
+                    return new FocusedDisplayTarget(
+                            displayId >= 0 ? displayId : fallbackDisplayId,
+                            component == null ? null : component.getPackageName());
+                }
+            } catch (Throwable exception) {
+                focusedDisplayReflectionFailed = true;
+                Log.w(TAG, "Unable to query the globally focused display; using task order", exception);
+            }
+        }
+
+        try {
+            ActivityManager manager = context.getSystemService(ActivityManager.class);
+            if (manager != null) {
+                List<ActivityManager.RunningTaskInfo> tasks = manager.getRunningTasks(1);
+                if (tasks != null && !tasks.isEmpty()) {
+                    ActivityManager.RunningTaskInfo task = tasks.get(0);
+                    ComponentName component = task.topActivity != null
+                            ? task.topActivity : task.baseActivity;
+                    int displayId = readTaskDisplayId(task);
+                    return new FocusedDisplayTarget(
+                            displayId >= 0 ? displayId : fallbackDisplayId,
+                            component == null ? null : component.getPackageName());
+                }
+            }
+        } catch (Throwable exception) {
+            Log.w(TAG, "Unable to resolve focused display from running tasks", exception);
+        }
+        return new FocusedDisplayTarget(fallbackDisplayId, null);
+    }
+
+    private static final class FocusedDisplayTarget {
+        final int displayId;
+        final String packageName;
+
+        FocusedDisplayTarget(int displayId, String packageName) {
+            this.displayId = displayId;
+            this.packageName = packageName;
+        }
+    }
+
+    private static int readIntField(Object value, String name) throws Exception {
+        Class<?> type = value.getClass();
+        while (type != null) {
+            try {
+                java.lang.reflect.Field field = type.getDeclaredField(name);
+                field.setAccessible(true);
+                return field.getInt(value);
+            } catch (NoSuchFieldException ignored) {
+                type = type.getSuperclass();
+            }
+        }
+        throw new NoSuchFieldException(value.getClass().getName() + "." + name);
     }
 
     private static String describeException(Throwable exception) {
@@ -334,15 +661,59 @@ public final class MfaShizukuUserService extends Binder {
     }
 
     private synchronized void releaseVirtualDisplay() {
+        inputServer.stopAppWatchdog();
         stopUserActivityKeepAlive();
         if (virtualDisplay != null) {
             virtualDisplay.release();
             virtualDisplay = null;
         }
+        if (primaryCaptureToken != null) {
+            try {
+                Class.forName("android.view.SurfaceControl")
+                        .getDeclaredMethod("destroyDisplay", IBinder.class)
+                        .invoke(null, primaryCaptureToken);
+            } catch (Throwable exception) {
+                Log.w(TAG, "SurfaceControl primary capture release failed", exception);
+            }
+            primaryCaptureToken = null;
+        }
         if (virtualDisplaySurface != null) {
             virtualDisplaySurface.release();
             virtualDisplaySurface = null;
         }
+        primaryCaptureDisplayId = -1;
+        inputServer.setCurrentScreenCapture(false);
+    }
+
+    private synchronized boolean rebindPrimaryCapture(int displayId) {
+        if (displayId < 0 || displayId == primaryCaptureDisplayId)
+            return true;
+        if (virtualDisplaySurface == null || primaryCaptureWidth <= 0 || primaryCaptureHeight <= 0)
+            return false;
+        Surface surface = virtualDisplaySurface;
+        // Keep the app-owned Surface alive while replacing only the mirror token.
+        virtualDisplaySurface = null;
+        releaseVirtualDisplay();
+        String error = createPrimaryDisplayCapture(
+                displayId, primaryCaptureWidth, primaryCaptureHeight, surface);
+        if (error != null) {
+            Log.e(TAG, "Unable to rebind primary capture to display " + displayId
+                    + ": " + error);
+            return false;
+        }
+        Log.i(TAG, "Primary capture rebound to game display " + displayId);
+        return true;
+    }
+
+    private synchronized boolean routeCaptureToDisplay(int displayId) {
+        if (primaryCaptureDisplayId >= 0)
+            return rebindPrimaryCapture(displayId);
+        // A real virtual display already captures into the bridge surface. It must not
+        // be replaced by the primary-display mirror used by current-screen mode.
+        // Replacing it here destroys the isolated display and its game task.
+        return virtualDisplay != null
+                && virtualDisplay.getDisplay() != null
+                && virtualDisplay.getDisplay().getDisplayId() == displayId;
     }
 
     private void startClientWatchdog() {
@@ -440,6 +811,10 @@ public final class MfaShizukuUserService extends Binder {
         }
     }
 
+    private interface DisplayCaptureRouter {
+        boolean rebind(int displayId);
+    }
+
     private static final class InputServer extends Thread {
         private static final int MAGIC = 0x4d464142;
         private static final Pattern DISPLAY_HEADER = Pattern.compile(
@@ -449,18 +824,23 @@ public final class MfaShizukuUserService extends Binder {
         private final Context context;
         private final ServerSocket server;
         private final InputController inputController;
-        private final ScheduledExecutorService focusExecutor;
-        private ScheduledFuture<?> pendingFocusRestore;
+        private final DisplayCaptureRouter displayCaptureRouter;
+        private volatile int redirectedDisplayId = -1;
+        private volatile boolean currentScreenCapture;
+        private volatile boolean appWatchdogRunning;
+        private volatile int appWatchdogDisplayId = -1;
+        private volatile String appWatchdogPackage;
+        private volatile String lastControlledPackage;
+        private Thread appWatchdogThread;
+        private long appWatchdogMissingSince;
+        private long appWatchdogLastRecovery;
+        private int appWatchdogRecoveryAttempts;
 
-        InputServer(Context context) throws IOException {
+        InputServer(Context context, DisplayCaptureRouter displayCaptureRouter) throws IOException {
             super("MfaBridgeInput");
             this.context = context;
+            this.displayCaptureRouter = displayCaptureRouter;
             inputController = new InputController(new ShellContext(context));
-            focusExecutor = Executors.newSingleThreadScheduledExecutor(task -> {
-                Thread thread = new Thread(task, "mfa-display-focus");
-                thread.setDaemon(true);
-                return thread;
-            });
             server = new ServerSocket(0, 4, InetAddress.getByName("127.0.0.1"));
             setDaemon(true);
         }
@@ -469,13 +849,161 @@ public final class MfaShizukuUserService extends Binder {
             return server.getLocalPort();
         }
 
+        String getLastControlledPackage() {
+            return lastControlledPackage;
+        }
+
+        void setCurrentScreenCapture(boolean enabled) {
+            currentScreenCapture = enabled;
+            // A route belongs to one controller/capture lifetime. Carrying it from a
+            // stopped background controller into current-screen mode (or vice versa)
+            // sends input to the previous Display and can pin the game and MFA into the
+            // same MuMu tab.
+            redirectedDisplayId = -1;
+        }
+
         void shutdown() {
-            focusExecutor.shutdownNow();
+            stopAppWatchdog();
             try {
                 server.close();
             } catch (IOException exception) {
                 Log.w(TAG, "Input server close failed", exception);
             }
+        }
+
+        synchronized void startAppWatchdog(int displayId) {
+            if (displayId < 0)
+                return;
+            if (appWatchdogRunning && appWatchdogDisplayId == displayId)
+                return;
+            stopAppWatchdog();
+            appWatchdogDisplayId = displayId;
+            appWatchdogPackage = null;
+            appWatchdogMissingSince = 0;
+            appWatchdogLastRecovery = 0;
+            appWatchdogRecoveryAttempts = 0;
+            appWatchdogRunning = true;
+            appWatchdogThread = new Thread(() -> {
+                Log.i(TAG, "Game process keep-alive started for display " + displayId);
+                while (appWatchdogRunning && appWatchdogDisplayId == displayId) {
+                    try {
+                        Thread.sleep(5000L);
+                    } catch (InterruptedException exception) {
+                        if (!appWatchdogRunning)
+                            break;
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                    if (appWatchdogRunning)
+                        tickAppWatchdog();
+                }
+                Log.i(TAG, "Game process keep-alive stopped for display " + displayId);
+            }, "mfa-game-process-keep-alive");
+            appWatchdogThread.setDaemon(true);
+            appWatchdogThread.start();
+        }
+
+        synchronized void stopAppWatchdog() {
+            appWatchdogRunning = false;
+            appWatchdogDisplayId = -1;
+            appWatchdogPackage = null;
+            appWatchdogMissingSince = 0;
+            appWatchdogLastRecovery = 0;
+            appWatchdogRecoveryAttempts = 0;
+            if (appWatchdogThread != null) {
+                appWatchdogThread.interrupt();
+                appWatchdogThread = null;
+            }
+        }
+
+        private void watchStartedPackage(String packageName, int displayId) {
+            if (!appWatchdogRunning || appWatchdogDisplayId != displayId)
+                return;
+            appWatchdogPackage = packageName;
+            appWatchdogMissingSince = 0;
+            appWatchdogLastRecovery = 0;
+            appWatchdogRecoveryAttempts = 0;
+            Log.i(TAG, "Game process keep-alive acquired package=" + packageName
+                    + ", display=" + displayId);
+        }
+
+        private void tickAppWatchdog() {
+            int displayId = appWatchdogDisplayId;
+            if (displayId < 0)
+                return;
+            String packageName = appWatchdogPackage;
+            if (packageName == null) {
+                packageName = findTopPackageOnDisplay(displayId);
+                if (packageName == null)
+                    return;
+                watchStartedPackage(packageName, displayId);
+            }
+
+            TaskPlacement placement = findPackageTask(packageName);
+            if (placement != null && placement.displayId == displayId) {
+                appWatchdogMissingSince = 0;
+                appWatchdogRecoveryAttempts = 0;
+                return;
+            }
+
+            long now = SystemClock.uptimeMillis();
+            if (appWatchdogMissingSince == 0) {
+                appWatchdogMissingSince = now;
+                Log.w(TAG, "Game keep-alive detected package=" + packageName
+                        + " outside display=" + displayId + "; allowing a 5s grace period.");
+                return;
+            }
+            if (now - appWatchdogMissingSince < 5000L
+                    || now - appWatchdogLastRecovery < 10000L)
+                return;
+
+            appWatchdogLastRecovery = now;
+            appWatchdogRecoveryAttempts++;
+            Intent intent = buildLaunchIntent(packageName);
+            if (intent == null || intent.getComponent() == null)
+                return;
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                    | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
+                    | Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
+
+            boolean recovered;
+            if (placement != null && placement.taskId >= 0) {
+                Log.w(TAG, "Game task drifted to display=" + placement.displayId
+                        + "; moving it back to display=" + displayId
+                        + ", attempt=" + appWatchdogRecoveryAttempts);
+                recovered = repinTask(intent, placement.taskId, displayId);
+            } else {
+                Log.w(TAG, "Game task/process disappeared; relaunching package="
+                        + packageName + " on display=" + displayId
+                        + ", attempt=" + appWatchdogRecoveryAttempts);
+                recovered = startActivityAsShell(intent, displayId, true);
+            }
+            if (recovered) {
+                appWatchdogMissingSince = 0;
+                Log.i(TAG, "Game keep-alive recovery requested successfully for package="
+                        + packageName + ", display=" + displayId);
+            }
+        }
+
+        @SuppressWarnings("deprecation")
+        private String findTopPackageOnDisplay(int displayId) {
+            try {
+                ActivityManager manager = context.getSystemService(ActivityManager.class);
+                if (manager == null)
+                    return null;
+                for (ActivityManager.RunningTaskInfo task : manager.getRunningTasks(100)) {
+                    if (readTaskDisplayId(task) != displayId)
+                        continue;
+                    ComponentName component = task.topActivity != null
+                            ? task.topActivity : task.baseActivity;
+                    if (component == null || context.getPackageName().equals(component.getPackageName()))
+                        continue;
+                    return component.getPackageName();
+                }
+            } catch (Throwable exception) {
+                Log.w(TAG, "Unable to acquire game package on display " + displayId, exception);
+            }
+            return null;
         }
 
         @Override
@@ -517,73 +1045,40 @@ public final class MfaShizukuUserService extends Binder {
         }
 
         private int execute(int displayId, int method, int x, int y, int key, String text) {
-            String display = displayId >= 0 ? "-d " + displayId + " " : "";
+            int effectiveDisplayId = redirectedDisplayId >= 0 ? redirectedDisplayId : displayId;
+            String display = effectiveDisplayId >= 0 ? "-d " + effectiveDisplayId + " " : "";
             switch (method) {
                 case 1:
                     return startApp(displayId, text, key != 0);
                 case 2:
+                    if (text.equals(appWatchdogPackage))
+                        stopAppWatchdog();
                     return forceStopPackage(text) ? 0 : -1;
                 case 4:
                     // MAA-Meow does not implement Maa input-text either. Keep the
                     // Android shell route for now and report its real exit status.
                     return runShell("input " + display + "text " + shell(text)).exitCode;
                 case 6:
-                    if (inputController.down(x, y, displayId))
+                    if (inputController.down(x, y, effectiveDisplayId))
                         return 0;
                     return runShell("input " + display + "motionevent DOWN " + x + " " + y).exitCode;
                 case 7:
                     if (inputController.hasActiveGesture())
-                        return inputController.move(x, y, displayId) ? 0 : -4;
+                        return inputController.move(x, y, effectiveDisplayId) ? 0 : -4;
                     return runShell("input " + display + "motionevent MOVE " + x + " " + y).exitCode;
                 case 8:
                     boolean released;
                     if (inputController.hasActiveGesture())
-                        released = inputController.up(x, y, displayId);
+                        released = inputController.up(x, y, effectiveDisplayId);
                     else
                         released = runShell("input " + display + "motionevent UP " + x + " " + y).exitCode == 0;
-                    if (released && displayId != 0)
-                        scheduleClientFocusRestore();
                     return released ? 0 : -4;
                 case 9:
-                    return inputController.key(key, KeyEvent.ACTION_DOWN, displayId) ? 0 : -4;
+                    return inputController.key(key, KeyEvent.ACTION_DOWN, effectiveDisplayId) ? 0 : -4;
                 case 10:
-                    return inputController.key(key, KeyEvent.ACTION_UP, displayId) ? 0 : -4;
+                    return inputController.key(key, KeyEvent.ACTION_UP, effectiveDisplayId) ? 0 : -4;
                 default:
                     return -2;
-            }
-        }
-
-        private synchronized void scheduleClientFocusRestore() {
-            if (pendingFocusRestore != null)
-                pendingFocusRestore.cancel(false);
-            // Input dispatch focuses the virtual-display task after ACTION_UP. Restore
-            // the UI task shortly afterwards so emulator tab managers (notably MuMu)
-            // keep presenting MFA, while the game task itself remains on the virtual
-            // display. This deliberately does not move either task between displays.
-            pendingFocusRestore = focusExecutor.schedule(
-                    this::restoreClientTaskFocus, 80, TimeUnit.MILLISECONDS);
-        }
-
-        private void restoreClientTaskFocus() {
-            try {
-                TaskPlacement client = findPackageTask(context.getPackageName());
-                if (client == null || client.taskId < 0 || client.displayId != 0) {
-                    Log.w(TAG, "Cannot restore MFA focus: client task is unavailable or not on display 0.");
-                    return;
-                }
-
-                Class<?> serviceManager = Class.forName("android.os.ServiceManager");
-                IBinder binder = (IBinder) serviceManager
-                        .getDeclaredMethod("getService", String.class)
-                        .invoke(null, "activity_task");
-                Class<?> stub = Class.forName("android.app.IActivityTaskManager$Stub");
-                Object manager = stub.getMethod("asInterface", IBinder.class).invoke(null, binder);
-                Method setFocusedTask = manager.getClass().getMethod("setFocusedTask", int.class);
-                setFocusedTask.invoke(manager, client.taskId);
-                Log.d(TAG, "Restored MFA task focus after virtual-display input: task="
-                        + client.taskId);
-            } catch (Throwable exception) {
-                Log.w(TAG, "Unable to restore MFA task focus after virtual-display input", exception);
             }
         }
 
@@ -602,15 +1097,44 @@ public final class MfaShizukuUserService extends Binder {
             }
 
             String packageName = componentName.getPackageName();
+            if (forceStop && currentScreenCapture) {
+                Log.i(TAG, "Ignoring force_stop for current-screen capture: package="
+                        + packageName + ", controllerDisplay=" + displayId);
+                forceStop = false;
+            }
+            Log.i(TAG, "StartApp request: package=" + packageName + ", display="
+                    + displayId + ", forceStop=" + forceStop
+                    + ", currentScreenCapture=" + currentScreenCapture);
+            if (forceStop && (!appWatchdogRunning || appWatchdogDisplayId != displayId))
+                startAppWatchdog(displayId);
             if (forceStop && !forceStopPackage(packageName))
                 return -1;
+
+            TaskPlacement existing = findPackageTask(packageName);
+            if (!forceStop && existing != null && existing.displayId >= 0) {
+                // Current-screen mode follows the already running game instead of
+                // moving its Unity task across MuMu displays. Virtual-display mode
+                // arrives here with forceStop=true and retains its isolated process.
+                Log.i(TAG, "Following existing game task: package=" + packageName
+                        + ", display=" + existing.displayId + ", controllerDisplay="
+                        + displayId);
+                return activateGameDisplay(packageName, displayId, existing.displayId) ? 0 : -5;
+            }
 
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
             if (displayId != 0)
                 intent.addFlags(Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
-            boolean started = startActivityAsShell(intent, displayId, false);
+            // With no existing game task, a MuMu current-screen controller may still
+            // be temporarily attached to neutral display 0 (or to MFA in an older
+            // caller). Do not force the game onto that display. An ordinary launch lets
+            // MuMu create the game's own tab; the placement loop below then rebinds the
+            // controller to that new display.
+            int launchDisplayId = forceStop ? displayId : -1;
+            boolean started = startActivityAsShell(intent, launchDisplayId, false);
             if (!started) {
-                ShellResult fallback = runShell("am start -W --display " + displayId
+                String displayArgument = launchDisplayId >= 0
+                        ? " --display " + launchDisplayId : "";
+                ShellResult fallback = runShell("am start -W" + displayArgument
                         + " -n " + shell(componentName.flattenToShortString()));
                 if (fallback.exitCode != 0)
                     return fallback.exitCode;
@@ -620,13 +1144,16 @@ public final class MfaShizukuUserService extends Binder {
             for (int attempt = 0; attempt < 20; attempt++) {
                 placement = findPackageTask(packageName, displayId);
                 if (placement != null) {
+                    if (!forceStop && placement.displayId >= 0)
+                        return activateGameDisplay(
+                                packageName, displayId, placement.displayId) ? 0 : -5;
                     if (placement.displayId == displayId)
-                        return 0;
+                        return activateGameDisplay(packageName, displayId, placement.displayId) ? 0 : -5;
                     Log.w(TAG, "StartApp placed " + packageName + " on display "
                             + placement.displayId + " instead of " + displayId
                             + "; attempting to move task " + placement.taskId + " back.");
                     if (forceStop && repinTask(intent, placement.taskId, displayId))
-                        return 0;
+                        return activateGameDisplay(packageName, displayId, displayId) ? 0 : -5;
                     break;
                 }
                 try {
@@ -644,6 +1171,20 @@ public final class MfaShizukuUserService extends Binder {
             if (forceStop)
                 forceStopPackage(packageName);
             return placement == null ? 4 : 3;
+        }
+
+        private boolean activateGameDisplay(
+                String packageName, int controllerDisplayId, int gameDisplayId) {
+            if (gameDisplayId < 0)
+                return false;
+            if (!displayCaptureRouter.rebind(gameDisplayId))
+                return false;
+            redirectedDisplayId = gameDisplayId == controllerDisplayId ? -1 : gameDisplayId;
+            lastControlledPackage = packageName;
+            watchStartedPackage(packageName, gameDisplayId);
+            Log.i(TAG, "Controller display route activated: controller=" + controllerDisplayId
+                    + ", game=" + gameDisplayId);
+            return true;
         }
 
         private boolean forceStopPackage(String packageName) {
@@ -674,9 +1215,10 @@ public final class MfaShizukuUserService extends Binder {
 
         private boolean startActivityAsShell(Intent intent, int displayId, boolean forceFullscreen) {
             try {
-                ActivityOptions options = ActivityOptions.makeBasic();
-                options.setLaunchDisplayId(displayId);
-                if (forceFullscreen) {
+                ActivityOptions options = displayId >= 0 ? ActivityOptions.makeBasic() : null;
+                if (options != null)
+                    options.setLaunchDisplayId(displayId);
+                if (options != null && forceFullscreen) {
                     Method setWindowingMode = ActivityOptions.class.getDeclaredMethod(
                             "setLaunchWindowingMode", int.class);
                     setWindowingMode.setAccessible(true);
@@ -696,8 +1238,9 @@ public final class MfaShizukuUserService extends Binder {
                         profilerInfo, Bundle.class, int.class);
                 int result = (int) startActivity.invoke(
                         manager, null, "com.android.shell", intent, null, null, null,
-                        0, 0, null, options.toBundle(), -2);
-                Log.i(TAG, "startActivityAsUser result=" + result + ", display=" + displayId
+                        0, 0, null, options == null ? null : options.toBundle(), -2);
+                Log.i(TAG, "startActivityAsUser result=" + result + ", display="
+                        + (displayId >= 0 ? Integer.toString(displayId) : "default")
                         + ", component=" + intent.getComponent());
                 return result >= 0;
             } catch (Throwable exception) {

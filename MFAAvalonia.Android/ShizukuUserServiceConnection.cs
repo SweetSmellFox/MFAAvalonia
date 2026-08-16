@@ -12,6 +12,11 @@ internal sealed class ShizukuUserServiceConnection : Java.Lang.Object, IServiceC
     private const int CreateDisplayTransaction = 2;
     private const int ReleaseDisplayTransaction = 3;
     private const int StartAppTransaction = 4;
+    private const int CreatePrimaryCaptureTransaction = 5;
+    private const int GetDisplayInfoTransaction = 6;
+    private const int ResolveCaptureDisplayTransaction = 7;
+    private const int GetFocusedDisplayTransaction = 8;
+    private const int SetGameKeepAliveTransaction = 9;
     private const string ServiceClassName = "com.fox.MFAAvalonia.MfaShizukuUserService";
     private readonly Action<bool, int, int, string?> _stateChanged;
     private Shizuku.UserServiceArgs? _args;
@@ -28,7 +33,7 @@ internal sealed class ShizukuUserServiceConnection : Java.Lang.Object, IServiceC
         _args.Debuggable(true);
         // Version 4 additionally normalizes root-mode Shizuku services to the shell
         // identity. Bump it so Shizuku does not reconnect an old root v3 process.
-        _args.Version(4);
+        _args.Version(14);
         _args.Tag($"mfa-android-controller-{Guid.NewGuid():N}");
         Shizuku.BindUserService(_args, this);
     }
@@ -96,6 +101,72 @@ internal sealed class ShizukuUserServiceConnection : Java.Lang.Object, IServiceC
             return;
         using var data = Parcel.Obtain();
         service.Transact(ReleaseDisplayTransaction, data, null, 0);
+    }
+
+    public void CreatePrimaryDisplayCapture(int displayId, int width, int height, Surface surface)
+    {
+        var service = _service
+            ?? throw new InvalidOperationException("Shizuku UserService is not connected.");
+        using var data = Parcel.Obtain();
+        using var reply = Parcel.Obtain();
+        data.WriteInt(displayId);
+        data.WriteInt(width);
+        data.WriteInt(height);
+        surface.WriteToParcel(data, ParcelableWriteFlags.None);
+        service.Transact(CreatePrimaryCaptureTransaction, data, reply, 0);
+        var error = reply.ReadString();
+        if (!string.IsNullOrEmpty(error))
+            throw new InvalidOperationException($"Primary display capture failed: {error}");
+    }
+
+    public (int Width, int Height, int Rotation, int LayerStack) GetDisplayInfo(int displayId)
+    {
+        var service = _service
+            ?? throw new InvalidOperationException("Shizuku UserService is not connected.");
+        using var data = Parcel.Obtain();
+        using var reply = Parcel.Obtain();
+        data.WriteInt(displayId);
+        service.Transact(GetDisplayInfoTransaction, data, reply, 0);
+        var result = (reply.ReadInt(), reply.ReadInt(), reply.ReadInt(), reply.ReadInt());
+        if (result.Item1 <= 0 || result.Item2 <= 0)
+            throw new InvalidOperationException(
+                $"Display {displayId} returned an invalid logical size: {result.Item1}x{result.Item2}.");
+        return result;
+    }
+
+    public int ResolveCurrentScreenDisplayId(int fallbackDisplayId)
+    {
+        var service = _service
+            ?? throw new InvalidOperationException("Shizuku UserService is not connected.");
+        using var data = Parcel.Obtain();
+        using var reply = Parcel.Obtain();
+        data.WriteInt(fallbackDisplayId);
+        service.Transact(ResolveCaptureDisplayTransaction, data, reply, 0);
+        var displayId = reply.ReadInt();
+        return displayId >= 0 ? displayId : fallbackDisplayId;
+    }
+
+    public (int DisplayId, string? PackageName) GetFocusedDisplayTarget(int fallbackDisplayId)
+    {
+        var service = _service
+            ?? throw new InvalidOperationException("Shizuku UserService is not connected.");
+        using var data = Parcel.Obtain();
+        using var reply = Parcel.Obtain();
+        data.WriteInt(fallbackDisplayId);
+        service.Transact(GetFocusedDisplayTransaction, data, reply, 0);
+        var displayId = reply.ReadInt();
+        var packageName = reply.ReadString();
+        return (displayId >= 0 ? displayId : fallbackDisplayId, packageName);
+    }
+
+    public void SetGameProcessKeepAlive(int displayId, bool enabled)
+    {
+        var service = _service
+            ?? throw new InvalidOperationException("Shizuku UserService is not connected.");
+        using var data = Parcel.Obtain();
+        data.WriteInt(displayId);
+        data.WriteInt(enabled ? 1 : 0);
+        service.Transact(SetGameKeepAliveTransaction, data, null, 0);
     }
 
     public int StartApp(int displayId, string target, bool forceStop)

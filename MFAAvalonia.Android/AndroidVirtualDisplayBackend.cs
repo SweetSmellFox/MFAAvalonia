@@ -14,6 +14,7 @@ public sealed class AndroidVirtualDisplayBackend : Java.Lang.Object, IMobileVirt
     private readonly object _sync = new();
     private Surface? _captureSurface;
     private int _displayId = -1;
+    private bool _isPrimaryCapture;
     private int _lastWidth;
     private int _lastHeight;
     private int _lastDpi;
@@ -26,6 +27,7 @@ public sealed class AndroidVirtualDisplayBackend : Java.Lang.Object, IMobileVirt
     }
 
     public bool IsRunning => _displayId >= 0;
+    public bool IsPrimaryCapture => _isPrimaryCapture;
     public int DisplayId => _displayId;
     public bool CanRestore => _lastWidth > 0 && _lastHeight > 0 && _lastDpi > 0;
     public long CapturedFrameCount
@@ -58,8 +60,13 @@ public sealed class AndroidVirtualDisplayBackend : Java.Lang.Object, IMobileVirt
         lock (_sync)
         {
             if (IsRunning)
-                return Task.FromResult(MobileVirtualDisplayResult.Succeeded(
-                    MobileLocalization.Get("VirtualAlreadyRunning"), DisplayId));
+            {
+                if (IsPrimaryCapture)
+                    ReleaseDisplay();
+                else
+                    return Task.FromResult(MobileVirtualDisplayResult.Succeeded(
+                        MobileLocalization.Get("VirtualAlreadyRunning"), DisplayId));
+            }
 
             try
             {
@@ -78,6 +85,7 @@ public sealed class AndroidVirtualDisplayBackend : Java.Lang.Object, IMobileVirt
                 _lastDpi = dpi;
                 _captureSurface = NativeCaptureInterop.SetupCapturer(width, height);
                 _displayId = _shizuku.CreateVirtualDisplay(width, height, dpi, _captureSurface);
+                _isPrimaryCapture = false;
                 if (_displayId < 0)
                 {
                     ReleaseDisplay();
@@ -106,6 +114,32 @@ public sealed class AndroidVirtualDisplayBackend : Java.Lang.Object, IMobileVirt
                 ReleaseDisplay();
                 return Task.FromResult(MobileVirtualDisplayResult.Failed(
                     MobileLocalization.Format("VirtualOperationFailed", ex.Message)));
+            }
+        }
+    }
+
+    public Task<MobileVirtualDisplayResult> StartPrimaryCaptureAsync(int displayId, int width, int height)
+    {
+        lock (_sync)
+        {
+            try
+            {
+                if (IsRunning)
+                    ReleaseDisplay();
+                Width = width;
+                Height = height;
+                _captureSurface = NativeCaptureInterop.SetupCapturer(width, height);
+                _shizuku.CreatePrimaryDisplayCapture(displayId, width, height, _captureSurface);
+                _displayId = displayId;
+                _isPrimaryCapture = true;
+                StateChanged?.Invoke();
+                return Task.FromResult(MobileVirtualDisplayResult.Succeeded(
+                    MobileLocalization.Get("CurrentScreen"), displayId));
+            }
+            catch (Exception ex)
+            {
+                ReleaseDisplay();
+                return Task.FromResult(MobileVirtualDisplayResult.Failed(ex.Message));
             }
         }
     }
@@ -183,6 +217,7 @@ public sealed class AndroidVirtualDisplayBackend : Java.Lang.Object, IMobileVirt
     private void ReleaseLocalCaptureState()
     {
         _displayId = -1;
+        _isPrimaryCapture = false;
         _captureSurface?.Release();
         _captureSurface?.Dispose();
         _captureSurface = null;

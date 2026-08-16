@@ -6,6 +6,7 @@ using Android.Provider;
 using AndroidX.Core.Content;
 using Avalonia;
 using Avalonia.Android;
+using Avalonia.Threading;
 using MaaFramework.Binding;
 using MFAAvalonia.Extensions.MaaFW;
 using MFAAvalonia.Helper;
@@ -81,6 +82,12 @@ public class MainActivity : AvaloniaMainActivity<App>
                 global::Android.App.Application.Context, snapshot);
             PlatformRunProgress.Stop = instanceId => AndroidRunForegroundService.Finish(
                 global::Android.App.Application.Context, instanceId);
+            PlatformRunProgress.RequestStop = () => Dispatcher.UIThread.Post(() =>
+                Instances.InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel?.StopTask());
+            MobileRunConfiguration.RequestCurrentScreenOverlayPermission = RequestOverlayPermission;
+            MobileRunConfiguration.ResolveFocusedDisplay = ResolveFocusedDisplay;
+            MobileRunConfiguration.StopBackgroundGameKeepAlive = () =>
+                _shizuku?.SetGameProcessKeepAlive(-1, false);
             AndroidCrashDiagnostics.SetPhase("avalonia-on-create");
             base.OnCreate(savedInstanceState);
             if (Build.VERSION.SdkInt >= BuildVersionCodes.Tiramisu &&
@@ -135,6 +142,35 @@ public class MainActivity : AvaloniaMainActivity<App>
             AndroidCrashDiagnostics.Record("main-activity-on-post-resume", ex);
             throw;
         }
+    }
+
+    private void RequestOverlayPermission()
+    {
+        if (Build.VERSION.SdkInt < BuildVersionCodes.M || Settings.CanDrawOverlays(this))
+            return;
+        try
+        {
+            StartActivity(new Intent(Settings.ActionManageOverlayPermission,
+                global::Android.Net.Uri.Parse($"package:{PackageName}")));
+        }
+        catch (Exception ex)
+        {
+            global::Android.Util.Log.Warn("MFAAvalonia", $"Unable to open overlay permission: {ex.Message}");
+        }
+    }
+
+    private MobileDisplayTarget ResolveFocusedDisplay()
+    {
+        var fallbackDisplayId = MobileRunConfiguration.ActiveDisplayId >= 0
+            ? MobileRunConfiguration.ActiveDisplayId
+            : MobileRunConfiguration.MfaDisplayId;
+        if (_shizuku?.IsUserServiceReady != true)
+            // A transient UserService reconnect must not make the foreground service believe
+            // MFA has focus and hide an already-visible system overlay. Keep the last controller
+            // display and report an unknown package until privileged focus detection recovers.
+            return new MobileDisplayTarget(fallbackDisplayId, null);
+        var target = _shizuku.GetFocusedDisplayTarget(fallbackDisplayId);
+        return new MobileDisplayTarget(target.DisplayId, target.PackageName);
     }
 
 #pragma warning disable CS0672
@@ -390,6 +426,11 @@ public class MainActivity : AvaloniaMainActivity<App>
         UrlUtilities.PlatformOpenUrl = null;
         DefaultHyperlinkCommand.PlatformOpenUrl = null;
         ToastNotification.PlatformShowNotification = null;
+        PlatformRunProgress.RequestStop = null;
+        MobileRunConfiguration.RequestCurrentScreenOverlayPermission = null;
+        MobileRunConfiguration.ResolveFocusedDisplay = null;
+        MobileRunConfiguration.StopBackgroundGameKeepAlive = null;
+        AndroidCurrentScreenOverlay.Hide();
         if (_controllerProvider != null)
         {
             PlatformControllerFactory.Create = null;

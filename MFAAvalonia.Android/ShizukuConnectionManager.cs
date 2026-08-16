@@ -52,6 +52,41 @@ internal sealed class ShizukuConnectionManager : Java.Lang.Object,
 
     public void ReleaseVirtualDisplay() => _userService.ReleaseVirtualDisplay();
 
+    public void CreatePrimaryDisplayCapture(int displayId, int width, int height, Surface surface)
+    {
+        if (!IsUserServiceReady)
+            throw new InvalidOperationException(StatusMessage);
+        _userService.CreatePrimaryDisplayCapture(displayId, width, height, surface);
+    }
+
+    public (int Width, int Height, int Rotation, int LayerStack) GetDisplayInfo(int displayId)
+    {
+        if (!IsUserServiceReady)
+            throw new InvalidOperationException(StatusMessage);
+        return _userService.GetDisplayInfo(displayId);
+    }
+
+    public int ResolveCurrentScreenDisplayId(int fallbackDisplayId)
+    {
+        if (!IsUserServiceReady)
+            throw new InvalidOperationException(StatusMessage);
+        return _userService.ResolveCurrentScreenDisplayId(fallbackDisplayId);
+    }
+
+    public (int DisplayId, string? PackageName) GetFocusedDisplayTarget(int fallbackDisplayId)
+    {
+        if (!IsUserServiceReady)
+            throw new InvalidOperationException(StatusMessage);
+        return _userService.GetFocusedDisplayTarget(fallbackDisplayId);
+    }
+
+    public void SetGameProcessKeepAlive(int displayId, bool enabled)
+    {
+        if (!IsUserServiceReady)
+            return;
+        _userService.SetGameProcessKeepAlive(displayId, enabled);
+    }
+
     public int StartApp(int displayId, string target, bool forceStop = false)
     {
         if (!IsUserServiceReady)

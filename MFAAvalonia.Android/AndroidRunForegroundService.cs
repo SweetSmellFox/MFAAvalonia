@@ -2,6 +2,7 @@ using Android.App;
 using Android.Content;
 using Android.Content.PM;
 using Android.OS;
+using Android.Provider;
 using AndroidX.Core.App;
 using AndroidX.Core.Content;
 using AndroidX.Core.Graphics.Drawable;
@@ -20,16 +21,22 @@ public sealed class AndroidRunForegroundService : Service
     private const string ChannelId = "mfa_run_execution";
     private const int NotificationId = 1001;
     private const int ProgressMax = 100;
+    private const string CurrentScreenExtra = "mfa.current_screen";
     private static readonly object SnapshotLock = new();
     private static readonly Dictionary<string, RunProgressSnapshot> Snapshots = new();
     private Timer? _updateTimer;
+    private Timer? _overlayTimer;
+    private Handler? _mainHandler;
     private long _lastUpdateTicks;
+    private int _overlayRefreshActive;
+    private bool _destroyed;
 
     public static void Publish(Context context, RunProgressSnapshot snapshot)
     {
         lock (SnapshotLock)
             Snapshots[snapshot.InstanceId] = snapshot;
         var intent = new Intent(context, typeof(AndroidRunForegroundService));
+        intent.PutExtra(CurrentScreenExtra, MobileRunConfiguration.Mode == MobileRunMode.CurrentScreen);
         ContextCompat.StartForegroundService(context, intent);
     }
 
@@ -42,21 +49,41 @@ public sealed class AndroidRunForegroundService : Service
                 return;
         }
         context.StopService(new Intent(context, typeof(AndroidRunForegroundService)));
+        if (MobileRunConfiguration.Mode == MobileRunMode.VirtualDisplay)
+            MobileRunConfiguration.StopBackgroundGameKeepAlive?.Invoke();
+        AndroidCurrentScreenOverlay.Hide();
     }
 
     public override void OnCreate()
     {
         base.OnCreate();
+        _destroyed = false;
         EnsureChannel();
         var snapshot = GetSnapshot();
         StartForegroundCompat(BuildNotification(snapshot));
         _lastUpdateTicks = System.Environment.TickCount64;
+        _mainHandler = new Handler(Looper.MainLooper!);
     }
 
     public override StartCommandResult OnStartCommand(Intent? intent, StartCommandFlags flags, int startId)
     {
         var snapshot = GetSnapshot();
         StartForegroundCompat(BuildNotification(snapshot));
+        var currentScreen = intent?.GetBooleanExtra(CurrentScreenExtra, false) == true;
+        global::Android.Util.Log.Info("MfaCurrentScreenOverlay",
+            $"Foreground service update: currentScreen={currentScreen}, overlayPermission=" +
+            Settings.CanDrawOverlays(this));
+        if (currentScreen)
+        {
+            RefreshOverlay(snapshot);
+            _overlayTimer ??= new Timer(_ => RefreshOverlay(), null, 400, 400);
+        }
+        else
+        {
+            _overlayTimer?.Dispose();
+            _overlayTimer = null;
+            AndroidCurrentScreenOverlay.Hide();
+        }
         ScheduleThrottledUpdate();
         return StartCommandResult.NotSticky;
     }
@@ -65,10 +92,62 @@ public sealed class AndroidRunForegroundService : Service
 
     public override void OnDestroy()
     {
+        _destroyed = true;
         _updateTimer?.Dispose();
         _updateTimer = null;
+        _overlayTimer?.Dispose();
+        _overlayTimer = null;
+        _mainHandler?.Dispose();
+        _mainHandler = null;
+        AndroidCurrentScreenOverlay.Hide();
         StopForeground(StopForegroundFlags.Remove);
         base.OnDestroy();
+    }
+
+    private void RefreshOverlay(RunProgressSnapshot? snapshot = null)
+    {
+        if (_destroyed || Interlocked.Exchange(ref _overlayRefreshActive, 1) != 0)
+            return;
+        try
+        {
+            var resolver = MobileRunConfiguration.ResolveFocusedDisplay;
+            var target = resolver?.Invoke()
+                         ?? new MobileDisplayTarget(MobileRunConfiguration.ActiveDisplayId, null);
+            var focusedOnMfa = string.Equals(target.PackageName, PackageName,
+                StringComparison.OrdinalIgnoreCase);
+            var gameDisplayId = MobileRunConfiguration.ActiveDisplayId;
+            var mfaDisplayId = MobileRunConfiguration.MfaDisplayId;
+            var usesSeparateGameDisplay = gameDisplayId >= 0
+                                          && mfaDisplayId >= 0
+                                          && gameDisplayId != mfaDisplayId;
+
+            // MuMu renders application tabs on separate Android Displays, but changing the
+            // visible host tab does not reliably update mTopFocusedDisplayId. Keep the overlay
+            // attached to the game Display while Android still reports MFA as focused; it is
+            // naturally invisible on MFA's different Display and is already waiting when the
+            // user switches back to the game tab. On a phone both apps share one Display, so
+            // the package check still hides the overlay while MFA itself is in front.
+            var overlayDisplayId = focusedOnMfa && usesSeparateGameDisplay
+                ? gameDisplayId
+                : target.DisplayId;
+            var hideOnMfa = focusedOnMfa && !usesSeparateGameDisplay;
+            var latest = snapshot ?? GetSnapshot();
+            _mainHandler?.Post(() =>
+            {
+                if (!_destroyed)
+                    AndroidCurrentScreenOverlay.Update(
+                        this, latest, overlayDisplayId, hideOnMfa, target.PackageName);
+            });
+        }
+        catch (Exception ex)
+        {
+            global::Android.Util.Log.Warn("MfaCurrentScreenOverlay",
+                $"Unable to refresh focused display: {ex.Message}");
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _overlayRefreshActive, 0);
+        }
     }
 
     private void ScheduleThrottledUpdate()
