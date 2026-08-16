@@ -158,7 +158,7 @@ public class MainActivity : AvaloniaMainActivity<App>
     {
         base.OnNewIntent(intent);
         if (intent != null)
-            SetIntent(intent);
+            Intent = intent;
         DispatchPendingScheduleTriggers();
     }
 
