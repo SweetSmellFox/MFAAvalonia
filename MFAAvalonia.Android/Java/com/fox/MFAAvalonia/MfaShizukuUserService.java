@@ -73,43 +73,12 @@ public final class MfaShizukuUserService extends Binder {
     private Thread userActivityThread;
 
     public MfaShizukuUserService(Context context) throws IOException {
-        ensureShellIdentity();
         this.context = context;
         inputServer = new InputServer(context, this::routeCaptureToDisplay);
         inputServer.start();
         startClientWatchdog();
         Log.i(TAG, "Shizuku UserService started, uid=" + Process.myUid()
                 + ", port=" + inputServer.getPort());
-    }
-
-    private static void ensureShellIdentity() throws IOException {
-        int uid = Process.myUid();
-        if (uid == Process.SHELL_UID)
-            return;
-        if (uid != Process.ROOT_UID) {
-            throw new IOException("Shizuku UserService must run as shell or root, actual uid="
-                    + uid + ".");
-        }
-
-        try {
-            // Root-mode Shizuku starts UserService as uid 0. Android's display,
-            // input and activity services validate that com.android.shell belongs
-            // to the Binder calling uid, so retaining root makes every call fail
-            // with "packageName must match the calling uid". This controller only
-            // needs shell capabilities; drop gid before uid while still privileged.
-            Os.setgid(Process.SHELL_UID);
-            Os.setuid(Process.SHELL_UID);
-        } catch (ErrnoException exception) {
-            throw new IOException("Unable to drop root Shizuku UserService to shell uid.",
-                    exception);
-        }
-
-        if (Process.myUid() != Process.SHELL_UID) {
-            throw new IOException("Shizuku UserService identity drop did not take effect; uid="
-                    + Process.myUid() + ".");
-        }
-        Log.i(TAG, "Root-mode Shizuku UserService dropped to shell uid="
-                + Process.myUid());
     }
 
     @Override
