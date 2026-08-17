@@ -221,15 +221,22 @@ public final class MfaShizukuUserService extends Binder {
         String lastError = "No compatible virtual display configuration was accepted.";
         int lastFlags = 0;
         try {
-            Context shellBaseContext;
+            Context shellPackageContext;
             try {
-                shellBaseContext = context.createPackageContext(
-                        "com.android.shell", Context.CONTEXT_IGNORE_SECURITY);
+                shellPackageContext = context.createPackageContext(
+                        ShellContext.PACKAGE_NAME, Context.CONTEXT_IGNORE_SECURITY);
             } catch (Throwable exception) {
                 Log.w(TAG, "Shell package context is unavailable; using UserService context", exception);
-                shellBaseContext = context;
+                shellPackageContext = context;
             }
-            Context shellContext = new ShellContext(shellBaseContext);
+            Context systemContext = tryGetSystemContext();
+            Context[] contextCandidates = systemContext != null
+                    && systemContext != shellPackageContext
+                    ? new Context[] {
+                            new ShellContext(systemContext),
+                            new ShellContext(shellPackageContext)
+                    }
+                    : new Context[] { new ShellContext(shellPackageContext) };
             int basicFlags = DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC
                     | DisplayManager.VIRTUAL_DISPLAY_FLAG_PRESENTATION
                     | DisplayManager.VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY
@@ -256,17 +263,9 @@ public final class MfaShizukuUserService extends Binder {
                     ? fullFlags
                     : Build.VERSION.SDK_INT >= 33 ? android13Flags : destroyFlags;
             int[] flagCandidates = new int[] { requiredFlags };
-            Context[] contextCandidates = shellContext == context
-                    ? new Context[] { context }
-                    : new Context[] { shellContext, context };
             int previousFlags = Integer.MIN_VALUE;
+            StringBuilder attemptErrors = new StringBuilder();
             for (Context candidateContext : contextCandidates) {
-                DisplayManager displayManager = createDisplayManager(candidateContext);
-                if (displayManager == null) {
-                    lastError = "DisplayManager is unavailable for "
-                            + candidateContext.getPackageName() + ".";
-                    continue;
-                }
                 previousFlags = Integer.MIN_VALUE;
                 for (int candidateFlags : flagCandidates) {
                     if (candidateFlags == previousFlags)
@@ -274,6 +273,7 @@ public final class MfaShizukuUserService extends Binder {
                     previousFlags = candidateFlags;
                     lastFlags = candidateFlags;
                     try {
+                        DisplayManager displayManager = createDisplayManager(candidateContext);
                         Log.i(TAG, "Creating Shizuku virtual display: context="
                                 + candidateContext.getPackageName() + ", flags=0x"
                                 + Integer.toHexString(candidateFlags));
@@ -283,10 +283,14 @@ public final class MfaShizukuUserService extends Binder {
                         if (display == null || display.getDisplay() == null) {
                             if (display != null)
                                 display.release();
-                            lastError = "DisplayManager returned an empty VirtualDisplay"
+                            String attemptError = "DisplayManager returned an empty VirtualDisplay"
                                     + " (context=" + candidateContext.getPackageName()
                                     + ", flags=0x" + Integer.toHexString(candidateFlags) + ").";
-                            Log.w(TAG, lastError);
+                            if (attemptErrors.length() > 0)
+                                attemptErrors.append(" | ");
+                            attemptErrors.append(attemptError);
+                            lastError = attemptErrors.toString();
+                            Log.w(TAG, attemptError);
                             continue;
                         }
 
@@ -301,10 +305,14 @@ public final class MfaShizukuUserService extends Binder {
                                 + ", flags=0x" + Integer.toHexString(candidateFlags));
                         return new DisplayCreationResult(displayId, null, candidateFlags);
                     } catch (Throwable exception) {
-                        lastError = describeException(exception)
+                        String attemptError = describeException(exception)
                                 + " (context=" + candidateContext.getPackageName()
                                 + ", flags=0x" + Integer.toHexString(candidateFlags) + ")";
-                        Log.w(TAG, "Virtual display attempt failed: " + lastError, exception);
+                        if (attemptErrors.length() > 0)
+                            attemptErrors.append(" | ");
+                        attemptErrors.append(attemptError);
+                        lastError = attemptErrors.toString();
+                        Log.w(TAG, "Virtual display attempt failed: " + attemptError, exception);
                     }
                 }
             }
@@ -592,34 +600,52 @@ public final class MfaShizukuUserService extends Binder {
                 + (message == null || message.isEmpty() ? "" : ": " + message);
     }
 
-    private static DisplayManager createDisplayManager(Context displayContext) {
+    private static Context tryGetSystemContext() {
         try {
-            // Match MAA-Meow: force DisplayManager to retain the shell-attributed
-            // context instead of accepting a manager cached by an app context.
-            Constructor<DisplayManager> constructor = DisplayManager.class
-                    .getDeclaredConstructor(Context.class);
-            constructor.setAccessible(true);
-            return constructor.newInstance(displayContext);
+            Class<?> activityThreadClass = Class.forName("android.app.ActivityThread");
+            Method currentActivityThread = activityThreadClass
+                    .getDeclaredMethod("currentActivityThread");
+            currentActivityThread.setAccessible(true);
+            Object activityThread = currentActivityThread.invoke(null);
+            if (activityThread == null)
+                return null;
+            Method getSystemContext = activityThreadClass.getDeclaredMethod("getSystemContext");
+            getSystemContext.setAccessible(true);
+            Context systemContext = (Context) getSystemContext.invoke(activityThread);
+            if (systemContext != null)
+                Log.i(TAG, "Using ActivityThread system context for virtual display attribution.");
+            return systemContext;
         } catch (Throwable exception) {
-            Log.w(TAG, "Hidden DisplayManager(Context) is unavailable; using system service",
-                    exception);
-            return (DisplayManager) displayContext.getSystemService(Context.DISPLAY_SERVICE);
+            Log.w(TAG, "ActivityThread system context is unavailable", exception);
+            return null;
         }
     }
 
+    private static DisplayManager createDisplayManager(Context displayContext) throws Exception {
+        // Match MaaFwApp: force DisplayManager to retain the shell-attributed
+        // context. Context.getSystemService() would return a manager cached with
+        // the app package and Android 15 rejects that package for the shell UID.
+        Constructor<DisplayManager> constructor = DisplayManager.class
+                .getDeclaredConstructor(Context.class);
+        constructor.setAccessible(true);
+        return constructor.newInstance(displayContext);
+    }
+
     private static final class ShellContext extends ContextWrapper {
+        static final String PACKAGE_NAME = "com.android.shell";
+
         ShellContext(Context base) {
             super(base);
         }
 
         @Override
         public String getPackageName() {
-            return "com.android.shell";
+            return PACKAGE_NAME;
         }
 
         @Override
         public String getOpPackageName() {
-            return "com.android.shell";
+            return PACKAGE_NAME;
         }
 
         @Override
@@ -636,7 +662,7 @@ public final class MfaShizukuUserService extends Binder {
         public AttributionSource getAttributionSource() {
             if (Build.VERSION.SDK_INT >= 31) {
                 return new AttributionSource.Builder(Process.SHELL_UID)
-                        .setPackageName("com.android.shell")
+                        .setPackageName(PACKAGE_NAME)
                         .build();
             }
             return super.getAttributionSource();

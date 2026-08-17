@@ -85,6 +85,8 @@ public class MainActivity : AvaloniaMainActivity<App>
                 global::Android.App.Application.Context, instanceId);
             PlatformRunProgress.RequestStop = () => Dispatcher.UIThread.Post(() =>
                 Instances.InstanceTabBarViewModel.ActiveTab?.TaskQueueViewModel?.StopTask());
+            PlatformRunProgress.Log = AndroidCurrentScreenOverlay.AppendLog;
+            PlatformRunProgress.ClearLogs = AndroidCurrentScreenOverlay.ClearLogs;
             MobileRunConfiguration.RequestCurrentScreenOverlayPermission = RequestOverlayPermission;
             MobileRunConfiguration.ResolveFocusedDisplay = ResolveFocusedDisplay;
             MobileRunConfiguration.StopBackgroundGameKeepAlive = () =>
@@ -455,6 +457,8 @@ public class MainActivity : AvaloniaMainActivity<App>
         DefaultHyperlinkCommand.PlatformOpenUrl = null;
         ToastNotification.PlatformShowNotification = null;
         PlatformRunProgress.RequestStop = null;
+        PlatformRunProgress.Log = null;
+        PlatformRunProgress.ClearLogs = null;
         PlatformTimerScheduler.RescheduleAll = null;
         PlatformTimerScheduler.Trigger = null;
         MobileRunConfiguration.RequestCurrentScreenOverlayPermission = null;

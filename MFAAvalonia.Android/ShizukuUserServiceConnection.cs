@@ -3,6 +3,7 @@ using Android.OS;
 using Android.Views;
 using Rikka.Shizuku;
 using System;
+using System.Threading;
 
 namespace MFAAvalonia.Android;
 
@@ -18,6 +19,7 @@ internal sealed class ShizukuUserServiceConnection : Java.Lang.Object, IServiceC
     private const int GetFocusedDisplayTransaction = 8;
     private const int SetGameKeepAliveTransaction = 9;
     private const string ServiceClassName = "com.fox.MFAAvalonia.MfaShizukuUserService";
+    private static int _serviceVersion = 100;
     private readonly Action<bool, int, int, string?> _stateChanged;
     private Shizuku.UserServiceArgs? _args;
     private IBinder? _service;
@@ -31,9 +33,9 @@ internal sealed class ShizukuUserServiceConnection : Java.Lang.Object, IServiceC
         _args.ProcessNameSuffix("mfa_service");
         _args.Daemon(false);
         _args.Debuggable(true);
-        // Version 4 additionally normalizes root-mode Shizuku services to the shell
-        // identity. Bump it so Shizuku does not reconnect an old root v3 process.
-        _args.Version(14);
+        // Match MaaFwApp: every binding gets a fresh version and tag, so Shizuku
+        // never reconnects a stale UserService after an app update or reconnect.
+        _args.Version(Interlocked.Increment(ref _serviceVersion));
         _args.Tag($"mfa-android-controller-{Guid.NewGuid():N}");
         Shizuku.BindUserService(_args, this);
     }

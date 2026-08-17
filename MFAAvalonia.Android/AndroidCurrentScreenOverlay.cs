@@ -4,10 +4,12 @@ using Android.Hardware.Display;
 using Android.OS;
 using Android.Provider;
 using Android.Runtime;
+using Android.Text.Method;
 using Android.Views;
 using Android.Widget;
 using MFAAvalonia.Helper;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace MFAAvalonia.Android;
@@ -22,7 +24,9 @@ namespace MFAAvalonia.Android;
 /// </summary>
 internal static class AndroidCurrentScreenOverlay
 {
+    private const int MaxLogEntries = 100;
     private static readonly object Sync = new();
+    private static readonly List<RunLogEntry> LogEntries = [];
     private static IWindowManager? _windowManager;
     private static Context? _applicationContext;
     private static Context? _context;
@@ -31,10 +35,17 @@ internal static class AndroidCurrentScreenOverlay
     private static WindowManagerLayoutParams? _layout;
     private static TextView? _titleView;
     private static TextView? _detailView;
+    private static TextView? _logSubtitleView;
+    private static ScrollView? _logScrollView;
+    private static LinearLayout? _logList;
     private static RunProgressSnapshot _snapshot;
     private static bool _attached;
     private static bool _visible;
     private static bool _panelVisible;
+    private static bool _logPanelVisible;
+    private static long _logRevision;
+    private static long _renderedLogRevision = -1;
+    private static string? _renderedLogInstanceId;
     private static int _attachedDisplayId = -1;
     private static bool? _lastHiddenOnMfa;
     private static int _lastFocusedDisplayId = -1;
@@ -47,6 +58,30 @@ internal static class AndroidCurrentScreenOverlay
 
     public static void Show(Context context, RunProgressSnapshot snapshot)
         => Update(context, snapshot, MobileRunConfiguration.ActiveDisplayId, false, null);
+
+    public static void AppendLog(RunLogEntry entry)
+    {
+        if (string.IsNullOrWhiteSpace(entry.Content))
+            return;
+
+        lock (Sync)
+        {
+            LogEntries.Add(entry);
+            if (LogEntries.Count > MaxLogEntries)
+                LogEntries.RemoveRange(0, LogEntries.Count - MaxLogEntries);
+            _logRevision++;
+        }
+    }
+
+    public static void ClearLogs(string instanceId)
+    {
+        lock (Sync)
+        {
+            LogEntries.RemoveAll(entry => string.Equals(entry.InstanceId, instanceId,
+                StringComparison.Ordinal));
+            _logRevision++;
+        }
+    }
 
     public static void Update(Context context, RunProgressSnapshot snapshot,
         int focusedDisplayId, bool hideOnMfa, string? focusedPackage = null)
@@ -75,6 +110,7 @@ internal static class AndroidCurrentScreenOverlay
                 : MobileRunConfiguration.ActiveDisplayId;
             EnsureAttached(context, targetDisplayId);
             UpdatePanelText();
+            RefreshLogPanel();
             SetVisible(_attached);
         }
     }
@@ -126,6 +162,7 @@ internal static class AndroidCurrentScreenOverlay
         _container.SetClipChildren(false);
         _container.SetClipToPadding(false);
         _panelVisible = false;
+        _logPanelVisible = false;
         SetContent(CreateBall(), CreateBallLayout(), false);
 
         try
@@ -256,6 +293,7 @@ internal static class AndroidCurrentScreenOverlay
             if (!_attached)
                 return;
             _panelVisible = true;
+            _logPanelVisible = false;
             SetContent(CreatePanel(), CreatePanelLayout(), true);
         }
     }
@@ -282,34 +320,230 @@ internal static class AndroidCurrentScreenOverlay
         back.Click += (_, _) => OpenApp();
         var stop = Button("停止任务");
         stop.Click += (_, _) => PlatformRunProgress.RequestStop?.Invoke();
+        var logs = Button("日志");
+        logs.Click += (_, _) => ShowLogPanel();
         var close = Button("收起");
         close.Click += (_, _) =>
         {
             lock (Sync)
             {
                 _panelVisible = false;
+                _logPanelVisible = false;
                 SetContent(CreateBall(), CreateBallLayout(), true);
             }
         };
         buttons.AddView(back, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 1));
         buttons.AddView(stop, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 1));
+        buttons.AddView(logs, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 1));
         buttons.AddView(close, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 1));
         panel.AddView(buttons);
         return panel;
     }
 
-    private static void UpdatePanelText()
+    private static void ShowLogPanel()
     {
-        if (_titleView == null || _detailView == null)
+        lock (Sync)
+        {
+            if (!_attached)
+                return;
+            _panelVisible = true;
+            _logPanelVisible = true;
+            _renderedLogRevision = -1;
+            SetContent(CreateLogPanel(), CreateLogPanelLayout(), true);
+            RefreshLogPanel();
+        }
+    }
+
+    private static View CreateLogPanel()
+    {
+        _titleView = null;
+        _detailView = null;
+        var density = _context!.Resources?.DisplayMetrics?.Density ?? 1f;
+        var panel = new LinearLayout(_context) { Orientation = Orientation.Vertical };
+        panel.SetPadding((int)(14 * density), (int)(12 * density),
+            (int)(14 * density), (int)(12 * density));
+        var background = new global::Android.Graphics.Drawables.GradientDrawable();
+        background.SetColor(unchecked((int)0xF5222222));
+        background.SetCornerRadius(18 * density);
+        panel.Background = background;
+
+        var header = new LinearLayout(_context) { Orientation = Orientation.Horizontal };
+        header.SetGravity(GravityFlags.CenterVertical);
+        var heading = Text("运行日志", 17, Color.White);
+        heading.SetTypeface(Typeface.Default, TypefaceStyle.Bold);
+        header.AddView(heading, new LinearLayout.LayoutParams(0,
+            ViewGroup.LayoutParams.WrapContent, 1));
+        var backToStatus = Button("返回");
+        backToStatus.Click += (_, _) =>
+        {
+            lock (Sync)
+            {
+                _logPanelVisible = false;
+                SetContent(CreatePanel(), CreatePanelLayout(), true);
+            }
+        };
+        header.AddView(backToStatus, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WrapContent, ViewGroup.LayoutParams.WrapContent));
+        panel.AddView(header);
+
+        _logSubtitleView = Text(string.IsNullOrWhiteSpace(_snapshot.CurrentTask)
+                ? _snapshot.State
+                : _snapshot.CurrentTask,
+            12, Color.LightGray);
+        _logSubtitleView.SetPadding(0, 0, 0, (int)(7 * density));
+        panel.AddView(_logSubtitleView);
+
+        _logList = new LinearLayout(_context) { Orientation = Orientation.Vertical };
+        _logScrollView = new ScrollView(_context)
+        {
+            FillViewport = true,
+            VerticalScrollBarEnabled = true
+        };
+        _logScrollView.SetBackgroundColor(Color.Argb(110, 0, 0, 0));
+        _logScrollView.SetPadding((int)(8 * density), (int)(6 * density),
+            (int)(8 * density), (int)(6 * density));
+        _logScrollView.AddView(_logList, new ScrollView.LayoutParams(
+            ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent));
+        panel.AddView(_logScrollView, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MatchParent, 0, 1));
+
+        var buttons = new LinearLayout(_context) { Orientation = Orientation.Horizontal };
+        var open = Button("返回 MFA");
+        open.Click += (_, _) => OpenApp();
+        var stop = Button("停止任务");
+        stop.Click += (_, _) => PlatformRunProgress.RequestStop?.Invoke();
+        var close = Button("收起");
+        close.Click += (_, _) =>
+        {
+            lock (Sync)
+            {
+                _panelVisible = false;
+                _logPanelVisible = false;
+                SetContent(CreateBall(), CreateBallLayout(), true);
+            }
+        };
+        buttons.AddView(open, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 1));
+        buttons.AddView(stop, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 1));
+        buttons.AddView(close, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 1));
+        panel.AddView(buttons);
+
+        _renderedLogRevision = -1;
+        _renderedLogInstanceId = null;
+        return panel;
+    }
+
+    private static void RefreshLogPanel()
+    {
+        if (!_logPanelVisible || _logList == null || _logScrollView == null)
             return;
 
-        _titleView.Text = "MFA · " +
-                          (string.IsNullOrWhiteSpace(_snapshot.State) ? "运行中" : _snapshot.State);
-        _detailView.Text = string.Join(" · ", new[]
+        var instanceId = _snapshot.InstanceId;
+        if (_renderedLogRevision == _logRevision
+            && string.Equals(_renderedLogInstanceId, instanceId, StringComparison.Ordinal))
+            return;
+
+        var entries = LogEntries
+            .Where(entry => string.Equals(instanceId, "multiple", StringComparison.Ordinal)
+                            || string.Equals(entry.InstanceId, instanceId, StringComparison.Ordinal))
+            .ToArray();
+        _logList.RemoveAllViews();
+        if (entries.Length == 0)
         {
-            _snapshot.Total > 0 ? $"{_snapshot.Completed}/{_snapshot.Total}" : null,
-            _snapshot.CurrentTask
-        }.Where(value => !string.IsNullOrWhiteSpace(value)));
+            var empty = Text("暂无日志", 13, Color.LightGray);
+            empty.Gravity = GravityFlags.Center;
+            _logList.AddView(empty, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent));
+        }
+        else
+        {
+            foreach (var entry in entries)
+                _logList.AddView(CreateLogRow(entry));
+        }
+
+        _renderedLogRevision = _logRevision;
+        _renderedLogInstanceId = instanceId;
+        var scroll = _logScrollView;
+        scroll.Post(() =>
+        {
+            try
+            {
+                if (ReferenceEquals(_logScrollView, scroll))
+                    scroll.SmoothScrollTo(0, _logList?.Height ?? 0);
+            }
+            catch (ObjectDisposedException)
+            {
+                // The user collapsed the panel before the queued scroll ran.
+            }
+        });
+    }
+
+    private static View CreateLogRow(RunLogEntry entry)
+    {
+        var density = _context!.Resources?.DisplayMetrics?.Density ?? 1f;
+        var row = new LinearLayout(_context) { Orientation = Orientation.Horizontal };
+        row.SetGravity(GravityFlags.Top);
+        row.SetPadding(0, (int)(3 * density), 0, (int)(3 * density));
+        var background = ToAndroidColor(entry.BackgroundArgb);
+        if (background.A > 0)
+            row.SetBackgroundColor(background);
+
+        if (entry.ShowTime)
+        {
+            var time = Text(entry.Time, 10, Color.Gray);
+            time.Gravity = GravityFlags.End;
+            time.SetPadding(0, (int)(2 * density), (int)(8 * density), 0);
+            row.AddView(time, new LinearLayout.LayoutParams(
+                (int)(58 * density), ViewGroup.LayoutParams.WrapContent));
+        }
+
+        var foreground = EnsureReadableLogColor(ToAndroidColor(entry.ForegroundArgb));
+        var content = Text(null, 12, foreground);
+        content.SetLineSpacing(0, 1.08f);
+        content.SetTextIsSelectable(false);
+        if (entry.UseMarkdown)
+        {
+            content.SetText(AndroidOverlayMarkdown.Render(entry.Content), TextView.BufferType.Spannable);
+            content.MovementMethod = LinkMovementMethod.Instance;
+            content.SetLinkTextColor(Color.Rgb(100, 181, 246));
+        }
+        else
+        {
+            content.Text = entry.Content;
+        }
+        row.AddView(content, new LinearLayout.LayoutParams(
+            0, ViewGroup.LayoutParams.WrapContent, 1));
+        return row;
+    }
+
+    private static Color ToAndroidColor(uint argb) => Color.Argb(
+        (int)((argb >> 24) & 0xff),
+        (int)((argb >> 16) & 0xff),
+        (int)((argb >> 8) & 0xff),
+        (int)(argb & 0xff));
+
+    private static Color EnsureReadableLogColor(Color color)
+    {
+        var luminance = (.2126 * color.R + .7152 * color.G + .0722 * color.B) / 255d;
+        return luminance < .25 ? Color.White : color;
+    }
+
+    private static void UpdatePanelText()
+    {
+        if (_titleView != null && _detailView != null)
+        {
+            _titleView.Text = "MFA · " +
+                              (string.IsNullOrWhiteSpace(_snapshot.State) ? "运行中" : _snapshot.State);
+            _detailView.Text = string.Join(" · ", new[]
+            {
+                _snapshot.Total > 0 ? $"{_snapshot.Completed}/{_snapshot.Total}" : null,
+                _snapshot.CurrentTask
+            }.Where(value => !string.IsNullOrWhiteSpace(value)));
+        }
+
+        if (_logSubtitleView != null)
+            _logSubtitleView.Text = string.IsNullOrWhiteSpace(_snapshot.CurrentTask)
+                ? _snapshot.State
+                : _snapshot.CurrentTask;
     }
 
     private static TextView Text(string? value, float size, Color color)
@@ -339,6 +573,17 @@ internal static class AndroidCurrentScreenOverlay
         var density = metrics?.Density ?? 1f;
         var width = Math.Min((int)(340 * density), (int)((metrics?.WidthPixels ?? 600) * .85));
         return NewLayout(width, ViewGroup.LayoutParams.WrapContent, GravityFlags.Center, 0, 0);
+    }
+
+    private static WindowManagerLayoutParams CreateLogPanelLayout()
+    {
+        var metrics = _context!.Resources?.DisplayMetrics;
+        var density = metrics?.Density ?? 1f;
+        var screenWidth = metrics?.WidthPixels ?? (int)(600 * density);
+        var screenHeight = metrics?.HeightPixels ?? (int)(900 * density);
+        var width = Math.Min((int)(480 * density), (int)(screenWidth * .92));
+        var height = Math.Min((int)(540 * density), (int)(screenHeight * .62));
+        return NewLayout(width, height, GravityFlags.Center, 0, 0);
     }
 
     private static WindowManagerLayoutParams NewLayout(
@@ -373,6 +618,12 @@ internal static class AndroidCurrentScreenOverlay
         _layout = layout;
         _titleView = _panelVisible ? _titleView : null;
         _detailView = _panelVisible ? _detailView : null;
+        if (!_logPanelVisible)
+        {
+            _logScrollView = null;
+            _logList = null;
+            _logSubtitleView = null;
+        }
         var childHeight = layout.Height == ViewGroup.LayoutParams.WrapContent
             ? ViewGroup.LayoutParams.WrapContent
             : ViewGroup.LayoutParams.MatchParent;
@@ -445,9 +696,13 @@ internal static class AndroidCurrentScreenOverlay
         _layout = null;
         _titleView = null;
         _detailView = null;
+        _logSubtitleView = null;
+        _logScrollView = null;
+        _logList = null;
         _attached = false;
         _attachedDisplayId = -1;
         _visible = false;
         _panelVisible = false;
+        _logPanelVisible = false;
     }
 }

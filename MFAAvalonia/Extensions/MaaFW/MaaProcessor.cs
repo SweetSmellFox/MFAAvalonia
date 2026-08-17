@@ -85,6 +85,27 @@ public class MaaProcessor
     public void ClearLogs()
     {
         LogItemViewModels.Clear();
+        PlatformRunProgress.ClearLogs?.Invoke(InstanceId);
+    }
+
+    private void PublishPlatformLog(LogItemViewModel log)
+    {
+        static uint ToArgb(IBrush? brush, uint fallback)
+        {
+            if (brush is not ISolidColorBrush solid)
+                return fallback;
+            var color = solid.Color;
+            return ((uint)color.A << 24) | ((uint)color.R << 16) | ((uint)color.G << 8) | color.B;
+        }
+
+        PlatformRunProgress.Log?.Invoke(new RunLogEntry(
+            InstanceId,
+            log.Time,
+            log.Content,
+            log.UseMarkdown,
+            log.ShowTime,
+            ToArgb(log.Color, 0xffffffff),
+            ToArgb(log.BackgroundColor, 0x00000000)));
     }
 
     private IDisposable BeginInstanceLogScope(string operation, string source = "Runtime")
@@ -348,11 +369,13 @@ public class MaaProcessor
 
         DispatcherHelper.PostOnMainThread(() =>
         {
-            LogItemViewModels.Add(new LogItemViewModel(content, brush, weight, "HH':'mm':'ss",
+            var log = new LogItemViewModel(content, brush, weight, "HH':'mm':'ss",
                 showTime: showTime, changeColor: changeColor)
             {
                 BackgroundColor = backGroundBrush
-            });
+            };
+            LogItemViewModels.Add(log);
+            PublishPlatformLog(log);
             using var logScope = BeginInstanceLogScope("MonitorLog", "Monitor");
             LoggerHelper.Info($"[Record] {content}");
 
@@ -379,6 +402,7 @@ public class MaaProcessor
             {
                 var log = new LogItemViewModel(key, brush, "Regular", true, "HH':'mm':'ss", changeColor: changeColor, showTime: true, transformKey: transformKey, formatArgsKeys);
                 LogItemViewModels.Add(log);
+                PublishPlatformLog(log);
                 using var logScope = BeginInstanceLogScope("MonitorLog", "Monitor");
                 LoggerHelper.Info(log.Content);
                 TrimExcessLogs();
@@ -404,6 +428,7 @@ public class MaaProcessor
                     UseMarkdown = true
                 };
                 LogItemViewModels.Add(log);
+                PublishPlatformLog(log);
                 using var logScope = BeginInstanceLogScope("MonitorMarkdown", "Monitor");
                 LoggerHelper.Info(log.Content);
                 TrimExcessLogs();
