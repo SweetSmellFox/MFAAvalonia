@@ -200,6 +200,6 @@ Thanks to everyone who has contributed to MFAAvalonia.
 
 **If this project helps you, please give us a ⭐ Star!**
 
-[![Star History Chart](https://api.star-history.com/svg?repos=MaaXYZ/MFAAvalonia&type=Date)](https://star-history.com/#MaaXYZ/MFAAvalonia&Date)
+[![Star History Chart](https://star-history.dera.page/svg?repos=MaaXYZ/MFAAvalonia&type=Date)](https://star-history.dera.page/#MaaXYZ/MFAAvalonia&Date)
 
 </div>
