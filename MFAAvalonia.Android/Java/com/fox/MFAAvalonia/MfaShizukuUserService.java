@@ -57,6 +57,7 @@ public final class MfaShizukuUserService extends Binder {
     private static final int RESOLVE_CAPTURE_DISPLAY_TRANSACTION = 7;
     private static final int GET_FOCUSED_DISPLAY_TRANSACTION = 8;
     private static final int SET_GAME_KEEP_ALIVE_TRANSACTION = 9;
+    private static final int OVERLAY_INPUT_STATE_TRANSACTION = 1;
     private static final int DESTROY_TRANSACTION = 16777115;
 
     private final Context context;
@@ -87,6 +88,8 @@ public final class MfaShizukuUserService extends Binder {
         if (code == HEALTH_TRANSACTION) {
             if (data != null && data.dataAvail() >= 4) {
                 clientPid = data.readInt();
+                if (data.dataAvail() > 0)
+                    inputServer.setOverlayInputStateCallback(data.readStrongBinder());
             }
             if (reply != null) {
                 reply.writeInt(Process.myUid());
@@ -826,6 +829,7 @@ public final class MfaShizukuUserService extends Binder {
         private volatile int appWatchdogDisplayId = -1;
         private volatile String appWatchdogPackage;
         private volatile String lastControlledPackage;
+        private volatile IBinder overlayInputStateCallback;
         private Thread appWatchdogThread;
         private long appWatchdogMissingSince;
         private long appWatchdogLastRecovery;
@@ -855,6 +859,35 @@ public final class MfaShizukuUserService extends Binder {
             // sends input to the previous Display and can pin the game and MFA into the
             // same MuMu tab.
             redirectedDisplayId = -1;
+            if (!enabled)
+                setOverlayInputPassthrough(false);
+        }
+
+        void setOverlayInputStateCallback(IBinder callback) {
+            overlayInputStateCallback = callback;
+        }
+
+        private boolean setOverlayInputPassthrough(boolean enabled) {
+            // The overlay exists only in current-screen/foreground mode. Virtual-display
+            // mode must not pay an IPC round trip or have its input state changed.
+            if (!currentScreenCapture && enabled)
+                return true;
+            IBinder callback = overlayInputStateCallback;
+            if (callback == null)
+                return !enabled;
+            Parcel data = Parcel.obtain();
+            Parcel reply = Parcel.obtain();
+            try {
+                data.writeInt(enabled ? 1 : 0);
+                callback.transact(OVERLAY_INPUT_STATE_TRANSACTION, data, reply, 0);
+                return reply.readInt() != 0;
+            } catch (Throwable exception) {
+                Log.w(TAG, "Unable to switch foreground overlay input passthrough", exception);
+                return false;
+            } finally {
+                reply.recycle();
+                data.recycle();
+            }
         }
 
         void shutdown() {
@@ -1035,6 +1068,11 @@ public final class MfaShizukuUserService extends Binder {
                     if (!server.isClosed()) {
                         Log.w(TAG, "Input server error", exception);
                     }
+                } finally {
+                    // A disconnected controller may leave a DOWN without UP. Never leave
+                    // the user-facing ball non-touchable after that controller is gone.
+                    if (currentScreenCapture)
+                        setOverlayInputPassthrough(false);
                 }
             }
         }
@@ -1054,20 +1092,33 @@ public final class MfaShizukuUserService extends Binder {
                     // Android shell route for now and report its real exit status.
                     return runShell("input " + display + "text " + shell(text)).exitCode;
                 case 6:
+                    boolean foregroundGesture = currentScreenCapture;
+                    if (foregroundGesture && !setOverlayInputPassthrough(true)) {
+                        setOverlayInputPassthrough(false);
+                        return -5;
+                    }
                     if (inputController.down(x, y, effectiveDisplayId))
                         return 0;
-                    return runShell("input " + display + "motionevent DOWN " + x + " " + y).exitCode;
+                    int downResult = runShell("input " + display + "motionevent DOWN " + x + " " + y).exitCode;
+                    if (downResult != 0 && foregroundGesture)
+                        setOverlayInputPassthrough(false);
+                    return downResult;
                 case 7:
                     if (inputController.hasActiveGesture())
                         return inputController.move(x, y, effectiveDisplayId) ? 0 : -4;
                     return runShell("input " + display + "motionevent MOVE " + x + " " + y).exitCode;
                 case 8:
-                    boolean released;
-                    if (inputController.hasActiveGesture())
-                        released = inputController.up(x, y, effectiveDisplayId);
-                    else
-                        released = runShell("input " + display + "motionevent UP " + x + " " + y).exitCode == 0;
-                    return released ? 0 : -4;
+                    try {
+                        boolean released;
+                        if (inputController.hasActiveGesture())
+                            released = inputController.up(x, y, effectiveDisplayId);
+                        else
+                            released = runShell("input " + display + "motionevent UP " + x + " " + y).exitCode == 0;
+                        return released ? 0 : -4;
+                    } finally {
+                        if (currentScreenCapture)
+                            setOverlayInputPassthrough(false);
+                    }
                 case 9:
                     return inputController.key(key, KeyEvent.ACTION_DOWN, effectiveDisplayId) ? 0 : -4;
                 case 10:

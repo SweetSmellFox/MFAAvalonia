@@ -11,6 +11,7 @@ using MFAAvalonia.Helper;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 namespace MFAAvalonia.Android;
 
@@ -43,6 +44,7 @@ internal static class AndroidCurrentScreenOverlay
     private static bool _visible;
     private static bool _panelVisible;
     private static bool _logPanelVisible;
+    private static bool _scriptInputActive;
     private static long _logRevision;
     private static long _renderedLogRevision = -1;
     private static string? _renderedLogInstanceId;
@@ -169,6 +171,15 @@ internal static class AndroidCurrentScreenOverlay
         {
             _windowManager.AddView(_container, _layout);
             _attached = true;
+            var attachedContainer = _container;
+            attachedContainer.Post(() =>
+            {
+                if (!MfaOverlaySurfaceInterop.TryExcludeFromScreenshots(attachedContainer))
+                {
+                    global::Android.Util.Log.Warn("MfaCurrentScreenOverlay",
+                        "The platform did not accept skip-screenshot for the overlay surface.");
+                }
+            });
             global::Android.Util.Log.Info("MfaCurrentScreenOverlay",
                 $"System overlay attached: windowDisplay={GetContextDisplayId(_context)}, " +
                 $"focusDisplay={_lastFocusedDisplayId}.");
@@ -595,7 +606,13 @@ internal static class AndroidCurrentScreenOverlay
         var flags = WindowManagerFlags.NotFocusable
                     | WindowManagerFlags.NotTouchModal
                     | WindowManagerFlags.LayoutNoLimits
-                    | WindowManagerFlags.LayoutInScreen;
+                    | WindowManagerFlags.LayoutInScreen
+                    // This is the public Android fallback when SurfaceControl's more precise
+                    // skip-screenshot bit is unavailable on a vendor build. It does not hide
+                    // the overlay from the physical display.
+                    | WindowManagerFlags.Secure;
+        if (_scriptInputActive)
+            flags |= WindowManagerFlags.NotTouchable;
         return new WindowManagerLayoutParams(width, height, type, flags, Format.Rgba8888)
         {
             Gravity = gravity,
@@ -658,6 +675,55 @@ internal static class AndroidCurrentScreenOverlay
         _container.Visibility = visible ? ViewStates.Visible : ViewStates.Gone;
         global::Android.Util.Log.Info("MfaCurrentScreenOverlay",
             visible ? "System overlay visible." : "System overlay hidden.");
+    }
+
+    /// <summary>
+    /// Makes injected MaaFW gestures pass through the overlay while keeping the ball
+    /// interactive at every other time. The Binder caller waits until WindowManager has
+    /// applied the flag so ACTION_DOWN cannot race the old touchable window state.
+    /// </summary>
+    public static bool SetScriptInputActive(bool active)
+    {
+        if (Looper.MyLooper() == Looper.MainLooper)
+        {
+            lock (Sync)
+                return ApplyScriptInputState(active);
+        }
+
+        using var completed = new ManualResetEventSlim();
+        var applied = false;
+        new Handler(Looper.MainLooper!).Post(() =>
+        {
+            lock (Sync)
+                applied = ApplyScriptInputState(active);
+            completed.Set();
+        });
+        return completed.Wait(TimeSpan.FromMilliseconds(750)) && applied;
+    }
+
+    private static bool ApplyScriptInputState(bool active)
+    {
+        _scriptInputActive = active;
+        if (!_attached || _container == null || _windowManager == null || _layout == null)
+            return true;
+
+        var flags = _layout.Flags;
+        _layout.Flags = active
+            ? flags | WindowManagerFlags.NotTouchable
+            : flags & ~WindowManagerFlags.NotTouchable;
+        try
+        {
+            _windowManager.UpdateViewLayout(_container, _layout);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _scriptInputActive = !active;
+            _layout.Flags = flags;
+            global::Android.Util.Log.Warn("MfaCurrentScreenOverlay",
+                $"Unable to switch overlay input passthrough: {ex.Message}");
+            return false;
+        }
     }
 
     private static void OpenApp()

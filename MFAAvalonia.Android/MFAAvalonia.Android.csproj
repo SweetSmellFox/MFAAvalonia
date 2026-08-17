@@ -64,6 +64,7 @@
         </AndroidResource>
         <AndroidJavaSource Include="Java\com\fox\MFAAvalonia\MfaShizukuUserService.java" />
         <AndroidJavaSource Include="Java\com\fox\MFAAvalonia\MfaNativeBridge.java" />
+        <AndroidJavaSource Include="Java\com\fox\MFAAvalonia\MfaOverlaySurface.java" />
     </ItemGroup>
 
     <Target Name="ValidateAndroidLauncherIcon" BeforeTargets="PrepareForBuild">

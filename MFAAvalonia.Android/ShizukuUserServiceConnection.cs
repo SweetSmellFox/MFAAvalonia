@@ -18,11 +18,13 @@ internal sealed class ShizukuUserServiceConnection : Java.Lang.Object, IServiceC
     private const int ResolveCaptureDisplayTransaction = 7;
     private const int GetFocusedDisplayTransaction = 8;
     private const int SetGameKeepAliveTransaction = 9;
+    private const int OverlayInputStateTransaction = 1;
     private const string ServiceClassName = "com.fox.MFAAvalonia.MfaShizukuUserService";
     private static int _serviceVersion = 100;
     private readonly Action<bool, int, int, string?> _stateChanged;
     private Shizuku.UserServiceArgs? _args;
     private IBinder? _service;
+    private readonly OverlayInputStateBinder _overlayInputStateBinder = new();
 
     public ShizukuUserServiceConnection(Action<bool, int, int, string?> stateChanged) => _stateChanged = stateChanged;
 
@@ -53,6 +55,7 @@ internal sealed class ShizukuUserServiceConnection : Java.Lang.Object, IServiceC
             using var data = Parcel.Obtain();
             using var reply = Parcel.Obtain();
             data.WriteInt(global::Android.OS.Process.MyPid());
+            data.WriteStrongBinder(_overlayInputStateBinder);
             service.Transact(HealthTransaction, data, reply, 0);
             var uid = reply.ReadInt();
             var port = reply.ReadInt();
@@ -192,5 +195,18 @@ internal sealed class ShizukuUserServiceConnection : Java.Lang.Object, IServiceC
         Shizuku.UnbindUserService(_args, this, true);
         _args.Dispose();
         _args = null;
+    }
+
+    private sealed class OverlayInputStateBinder : Binder
+    {
+        protected override bool OnTransact(int code, Parcel data, Parcel? reply, int flags)
+        {
+            if (code != OverlayInputStateTransaction)
+                return base.OnTransact(code, data, reply, flags);
+
+            var applied = AndroidCurrentScreenOverlay.SetScriptInputActive(data.ReadInt() != 0);
+            reply?.WriteInt(applied ? 1 : 0);
+            return true;
+        }
     }
 }
