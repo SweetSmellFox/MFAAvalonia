@@ -227,14 +227,24 @@ public final class MfaShizukuUserService extends Binder {
                         | (1 << 15) // DEVICE_DISPLAY_GROUP
                         | (1 << 16); // STEAL_TOP_FOCUS_DISABLED
             }
-            // Keep the same isolation contract as MaaFwApp. In particular Android 14+
-            // must retain OWN_FOCUS and STEAL_TOP_FOCUS_DISABLED. Falling back to a
-            // display without these flags may make creation appear successful while
-            // stealing focus/content from the physical display.
-            int requiredFlags = Build.VERSION.SDK_INT >= 34
+            // Prefer the isolated Android 13/14 flags used by MaaFwApp. A regular
+            // Shizuku shell service does not have ADD_TRUSTED_DISPLAY, however, so the
+            // preferred request can be rejected before a display is created. Keep a
+            // basic destroy-on-removal candidate as the compatibility path; without it
+            // background mode cannot start at all on MuMu and many stock Android builds.
+            boolean trustedDisplayAvailable = Process.myUid() == 0 || Process.myUid() == 1000;
+            int requiredFlags = trustedDisplayAvailable && Build.VERSION.SDK_INT >= 34
                     ? fullFlags
-                    : Build.VERSION.SDK_INT >= 33 ? android13Flags : destroyFlags;
-            int[] flagCandidates = new int[] { requiredFlags };
+                    : trustedDisplayAvailable && Build.VERSION.SDK_INT >= 33
+                            ? android13Flags
+                            : destroyFlags;
+            if (!trustedDisplayAvailable && Build.VERSION.SDK_INT >= 33) {
+                Log.i(TAG, "Using compatibility virtual-display flags for uid="
+                        + Process.myUid() + "; ADD_TRUSTED_DISPLAY is unavailable.");
+            }
+            int[] flagCandidates = requiredFlags == destroyFlags
+                    ? new int[] { destroyFlags }
+                    : new int[] { requiredFlags, destroyFlags };
             int previousFlags = Integer.MIN_VALUE;
             StringBuilder attemptErrors = new StringBuilder();
             for (Context candidateContext : contextCandidates) {

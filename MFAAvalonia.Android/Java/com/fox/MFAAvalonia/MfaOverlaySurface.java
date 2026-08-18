@@ -36,7 +36,14 @@ public final class MfaOverlaySurface {
                 setSkipScreenshot.invoke(transaction, surface, true);
                 transaction.apply();
             } finally {
-                transaction.close();
+                // Transaction#close is not present on some old vendor APIs. Do not call
+                // it directly because a missing optional method can escape verification.
+                try {
+                    Method close = SurfaceControl.Transaction.class.getMethod("close");
+                    close.invoke(transaction);
+                } catch (Throwable ignored) {
+                    // The transaction has already been applied; GC can reclaim it.
+                }
             }
             Log.i(TAG, "Overlay surface excluded from screenshots.");
             return true;

@@ -174,10 +174,21 @@ internal static class AndroidCurrentScreenOverlay
             var attachedContainer = _container;
             attachedContainer.Post(() =>
             {
-                if (!MfaOverlaySurfaceInterop.TryExcludeFromScreenshots(attachedContainer))
+                try
                 {
+                    if (!MfaOverlaySurfaceInterop.TryExcludeFromScreenshots(attachedContainer))
+                    {
+                        global::Android.Util.Log.Warn("MfaCurrentScreenOverlay",
+                            "The platform did not accept skip-screenshot for the overlay surface.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Screenshot exclusion is an optional compositor optimization. A
+                    // vendor-specific JNI/SurfaceControl failure must never crash the UI
+                    // thread or take down the foreground overlay.
                     global::Android.Util.Log.Warn("MfaCurrentScreenOverlay",
-                        "The platform did not accept skip-screenshot for the overlay surface.");
+                        $"Screenshot exclusion failed safely: {ex.Message}");
                 }
             });
             global::Android.Util.Log.Info("MfaCurrentScreenOverlay",
