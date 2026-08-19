@@ -20,9 +20,9 @@ import android.os.Parcel;
 import android.os.Process;
 import android.os.RemoteException;
 import android.os.SystemClock;
-import android.system.ErrnoException;
-import android.system.Os;
 import android.system.OsConstants;
+import android.system.Os;
+import android.system.ErrnoException;
 import android.util.Log;
 import android.view.InputDevice;
 import android.view.InputEvent;
@@ -75,11 +75,34 @@ public final class MfaShizukuUserService extends Binder {
 
     public MfaShizukuUserService(Context context) throws IOException {
         this.context = context;
+        if (Process.myUid() == Process.ROOT_UID)
+            launchShellHelper(context);
         inputServer = new InputServer(context, this::routeCaptureToDisplay);
         inputServer.start();
         startClientWatchdog();
         Log.i(TAG, "Shizuku UserService started, uid=" + Process.myUid()
                 + ", port=" + inputServer.getPort());
+    }
+
+    private static void launchShellHelper(Context context) throws IOException {
+        try {
+            String apk = context.getApplicationInfo().sourceDir;
+            String packageName = context.getPackageName();
+            String command = "CLASSPATH=" + shellQuote(apk)
+                    + " app_process /system/bin --nice-name="
+                    + shellQuote(packageName + ":mfa_shell_service")
+                    + " com.fox.MFAAvalonia.MfaShellServiceStarter "
+                    + shellQuote(packageName + ".mfa.shell.bootstrap");
+            new ProcessBuilder("su", Integer.toString(Process.SHELL_UID),
+                    "sh", "-c", command).start();
+            Log.i(TAG, "Started shell virtual-display helper before Binder initialization.");
+        } catch (Throwable exception) {
+            throw new IOException("Unable to launch shell virtual-display helper", exception);
+        }
+    }
+
+    private static String shellQuote(String value) {
+        return "'" + value.replace("'", "'\\\"'\\\"'") + "'";
     }
 
     @Override
@@ -102,6 +125,11 @@ public final class MfaShizukuUserService extends Binder {
             int height = data.readInt();
             int dpi = data.readInt();
             Surface surface = Surface.CREATOR.createFromParcel(data);
+            // Keep the inbound MFA Binder identity. The UserService is launched by
+            // Shizuku with root/shell privileges, but DisplayManager validates the
+            // attribution package against the calling Binder UID. The matching package
+            // Context is selected in createVirtualDisplay(); clearing identity here
+            // would pair the app package with UID 0 and trigger packageName mismatch.
             DisplayCreationResult result = createVirtualDisplay(width, height, dpi, surface);
             if (reply != null) {
                 reply.writeInt(result.displayId);
@@ -202,13 +230,26 @@ public final class MfaShizukuUserService extends Binder {
                 shellPackageContext = context;
             }
             Context systemContext = tryGetSystemContext();
-            Context[] contextCandidates = systemContext != null
-                    && systemContext != shellPackageContext
-                    ? new Context[] {
-                            new ShellContext(systemContext),
-                            new ShellContext(shellPackageContext)
-                    }
-                    : new Context[] { new ShellContext(shellPackageContext) };
+            boolean shellIdentity = Process.myUid() == Process.SHELL_UID;
+            // Shizuku UserService normally runs under the hosting application's UID.
+            // In that case a shell-attributed Context is rejected by DisplayManager
+            // before virtual-display permission checks even begin. Keep the package and
+            // attribution tied to the real process UID; reserve ShellContext for a
+            // genuinely shell/root/system UserService.
+            Context appContext = contextForProcessUid(context);
+            Log.i(TAG, "Virtual display identity: uid=" + Process.myUid()
+                    + ", context=" + appContext.getPackageName()
+                    + ", shellIdentity=" + shellIdentity);
+            Context[] contextCandidates = shellIdentity
+                    ? systemContext != null && systemContext != shellPackageContext
+                            ? new Context[] {
+                                    new ShellContext(systemContext),
+                                    new ShellContext(shellPackageContext)
+                            }
+                            : new Context[] { new ShellContext(shellPackageContext) }
+                    : systemContext != null && systemContext != appContext
+                            ? new Context[] { appContext, systemContext }
+                            : new Context[] { appContext };
             int basicFlags = DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC
                     | DisplayManager.VIRTUAL_DISPLAY_FLAG_PRESENTATION
                     | DisplayManager.VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY
@@ -613,6 +654,27 @@ public final class MfaShizukuUserService extends Binder {
         return constructor.newInstance(displayContext);
     }
 
+    private static Context contextForProcessUid(Context fallback) {
+        try {
+            String[] packages = fallback.getPackageManager().getPackagesForUid(Process.myUid());
+            if (packages != null) {
+                for (String packageName : packages) {
+                    if (packageName == null || packageName.equals(ShellContext.PACKAGE_NAME))
+                        continue;
+                    try {
+                        return fallback.createPackageContext(packageName,
+                                Context.CONTEXT_IGNORE_SECURITY);
+                    } catch (Throwable ignored) {
+                        // Try the next package registered to this UID.
+                    }
+                }
+            }
+        } catch (Throwable exception) {
+            Log.w(TAG, "Unable to resolve package context for UserService UID", exception);
+        }
+        return fallback;
+    }
+
     private static final class ShellContext extends ContextWrapper {
         static final String PACKAGE_NAME = "com.android.shell";
 
@@ -890,13 +952,37 @@ public final class MfaShizukuUserService extends Binder {
             try {
                 data.writeInt(enabled ? 1 : 0);
                 callback.transact(OVERLAY_INPUT_STATE_TRANSACTION, data, reply, 0);
-                return reply.readInt() != 0;
+                boolean applied = reply.readInt() != 0;
+                if (applied && enabled)
+                    syncInputTransactions();
+                return applied;
             } catch (Throwable exception) {
                 Log.w(TAG, "Unable to switch foreground overlay input passthrough", exception);
                 return false;
             } finally {
                 reply.recycle();
                 data.recycle();
+            }
+        }
+
+        private void syncInputTransactions() {
+            try {
+                Class<?> serviceManager = Class.forName("android.os.ServiceManager");
+                IBinder binder = (IBinder) serviceManager
+                        .getMethod("getService", String.class).invoke(null, "window");
+                Class<?> stub = Class.forName("android.view.IWindowManager$Stub");
+                Object manager = stub.getMethod("asInterface", IBinder.class)
+                        .invoke(null, binder);
+                try {
+                    manager.getClass().getMethod("syncInputTransactions", boolean.class)
+                            .invoke(manager, false);
+                } catch (NoSuchMethodException ignored) {
+                    manager.getClass().getMethod("syncInputTransactions").invoke(manager);
+                }
+            } catch (Throwable exception) {
+                // The managed callback already waits for two traversals. This hidden API
+                // is the stronger ordering guarantee where the vendor exposes it.
+                Log.d(TAG, "WindowManager input transaction sync is unavailable", exception);
             }
         }
 

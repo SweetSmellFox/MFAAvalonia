@@ -4,6 +4,7 @@ using Android.Views;
 using Rikka.Shizuku;
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace MFAAvalonia.Android;
 
@@ -24,6 +25,7 @@ internal sealed class ShizukuUserServiceConnection : Java.Lang.Object, IServiceC
     private readonly Action<bool, int, int, string?> _stateChanged;
     private Shizuku.UserServiceArgs? _args;
     private IBinder? _service;
+    private Context? _context;
     private readonly OverlayInputStateBinder _overlayInputStateBinder = new();
 
     public ShizukuUserServiceConnection(Action<bool, int, int, string?> stateChanged) => _stateChanged = stateChanged;
@@ -31,6 +33,7 @@ internal sealed class ShizukuUserServiceConnection : Java.Lang.Object, IServiceC
     public void Bind(Context context)
     {
         if (_args != null) return;
+        _context = context.ApplicationContext ?? context;
         _args = new Shizuku.UserServiceArgs(new ComponentName(context.PackageName, ServiceClassName));
         _args.ProcessNameSuffix("mfa_service");
         _args.Daemon(false);
@@ -42,7 +45,7 @@ internal sealed class ShizukuUserServiceConnection : Java.Lang.Object, IServiceC
         Shizuku.BindUserService(_args, this);
     }
 
-    public void OnServiceConnected(ComponentName? name, IBinder? service)
+    public async void OnServiceConnected(ComponentName? name, IBinder? service)
     {
         if (service == null)
         {
@@ -52,6 +55,7 @@ internal sealed class ShizukuUserServiceConnection : Java.Lang.Object, IServiceC
 
         try
         {
+            service = await ResolveShellServiceAsync(service);
             using var data = Parcel.Obtain();
             using var reply = Parcel.Obtain();
             data.WriteInt(global::Android.OS.Process.MyPid());
@@ -68,6 +72,32 @@ internal sealed class ShizukuUserServiceConnection : Java.Lang.Object, IServiceC
         {
             _stateChanged(false, -1, -1, ex.Message);
         }
+    }
+
+    private async Task<IBinder> ResolveShellServiceAsync(IBinder initialService)
+    {
+        var uid = ReadServiceUid(initialService);
+        if (uid != 0)
+            return initialService;
+        var context = _context ?? throw new InvalidOperationException("Android context is unavailable.");
+        var uri = global::Android.Net.Uri.Parse($"content://{context.PackageName}.mfa.shell.bootstrap");
+        for (var attempt = 0; attempt < 100; attempt++)
+        {
+            using var result = context.ContentResolver?.Call(uri!, "take", null, null);
+            var shellService = result?.GetBinder("service");
+            if (shellService?.IsBinderAlive == true && ReadServiceUid(shellService) == 2000)
+                return shellService;
+            await Task.Delay(50).ConfigureAwait(false);
+        }
+        throw new TimeoutException("The shell virtual-display helper did not attach within 5 seconds.");
+    }
+
+    private static int ReadServiceUid(IBinder service)
+    {
+        using var data = Parcel.Obtain();
+        using var reply = Parcel.Obtain();
+        service.Transact(HealthTransaction, data, reply, 0);
+        return reply.ReadInt();
     }
 
     public void OnServiceDisconnected(ComponentName? name)

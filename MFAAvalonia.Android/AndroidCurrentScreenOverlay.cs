@@ -57,6 +57,9 @@ internal static class AndroidCurrentScreenOverlay
     private static int _downX;
     private static int _downY;
     private static bool _dragged;
+    private static int _dragDesiredX;
+    private static bool _panelSideDocked;
+    private static int _panelDockSide;
 
     public static void Show(Context context, RunProgressSnapshot snapshot)
         => Update(context, snapshot, MobileRunConfiguration.ActiveDisplayId, false, null);
@@ -256,26 +259,51 @@ internal static class AndroidCurrentScreenOverlay
         }
     }
 
-    private static TextView CreateBall()
+    private static View CreateBall()
     {
-        var ball = new TextView(_context!)
-        {
-            Text = "MFA\n●",
-            Gravity = GravityFlags.Center,
-            TextSize = 11,
-            Typeface = Typeface.Default
-        };
-        ball.SetTextColor(Color.White);
-        ball.SetPadding(0, 0, 0, 0);
+        var density = _context!.Resources?.DisplayMetrics?.Density ?? 1f;
+        var ball = new FrameLayout(_context!);
         var background = new global::Android.Graphics.Drawables.GradientDrawable();
-        background.SetColor(unchecked((int)0xE6168BD2));
+        background.SetColor(unchecked((int)0xEE1677C8));
         background.SetShape(global::Android.Graphics.Drawables.ShapeType.Oval);
+        background.SetStroke((int)(2 * density),
+            global::Android.Content.Res.ColorStateList.ValueOf(Color.Argb(153, 255, 255, 255)));
         ball.Background = background;
+        ball.Elevation = 10 * density;
+
+        var mark = new TextView(_context!)
+        {
+            Text = "M",
+            Gravity = GravityFlags.Center,
+            TextSize = 20,
+            Typeface = Typeface.DefaultBold
+        };
+        mark.SetTextColor(Color.White);
+        ball.AddView(mark, new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.MatchParent));
+        var status = new TextView(_context!)
+        {
+            Text = "●",
+            TextSize = 10,
+            Gravity = GravityFlags.Center
+        };
+        status.SetTextColor(Color.Rgb(86, 224, 142));
+        var dotSize = (int)(18 * density);
+        var dotLayout = new FrameLayout.LayoutParams(dotSize, dotSize,
+            GravityFlags.End | GravityFlags.Bottom);
+        dotLayout.SetMargins(0, 0, (int)(2 * density), (int)(1 * density));
+        ball.AddView(status, dotLayout);
         ball.Touch += OnBallTouch;
         return ball;
     }
 
     private static void OnBallTouch(object? sender, View.TouchEventArgs args)
+        => HandleDragTouch(args, true);
+
+    private static void OnPanelDragTouch(object? sender, View.TouchEventArgs args)
+        => HandleDragTouch(args, false);
+
+    private static void HandleDragTouch(View.TouchEventArgs args, bool ball)
     {
         if (_layout == null || _windowManager == null || _container == null || args.Event == null)
             return;
@@ -287,6 +315,7 @@ internal static class AndroidCurrentScreenOverlay
                 _downRawY = args.Event.RawY;
                 _downX = _layout.X;
                 _downY = _layout.Y;
+                _dragDesiredX = _layout.X;
                 _dragged = false;
                 args.Handled = true;
                 break;
@@ -294,18 +323,95 @@ internal static class AndroidCurrentScreenOverlay
                 var dx = args.Event.RawX - _downRawX;
                 var dy = args.Event.RawY - _downRawY;
                 _dragged |= Math.Abs(dx) > 8 || Math.Abs(dy) > 8;
-                // The ball uses END | CENTER_VERTICAL gravity: X is the distance from the right edge.
-                _layout.X = Math.Max(0, _downX - (int)dx);
-                _layout.Y = _downY + (int)dy;
+                _dragDesiredX = _downX + (int)dx;
+                MoveOverlay(_dragDesiredX, _downY + (int)dy, ball);
                 try { _windowManager.UpdateViewLayout(_container, _layout); } catch { }
                 args.Handled = true;
                 break;
             case MotionEventActions.Up:
-                if (!_dragged)
+                if (_dragged && ball)
+                    DockBallToNearestEdge();
+                else if (_dragged && !ball)
+                    DockPanelIfPushedPastEdge();
+                else if (!_dragged && !ball && _panelSideDocked)
+                    RestoreSideDockedPanel();
+                else if (!_dragged && ball)
                     ShowPanel();
                 args.Handled = true;
                 break;
         }
+    }
+
+    private static void DockPanelIfPushedPastEdge()
+    {
+        if (_layout == null || _windowManager == null || _container == null)
+            return;
+        var metrics = _context?.Resources?.DisplayMetrics;
+        var density = metrics?.Density ?? 1f;
+        var screenWidth = metrics?.WidthPixels ?? 1920;
+        var width = _layout.Width > 0 ? _layout.Width : (int)(340 * density);
+        var visibleHandle = (int)(36 * density);
+        if (_dragDesiredX < 0)
+        {
+            _panelDockSide = -1;
+            _layout.X = -width + visibleHandle;
+        }
+        else if (_dragDesiredX > screenWidth - width)
+        {
+            _panelDockSide = 1;
+            _layout.X = screenWidth - visibleHandle;
+        }
+        else
+        {
+            _panelSideDocked = false;
+            return;
+        }
+        _panelSideDocked = true;
+        _container.Alpha = .9f;
+        try { _windowManager.UpdateViewLayout(_container, _layout); } catch { }
+    }
+
+    private static void RestoreSideDockedPanel()
+    {
+        if (_layout == null || _windowManager == null || _container == null)
+            return;
+        var metrics = _context?.Resources?.DisplayMetrics;
+        var density = metrics?.Density ?? 1f;
+        var screenWidth = metrics?.WidthPixels ?? 1920;
+        var width = _layout.Width > 0 ? _layout.Width : (int)(340 * density);
+        var margin = (int)(10 * density);
+        _layout.X = _panelDockSide < 0 ? margin : screenWidth - width - margin;
+        _panelSideDocked = false;
+        _container.Alpha = 1f;
+        try { _windowManager.UpdateViewLayout(_container, _layout); } catch { }
+    }
+
+    private static void MoveOverlay(int x, int y, bool ball)
+    {
+        if (_layout == null)
+            return;
+        var metrics = _context?.Resources?.DisplayMetrics;
+        var screenWidth = metrics?.WidthPixels ?? 1920;
+        var screenHeight = metrics?.HeightPixels ?? 1080;
+        var density = metrics?.Density ?? 1f;
+        var width = _layout.Width > 0 ? _layout.Width : (int)(340 * density);
+        var height = _layout.Height > 0 ? _layout.Height : (int)(190 * density);
+        var inset = ball ? width / 2 : 0;
+        _layout.X = Math.Clamp(x, -inset, Math.Max(-inset, screenWidth - width + inset));
+        _layout.Y = Math.Clamp(y, 0, Math.Max(0, screenHeight - height));
+    }
+
+    private static void DockBallToNearestEdge()
+    {
+        if (_layout == null || _windowManager == null || _container == null)
+            return;
+        var screenWidth = _context?.Resources?.DisplayMetrics?.WidthPixels ?? 1920;
+        var width = Math.Max(1, _layout.Width);
+        _layout.X = _layout.X + width / 2 < screenWidth / 2
+            ? -width / 2
+            : screenWidth - width / 2;
+        _container.Alpha = .86f;
+        try { _windowManager.UpdateViewLayout(_container, _layout); } catch { }
     }
 
     private static void ShowPanel()
@@ -327,13 +433,25 @@ internal static class AndroidCurrentScreenOverlay
         panel.SetPadding((int)(16 * density), (int)(14 * density),
             (int)(16 * density), (int)(14 * density));
         var background = new global::Android.Graphics.Drawables.GradientDrawable();
-        background.SetColor(unchecked((int)0xF5222222));
-        background.SetCornerRadius(18 * density);
+        background.SetColor(unchecked((int)0xF2232733));
+        background.SetCornerRadius(22 * density);
+        background.SetStroke((int)density,
+            global::Android.Content.Res.ColorStateList.ValueOf(Color.Argb(85, 121, 184, 255)));
         panel.Background = background;
+        panel.Elevation = 14 * density;
 
+        var dragHeader = new LinearLayout(_context) { Orientation = Orientation.Horizontal };
+        dragHeader.SetGravity(GravityFlags.CenterVertical);
+        var grip = Text("⠿", 20, Color.Rgb(130, 190, 245));
+        grip.SetPadding(0, 0, (int)(8 * density), 0);
         _titleView = Text(string.Empty, 17, Color.White);
+        _titleView.SetTypeface(Typeface.Default, TypefaceStyle.Bold);
         _detailView = Text(string.Empty, 13, Color.LightGray);
-        panel.AddView(_titleView);
+        dragHeader.AddView(grip);
+        dragHeader.AddView(_titleView, new LinearLayout.LayoutParams(
+            0, ViewGroup.LayoutParams.WrapContent, 1));
+        dragHeader.Touch += OnPanelDragTouch;
+        panel.AddView(dragHeader);
         panel.AddView(_detailView);
         UpdatePanelText();
 
@@ -344,7 +462,7 @@ internal static class AndroidCurrentScreenOverlay
         stop.Click += (_, _) => PlatformRunProgress.RequestStop?.Invoke();
         var logs = Button("日志");
         logs.Click += (_, _) => ShowLogPanel();
-        var close = Button("收起");
+        var close = Button("侧藏");
         close.Click += (_, _) =>
         {
             lock (Sync)
@@ -385,14 +503,18 @@ internal static class AndroidCurrentScreenOverlay
         panel.SetPadding((int)(14 * density), (int)(12 * density),
             (int)(14 * density), (int)(12 * density));
         var background = new global::Android.Graphics.Drawables.GradientDrawable();
-        background.SetColor(unchecked((int)0xF5222222));
-        background.SetCornerRadius(18 * density);
+        background.SetColor(unchecked((int)0xF2232733));
+        background.SetCornerRadius(22 * density);
+        background.SetStroke((int)density,
+            global::Android.Content.Res.ColorStateList.ValueOf(Color.Argb(85, 121, 184, 255)));
         panel.Background = background;
+        panel.Elevation = 14 * density;
 
         var header = new LinearLayout(_context) { Orientation = Orientation.Horizontal };
         header.SetGravity(GravityFlags.CenterVertical);
-        var heading = Text("运行日志", 17, Color.White);
+        var heading = Text("⠿  运行日志", 17, Color.White);
         heading.SetTypeface(Typeface.Default, TypefaceStyle.Bold);
+        heading.Touch += OnPanelDragTouch;
         header.AddView(heading, new LinearLayout.LayoutParams(0,
             ViewGroup.LayoutParams.WrapContent, 1));
         var backToStatus = Button("返回");
@@ -406,6 +528,10 @@ internal static class AndroidCurrentScreenOverlay
         };
         header.AddView(backToStatus, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WrapContent, ViewGroup.LayoutParams.WrapContent));
+        var rightGrip = Text("⠿", 20, Color.Rgb(130, 190, 245));
+        rightGrip.SetPadding((int)(8 * density), 0, 0, 0);
+        rightGrip.Touch += OnPanelDragTouch;
+        header.AddView(rightGrip);
         panel.AddView(header);
 
         _logSubtitleView = Text(string.IsNullOrWhiteSpace(_snapshot.CurrentTask)
@@ -434,7 +560,7 @@ internal static class AndroidCurrentScreenOverlay
         open.Click += (_, _) => OpenApp();
         var stop = Button("停止任务");
         stop.Click += (_, _) => PlatformRunProgress.RequestStop?.Invoke();
-        var close = Button("收起");
+        var close = Button("侧藏");
         close.Click += (_, _) =>
         {
             lock (Sync)
@@ -575,18 +701,38 @@ internal static class AndroidCurrentScreenOverlay
         return text;
     }
 
-    private static global::Android.Widget.Button Button(string text) => new(_context!)
+    private static global::Android.Widget.Button Button(string text)
     {
-        Text = text,
-        TextSize = 12
-    };
+        var density = _context!.Resources?.DisplayMetrics?.Density ?? 1f;
+        var button = new global::Android.Widget.Button(_context!)
+        {
+            Text = text,
+            TextSize = 12
+        };
+        button.SetTextColor(Color.White);
+        button.SetPadding((int)(7 * density), 0, (int)(7 * density), 0);
+        var background = new global::Android.Graphics.Drawables.GradientDrawable();
+        background.SetColor(unchecked((int)0x553B82C4));
+        background.SetCornerRadius(12 * density);
+        background.SetStroke((int)density,
+            global::Android.Content.Res.ColorStateList.ValueOf(Color.Argb(68, 127, 199, 255)));
+        button.Background = background;
+        return button;
+    }
 
     private static WindowManagerLayoutParams CreateBallLayout()
     {
         var density = _context!.Resources?.DisplayMetrics?.Density ?? 1f;
         var size = (int)(56 * density);
-        return NewLayout(size, size, GravityFlags.End | GravityFlags.CenterVertical,
-            (int)(8 * density), 0);
+        var metrics = _context.Resources?.DisplayMetrics;
+        var screenWidth = metrics?.WidthPixels ?? (int)(600 * density);
+        var screenHeight = metrics?.HeightPixels ?? (int)(900 * density);
+        var previousX = _layout?.X ?? screenWidth;
+        var x = previousX < screenWidth / 2 ? -size / 2 : screenWidth - size / 2;
+        var y = Math.Clamp(_layout?.Y ?? (screenHeight - size) / 2,
+            0, Math.Max(0, screenHeight - size));
+        return NewLayout(size, size, GravityFlags.Start | GravityFlags.Top,
+            x, y);
     }
 
     private static WindowManagerLayoutParams CreatePanelLayout()
@@ -594,7 +740,12 @@ internal static class AndroidCurrentScreenOverlay
         var metrics = _context!.Resources?.DisplayMetrics;
         var density = metrics?.Density ?? 1f;
         var width = Math.Min((int)(340 * density), (int)((metrics?.WidthPixels ?? 600) * .85));
-        return NewLayout(width, ViewGroup.LayoutParams.WrapContent, GravityFlags.Center, 0, 0);
+        var screenWidth = metrics?.WidthPixels ?? width;
+        var x = _layout?.X ?? Math.Max(0, (screenWidth - width) / 2);
+        var y = _layout?.Y ?? (int)(80 * density);
+        return NewLayout(width, ViewGroup.LayoutParams.WrapContent,
+            GravityFlags.Start | GravityFlags.Top,
+            Math.Clamp(x, 0, Math.Max(0, screenWidth - width)), Math.Max(0, y));
     }
 
     private static WindowManagerLayoutParams CreateLogPanelLayout()
@@ -603,9 +754,15 @@ internal static class AndroidCurrentScreenOverlay
         var density = metrics?.Density ?? 1f;
         var screenWidth = metrics?.WidthPixels ?? (int)(600 * density);
         var screenHeight = metrics?.HeightPixels ?? (int)(900 * density);
-        var width = Math.Min((int)(480 * density), (int)(screenWidth * .92));
-        var height = Math.Min((int)(540 * density), (int)(screenHeight * .62));
-        return NewLayout(width, height, GravityFlags.Center, 0, 0);
+        var width = Math.Min((int)(360 * density), (int)(screenWidth * .34));
+        var height = Math.Min((int)(440 * density), (int)(screenHeight * .50));
+        var margin = (int)(10 * density);
+        var previousX = _layout?.X ?? screenWidth;
+        var x = previousX < screenWidth / 2 ? margin : screenWidth - width - margin;
+        var y = _layout?.Y ?? Math.Max(0, (screenHeight - height) / 2);
+        return NewLayout(width, height, GravityFlags.Start | GravityFlags.Top,
+            Math.Clamp(x, 0, Math.Max(0, screenWidth - width)),
+            Math.Clamp(y, 0, Math.Max(0, screenHeight - height)));
     }
 
     private static WindowManagerLayoutParams NewLayout(
@@ -641,6 +798,8 @@ internal static class AndroidCurrentScreenOverlay
         }
 
         _container.RemoveAllViews();
+        _container.Alpha = 1f;
+        _panelSideDocked = false;
         _content?.Dispose();
         _content = next;
         _layout = layout;
@@ -707,7 +866,17 @@ internal static class AndroidCurrentScreenOverlay
         {
             lock (Sync)
                 applied = ApplyScriptInputState(active);
-            completed.Set();
+            if (!active || !applied || _container == null || !_attached)
+            {
+                completed.Set();
+                return;
+            }
+
+            // UpdateViewLayout schedules a ViewRoot traversal; returning from it does not
+            // mean InputDispatcher has received the new input-window flags. Wait through
+            // two display frames before allowing the injected DOWN/UP to continue.
+            _container.PostOnAnimation(new Java.Lang.Runnable(() =>
+                _container?.PostOnAnimation(new Java.Lang.Runnable(completed.Set))));
         });
         return completed.Wait(TimeSpan.FromMilliseconds(750)) && applied;
     }

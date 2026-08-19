@@ -63,6 +63,8 @@
             <Link>Resources\drawable\Icon.png</Link>
         </AndroidResource>
         <AndroidJavaSource Include="Java\com\fox\MFAAvalonia\MfaShizukuUserService.java" />
+        <AndroidJavaSource Include="Java\com\fox\MFAAvalonia\MfaShellServiceStarter.java" />
+        <AndroidJavaSource Include="Java\com\fox\MFAAvalonia\MfaShellServiceProvider.java" />
         <AndroidJavaSource Include="Java\com\fox\MFAAvalonia\MfaNativeBridge.java" />
         <AndroidJavaSource Include="Java\com\fox\MFAAvalonia\MfaOverlaySurface.java" />
     </ItemGroup>

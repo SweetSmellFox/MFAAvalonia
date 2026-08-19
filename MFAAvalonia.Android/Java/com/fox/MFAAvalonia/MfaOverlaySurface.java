@@ -3,9 +3,11 @@ package com.fox.MFAAvalonia;
 import android.os.Build;
 import android.util.Log;
 import android.view.SurfaceControl;
+import android.view.Surface;
 import android.view.View;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.Field;
 
 /** Applies the SurfaceFlinger skip-screenshot bit to MFA's owned overlay surface. */
 public final class MfaOverlaySurface {
@@ -24,15 +26,15 @@ public final class MfaOverlaySurface {
             if (viewRoot == null)
                 return false;
 
-            Method getSurfaceControl = viewRoot.getClass().getMethod("getSurfaceControl");
-            Object surface = getSurfaceControl.invoke(viewRoot);
+            Object surface = findSurfaceControl(viewRoot);
             if (!(surface instanceof SurfaceControl) || !((SurfaceControl) surface).isValid())
                 return false;
 
             SurfaceControl.Transaction transaction = new SurfaceControl.Transaction();
             try {
-                Method setSkipScreenshot = SurfaceControl.Transaction.class.getMethod(
+                Method setSkipScreenshot = findMethod(SurfaceControl.Transaction.class,
                         "setSkipScreenshot", SurfaceControl.class, boolean.class);
+                setSkipScreenshot.setAccessible(true);
                 setSkipScreenshot.invoke(transaction, surface, true);
                 transaction.apply();
             } finally {
@@ -51,5 +53,71 @@ public final class MfaOverlaySurface {
             Log.w(TAG, "Unable to exclude overlay surface from screenshots", exception);
             return false;
         }
+    }
+
+    private static SurfaceControl findSurfaceControl(Object owner) throws Exception {
+        Class<?> current = owner.getClass();
+        while (current != null) {
+            for (Method method : current.getDeclaredMethods()) {
+                if (method.getParameterTypes().length == 0
+                        && SurfaceControl.class.isAssignableFrom(method.getReturnType())) {
+                    method.setAccessible(true);
+                    Object value = method.invoke(owner);
+                    if (value instanceof SurfaceControl)
+                        return (SurfaceControl) value;
+                }
+            }
+            for (Field field : current.getDeclaredFields()) {
+                if (!SurfaceControl.class.isAssignableFrom(field.getType()))
+                    continue;
+                field.setAccessible(true);
+                Object value = field.get(owner);
+                if (value instanceof SurfaceControl)
+                    return (SurfaceControl) value;
+            }
+            current = current.getSuperclass();
+        }
+
+        // Some Android 12 vendor ViewRootImpl variants retain only a Surface. Scan
+        // that object as well because vendors may expose its backing SurfaceControl.
+        current = owner.getClass();
+        while (current != null) {
+            for (Field field : current.getDeclaredFields()) {
+                if (!Surface.class.isAssignableFrom(field.getType()))
+                    continue;
+                field.setAccessible(true);
+                Object value = field.get(owner);
+                if (value != null)
+                    return findSurfaceControl(value);
+            }
+            current = current.getSuperclass();
+        }
+        throw new NoSuchFieldException(owner.getClass().getName()
+                + " contains no SurfaceControl member");
+    }
+
+    private static Method findMethod(Class<?> type, String name, Class<?>... parameterTypes)
+            throws NoSuchMethodException {
+        Class<?> current = type;
+        while (current != null) {
+            try {
+                return current.getDeclaredMethod(name, parameterTypes);
+            } catch (NoSuchMethodException ignored) {
+                current = current.getSuperclass();
+            }
+        }
+        throw new NoSuchMethodException(type.getName() + "." + name);
+    }
+
+    private static Field findField(Class<?> type, String name) throws NoSuchFieldException {
+        Class<?> current = type;
+        while (current != null) {
+            try {
+                return current.getDeclaredField(name);
+            } catch (NoSuchFieldException ignored) {
+                current = current.getSuperclass();
+            }
+        }
+        throw new NoSuchFieldException(type.getName() + "." + name);
     }
 }

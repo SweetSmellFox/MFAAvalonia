@@ -34,6 +34,10 @@
       android:exported="true"
       android:multiprocess="false" />
     <provider
+      android:name="com.fox.MFAAvalonia.MfaShellServiceProvider"
+      android:authorities="${applicationId}.mfa.shell.bootstrap"
+      android:exported="true" />
+    <provider
       android:name="androidx.core.content.FileProvider"
       android:authorities="${fileProviderAuthority}"
       android:exported="false"
