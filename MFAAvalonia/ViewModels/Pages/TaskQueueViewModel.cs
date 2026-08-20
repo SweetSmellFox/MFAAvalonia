@@ -391,7 +391,8 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
             if (MaaProcessor.Interface == null)
             {
                 LoggerHelper.Warning("界面资源接口尚未初始化完成。");
-                DispatcherHelper.RunOnMainThread(() => CurrentResources = []);
+                // Android 上 Interface 可能在页面初始化后短暂尚未就绪。
+                // 保留已有列表，避免下拉框仍显示旧值但启动校验认为没有选择资源。
                 return;
             }
 
@@ -419,9 +420,9 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
 
             var resourceToSelect = targetResource ?? CurrentResource;
             var nextResources = new ObservableCollection<MaaInterface.MaaInterfaceResource>(filteredResources);
-            var resolvedResource = !string.IsNullOrWhiteSpace(resourceToSelect) && nextResources.Any(r => r.Name == resourceToSelect)
-                ? resourceToSelect
-                : nextResources.FirstOrDefault()?.Name ?? "Default";
+            var matchedResource = nextResources.FirstOrDefault(r =>
+                string.Equals(r.Name?.Trim(), resourceToSelect?.Trim(), StringComparison.OrdinalIgnoreCase));
+            var resolvedResource = matchedResource?.Name ?? nextResources.FirstOrDefault()?.Name ?? "Default";
 
             DispatcherHelper.RunOnMainThread(() =>
             {
@@ -658,7 +659,8 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        if (CurrentResources.Count == 0 || string.IsNullOrWhiteSpace(CurrentResource) || CurrentResources.All(r => r.Name != CurrentResource))
+        if (CurrentResources.Count == 0 || string.IsNullOrWhiteSpace(CurrentResource)
+            || CurrentResources.All(r => !string.Equals(r.Name?.Trim(), CurrentResource.Trim(), StringComparison.OrdinalIgnoreCase)))
         {
             ToastHelper.Warn(LangKeys.CannotStart.ToLocalization(), LangKeys.ResourceNotSelected.ToLocalization());
             LogStartBlocked("启动任务被拒绝：未选择有效资源");
@@ -1728,7 +1730,8 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
         using var _ = BeginUiLogScope("Reconnect");
         LoggerHelper.UserAction("重新连接", DescribeCurrentSelection(),
             operation: "Reconnect", instanceId: Processor.InstanceId, instanceName: InstanceName);
-        if (CurrentResources.Count == 0 || string.IsNullOrWhiteSpace(CurrentResource) || CurrentResources.All(r => r.Name != CurrentResource))
+        if (CurrentResources.Count == 0 || string.IsNullOrWhiteSpace(CurrentResource)
+            || CurrentResources.All(r => !string.Equals(r.Name?.Trim(), CurrentResource.Trim(), StringComparison.OrdinalIgnoreCase)))
         {
             ToastHelper.Warn(LangKeys.CannotStart.ToLocalization(), LangKeys.ResourceNotSelected.ToLocalization());
             LogStartBlocked("重新连接被拒绝：未选择有效资源");

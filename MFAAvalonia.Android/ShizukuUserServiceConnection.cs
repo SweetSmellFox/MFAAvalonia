@@ -25,6 +25,9 @@ internal sealed class ShizukuUserServiceConnection : Java.Lang.Object, IServiceC
     private readonly Action<bool, int, int, string?> _stateChanged;
     private Shizuku.UserServiceArgs? _args;
     private IBinder? _service;
+    private IBinder? _rootService;
+    private IBinder? _shellService;
+    private bool _usingRootService;
     private Context? _context;
     private readonly OverlayInputStateBinder _overlayInputStateBinder = new();
 
@@ -55,16 +58,8 @@ internal sealed class ShizukuUserServiceConnection : Java.Lang.Object, IServiceC
 
         try
         {
-            service = await ResolveShellServiceAsync(service);
-            using var data = Parcel.Obtain();
-            using var reply = Parcel.Obtain();
-            data.WriteInt(global::Android.OS.Process.MyPid());
-            data.WriteStrongBinder(_overlayInputStateBinder);
-            service.Transact(HealthTransaction, data, reply, 0);
-            var uid = reply.ReadInt();
-            var port = reply.ReadInt();
-            if (port is <= 0 or > 65535)
-                throw new InvalidOperationException($"Shizuku UserService returned an invalid input port: {port}.");
+            service = await PrepareServiceFallbackAsync(service);
+            var (uid, port) = Handshake(service);
             _service = service;
             _stateChanged(true, uid, port, null);
         }
@@ -74,11 +69,19 @@ internal sealed class ShizukuUserServiceConnection : Java.Lang.Object, IServiceC
         }
     }
 
-    private async Task<IBinder> ResolveShellServiceAsync(IBinder initialService)
+    private async Task<IBinder> PrepareServiceFallbackAsync(IBinder initialService)
     {
         var uid = ReadServiceUid(initialService);
         if (uid != 0)
+        {
+            _usingRootService = false;
+            if (uid == 2000)
+                _shellService = initialService;
             return initialService;
+        }
+
+        _rootService = initialService;
+        _usingRootService = true;
         var context = _context ?? throw new InvalidOperationException("Android context is unavailable.");
         var uri = global::Android.Net.Uri.Parse($"content://{context.PackageName}.mfa.shell.bootstrap");
         for (var attempt = 0; attempt < 100; attempt++)
@@ -86,10 +89,27 @@ internal sealed class ShizukuUserServiceConnection : Java.Lang.Object, IServiceC
             using var result = context.ContentResolver?.Call(uri!, "take", null, null);
             var shellService = result?.GetBinder("service");
             if (shellService?.IsBinderAlive == true && ReadServiceUid(shellService) == 2000)
-                return shellService;
+            {
+                _shellService = shellService;
+                return initialService;
+            }
             await Task.Delay(50).ConfigureAwait(false);
         }
         throw new TimeoutException("The shell virtual-display helper did not attach within 5 seconds.");
+    }
+
+    private (int Uid, int Port) Handshake(IBinder service)
+    {
+        using var data = Parcel.Obtain();
+        using var reply = Parcel.Obtain();
+        data.WriteInt(global::Android.OS.Process.MyPid());
+        data.WriteStrongBinder(_overlayInputStateBinder);
+        service.Transact(HealthTransaction, data, reply, 0);
+        var uid = reply.ReadInt();
+        var port = reply.ReadInt();
+        if (port is <= 0 or > 65535)
+            throw new InvalidOperationException($"Shizuku UserService returned an invalid input port: {port}.");
+        return (uid, port);
     }
 
     private static int ReadServiceUid(IBinder service)
@@ -103,6 +123,7 @@ internal sealed class ShizukuUserServiceConnection : Java.Lang.Object, IServiceC
     public void OnServiceDisconnected(ComponentName? name)
     {
         _service = null;
+        _usingRootService = false;
         _stateChanged(false, -1, -1, "Shizuku UserService disconnected.");
     }
 
@@ -110,6 +131,32 @@ internal sealed class ShizukuUserServiceConnection : Java.Lang.Object, IServiceC
     {
         var service = _service
             ?? throw new InvalidOperationException("Shizuku UserService is not connected.");
+        var result = CreateVirtualDisplayCore(service, width, height, dpi, surface);
+        if (result.DisplayId < 0 && _usingRootService
+                                 && _shellService?.IsBinderAlive == true)
+        {
+            global::Android.Util.Log.Warn("MfaVirtualDisplay",
+                $"Root display creation failed ({result.Error}); retrying with shell helper.");
+            service = _shellService;
+            var (uid, port) = Handshake(service);
+            _service = service;
+            _usingRootService = false;
+            _stateChanged(true, uid, port, null);
+            result = CreateVirtualDisplayCore(service, width, height, dpi, surface);
+        }
+
+        if (result.DisplayId < 0)
+            throw new InvalidOperationException(
+                $"Shizuku virtual display creation failed: {result.Error ?? "unknown error"} " +
+                $"(last flags=0x{result.Flags:X}).");
+        global::Android.Util.Log.Info("MfaVirtualDisplay",
+            $"UserService created display {result.DisplayId} with flags 0x{result.Flags:X}.");
+        return result.DisplayId;
+    }
+
+    private static (int DisplayId, string? Error, int Flags) CreateVirtualDisplayCore(
+        IBinder service, int width, int height, int dpi, Surface surface)
+    {
         using var data = Parcel.Obtain();
         using var reply = Parcel.Obtain();
         data.WriteInt(width);
@@ -120,13 +167,7 @@ internal sealed class ShizukuUserServiceConnection : Java.Lang.Object, IServiceC
         var displayId = reply.ReadInt();
         var error = reply.ReadString();
         var flags = reply.ReadInt();
-        if (displayId < 0)
-            throw new InvalidOperationException(
-                $"Shizuku virtual display creation failed: {error ?? "unknown error"} " +
-                $"(last flags=0x{flags:X}).");
-        global::Android.Util.Log.Info("MfaVirtualDisplay",
-            $"UserService created display {displayId} with flags 0x{flags:X}.");
-        return displayId;
+        return (displayId, error, flags);
     }
 
     public void ReleaseVirtualDisplay()
@@ -222,6 +263,9 @@ internal sealed class ShizukuUserServiceConnection : Java.Lang.Object, IServiceC
         if (_args == null) return;
         ReleaseVirtualDisplay();
         _service = null;
+        _rootService = null;
+        _shellService = null;
+        _usingRootService = false;
         Shizuku.UnbindUserService(_args, this, true);
         _args.Dispose();
         _args = null;

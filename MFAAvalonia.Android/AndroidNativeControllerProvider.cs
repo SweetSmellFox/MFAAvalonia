@@ -94,8 +94,6 @@ internal sealed class AndroidNativeControllerProvider
         if (bridgeResult != 0)
             throw new InvalidOperationException(
                 $"MFA Android native bridge initialization failed (result={bridgeResult}).");
-        if (NativeBridgeInterop.SetInputPort((uint)_shizuku.UserServicePort) != 0)
-            throw new InvalidOperationException("MFA Android native input bridge initialization failed.");
         if (useVirtualDisplay && (!_displayBackend.IsRunning || _displayBackend.IsPrimaryCapture))
         {
             var dpi = (int)metrics.DensityDpi;
@@ -112,6 +110,12 @@ internal sealed class AndroidNativeControllerProvider
             if (!captureResult.Success)
                 throw new InvalidOperationException(captureResult.Message);
         }
+        // Creating a virtual display first tries the root UserService and may fall back
+        // to the shell helper. Configure the native controller only after that choice is
+        // final, otherwise Maa sends StartApp/touch requests to the old root port while
+        // capture belongs to the shell-created display.
+        if (NativeBridgeInterop.SetInputPort((uint)_shizuku.UserServicePort) != 0)
+            throw new InvalidOperationException("MFA Android native input bridge initialization failed.");
         if (useVirtualDisplay)
             _shizuku.SetGameProcessKeepAlive(_displayBackend.DisplayId, true);
         var config = JsonSerializer.Serialize(new
