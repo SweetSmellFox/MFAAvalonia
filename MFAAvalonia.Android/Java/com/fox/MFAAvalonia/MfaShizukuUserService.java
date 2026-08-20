@@ -349,7 +349,8 @@ public final class MfaShizukuUserService extends Binder {
 
                         virtualDisplay = display;
                         virtualDisplaySurface = surface;
-                        activeDisplayOwnsFocus = (candidateFlags & (1 << 14)) != 0
+                        activeDisplayOwnsFocus = (candidateFlags & (1 << 10)) != 0
+                                && (candidateFlags & (1 << 14)) != 0
                                 && (candidateFlags & (1 << 16)) != 0;
                         int displayId = display.getDisplay().getDisplayId();
                         inputServer.setCurrentScreenCapture(false);
@@ -1411,9 +1412,39 @@ public final class MfaShizukuUserService extends Binder {
                 TaskPlacement foregroundTask) {
             if (!activateGameDisplay(packageName, controllerDisplayId, gameDisplayId))
                 return false;
-            if (requiresHostFocusRecovery())
-                restoreFocusedTask(foregroundTask, gameDisplayId);
+            // Flags are only a request; MuMu may accept them while still focusing the
+            // newly opened game task. Verify the actual global focus and recover the
+            // host task whenever the game has taken it, regardless of backend/flags.
+            restoreHostFocusIfNeeded(foregroundTask, packageName, gameDisplayId);
             return true;
+        }
+
+        private void restoreHostFocusIfNeeded(
+                TaskPlacement hostTask, String gamePackage, int gameDisplayId) {
+            if (hostTask == null || hostTask.taskId < 0)
+                return;
+            TaskPlacement focused = getFocusedRootTaskPlacement();
+            boolean gameHasFocus = focused != null && gamePackage != null
+                    && gamePackage.equals(focused.packageName);
+            if (requiresHostFocusRecovery() || gameHasFocus) {
+                restoreFocusedTask(hostTask, gameDisplayId);
+                // MuMu updates TaskTab/focus asynchronously after OPEN. Check once
+                // more after the transition so a late focus notification cannot leave
+                // the game tab visible on the host.
+                final TaskPlacement delayedHostTask = hostTask;
+                final String delayedGamePackage = gamePackage;
+                new Thread(() -> {
+                    try {
+                        Thread.sleep(250);
+                        TaskPlacement lateFocused = getFocusedRootTaskPlacement();
+                        if (lateFocused != null && delayedGamePackage != null
+                                && delayedGamePackage.equals(lateFocused.packageName))
+                            restoreFocusedTask(delayedHostTask, gameDisplayId);
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                    }
+                }, "mfa-focus-recovery").start();
+            }
         }
 
         private TaskPlacement getFocusedRootTaskPlacement() {
