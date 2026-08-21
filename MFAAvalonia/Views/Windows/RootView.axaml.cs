@@ -533,10 +533,9 @@ public partial class RootView : SukiWindow
                             ToastHelper.Info(MaaProcessor.Interface.Message);
                         }
 
-                        if (!string.IsNullOrWhiteSpace(MaaProcessor.Interface?.Welcome))
-                        {
-                            await AnnouncementViewModel.AddAnnouncementAsync(MaaProcessor.Interface.Welcome, projectDir: AppPaths.DataRoot);
-                        }
+                        await AnnouncementViewModel.SetWelcomeAnnouncementsAsync(
+                            MaaProcessor.Interface?.Welcome,
+                            AppPaths.DataRoot);
                     }));
 
 

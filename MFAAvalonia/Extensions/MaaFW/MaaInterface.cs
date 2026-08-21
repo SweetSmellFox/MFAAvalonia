@@ -1495,7 +1495,20 @@ public partial class MaaInterface
     public string? MFAMinVersion { get; set; }
 
     [JsonProperty("welcome")]
-    public string? Welcome { get; set; }
+    [JsonConverter(typeof(MaaWelcomeConverter))]
+    public List<MaaInterfaceWelcome>? Welcome { get; set; }
+
+    public class MaaInterfaceWelcome
+    {
+        [JsonProperty("label")]
+        public string? Label { get; set; }
+
+        [JsonProperty("content")]
+        public string? Content { get; set; }
+
+        [JsonIgnore]
+        public bool IsLegacyString { get; set; }
+    }
 
     [JsonProperty("message")]
     public string? Message { get; set; }
@@ -1716,7 +1729,15 @@ public partial class MaaInterface
         if (other.Telemetry != null) Telemetry = other.Telemetry;
         if (!string.IsNullOrEmpty(other.MFAMaxVersion)) MFAMaxVersion = other.MFAMaxVersion;
         if (!string.IsNullOrEmpty(other.MFAMinVersion)) MFAMinVersion = other.MFAMinVersion;
-        if (!string.IsNullOrEmpty(other.Welcome)) Welcome = other.Welcome;
+        if (other.Welcome != null)
+        {
+            Welcome = other.Welcome.Select(item => new MaaInterfaceWelcome
+            {
+                Label = item.Label,
+                Content = item.Content,
+                IsLegacyString = item.IsLegacyString,
+            }).ToList();
+        }
         if (!string.IsNullOrEmpty(other.Message)) Message = other.Message;
         if (!string.IsNullOrEmpty(other.Github)) Github = other.Github;
         if (!string.IsNullOrEmpty(other.Url)) Url = other.Url;

@@ -10,6 +10,7 @@ public static class ConfigurationKeys
     public const string ShowGui = "ShowGui";
     public const string LinkStart = "LinkStart";
     public const string DoNotShowAnnouncementAgain = "AnnouncementInfo.DoNotShowAgain";
+    public const string WelcomeAnnouncementSnapshot = "AnnouncementInfo.WelcomeSnapshot";
     public const string DoNotShowChangelogAgain = "Changelog.DoNotShowAgain";
     public const string ForceScheduledStart = "ForceScheduledStart";
     public const string CustomConfig = "CustomConfig";

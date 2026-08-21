@@ -14,6 +14,8 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
+using MFAAvalonia.Extensions.MaaFW;
 
 namespace MFAAvalonia.ViewModels.Windows;
 
@@ -29,6 +31,7 @@ public partial class AnnouncementViewModel : ViewModelBase
 {
     public static readonly string AnnouncementFolder = "announcement";
     private static readonly string LegacyAnnouncementFolder = "Announcement";
+    private static readonly object PublicAnnouncementLock = new();
     private static List<AnnouncementItem> _publicAnnouncementItems = new();
 
     [ObservableProperty] private AvaloniaList<AnnouncementItem> _announcementItems = new();
@@ -49,6 +52,14 @@ public partial class AnnouncementViewModel : ViewModelBase
 
         var legacyPath = Path.Combine(resourcePath, LegacyAnnouncementFolder);
         return Directory.Exists(legacyPath) ? legacyPath : standardPath;
+    }
+
+    private static bool HasPublicAnnouncements()
+    {
+        lock (PublicAnnouncementLock)
+        {
+            return _publicAnnouncementItems.Count > 0;
+        }
     }
 
     private CancellationTokenSource? _loadCts; // 加载取消令牌
@@ -129,7 +140,75 @@ public partial class AnnouncementViewModel : ViewModelBase
             return;
         }
 
-        _publicAnnouncementItems.Add(item);
+        lock (PublicAnnouncementLock)
+        {
+            _publicAnnouncementItems.Add(item);
+        }
+    }
+
+    /// <summary>
+    /// Replaces PI-provided announcements and records their complete ordered declaration.
+    /// </summary>
+    public static async Task SetWelcomeAnnouncementsAsync(
+        IReadOnlyList<MaaInterface.MaaInterfaceWelcome>? welcome,
+        string? projectDir = null)
+    {
+        var declarations = welcome ?? [];
+        var snapshot = JsonConvert.SerializeObject(
+            declarations.Select(item => new { item.Label, item.Content, item.IsLegacyString }).ToList(),
+            Formatting.None);
+        var previousSnapshot = GlobalConfiguration.GetValue(
+            ConfigurationKeys.WelcomeAnnouncementSnapshot, string.Empty);
+        var shouldRecordSnapshot = welcome != null || !string.IsNullOrEmpty(previousSnapshot);
+        if (shouldRecordSnapshot
+            && !string.Equals(previousSnapshot, snapshot, StringComparison.Ordinal))
+        {
+            GlobalConfiguration.SetValue(ConfigurationKeys.WelcomeAnnouncementSnapshot, snapshot);
+            GlobalConfiguration.SetValue(ConfigurationKeys.DoNotShowAnnouncementAgain, bool.FalseString);
+        }
+
+        var items = new List<AnnouncementItem>();
+        foreach (var declaration in declarations)
+        {
+            if (string.IsNullOrWhiteSpace(declaration.Content))
+            {
+                LoggerHelper.Warning("已跳过缺少 content 的 welcome 公告。");
+                continue;
+            }
+
+            var resolvedContent = await declaration.Content.ResolveContentAsync(projectDir)
+                .ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(resolvedContent))
+                continue;
+
+            string title;
+            string content;
+            if (declaration.IsLegacyString)
+            {
+                ParseAnnouncement(resolvedContent, out var parsedTitle, out var remainingContent);
+                title = parsedTitle;
+                content = remainingContent;
+            }
+            else
+            {
+                title = LanguageHelper.GetLocalizedString(declaration.Label);
+                content = resolvedContent;
+            }
+
+            var item = new AnnouncementItem
+            {
+                Title = title,
+                FilePath = declaration.Content,
+                Content = TaskQueueView.ConvertCustomMarkup(content),
+            };
+            if (!string.IsNullOrWhiteSpace(NormalizeAnnouncementContent(item.Content)))
+                items.Add(item);
+        }
+
+        lock (PublicAnnouncementLock)
+        {
+            _publicAnnouncementItems = items;
+        }
     }
 
     /// <summary>
@@ -143,16 +222,13 @@ public partial class AnnouncementViewModel : ViewModelBase
 
             var announcementDir = GetAnnouncementDirectory();
 
-            if (!Directory.Exists(announcementDir))
-            {
-                LoggerHelper.Warning($"公告文件夹不存在: {announcementDir}");
-                return;
-            }
-
             // 后台线程获取 Markdown 文件列表并读取内容
             var tempItems = await Task.Run(() =>
             {
                 var items = new List<AnnouncementItem>();
+                if (!Directory.Exists(announcementDir))
+                    return items;
+
                 var mdFiles = Directory.GetFiles(announcementDir, "*.md")
                     .OrderBy(Path.GetFileName)
                     .ToList();
@@ -186,9 +262,13 @@ public partial class AnnouncementViewModel : ViewModelBase
                 .Where(content => !string.IsNullOrWhiteSpace(content))
                 .ToHashSet(StringComparer.Ordinal);
 
-            var publicItems = _publicAnnouncementItems
-                .Where(item => !tempContentSet.Contains(NormalizeAnnouncementContent(item.Content)))
-                .ToList();
+            List<AnnouncementItem> publicItems;
+            lock (PublicAnnouncementLock)
+            {
+                publicItems = _publicAnnouncementItems
+                    .Where(item => !tempContentSet.Contains(NormalizeAnnouncementContent(item.Content)))
+                    .ToList();
+            }
 
             await DispatcherHelper.RunOnMainThreadAsync(() =>
             {
@@ -307,14 +387,15 @@ public partial class AnnouncementViewModel : ViewModelBase
             {
                 if (!Directory.Exists(announcementDir))
                 {
-                    return (exists: false, hasAnnouncements: false);
+                    return (exists: false, hasAnnouncements: HasPublicAnnouncements());
                 }
 
-                var hasAnnouncements = Directory.EnumerateFiles(announcementDir, "*.md").Any();
+                var hasAnnouncements = Directory.EnumerateFiles(announcementDir, "*.md").Any()
+                                       || HasPublicAnnouncements();
                 return (exists: true, hasAnnouncements);
             }).ConfigureAwait(false);
 
-            if (!scanResult.exists)
+            if (!scanResult.exists && !scanResult.hasAnnouncements)
             {
                 LoggerHelper.Warning($"公告文件夹不存在: {announcementDir}");
                 return;
