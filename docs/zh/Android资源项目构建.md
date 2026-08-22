@@ -139,6 +139,8 @@ Android adapter 会把 Maa Agent identifier 作为最后一个参数传给入口
 
 工作流应在构建期解析并编译依赖，而不是在用户设备上运行 `pip install`。这样 APK 安装后即可运行，也不依赖 Termux、网络或设备编译环境。
 
+示例 `android.yml` 会在解析 requirements 前安装 `packaging`，用于解析 PEP 508 依赖声明；资源项目无需把 `packaging` 额外写入自己的 requirements。若复制工作流时重写了解析脚本，也应确保运行该脚本的 Python 环境已安装 `packaging`。
+
 `maafw==VERSION` 同时决定：
 
 - 检出的 MaaFramework Python binding 版本；

@@ -57,12 +57,24 @@ jobs:
           ref: ${{ env.MFA_REF }}
           path: mfa-source
 
+      # The resolver below uses packaging's PEP 508 parser.  Install it
+      # before resolving requirements (the runner image does not guarantee it).
+      - name: Setup workflow Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install workflow parser dependencies
+        shell: bash
+        run: python -m pip install --upgrade pip packaging
+
       - name: Resolve Android Python requirements
         id: python_requirements
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import os
           import re
 
           root = Path("resource-source") / os.environ.get("RESOURCE_ROOT", ".")
@@ -367,7 +379,7 @@ jobs:
           sudo apt-get install -y \
             autoconf automake ccache cmake gettext libffi-dev libltdl-dev \
             libssl-dev libtool openjdk-17-jdk patch pkg-config unzip zip
-          python -m pip install --upgrade pip wheel setuptools
+          python -m pip install --upgrade pip wheel setuptools packaging
           git clone --depth 1 --branch "$P4A_REF" \
             https://github.com/kivy/python-for-android.git "$RUNNER_TEMP/python-for-android"
           python -m pip install --editable "$RUNNER_TEMP/python-for-android"

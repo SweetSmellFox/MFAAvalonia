@@ -114,6 +114,8 @@ Dependency resolution order:
 
 Dependencies are compiled at build time. Do not run `pip install` on user devices or require Termux.
 
+The example `android.yml` installs `packaging` before resolving requirements because its resolver uses that package's PEP 508 parser. Resource projects do not need to add `packaging` to their own requirements. If you copy the workflow and replace the resolver, make sure the Python environment running it still provides `packaging`.
+
 An exact `maafw==VERSION` must select the same version for:
 
 - the MaaFramework Python binding;
