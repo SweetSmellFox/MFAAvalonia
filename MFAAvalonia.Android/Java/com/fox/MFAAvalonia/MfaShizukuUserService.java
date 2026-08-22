@@ -1428,18 +1428,24 @@ public final class MfaShizukuUserService extends Binder {
                     && gamePackage.equals(focused.packageName);
             if (requiresHostFocusRecovery() || gameHasFocus) {
                 restoreFocusedTask(hostTask, gameDisplayId);
-                // MuMu updates TaskTab/focus asynchronously after OPEN. Check once
-                // more after the transition so a late focus notification cannot leave
-                // the game tab visible on the host.
+                // MuMu updates TaskTab/focus asynchronously after OPEN. Check several
+                // times so a late focus notification cannot leave the game tab visible
+                // on the host. The first check is intentionally after the usual
+                // TaskTab NEW_TASK broadcast (roughly 150ms on MuMu).
                 final TaskPlacement delayedHostTask = hostTask;
                 final String delayedGamePackage = gamePackage;
                 new Thread(() -> {
                     try {
-                        Thread.sleep(250);
-                        TaskPlacement lateFocused = getFocusedRootTaskPlacement();
-                        if (lateFocused != null && delayedGamePackage != null
-                                && delayedGamePackage.equals(lateFocused.packageName))
-                            restoreFocusedTask(delayedHostTask, gameDisplayId);
+                        int[] delays = { 100, 350, 800 };
+                        for (int delay : delays) {
+                            Thread.sleep(delay);
+                            TaskPlacement lateFocused = getFocusedRootTaskPlacement();
+                            boolean lateGameFocused = lateFocused != null
+                                    && delayedGamePackage != null
+                                    && delayedGamePackage.equals(lateFocused.packageName);
+                            if (requiresHostFocusRecovery() || lateGameFocused)
+                                restoreFocusedTask(delayedHostTask, gameDisplayId);
+                        }
                     } catch (InterruptedException interrupted) {
                         Thread.currentThread().interrupt();
                     }
