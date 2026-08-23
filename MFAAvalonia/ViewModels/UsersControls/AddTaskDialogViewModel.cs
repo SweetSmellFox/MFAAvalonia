@@ -33,6 +33,7 @@ public partial class AddTaskDialogViewModel : ViewModelBase, IDisposable
         "KillProcessAction",
         "ComputerOperationAction",
         "WebhookAction",
+        "SwitchInstanceAction",
     };
 
     private ObservableCollection<AddTaskItemViewModel> _items;
@@ -73,6 +74,7 @@ public partial class AddTaskDialogViewModel : ViewModelBase, IDisposable
             new() { Name = LangKeys.SpecialTask_KillProcess.ToLocalization(), IsSpecialTask = true, SpecialActionName = "KillProcessAction", SpecialIcon = "⛔" },
             new() { Name = LangKeys.SpecialTask_ComputerOperation.ToLocalization(), IsSpecialTask = true, SpecialActionName = "ComputerOperationAction", SpecialIcon = "⚡" },
             new() { Name = LangKeys.SpecialTask_Webhook.ToLocalization(), IsSpecialTask = true, SpecialActionName = "WebhookAction", SpecialIcon = "🔔" },
+            new() { Name = LangKeys.SpecialTask_SwitchInstance.ToLocalization(), IsSpecialTask = true, SpecialActionName = "SwitchInstanceAction", SpecialIcon = "🔁" },
         };
 
         LanguageHelper.LanguageChanged += OnLanguageChanged;
@@ -160,6 +162,7 @@ public partial class AddTaskDialogViewModel : ViewModelBase, IDisposable
             "KillProcessAction" => new JObject { ["kill_self_process"] = true, ["process_name"] = "" },
             "ComputerOperationAction" => new JObject { ["operation"] = "shutdown" },
             "WebhookAction" => new JObject { ["url"] = "", ["method"] = "GET", ["body"] = "", ["content_type"] = "application/json" },
+            "SwitchInstanceAction" => new JObject { ["target_instance"] = "" },
             _ => new JObject()
         };
     }
@@ -209,6 +212,7 @@ public partial class AddTaskDialogViewModel : ViewModelBase, IDisposable
             "KillProcessAction" => LangKeys.SpecialTask_KillProcessDesc,
             "ComputerOperationAction" => LangKeys.SpecialTask_ComputerOperationDesc,
             "WebhookAction" => LangKeys.SpecialTask_WebhookDesc,
+            "SwitchInstanceAction" => LangKeys.SpecialTask_SwitchInstanceDesc,
             _ => LangKeys.SpecialTask
         };
     }

@@ -1939,6 +1939,9 @@
     <data name="SpecialTask_Webhook" xml:space="preserve">
         <value>Webhook</value>
     </data>
+    <data name="SpecialTask_SwitchInstance" xml:space="preserve">
+        <value>切換實例</value>
+    </data>
     <data name="SpecialTask_CountdownDesc" xml:space="preserve">
         <value>在指定的秒數後繼續執行下一個任務，支援 `1~86400` 秒（24小時），可用於任務之間的延遲等待。</value>
     </data>
@@ -1960,8 +1963,14 @@
     <data name="SpecialTask_WebhookDesc" xml:space="preserve">
         <value>向指定 URL 發送 HTTP 請求，支援自訂請求體，適用於與外部服務或自動化平台整合。</value>
     </data>
+    <data name="SpecialTask_SwitchInstanceDesc" xml:space="preserve">
+        <value>停止目前實例任務，切換到目標實例（可為自己）並重新連線模擬器後啟動目標任務，用於多帳號輪換或單實例循環執行。</value>
+    </data>
     <data name="SpecialTask_CountdownSeconds" xml:space="preserve">
         <value>倒計時（秒）</value>
+    </data>
+    <data name="SpecialTask_SwitchInstanceTarget" xml:space="preserve">
+        <value>目標實例</value>
     </data>
     <data name="SpecialTask_WaitUntilTime" xml:space="preserve">
         <value>等待到（時:分）</value>
