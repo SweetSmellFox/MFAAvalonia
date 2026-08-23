@@ -28,6 +28,7 @@ public class SwitchInstanceAction : IMaaCustomAction
 
     public bool Run<T>(T context, in RunArgs args, in RunResults results) where T : IMaaContext
     {
+        var acquired = false;
         try
         {
             var json = ActionParamHelper.Parse(args.ActionParam);
@@ -46,6 +47,7 @@ public class SwitchInstanceAction : IMaaCustomAction
                 Fail("已有切换实例正在进行，本次请求已忽略");
                 return false;
             }
+            acquired = true;
 
             LoggerHelper.Info($"[SwitchInstanceAction] 切换实例：{_owner.InstanceId} -> {targetId}");
 
@@ -58,6 +60,8 @@ public class SwitchInstanceAction : IMaaCustomAction
         }
         catch (Exception e)
         {
+            if (acquired)
+                Interlocked.Exchange(ref _switching, 0);
             LoggerHelper.Error($"[SwitchInstanceAction] Error: {e.Message}");
             return false;
         }
@@ -97,6 +101,13 @@ public class SwitchInstanceAction : IMaaCustomAction
                     if (Instances.TryGetResolved<InstanceTabBarViewModel>(out var tabBar) && tabBar != null)
                         tabBar.SwitchToInstanceById(targetId);
                 });
+            }
+
+            // 目标实例正在运行则跳过启动，避免打断其任务。
+            if (target.IsTaskRunActive)
+            {
+                LoggerHelper.Info($"[SwitchInstanceAction] 目标实例 {targetId} 正在运行，已跳过启动");
+                return;
             }
 
             // 断开旧连接，保证 Start 时“重新连接”模拟器（而非复用已连接状态）。
