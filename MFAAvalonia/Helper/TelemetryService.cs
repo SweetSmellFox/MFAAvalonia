@@ -35,7 +35,7 @@ public static class TelemetryService
     {
         public required string RunId { get; init; }
         public required ITransactionTracer Transaction { get; init; }
-        public Dictionary<MFATask, ISpan> Tasks { get; } = new();
+        public Dictionary<MFATask, TaskTelemetryState> Tasks { get; } = new();
         public MFATask? ActiveTask { get; set; }
         public bool HasFailed { get; set; }
         public int TaskCount { get; init; }
@@ -44,9 +44,14 @@ public static class TelemetryService
         public FailureInfo? TerminalFailure { get; set; }
         public TaskEvidenceSnapshot? Evidence { get; set; }
         public long EvidenceEpoch { get; set; }
-        public long? ActiveTaskId { get; set; }
-        public DateTimeOffset ActiveTaskStartedAt { get; set; }
         public Dictionary<long, (long NodeId, DateTimeOffset StartedAt)> LastPipelineSteps { get; } = new();
+    }
+
+    private sealed class TaskTelemetryState
+    {
+        public required ISpan Span { get; init; }
+        public required DateTimeOffset StartedAt { get; init; }
+        public long? TaskId { get; set; }
     }
 
     private sealed class PendingFailureWorker
@@ -510,13 +515,15 @@ public static class TelemetryService
             {
                 span.SetData($"option.{option.Key}", option.Value);
             }
-            run.Tasks[task] = span;
+            run.Tasks[task] = new TaskTelemetryState
+            {
+                Span = span,
+                StartedAt = DateTimeOffset.UtcNow
+            };
             run.ActiveTask = task;
-            run.ActiveTaskStartedAt = DateTimeOffset.UtcNow;
             run.FailedNodeCount = 0;
             run.RootFailure = null;
             run.TerminalFailure = null;
-            run.ActiveTaskId = null;
             run.LastPipelineSteps.Clear();
             run.EvidenceEpoch = Interlocked.Increment(ref EvidenceEpoch);
             // Log collection is independent from screenshot attachment sampling.
@@ -538,9 +545,10 @@ public static class TelemetryService
     {
         lock (SyncRoot)
         {
-            if (!Runs.TryGetValue(instanceId, out var run) || !run.Tasks.Remove(task, out var span))
+            if (!Runs.TryGetValue(instanceId, out var run) || !run.Tasks.Remove(task, out var taskState))
                 return;
 
+            var span = taskState.Span;
             var spanStatus = hadFailure ? SpanStatus.InternalError : ToSpanStatus(status);
             span.Status = spanStatus;
             span.SetData("result", hadFailure ? "failure" : ToResult(status));
@@ -550,7 +558,7 @@ public static class TelemetryService
                 run.HasFailed = true;
                 try
                 {
-                    CaptureFailureEvent(instanceId, task, span, run);
+                    CaptureFailureEvent(instanceId, task, taskState, run);
                 }
                 catch (Exception ex)
                 {
@@ -568,11 +576,11 @@ public static class TelemetryService
         {
             if (!Runs.TryGetValue(instanceId, out var run)
                 || run.ActiveTask == null
-                || !run.Tasks.TryGetValue(run.ActiveTask, out var span))
+                || !run.Tasks.TryGetValue(run.ActiveTask, out var taskState))
                 return;
 
-            span.SetData("task_id", taskId);
-            run.ActiveTaskId = taskId;
+            taskState.Span.SetData("task_id", taskId);
+            taskState.TaskId = taskId;
         }
     }
 
@@ -582,10 +590,11 @@ public static class TelemetryService
         {
             if (!Runs.TryGetValue(instanceId, out var run)
                 || run.ActiveTask == null
-                || !run.Tasks.TryGetValue(run.ActiveTask, out var taskSpan)
+                || !run.Tasks.TryGetValue(run.ActiveTask, out var taskState)
                 || run.FailedNodeCount++ >= MaxFailedNodesPerRun)
                 return;
 
+            var taskSpan = taskState.Span;
             var taskName = run.ActiveTask.SourceItem?.InterfaceItem?.Name ?? run.ActiveTask.Name ?? "unknown";
             var span = taskSpan.StartChild("mfa.node", string.IsNullOrWhiteSpace(nodeName) ? "unknown" : nodeName);
             span.SetData("stage", stage ?? "unknown");
@@ -626,9 +635,10 @@ public static class TelemetryService
         {
             if (!Runs.TryGetValue(instanceId, out var run)
                 || run.ActiveTask == null
-                || !run.Tasks.TryGetValue(run.ActiveTask, out var taskSpan))
+                || !run.Tasks.TryGetValue(run.ActiveTask, out var taskState))
                 return;
 
+            var taskSpan = taskState.Span;
             var failure = new FailureInfo(code, stage, null, null, null, detail, exception);
             run.RootFailure ??= failure;
             run.TerminalFailure = failure;
@@ -670,7 +680,8 @@ public static class TelemetryService
                 : null;
             var nodeName = string.IsNullOrWhiteSpace(hitNode) ? searchNode : hitNode;
             if (string.IsNullOrWhiteSpace(nodeName) || run.ActiveTask == null
-                || !run.Tasks.TryGetValue(run.ActiveTask, out var taskSpan)) return;
+                || !run.Tasks.TryGetValue(run.ActiveTask, out var taskState)) return;
+            var taskSpan = taskState.Span;
             string? stage = message.Equals("Node.PipelineNode.Failed", StringComparison.Ordinal)
                 ? string.IsNullOrWhiteSpace(hitNode) ? "recognition" : "action"
                 : null;
@@ -766,8 +777,9 @@ public static class TelemetryService
         if (!Runs.Remove(instanceId, out var run))
             return;
 
-        foreach (var span in run.Tasks.Values)
+        foreach (var taskState in run.Tasks.Values)
         {
+            var span = taskState.Span;
             span.Status = SpanStatus.Cancelled;
             span.SetData("result", "cancelled");
             span.Finish();
@@ -849,13 +861,18 @@ public static class TelemetryService
         Exception? Exception = null,
         string? Message = null);
 
-    private static void CaptureFailureEvent(string instanceId, MFATask task, ISpan taskSpan, RunState run)
+    private static void CaptureFailureEvent(
+        string instanceId,
+        MFATask task,
+        TaskTelemetryState taskState,
+        RunState run)
     {
+        var taskSpan = taskState.Span;
         var taskName = task.SourceItem?.InterfaceItem?.Name ?? task.Name ?? "unknown-task";
         var rootFailure = run.RootFailure;
         var terminalFailure = run.TerminalFailure;
         var runId = run.RunId;
-        var taskId = run.ActiveTaskId;
+        var taskId = taskState.TaskId;
         var evidenceEpoch = run.EvidenceEpoch;
         var failureName = rootFailure == null
             ? taskName
@@ -905,7 +922,8 @@ public static class TelemetryService
         @event.SetExtra("instance.task_count", run.TaskCount);
         @event.SetExtra("run.id", runId);
         if (taskId.HasValue) @event.SetExtra("task.id", taskId.Value);
-        @event.SetExtra("task.duration_ms", Math.Max(0, (DateTimeOffset.UtcNow - run.ActiveTaskStartedAt).TotalMilliseconds));
+        @event.SetExtra("task.duration_ms", Math.Max(0,
+            (DateTimeOffset.UtcNow - taskState.StartedAt).TotalMilliseconds));
         if (run.Evidence != null)
         {
             @event.SetExtra("attachment.status", "pending");
