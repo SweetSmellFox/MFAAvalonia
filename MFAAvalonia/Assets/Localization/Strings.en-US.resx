@@ -1939,6 +1939,9 @@ Please do not copy only the main executable by itself.</value>
     <data name="SpecialTask_Webhook" xml:space="preserve">
         <value>Webhook</value>
     </data>
+    <data name="SpecialTask_SwitchInstance" xml:space="preserve">
+        <value>Switch Instance</value>
+    </data>
     <data name="SpecialTask_CountdownDesc" xml:space="preserve">
         <value>Continues to the next task after the specified seconds, supports `1~86400` seconds (24 hours), useful for adding delays between tasks.</value>
     </data>
@@ -1960,8 +1963,14 @@ Please do not copy only the main executable by itself.</value>
     <data name="SpecialTask_WebhookDesc" xml:space="preserve">
         <value>Sends an HTTP request to a specified URL with custom request body, useful for integrating with external services or automation platforms.</value>
     </data>
+    <data name="SpecialTask_SwitchInstanceDesc" xml:space="preserve">
+        <value>Stops the current instance, switches to the target instance (optionally itself), reconnects the emulator, and starts the target queue. Useful for multi-account rotation or single-instance looping.</value>
+    </data>
     <data name="SpecialTask_CountdownSeconds" xml:space="preserve">
         <value>Countdown (seconds)</value>
+    </data>
+    <data name="SpecialTask_SwitchInstanceTarget" xml:space="preserve">
+        <value>Target Instance</value>
     </data>
     <data name="SpecialTask_WaitUntilTime" xml:space="preserve">
         <value>Wait until (HH:MM)</value>

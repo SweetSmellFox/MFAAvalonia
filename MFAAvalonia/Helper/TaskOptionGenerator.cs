@@ -1327,6 +1327,9 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
             case "WebhookAction":
                 AddWebhookOptions(panel, dragItem);
                 break;
+            case "SwitchInstanceAction":
+                AddSwitchInstanceOptions(panel, dragItem);
+                break;
         }
     }
 
@@ -1364,6 +1367,52 @@ public class TaskOptionGenerator(TaskQueueViewModel viewModel, Action saveConfig
         Grid.SetColumn(numericUpDown, 1);
         AddResponsiveBehavior(grid, label, numericUpDown);
         grid.Children.Add(numericUpDown);
+        panel.Children.Add(grid);
+    }
+
+    /// <summary>
+    /// 切换实例 - 目标实例下拉选择（含自己，用于单实例循环）
+    /// </summary>
+    private void AddSwitchInstanceOptions(StackPanel panel, DragItemViewModel dragItem)
+    {
+        var param = GetActionParam(dragItem);
+        var grid = CreateSpecialTaskGrid(isFirstRow: true);
+
+        var label = CreateLabelPanel(LangKeys.SpecialTask_SwitchInstanceTarget, null, null, useI18n: true);
+        Grid.SetColumn(label, 0);
+        grid.Children.Add(label);
+
+        var instances = MaaProcessorManager.Instance.GetAllInstanceIdsAndNames();
+        var names = instances.Select(i => i.Name).ToList();
+
+        var comboBox = new ComboBox
+        {
+            MinWidth = 120,
+            Margin = new Thickness(0, 2, 0, 2),
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            Classes = { "TaskOptionLikeCombo" },
+            ItemsSource = names,
+        };
+        BindIdleEnabled(comboBox);
+
+        var current = (string?)param["target_instance"];
+        var currentIndex = string.IsNullOrWhiteSpace(current)
+            ? -1
+            : instances.FindIndex(i => i.Name == current || i.Id == current);
+        if (currentIndex >= 0)
+            comboBox.SelectedIndex = currentIndex;
+
+        comboBox.SelectionChanged += (_, _) =>
+        {
+            if (comboBox.SelectedIndex < 0 || comboBox.SelectedIndex >= names.Count) return;
+            param["target_instance"] = names[comboBox.SelectedIndex];
+            UpdateActionParam(dragItem, param);
+        };
+
+        Grid.SetColumn(comboBox, 1);
+        AddResponsiveBehavior(grid, label, comboBox);
+        grid.Children.Add(comboBox);
         panel.Children.Add(grid);
     }
 
