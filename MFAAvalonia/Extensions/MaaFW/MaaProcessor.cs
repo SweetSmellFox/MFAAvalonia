@@ -3459,8 +3459,8 @@ public class MaaProcessor
         {
             await TaskManager.RunTaskAsync(async () =>
             {
-                await ExecuteTasks(token);
-                Stop(Status, true, onlyStart);
+                var queueResult = await ExecuteTasks(token);
+                Stop(Status, true, onlyStart, queueCompleted: queueResult.QueueCompleted);
             }, token: token, name: "启动任务");
         }
         finally
@@ -3474,7 +3474,9 @@ public class MaaProcessor
 
     }
 
-    async private Task ExecuteTasks(CancellationToken token)
+    private readonly record struct TaskQueueResult(bool QueueCompleted);
+
+    async private Task<TaskQueueResult> ExecuteTasks(CancellationToken token)
     {
         var completedWithFailures = false;
         while (!token.IsCancellationRequested && TaskQueue.TryDequeue(out var task))
@@ -3497,7 +3499,7 @@ public class MaaProcessor
             if (result.Status != MFATask.MFATaskStatus.SUCCEEDED)
             {
                 Status = result.Status;
-                return;
+                return new TaskQueueResult(false);
             }
         }
         if (Status == MFATask.MFATaskStatus.NOT_STARTED)
@@ -3506,6 +3508,8 @@ public class MaaProcessor
                 : completedWithFailures
                     ? MFATask.MFATaskStatus.FAILED
                     : MFATask.MFATaskStatus.SUCCEEDED;
+
+        return new TaskQueueResult(!token.IsCancellationRequested);
     }
 
     public class NodeAndParam
@@ -4269,12 +4273,14 @@ public class MaaProcessor
 
     private readonly Lock _stopLock = new();
 
-    public void Stop(MFATask.MFATaskStatus status, bool finished = false, bool onlyStart = false, Action? action = null)
+    public void Stop(MFATask.MFATaskStatus status, bool finished = false, bool onlyStart = false,
+        Action? action = null, bool queueCompleted = false)
     {
-        EnqueueCommand(() => StopInternal(status, finished, onlyStart, action));
+        EnqueueCommand(() => StopInternal(status, finished, onlyStart, queueCompleted, action));
     }
 
-    private Task StopInternal(MFATask.MFATaskStatus status, bool finished, bool onlyStart, Action? action)
+    private Task StopInternal(MFATask.MFATaskStatus status, bool finished, bool onlyStart,
+        bool queueCompleted, Action? action)
     {
         using var logScope = BeginInstanceLogScope("StopTask", "Worker");
         ResetActionFailedCount();
@@ -4332,7 +4338,7 @@ public class MaaProcessor
                         }
 
                     }
-                    HandleStopResult(status, stopResult, onlyStart, action, isUpdateRelated);
+                    HandleStopResult(status, stopResult, onlyStart, queueCompleted, action, isUpdateRelated);
                     DispatcherHelper.PostOnMainThread(() =>
                     {
                         if (ViewModel != null) ViewModel.ToggleEnable = true;
@@ -4392,11 +4398,12 @@ public class MaaProcessor
         return status;
     }
 
-    private void HandleStopResult(MFATask.MFATaskStatus status, MaaJobStatus success, bool onlyStart, Action? action = null, bool isUpdateRelated = false)
+    private void HandleStopResult(MFATask.MFATaskStatus status, MaaJobStatus success, bool onlyStart,
+        bool queueCompleted = false, Action? action = null, bool isUpdateRelated = false)
     {
         if (success == MaaJobStatus.Succeeded)
         {
-            DisplayTaskCompletionMessage(status, onlyStart, action);
+            DisplayTaskCompletionMessage(status, onlyStart, queueCompleted, action);
         }
         else if (success == MaaJobStatus.Invalid)
         {
@@ -4413,7 +4420,8 @@ public class MaaProcessor
         _tempTasks = [];
     }
 
-    private void DisplayTaskCompletionMessage(MFATask.MFATaskStatus status, bool onlyStart = false, Action? action = null)
+    private void DisplayTaskCompletionMessage(MFATask.MFATaskStatus status, bool onlyStart = false,
+        bool queueCompleted = false, Action? action = null)
     {
         if (Interlocked.Exchange(ref _stopCompletionMessageHandled, 1) == 1)
         {
@@ -4429,6 +4437,9 @@ public class MaaProcessor
             ExternalNotificationHelper.ExternalNotificationAsync(Instances.ExternalNotificationSettingsUserControlModel.EnabledCustom
                 ? Instances.ExternalNotificationSettingsUserControlModel.CustomFailureText
                 : LangKeys.TaskFailed.ToLocalization());
+
+            if (queueCompleted && !onlyStart)
+                HandleAfterTaskOperation();
         }
         else if (status == MFATask.MFATaskStatus.STOPPED)
         {
