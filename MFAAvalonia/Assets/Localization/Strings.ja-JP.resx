@@ -412,6 +412,9 @@
   <data name="SpecialTask_Webhook" xml:space="preserve">
     <value>Webhook</value>
   </data>
+  <data name="SpecialTask_SwitchInstance" xml:space="preserve">
+    <value>インスタンス切替</value>
+  </data>
   <data name="SpecialTask_CountdownDesc" xml:space="preserve">
     <value>一定時間カウントダウンしてから次の処理を実行します。</value>
   </data>
@@ -433,8 +436,14 @@
   <data name="SpecialTask_WebhookDesc" xml:space="preserve">
     <value>指定した URL に Webhook リクエストを送信します。</value>
   </data>
+  <data name="SpecialTask_SwitchInstanceDesc" xml:space="preserve">
+    <value>現在のインスタンスのタスクを停止し、対象インスタンス（自分自身も可）に切り替えてエミュレーターを再接続し、対象のタスクを開始します。複数アカウントのローテーションや単一インスタンスのループ実行に使用します。</value>
+  </data>
   <data name="SpecialTask_CountdownSeconds" xml:space="preserve">
     <value>カウントダウン秒数</value>
+  </data>
+  <data name="SpecialTask_SwitchInstanceTarget" xml:space="preserve">
+    <value>対象インスタンス</value>
   </data>
   <data name="SpecialTask_WaitUntilTime" xml:space="preserve">
     <value>待機終了時刻</value>

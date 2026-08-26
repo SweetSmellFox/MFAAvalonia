@@ -654,6 +654,7 @@ public static class LangKeys
 	public static readonly string SpecialTask_KillProcess = "SpecialTask_KillProcess";
 	public static readonly string SpecialTask_ComputerOperation = "SpecialTask_ComputerOperation";
 	public static readonly string SpecialTask_Webhook = "SpecialTask_Webhook";
+	public static readonly string SpecialTask_SwitchInstance = "SpecialTask_SwitchInstance";
 	public static readonly string SpecialTask_CountdownDesc = "SpecialTask_CountdownDesc";
 	public static readonly string SpecialTask_TimedWaitDesc = "SpecialTask_TimedWaitDesc";
 	public static readonly string SpecialTask_ToastDesc = "SpecialTask_ToastDesc";
@@ -661,7 +662,9 @@ public static class LangKeys
 	public static readonly string SpecialTask_KillProcessDesc = "SpecialTask_KillProcessDesc";
 	public static readonly string SpecialTask_ComputerOperationDesc = "SpecialTask_ComputerOperationDesc";
 	public static readonly string SpecialTask_WebhookDesc = "SpecialTask_WebhookDesc";
+	public static readonly string SpecialTask_SwitchInstanceDesc = "SpecialTask_SwitchInstanceDesc";
 	public static readonly string SpecialTask_CountdownSeconds = "SpecialTask_CountdownSeconds";
+	public static readonly string SpecialTask_SwitchInstanceTarget = "SpecialTask_SwitchInstanceTarget";
 	public static readonly string SpecialTask_WaitUntilTime = "SpecialTask_WaitUntilTime";
 	public static readonly string SpecialTask_NotificationTitle = "SpecialTask_NotificationTitle";
 	public static readonly string SpecialTask_NotificationContent = "SpecialTask_NotificationContent";

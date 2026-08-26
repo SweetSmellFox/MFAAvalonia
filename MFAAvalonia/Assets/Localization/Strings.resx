@@ -1949,6 +1949,9 @@
     <data name="SpecialTask_Webhook" xml:space="preserve">
         <value>Webhook</value>
     </data>
+    <data name="SpecialTask_SwitchInstance" xml:space="preserve">
+        <value>切换实例</value>
+    </data>
     <data name="SpecialTask_CountdownDesc" xml:space="preserve">
         <value>在指定的秒数后继续执行下一个任务，支持 `1~86400` 秒（24小时），可用于任务之间的延迟等待。</value>
     </data>
@@ -1970,8 +1973,14 @@
     <data name="SpecialTask_WebhookDesc" xml:space="preserve">
         <value>发送 HTTP 请求到指定 URL，支持 `GET`/`POST` 方法，可自定义请求体和 Content-Type。</value>
     </data>
+    <data name="SpecialTask_SwitchInstanceDesc" xml:space="preserve">
+        <value>停止当前实例任务，切换到目标实例（可为自己）并重新连接模拟器后启动目标任务，用于多账号轮换或单实例循环执行。</value>
+    </data>
     <data name="SpecialTask_CountdownSeconds" xml:space="preserve">
         <value>倒计时（秒）</value>
+    </data>
+    <data name="SpecialTask_SwitchInstanceTarget" xml:space="preserve">
+        <value>目标实例</value>
     </data>
     <data name="SpecialTask_WaitUntilTime" xml:space="preserve">
         <value>等待到（时:分）</value>
