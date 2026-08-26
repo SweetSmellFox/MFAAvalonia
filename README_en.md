@@ -84,6 +84,8 @@ MFAAvalonia is intended for configuring and running packaged resources. Use the 
 
 For a manual package, the MaaFramework native libraries, resource directory, and `interface.json` must match. The project template should be preferred for normal release packaging.
 
+To provide a first-launch preset, place `config.template.json` in the package's `config` directory. It is promoted to `config.json` only when no other configuration JSON exists, including instance configuration under `config/instances`; updating an existing installation does not overwrite or add user configuration.
+
 ## Launch Parameters
 
 MFAAvalonia can select instances and run tasks from the command line. An instance can be specified by name or instance ID. Copy an instance ID from the context menu of its tab.

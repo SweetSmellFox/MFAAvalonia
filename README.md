@@ -84,6 +84,8 @@ MFAAvalonia 面向资源发布后的配置与运行。开发和排查 Pipeline �
 
 手动打包时，MaaFramework 原生库、资源目录和 `interface.json` 必须彼此匹配。一般情况下应优先使用项目模板生成发布产物。
 
+如需提供首次启动的预设配置，可在发布包的 `config` 目录放置 `config.template.json`。仅当目录中不存在其它配置 JSON（包括 `config/instances` 下的实例配置）时，该文件才会转换为 `config.json`；更新已有安装时不会覆盖或新增用户配置。
+
 ## 启动参数
 
 MFAAvalonia 支持通过命令行选择实例并执行任务。实例可以使用名称或实例 ID 指定；实例 ID 可在实例标签页的右键菜单中复制。

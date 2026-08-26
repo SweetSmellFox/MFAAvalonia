@@ -17,6 +17,8 @@ namespace MFAAvalonia.Configuration;
 
 public static class ConfigurationManager
 {
+    private const string DefaultConfigTemplateFileName = "config.template.json";
+
     private static string ConfigDir
     {
         get
@@ -177,6 +179,7 @@ public static class ConfigurationManager
         var defaultConfigPath = Path.Combine(configDir, "config.json");
         if (!Directory.Exists(configDir))
             Directory.CreateDirectory(configDir);
+        TryPromoteDefaultConfigTemplate(configDir, defaultConfigPath);
         if (!File.Exists(defaultConfigPath))
             File.WriteAllText(defaultConfigPath, "{}");
         if (ConfigName != "Default" && !File.Exists(Path.Combine(configDir, $"mfa_{ConfigName}.json")))
@@ -204,6 +207,45 @@ public static class ConfigurationManager
             ?? Current;
 
         return collection;
+    }
+
+    private static void TryPromoteDefaultConfigTemplate(string configDir, string defaultConfigPath)
+    {
+        var templatePath = Path.Combine(configDir, DefaultConfigTemplateFileName);
+        if (!File.Exists(templatePath))
+            return;
+
+        var hasExistingConfig = Directory.EnumerateFiles(configDir, "*.json", SearchOption.TopDirectoryOnly)
+            .Any(path => !path.Equals(templatePath, StringComparison.OrdinalIgnoreCase));
+
+        var instancesDir = Path.Combine(configDir, "instances");
+        if (!hasExistingConfig && Directory.Exists(instancesDir))
+        {
+            hasExistingConfig = Directory.EnumerateFiles(instancesDir, "*.json", SearchOption.AllDirectories).Any();
+        }
+
+        if (hasExistingConfig)
+        {
+            LoggerHelper.Info($"检测到已有用户配置，忽略临时预设配置：{DefaultConfigTemplateFileName}");
+            return;
+        }
+
+        var templateConfig = JsonHelper.LoadJson<Dictionary<string, object>?>(templatePath, null);
+        if (templateConfig == null)
+        {
+            LoggerHelper.Warning($"临时预设配置无效，已忽略：{DefaultConfigTemplateFileName}");
+            return;
+        }
+
+        try
+        {
+            File.Move(templatePath, defaultConfigPath);
+            LoggerHelper.Info($"已将临时预设配置转换为默认配置：{DefaultConfigTemplateFileName} -> config.json");
+        }
+        catch (Exception ex)
+        {
+            LoggerHelper.Error($"临时预设配置转换失败：{DefaultConfigTemplateFileName}", ex);
+        }
     }
 
     public static void SaveConfiguration(string configName)
