@@ -300,7 +300,8 @@ public class MaaProcessor
         IBrush? brush,
         string weight = "Regular",
         bool changeColor = true,
-        bool showTime = true)
+        bool showTime = true,
+        bool useMarkdown = false)
     {
         brush ??= Brushes.Black;
 
@@ -372,7 +373,8 @@ public class MaaProcessor
             var log = new LogItemViewModel(content, brush, weight, "HH':'mm':'ss",
                 showTime: showTime, changeColor: changeColor)
             {
-                BackgroundColor = backGroundBrush
+                BackgroundColor = backGroundBrush,
+                UseMarkdown = useMarkdown
             };
             LogItemViewModels.Add(log);
             PublishPlatformLog(log);
@@ -387,10 +389,11 @@ public class MaaProcessor
         string color = "",
         string weight = "Regular",
         bool changeColor = true,
-        bool showTime = true)
+        bool showTime = true,
+        bool useMarkdown = false)
     {
         var brush = BrushHelper.ConvertToBrush(color, Brushes.Black);
-        AddLog(content, brush, weight, changeColor, showTime);
+        AddLog(content, brush, weight, changeColor, showTime, useMarkdown);
     }
 
     public void AddLogByKey(string key, IBrush? brush = null, bool changeColor = true, bool transformKey = true, params string[] formatArgsKeys)

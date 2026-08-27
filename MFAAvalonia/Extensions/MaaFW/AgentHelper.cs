@@ -424,7 +424,8 @@ public static class AgentHelper
                             errorDetails.AppendLine($"标准错误输出：{stderr}");
                             using (PushAgentLogContext(processor, "StdErr"))
                                 LoggerHelper.Error(stderr);
-                            processor.AddLog($"Agent Error: {stderr}", Avalonia.Media.Brushes.OrangeRed, changeColor: false);
+                            processor.AddLog($"Agent Error: {stderr}", Avalonia.Media.Brushes.OrangeRed, changeColor: false,
+                                useMarkdown: true);
                         }
                         if (!string.IsNullOrWhiteSpace(stdout))
                         {
@@ -447,7 +448,8 @@ public static class AgentHelper
                                 errorDetails.AppendLine($"标准错误输出：{stderr}");
                                 using (PushAgentLogContext(processor, "StdErr"))
                                     LoggerHelper.Error(stderr);
-                                processor.AddLog($"Agent Error: {stderr}", Avalonia.Media.Brushes.OrangeRed, changeColor: false);
+                                processor.AddLog($"Agent Error: {stderr}", Avalonia.Media.Brushes.OrangeRed, changeColor: false,
+                                    useMarkdown: true);
                                 if (!string.IsNullOrWhiteSpace(stdout))
                                 {
                                     errorDetails.AppendLine($"标准输出：{stdout}");
@@ -920,7 +922,7 @@ public static class AgentHelper
         DispatcherHelper.PostOnMainThread(() =>
         {
             if (MaaProcessor.CheckShouldLog(outData))
-                processor.AddLog(outData, (Avalonia.Media.IBrush?)null);
+                processor.AddLog(outData, (Avalonia.Media.IBrush?)null, useMarkdown: true);
             else
             {
                 using var _ = PushAgentLogContext(processor, streamKind);
