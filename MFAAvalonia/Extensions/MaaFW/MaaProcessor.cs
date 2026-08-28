@@ -1158,6 +1158,7 @@ public class MaaProcessor
 
     private void DisposeScreenshotTasker()
     {
+        ResetLiveViewScreencapJob();
         DetachScreenshotTasker(requireStopped: true);
     }
 
@@ -1265,6 +1266,89 @@ public class MaaProcessor
             LoggerHelper.Warning($"提交截图任务失败：{ex.Message}");
             return MaaJobStatus.Invalid;
         }
+    }
+
+    /// <summary>
+    /// 实时视图在途截图任务（流水线复用，非阻塞）。
+    /// </summary>
+    private MaaJob? _liveViewScreencapJob;
+
+    /// <summary>
+    /// 流水线式提交实时视图截图：非阻塞，提交后立即返回，截图由控制器在后台执行。
+    /// 若上一帧截图仍在执行则复用而不重复提交，避免任务堆积。
+    /// 相比原 PostScreencap 的同步 Screencap().Wait()，定时器不再被截图耗时阻塞，
+    /// 实时视图刷新率可真正由 LiveViewRefreshRate 决定。
+    /// </summary>
+    /// <returns>null 表示控制器不可用；Succeeded 表示已提交或仍有正常在途截图；
+    /// Failed/Invalid 表示上一帧截图失败（与 PostScreencap 的失败语义一致）。</returns>
+    public MaaJobStatus? PostScreencapPipelined()
+    {
+        var controller = GetScreenshotController(false);
+        if (controller == null)
+        {
+            return MaaJobStatus.Invalid;
+        }
+
+        if (!controller.IsConnected)
+        {
+            return IsAnyScreenshotRelatedWorkRunning(controller)
+                ? MaaJobStatus.Succeeded
+                : MaaJobStatus.Invalid;
+        }
+
+        var job = Volatile.Read(ref _liveViewScreencapJob);
+        if (job != null)
+        {
+            MaaJobStatus status;
+            try
+            {
+                status = job.Status;
+            }
+            catch (ObjectDisposedException)
+            {
+                // 任务器已重建，放弃旧的在途任务
+                Volatile.Write(ref _liveViewScreencapJob, null);
+                return MaaJobStatus.Invalid;
+            }
+            catch
+            {
+                Volatile.Write(ref _liveViewScreencapJob, null);
+                return MaaJobStatus.Invalid;
+            }
+
+            if (status.IsRunning() || status.IsPending())
+            {
+                // 上一帧仍在执行，保持流水线复用，不重复提交
+                return MaaJobStatus.Succeeded;
+            }
+
+            // 上一帧已结束：若失败，先向调用方上报（仅一次），随后替换为新的在途任务
+            Volatile.Write(ref _liveViewScreencapJob, null);
+            if (status is MaaJobStatus.Failed or MaaJobStatus.Invalid)
+            {
+                return status;
+            }
+        }
+
+        try
+        {
+            Volatile.Write(ref _liveViewScreencapJob, controller.Screencap());
+            return MaaJobStatus.Succeeded;
+        }
+        catch (Exception ex)
+        {
+            LoggerHelper.Warning($"提交截图任务失败：{ex.Message}");
+            Volatile.Write(ref _liveViewScreencapJob, null);
+            return MaaJobStatus.Invalid;
+        }
+    }
+
+    /// <summary>
+    /// 实时视图流水线清理：放弃在途截图任务（截图任务器重建/断开时调用）。
+    /// </summary>
+    public void ResetLiveViewScreencapJob()
+    {
+        Volatile.Write(ref _liveViewScreencapJob, null);
     }
 
     public bool IsMainControllerConnected()
