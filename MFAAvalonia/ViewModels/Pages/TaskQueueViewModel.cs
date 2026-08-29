@@ -3291,10 +3291,14 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
                 return;
             if (EnableLiveView && IsConnected)
             {
-                var status = Processor.PostScreencap();
-                if (status != MaaJobStatus.Succeeded)
+                // 流水线：非阻塞提交下一帧截图（若上一帧仍在执行则复用，避免任务堆积），
+                // 随后读取最近完成的一帧进行显示。相比原来的同步 Screencap().Wait()，
+                // 定时器不再被截图耗时阻塞，实际刷新率可真正由 LiveViewRefreshRate 决定。
+                // 返回值为上一帧的失败终态（Failed/Invalid）时走既有恢复逻辑（连续失败达阈值才重建/断开）。
+                var status = Processor.PostScreencapPipelined();
+                if (status is MaaJobStatus.Failed or MaaJobStatus.Invalid)
                 {
-                    if (Processor.HandleScreencapStatus(status))
+                    if (Processor.HandleScreencapStatus(status.Value))
                     {
                         if (Processor.IsMainControllerConnected())
                         {
@@ -3310,7 +3314,6 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
                             });
                         }
                     }
-                    return;
                 }
 
                 var buffer = Processor.GetLiveViewBuffer(false);
@@ -3327,11 +3330,12 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
                         LoggerHelper.Warning($"实时画面为空：截图方式={screencapType}，控制器={controllerType}，原因={reason}");
                         AddLog($"warn: {LangKeys.LiveViewNoImageWarning.ToLocalizationFormatted(false, screencapType, reason)}", (IBrush?)null);
                     }
-                    return;
                 }
-
-                _liveViewNoImageLogged = false;
-                _ = UpdateLiveViewImageAsync(buffer);
+                else
+                {
+                    _liveViewNoImageLogged = false;
+                    _ = UpdateLiveViewImageAsync(buffer);
+                }
             }
             else
             {
