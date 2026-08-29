@@ -50,7 +50,22 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
         _currentController = _processorField.InstanceConfiguration.GetValue(ConfigurationKeys.CurrentController, MaaControllerTypes.Adb, MaaControllerTypes.None, new UniversalEnumConverter<MaaControllerTypes>());
         _savedControllerName = _processorField.InstanceConfiguration.GetValue(ConfigurationKeys.CurrentControllerName, string.Empty);
         // 初始化为当前控制器类型，避免首次 AutoDetectDevice 时用 interface.json 覆盖用户已保存的配置
-        _lastAppliedControllerSettingsType = _currentController;
+        var hasSavedControllerSettings = new[]
+        {
+            ConfigurationKeys.AdbControlInputType,
+            ConfigurationKeys.AdbControlScreenCapType,
+            ConfigurationKeys.Win32ControlMouseType,
+            ConfigurationKeys.Win32ControlKeyboardType,
+            ConfigurationKeys.Win32ControlScreenCapType,
+            ConfigurationKeys.MacOSControlInputType,
+            ConfigurationKeys.MacOSControlScreenCapType,
+            ConfigurationKeys.GamepadControlScreenCapType,
+            ConfigurationKeys.GamepadType
+        }.Any(_processorField.InstanceConfiguration.ContainsKey);
+        // 已有用户配置时，启动阶段不使用 interface.json 覆盖；无配置时允许首次初始化。
+        _lastAppliedControllerSettingsKey = hasSavedControllerSettings
+            ? (_currentController, NormalizeControllerName(_savedControllerName))
+            : null;
         // 提前从配置读取资源，避免 Initialize() 中 UpdateResourcesForController 以空字符串调用时
         // 走 else 分支将第一个资源写入配置，覆盖用户已保存的资源选择
         _currentResource = _processorField.InstanceConfiguration.GetValue(ConfigurationKeys.Resource, string.Empty);
@@ -324,10 +339,10 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
     private bool _suppressDeviceSelectionToast = false;
 
     /// <summary>
-    /// 记录已应用过 interface.json 控制器设置的控制器类型，
+    /// 记录已应用过 interface.json 控制器设置的控制器类型和名称，
     /// 避免每次刷新设备时都用 interface.json 的值覆盖用户配置
     /// </summary>
-    private MaaControllerTypes? _lastAppliedControllerSettingsType;
+    private (MaaControllerTypes Type, string? Name)? _lastAppliedControllerSettingsKey;
 
     // 竖屏模式下的设置弹窗状态
     [ObservableProperty] private bool _isSettingsPopupOpen = false;
@@ -2252,15 +2267,19 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
         if (controllerType == MaaControllerTypes.PlayCover)
             return;
 
-        // 同一控制器类型只应用一次 interface.json 的设置，避免每次刷新都覆盖用户配置
-        if (_lastAppliedControllerSettingsType == controllerType)
-            return;
-        _lastAppliedControllerSettingsType = controllerType;
-
+        // 同一控制器只应用一次 interface.json 的设置，避免每次刷新都覆盖用户配置
+        var controllerName = NormalizeControllerName(GetCurrentControllerName());
         var controller = MaaProcessor.Interface?.Controller?
-            .FirstOrDefault(c => c.Type?.Equals(controllerType.ToJsonKey(), StringComparison.OrdinalIgnoreCase) == true);
+            .FirstOrDefault(c => !string.IsNullOrWhiteSpace(controllerName)
+                && c.Name?.Equals(controllerName, StringComparison.OrdinalIgnoreCase) == true)
+            ?? MaaProcessor.Interface?.Controller?
+                .FirstOrDefault(c => c.Type?.Equals(controllerType.ToJsonKey(), StringComparison.OrdinalIgnoreCase) == true);
+        var settingsKey = (controllerType, controllerName);
+        if (_lastAppliedControllerSettingsKey == settingsKey)
+            return;
 
         if (controller == null) return;
+        _lastAppliedControllerSettingsKey = settingsKey;
 
         if (controllerType == MaaControllerTypes.WlRoots)
         {
@@ -2272,6 +2291,9 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
         HandleInputSettings(controller, isAdb);
         HandleScreenCapSettings(controller, isAdb);
     }
+
+    private static string? NormalizeControllerName(string? name) =>
+        string.IsNullOrWhiteSpace(name) ? null : name.Trim();
 
     private void HandleInputSettings(MaaInterface.MaaResourceController controller, bool isAdb)
     {
