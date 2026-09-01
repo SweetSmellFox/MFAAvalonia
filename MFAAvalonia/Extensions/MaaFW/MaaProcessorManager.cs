@@ -928,6 +928,7 @@ public sealed class MaaProcessorManager
                         
                         // 保存实例名称到配置文件
                         processor.InstanceConfiguration.SetValue(ConfigurationKeys.InstanceName, instanceName);
+                        ApplyPresetSettings(processor, preset.Name);
 
                         LoggerHelper.Info($"[初始化] 基于 preset '{preset.Name}' 创建实例 {instanceId} (显示名称: {instanceName})");
                     }
@@ -1167,6 +1168,31 @@ public sealed class MaaProcessorManager
             }
         }
         return instanceIds;
+    }
+
+    private static void ApplyPresetSettings(MaaProcessor processor, string? presetName)
+    {
+        var settings = ConfigurationManager.GetPresetSettings(presetName);
+        if (settings.Count == 0)
+            return;
+
+        processor.InstanceConfiguration.SetValues(settings);
+
+        // TaskQueueViewModel 读取这些值发生在实例构造时；同步刷新可见属性，
+        // 使首次按 preset 初始化时立即反映模板配置。
+        if (settings.TryGetValue(ConfigurationKeys.EnableLiveView, out var liveView)
+            && bool.TryParse(liveView?.ToString(), out var enableLiveView)
+            && processor.ViewModel != null)
+        {
+            processor.ViewModel.EnableLiveView = enableLiveView;
+        }
+
+        if (settings.TryGetValue(ConfigurationKeys.LiveViewRefreshRate, out var refreshRate)
+            && double.TryParse(refreshRate?.ToString(), out var rate)
+            && processor.ViewModel != null)
+        {
+            processor.ViewModel.LiveViewRefreshRate = rate;
+        }
     }
 
     /// <summary>

@@ -86,6 +86,24 @@ MFAAvalonia 面向资源发布后的配置与运行。开发和排查 Pipeline �
 
 如需提供首次启动的预设配置，可在发布包的 `config` 目录放置 `config.template.json`。仅当目录中不存在其它配置 JSON（包括 `config/instances` 下的实例配置）时，该文件才会转换为 `config.json`；更新已有安装时不会覆盖或新增用户配置。
 
+模板还可使用 `PresetSettings` 字典为不同 preset 指定独立配置：
+
+```json
+{
+  "UI.LiveView.EnableLiveView": false,
+  "PresetSettings": {
+    "preset_a": {
+      "UI.LiveView.EnableLiveView": true
+    },
+    "preset_b": {
+      "UI.LiveView.EnableLiveView": false
+    }
+  }
+}
+```
+
+`PresetSettings` 仅用于首次初始化 preset，转换完成后不会作为普通配置项写入 `config.json`。
+
 ## 启动参数
 
 MFAAvalonia 支持通过命令行选择实例并执行任务。实例可以使用名称或实例 ID 指定；实例 ID 可在实例标签页的右键菜单中复制。

@@ -18,6 +18,7 @@ namespace MFAAvalonia.Configuration;
 public static class ConfigurationManager
 {
     private const string DefaultConfigTemplateFileName = "config.template.json";
+    private static Dictionary<string, Dictionary<string, object>> _presetSettings = new(StringComparer.OrdinalIgnoreCase);
 
     private static string ConfigDir
     {
@@ -168,6 +169,33 @@ public static class ConfigurationManager
         return GlobalConfiguration.GetValue(ConfigurationKeys.DefaultConfig, "Default");
     }
 
+    public static Dictionary<string, object> GetPresetSettings(string? presetName)
+    {
+        if (string.IsNullOrWhiteSpace(presetName))
+            return new Dictionary<string, object>();
+
+        try
+        {
+            object? value = _presetSettings.Count > 0
+                ? _presetSettings
+                : Current.Config.TryGetValue("PresetSettings", out var legacyValue) ? legacyValue : null;
+            if (value is null)
+                return new Dictionary<string, object>();
+
+            var presets = value is Newtonsoft.Json.Linq.JObject obj
+                ? obj.ToObject<Dictionary<string, Dictionary<string, object>>>()
+                : JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, object>>>(
+                    JsonConvert.SerializeObject(value));
+            return presets?.FirstOrDefault(pair => pair.Key.Equals(presetName, StringComparison.OrdinalIgnoreCase)).Value
+                ?? new Dictionary<string, object>();
+        }
+        catch (Exception ex)
+        {
+            LoggerHelper.Warning($"读取 preset 专属配置失败：{presetName}，已忽略。{ex.Message}");
+            return new Dictionary<string, object>();
+        }
+    }
+
     private static AvaloniaList<MFAConfiguration> LoadConfigurations()
     {
         LoggerHelper.Info("正在加载配置列表...");
@@ -215,8 +243,10 @@ public static class ConfigurationManager
         if (!File.Exists(templatePath))
             return;
 
-        var hasExistingConfig = Directory.EnumerateFiles(configDir, "*.json", SearchOption.TopDirectoryOnly)
-            .Any(path => !path.Equals(templatePath, StringComparison.OrdinalIgnoreCase));
+        // 只有应用实际使用的正式配置文件才会阻止预设接管；同目录下其它
+        // 非 mfa 配置（例如 maa_option.json 或资源附带的 JSON）不应影响首次初始化。
+        var hasExistingConfig = File.Exists(defaultConfigPath)
+            || Directory.EnumerateFiles(configDir, "mfa_*.json", SearchOption.TopDirectoryOnly).Any();
 
         var instancesDir = Path.Combine(configDir, "instances");
         if (!hasExistingConfig && Directory.Exists(instancesDir))
@@ -239,7 +269,21 @@ public static class ConfigurationManager
 
         try
         {
-            File.Move(templatePath, defaultConfigPath);
+            templateConfig.TryGetValue("PresetSettings", out var presetSettings);
+            templateConfig.Remove("PresetSettings");
+            JsonHelper.SaveJson(defaultConfigPath, templateConfig);
+
+            if (presetSettings is not null)
+            {
+                _presetSettings = presetSettings is Newtonsoft.Json.Linq.JObject presetObject
+                    ? presetObject.ToObject<Dictionary<string, Dictionary<string, object>>>()
+                        ?? new(StringComparer.OrdinalIgnoreCase)
+                    : JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, object>>>(
+                        JsonConvert.SerializeObject(presetSettings))
+                        ?? new(StringComparer.OrdinalIgnoreCase);
+            }
+
+            File.Delete(templatePath);
             LoggerHelper.Info($"已将临时预设配置转换为默认配置：{DefaultConfigTemplateFileName} -> config.json");
         }
         catch (Exception ex)

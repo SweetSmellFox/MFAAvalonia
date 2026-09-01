@@ -86,6 +86,24 @@ For a manual package, the MaaFramework native libraries, resource directory, and
 
 To provide a first-launch preset, place `config.template.json` in the package's `config` directory. It is promoted to `config.json` only when no other configuration JSON exists, including instance configuration under `config/instances`; updating an existing installation does not overwrite or add user configuration.
 
+The template can also use a `PresetSettings` dictionary to override settings for individual presets:
+
+```json
+{
+  "UI.LiveView.EnableLiveView": false,
+  "PresetSettings": {
+    "preset_a": {
+      "UI.LiveView.EnableLiveView": true
+    },
+    "preset_b": {
+      "UI.LiveView.EnableLiveView": false
+    }
+  }
+}
+```
+
+`PresetSettings` is used only during first-launch preset initialization and is not written as a regular setting to `config.json` after conversion.
+
 ## Launch Parameters
 
 MFAAvalonia can select instances and run tasks from the command line. An instance can be specified by name or instance ID. Copy an instance ID from the context menu of its tab.
