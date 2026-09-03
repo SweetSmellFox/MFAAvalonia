@@ -928,7 +928,8 @@ public sealed class MaaProcessorManager
                         
                         // 保存实例名称到配置文件
                         processor.InstanceConfiguration.SetValue(ConfigurationKeys.InstanceName, instanceName);
-                        ApplyPresetSettings(processor, preset.Name);
+                        ApplyPresetSettings(processor, preset, i);
+                        // 先应用 preset，再写入专属配置，避免 preset 命令覆盖模板设置。
 
                         LoggerHelper.Info($"[初始化] 基于 preset '{preset.Name}' 创建实例 {instanceId} (显示名称: {instanceName})");
                     }
@@ -949,6 +950,7 @@ public sealed class MaaProcessorManager
                             DispatcherHelper.PostOnMainThread(() =>
                             {
                                 Current.ViewModel.ApplyPresetCommand.Execute(firstPreset);
+                                ApplyPresetSettings(Current, firstPreset, 0);
                             });
                         }
 
@@ -1170,13 +1172,31 @@ public sealed class MaaProcessorManager
         return instanceIds;
     }
 
-    private static void ApplyPresetSettings(MaaProcessor processor, string? presetName)
+    private static void ApplyPresetSettings(MaaProcessor processor, MaaInterface.MaaInterfacePreset? preset, int presetIndex = -1)
     {
-        var settings = ConfigurationManager.GetPresetSettings(presetName);
+        var settings = new Dictionary<string, object>();
+        foreach (var value in ConfigurationManager.GetTemplateSettings())
+            settings[value.Key] = value.Value;
+        if (ConfigurationManager.Current.Config.TryGetValue(ConfigurationKeys.EnableLiveView, out var globalLiveView))
+            settings[ConfigurationKeys.EnableLiveView] = globalLiveView;
+        if (ConfigurationManager.Current.Config.TryGetValue(ConfigurationKeys.LiveViewRefreshRate, out var globalRefreshRate))
+            settings[ConfigurationKeys.LiveViewRefreshRate] = globalRefreshRate;
+
+        // preset 专属值优先于全局默认值。
+        var presetSettings = presetIndex >= 0
+            ? ConfigurationManager.GetPresetSettings(presetIndex, preset?.Name, preset?.Label, preset?.DisplayName)
+            : ConfigurationManager.GetPresetSettings(preset?.Name, preset?.Label, preset?.DisplayName);
+        foreach (var value in presetSettings)
+            settings[value.Key] = value.Value;
+
         if (settings.Count == 0)
+        {
+            LoggerHelper.Info($"[初始化] preset '{preset?.Name}' 未找到专属配置");
             return;
+        }
 
         processor.InstanceConfiguration.SetValues(settings);
+        LoggerHelper.Info($"[初始化] preset '{preset?.Name}' 已写入 {settings.Count} 项实例配置");
 
         // TaskQueueViewModel 读取这些值发生在实例构造时；同步刷新可见属性，
         // 使首次按 preset 初始化时立即反映模板配置。
@@ -1350,6 +1370,7 @@ public sealed class MaaProcessorManager
                 DispatcherHelper.PostOnMainThread(() =>
                 {
                     processor.ViewModel.ApplyPresetCommand.Execute(preset);
+                    ApplyPresetSettings(processor, preset, presetIndex);
                 });
             }
 

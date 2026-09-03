@@ -19,6 +19,7 @@ public static class ConfigurationManager
 {
     private const string DefaultConfigTemplateFileName = "config.template.json";
     private static Dictionary<string, Dictionary<string, object>> _presetSettings = new(StringComparer.OrdinalIgnoreCase);
+    private static Dictionary<string, object> _templateSettings = new(StringComparer.OrdinalIgnoreCase);
 
     private static string ConfigDir
     {
@@ -169,9 +170,10 @@ public static class ConfigurationManager
         return GlobalConfiguration.GetValue(ConfigurationKeys.DefaultConfig, "Default");
     }
 
-    public static Dictionary<string, object> GetPresetSettings(string? presetName)
+    public static Dictionary<string, object> GetPresetSettings(params string?[] presetNames)
     {
-        if (string.IsNullOrWhiteSpace(presetName))
+        var names = presetNames.Where(name => !string.IsNullOrWhiteSpace(name)).ToArray();
+        if (names.Length == 0)
             return new Dictionary<string, object>();
 
         try
@@ -186,14 +188,34 @@ public static class ConfigurationManager
                 ? obj.ToObject<Dictionary<string, Dictionary<string, object>>>()
                 : JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, object>>>(
                     JsonConvert.SerializeObject(value));
-            return presets?.FirstOrDefault(pair => pair.Key.Equals(presetName, StringComparison.OrdinalIgnoreCase)).Value
-                ?? new Dictionary<string, object>();
+            if (presets == null)
+                return new Dictionary<string, object>();
+
+            foreach (var name in names)
+            {
+                var match = presets.FirstOrDefault(pair => pair.Key.Equals(name, StringComparison.OrdinalIgnoreCase));
+                if (match.Value != null)
+                    return match.Value;
+            }
+
+            return new Dictionary<string, object>();
         }
         catch (Exception ex)
         {
-            LoggerHelper.Warning($"读取 preset 专属配置失败：{presetName}，已忽略。{ex.Message}");
+            LoggerHelper.Warning($"读取 preset 专属配置失败：{string.Join(", ", names)}，已忽略。{ex.Message}");
             return new Dictionary<string, object>();
         }
+    }
+
+    public static Dictionary<string, object> GetTemplateSettings()
+        => new(_templateSettings, StringComparer.OrdinalIgnoreCase);
+
+    public static Dictionary<string, object> GetPresetSettings(int presetIndex, params string?[] presetNames)
+    {
+        var names = presetNames.Where(name => !string.IsNullOrWhiteSpace(name)).ToList();
+        names.Add(presetIndex.ToString());
+        names.Add($"preset_{presetIndex}");
+        return GetPresetSettings(names.ToArray());
     }
 
     private static AvaloniaList<MFAConfiguration> LoadConfigurations()
@@ -271,6 +293,7 @@ public static class ConfigurationManager
         {
             templateConfig.TryGetValue("PresetSettings", out var presetSettings);
             templateConfig.Remove("PresetSettings");
+            _templateSettings = new Dictionary<string, object>(templateConfig, StringComparer.OrdinalIgnoreCase);
             JsonHelper.SaveJson(defaultConfigPath, templateConfig);
 
             if (presetSettings is not null)
