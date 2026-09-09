@@ -3314,6 +3314,7 @@ public partial class TaskQueueViewModel : ViewModelBase, IDisposable
                             });
                         }
                     }
+                    return;
                 }
 
                 var buffer = Processor.GetLiveViewBuffer(false);
