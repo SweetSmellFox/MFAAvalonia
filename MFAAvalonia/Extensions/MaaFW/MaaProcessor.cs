@@ -1286,7 +1286,7 @@ public class MaaProcessor
     /// 相比原 PostScreencap 的同步 Screencap().Wait()，定时器不再被截图耗时阻塞，
     /// 实时视图刷新率可真正由 LiveViewRefreshRate 决定。
     /// </summary>
-    /// <returns>null 表示控制器不可用；Succeeded 表示已提交或仍有正常在途截图；
+    /// <returns>null 表示控制器不可用或截图任务器已切换；Succeeded 表示已提交或仍有正常在途截图；
     /// Failed/Invalid 表示上一帧截图失败（与 PostScreencap 的失败语义一致）。</returns>
     public MaaJobStatus? PostScreencapPipelined()
     {
@@ -1361,7 +1361,7 @@ public class MaaProcessor
     }
 
     /// <summary>
-    /// 实时视图流水线清理：放弃在途截图任务（截图任务器重建/断开时调用）。
+    /// 实时视图流水线清理：放弃在途截图任务。截图任务器分离时也会在代际变更下清空在途任务。
     /// </summary>
     public void ResetLiveViewScreencapJob()
     {
