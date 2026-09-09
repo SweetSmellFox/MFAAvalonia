@@ -1286,7 +1286,7 @@ public class MaaProcessor
         var controller = GetScreenshotController(false);
         if (controller == null)
         {
-            return MaaJobStatus.Invalid;
+            return null;
         }
 
         if (!controller.IsConnected)
