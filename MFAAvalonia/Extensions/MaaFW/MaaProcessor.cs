@@ -1299,6 +1299,12 @@ public class MaaProcessor
 
         if (!controller.IsConnected)
         {
+            if (screenshotTaskerGeneration != Volatile.Read(ref _screenshotTaskerGeneration))
+            {
+                // The tasker was detached while resolving its controller.
+                return null;
+            }
+
             return IsAnyScreenshotRelatedWorkRunning(controller)
                 ? MaaJobStatus.Succeeded
                 : MaaJobStatus.Invalid;
